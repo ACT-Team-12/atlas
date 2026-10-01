@@ -10,12 +10,13 @@ Where we park ideas, customer evidence, and decisions so the whole team can disc
 
 | Date | Idea | Proposed by | Status | File |
 |------|------|-------------|--------|------|
-| 2026-10-01 | All-in-one healthcare hub (wearables, appointments, meds, guardians, AI insights, doctor access) | Akhil | Under discussion. Suggested wedge for Mission 2: patient medication tracking (doctor access = long-term vision) | [ideas/2026-10-01-healthcare-hub.md](ideas/2026-10-01-healthcare-hub.md) |
+| 2026-10-01 | All-in-one healthcare hub (wearables, appointments, meds, guardians, AI insights, doctor access) | Akhil | Merged into the between-visits loop below. Medication logging becomes step 2; doctor access stays the long-term vision | [ideas/2026-10-01-healthcare-hub.md](ideas/2026-10-01-healthcare-hub.md) |
+| 2026-10-01 | Close the communication gap: explain the after-visit summary with sources, track between visits, AI summary for the next appointment | Timothy | Under discussion. **Merged proposal:** after-visit summary → care plan → between-visit log → pre-visit summary. Mission 2 = step 1 | [ideas/2026-10-01-timothy-communication-gap.md](ideas/2026-10-01-timothy-communication-gap.md) |
 
-**Status values:** Proposed → Under discussion → Chosen / Parked (later mission) / Dropped
+**Status values:** Proposed → Under discussion → Merged / Chosen / Parked (later mission) / Dropped
 
 ## Decisions
 
 | Date | Decision | Decided by | Why |
 |------|----------|------------|-----|
-| | _Pending: Mission 2 focus (one situation)_ | Team (owner: Timothy) | |
+| | _Pending: adopt the merged between-visits loop, with turning the after-visit summary into a care plan as the Mission 2 task?_ | Team (owner: Timothy) | |

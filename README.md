@@ -2,6 +2,7 @@
 
 Shared tracker for missions, our submissions, and who owns what.
 Each mission folder has `brief.md` (what was asked) and `response.md` (what we submitted / are drafting).
+Ideas, customer evidence, and team decisions live in [research/](research/).
 
 ## Mission tracker
 

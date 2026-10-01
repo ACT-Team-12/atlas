@@ -15,6 +15,8 @@ Read these before judging anything. They change as the challenge goes on, so don
 - `missions/NN-slug/brief.md`: what the mission asks for. The **Deliverable** checklist is what gets graded.
 - `missions/NN-slug/response.md`: what the team submitted or is drafting. The latest response defines the agreed problem, product path, and AI function.
 
+- `research/`: idea log, customer evidence, and team decisions. When someone proposes an idea, add it as `research/ideas/YYYY-MM-DD-slug.md` (original text, alignment review, parked items, open questions) and add a row to the idea log in `research/README.md`. Only real conversations, observations, and cited sources go in `research/evidence/`.
+
 The **active mission** is the earliest one in the tracker that isn't marked submitted. Check its due date against today's date and say how much time is left.
 
 ## What to do, by situation

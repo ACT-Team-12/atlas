@@ -167,3 +167,51 @@ export async function explainResults(req: ResultsRequest): Promise<ResultsRespon
   if (!parsed.success) throw new ExtractError("The AI returned a malformed answer. Try again.", 502);
   return { ...checkRows(req.text, parsed.data.rows), model: MODEL, ms: Date.now() - t0 };
 }
+
+/**
+ * Lab results from a photo or screenshot. The AI only copies the report into text lines here; nothing is judged.
+ * The person checks that text against their screen and fixes it, and only then does the text path above run, so every
+ * row still quotes a line from text the person confirmed.
+ */
+export const ResultsReadRequestSchema = z.object({
+  image_base64: z.string().min(100, "Add a photo or screenshot of your lab results.").max(8_000_000, "That photo is too large. Try a smaller one."),
+  image_media_type: z.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]),
+});
+export type ResultsReadRequest = z.infer<typeof ResultsReadRequestSchema>;
+export type ResultsReadResponse = { text: string; model: string; ms: number };
+
+const ReadOutput = z.object({ readable: z.boolean(), text: z.string() });
+
+const READ_SYSTEM = `You copy a photo or screenshot of a lab report into plain text. You do not explain or judge anything.
+Write one line per test result, keeping what is printed on that row in order: test name, result, units, reference range, and any flag (such as H, L, High, Low).
+Copy every number exactly as printed, including <, >, = signs, commas and decimal points. Do not round, convert, fix or guess a number. If part of a number can't be read, write [unreadable] in its place.
+Keep section headings (like LIPID PANEL) on their own lines. Leave out names, dates of birth, addresses, phone numbers, account or record numbers and barcodes.
+If the image is not a lab report, set readable to false and leave text empty.`;
+
+export async function readLabPhoto(req: ResultsReadRequest): Promise<ResultsReadResponse> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
+  const t0 = Date.now();
+  const client = new Anthropic({ apiKey });
+  const msg = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 6000,
+    system: READ_SYSTEM,
+    output_config: { effort: "low", format: zodOutputFormat(ReadOutput) },
+    messages: [{
+      role: "user",
+      content: [
+        { type: "image", source: { type: "base64", media_type: req.image_media_type, data: req.image_base64 } },
+        { type: "text", text: "Copy the lab results in this image into text lines." },
+      ],
+    }],
+  });
+  if (msg.stop_reason === "refusal") throw new ExtractError("The AI declined to read this photo.", 422);
+  const parsed = ReadOutput.safeParse(msg.parsed_output);
+  if (!parsed.success) throw new ExtractError("The AI returned a malformed answer. Try again.", 502);
+  const text = parsed.data.text.trim();
+  if (!parsed.data.readable || text.length < 20) {
+    throw new ExtractError("We couldn't find lab results in that photo. Try a clearer photo, or paste the text.", 422);
+  }
+  return { text, model: MODEL, ms: Date.now() - t0 };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkRows, parseRange, printedFlag } from "./results";
+import { checkRows, parseRange, printedFlag, ResultsReadRequestSchema } from "./results";
 import { SAMPLE_LABS } from "./sampleLabs";
 
 const row = (o: Partial<{ test: string; value: string; unit: string; range_text: string; quote: string }>) => ({
@@ -86,6 +86,14 @@ describe("lab results: our code decides what is outside the range", () => {
     expect(r.dropped).toEqual([]);
     // Glucose, Potassium, A1c, Total Cholesterol and LDL are outside; the other five are inside.
     expect(r.counts).toEqual({ outside: 5, inside: 5, unknown: 0 });
+  });
+
+  it("a photo read accepts only images of a sane size", () => {
+    const img = "a".repeat(200);
+    expect(ResultsReadRequestSchema.safeParse({ image_base64: img, image_media_type: "image/jpeg" }).success).toBe(true);
+    expect(ResultsReadRequestSchema.safeParse({ image_base64: img, image_media_type: "application/pdf" }).success).toBe(false);
+    expect(ResultsReadRequestSchema.safeParse({ image_base64: "a".repeat(8_000_001), image_media_type: "image/png" }).success).toBe(false);
+    expect(ResultsReadRequestSchema.safeParse({ image_media_type: "image/png" }).success).toBe(false);
   });
 
   it("the sample lab report is clearly labeled and contains no real person", () => {

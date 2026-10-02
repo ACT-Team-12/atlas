@@ -544,8 +544,7 @@ export function CarePlanTool() {
                     </div>
                   )}
                   {[...bookAt.values()].includes(i) && (
-                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean)} resources={s.resource_ids.map((id) => plan.resources[id]).filter(Boolean)}
-                      barriers={barriers} language={language} />
+                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean)} barriers={barriers} language={language} />
                   )}
                 </li>
               ))}

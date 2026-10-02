@@ -1,14 +1,13 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import type { ResourceCard } from "@/lib/plan";
 import type { Barrier } from "@/lib/resources";
 import { bookableItem, bookingTarget, buildIcs, callScript, eventDescription, type BookableItem } from "@/lib/booking";
 
 /** "Book it now" for one plan step: call script, call button, add-to-calendar file, and why it still matters. */
-export function BookIt({ items, resources, barriers, language }: { items: BookableItem[]; resources: ResourceCard[]; barriers: Barrier[]; language: string }) {
+export function BookIt({ items, barriers, language }: { items: BookableItem[]; barriers: Barrier[]; language: string }) {
   const item = bookableItem(items);
-  const target = useMemo(() => bookingTarget(resources), [resources]);
+  const target = useMemo(() => (item ? bookingTarget(item) : null), [item]);
   const [open, setOpen] = useState(false);
   const [when, setWhen] = useState("");
   const [copied, setCopied] = useState(false);
@@ -16,7 +15,7 @@ export function BookIt({ items, resources, barriers, language }: { items: Bookab
   const dateId = useId();
   if (!item) return null;
 
-  const script = callScript(item, barriers, target, language);
+  const script = callScript(item, barriers, language);
 
   function copy() {
     navigator.clipboard?.writeText(script.join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
@@ -31,7 +30,6 @@ export function BookIt({ items, resources, barriers, language }: { items: Bookab
       start,
       minutes: 60,
       title: item.title,
-      location: target?.type === "clinic" ? target.address : undefined,
       description: eventDescription(item, target),
     });
     const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
@@ -51,18 +49,14 @@ export function BookIt({ items, resources, barriers, language }: { items: Bookab
       {open && (
         <div id={panelId} className="mt-3 rounded-2xl border-2 border-ink bg-paper p-4 space-y-4">
           <div>
-            <p className="font-extrabold">1. Call {target ? target.name : "the place your paper names, or the clinic that gave it to you"}</p>
+            <p className="font-extrabold">1. Call {target ? "the number on your paper" : "the place your paper names, or the clinic that gave it to you"}</p>
             {target ? (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold">
                 <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${target.phone.replace(/[^\d]/g, "")}`}>Call {target.phone}</a>
-                {target.type === "clinic" && (
-                  <span className="text-xs font-semibold text-ink/70">
-                    {target.hours_per_week ? `Listed as open about ${target.hours_per_week} hours a week. Ask for times that fit you.` : "Hours not listed. Ask when they are open."}
-                  </span>
-                )}
+                <span className="text-xs font-semibold text-ink/70">This number is in the line from your paper.</span>
               </div>
             ) : (
-              <p className="text-sm text-ink/70 mt-1">Use the phone number printed on your paper. We only show numbers we have verified.</p>
+              <p className="text-sm text-ink/70 mt-1">Use the phone number printed on your paper. The clinics and programs in your plan help with rides and costs; they can&apos;t book this for you.</p>
             )}
           </div>
 

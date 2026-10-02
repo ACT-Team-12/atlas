@@ -56,6 +56,8 @@ export type PlanResponse = {
   located: { by: "zip" | "device" | "none"; label: string };
   stats: { candidates: number; steps: number; dropped_refs: number; ms: number };
   model: string;
+  /** One-time token to rate this plan (added by /api/plan; null when feedback is not configured). */
+  feedback_token?: string | null;
 };
 
 const SYSTEM = `You are ATLAS, helping a community health worker or a patient in metro Atlanta turn a clinic visit into a plan they can finish.

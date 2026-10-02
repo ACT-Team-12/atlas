@@ -36,11 +36,13 @@ export type AtlasEvent = {
   role?: "patient" | "caregiver" | "helper" | "tester";
   rating?: number;
   would_use?: "yes" | "maybe" | "no";
+  /** Nonce of the one-time feedback token (unique), so one plan can be rated once. */
+  feedback_nonce?: string;
 };
 
 const COLS = [
   "surface", "kind", "language", "reading_level", "source_kind", "steps", "held_back", "dropped_refs",
-  "quiz_total", "quiz_first_try", "barriers", "ms", "role", "rating", "would_use",
+  "quiz_total", "quiz_first_try", "barriers", "ms", "role", "rating", "would_use", "feedback_nonce",
 ] as const;
 
 /** Our own scripts and browser tests send this header so their runs never count as real use. */
@@ -54,20 +56,24 @@ export function surfaceOf(req: Request): AtlasEvent["surface"] {
   return s === "ios" || s === "android" ? s : "web";
 }
 
-export async function recordEvent(e: AtlasEvent, isTest: boolean): Promise<boolean> {
+export type RecordResult = "ok" | "duplicate" | "failed";
+
+export async function recordEvent(e: AtlasEvent, isTest: boolean): Promise<RecordResult> {
   const p = getPool();
-  if (!p) return false;
+  if (!p) return "failed";
   const values = COLS.map((c) => e[c] ?? null);
   try {
     await p.query(
       `insert into atlas_events (env, is_test, ${COLS.join(", ")}) values ($1, $2, ${COLS.map((_, i) => `$${i + 3}`).join(", ")})`,
       [ENV, isTest, ...values],
     );
-    return true;
+    return "ok";
   } catch (err) {
+    // 23505 = unique violation: this feedback token was already used.
+    if ((err as { code?: string })?.code === "23505") return "duplicate";
     // Error type only, never values, so nothing about a person can land in the host logs.
     console.error("recordEvent failed", err instanceof Error ? err.name : typeof err);
-    return false;
+    return "failed";
   }
 }
 

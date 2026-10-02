@@ -14,7 +14,7 @@ const RATINGS = [
 const USE = [{ v: "yes", label: "Yes" }, { v: "maybe", label: "Maybe" }, { v: "no", label: "No" }] as const;
 
 /** Three taps, no typing: nothing identifying can be sent. Saved anonymously so we can report real use. */
-export function Feedback({ language }: { language: string }) {
+export function Feedback({ language, token }: { language: string; token: string | null }) {
   const [role, setRole] = useState<(typeof ROLES)[number]["v"] | null>(null);
   const [rating, setRating] = useState<number | null>(null);
   const [use, setUse] = useState<(typeof USE)[number]["v"] | null>(null);
@@ -28,7 +28,7 @@ export function Feedback({ language }: { language: string }) {
       const res = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, rating, would_use: use, language }),
+        body: JSON.stringify({ role, rating, would_use: use, language, token }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
@@ -40,6 +40,9 @@ export function Feedback({ language }: { language: string }) {
   }
 
   const pill = (on: boolean) => `rounded-full border-2 px-4 py-2 text-sm font-bold transition-colors ${on ? "border-ink bg-ink text-paper" : "border-ink/60 bg-paper hover:bg-mint-soft"}`;
+
+  // No token means this server cannot accept a rating for this plan, so the card is not offered.
+  if (!token) return null;
 
   if (state === "done") {
     return (

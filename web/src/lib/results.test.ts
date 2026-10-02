@@ -48,7 +48,7 @@ describe("lab results: our code decides what is outside the range", () => {
   it("judges from the report's own full line, never from the AI's copy of it", () => {
     const src = "Sodium 139 mmol/L 136-145\nPotassium 3.2 mmol/L 3.5-5.1 L\nLDL 162 mg/dL <100";
     const r = checkRows(src, [
-      row({ test: "Sodium", value: "139", range_text: "136-145", quote: "Sodium 139 mmol/L 136-145 ... H" }), // flag added after an ellipsis
+      row({ test: "Sodium", value: "139", range_text: "136-145", quote: "Sodium 139 mmol/L 136-145 ... H" }), // flag added after an ellipsis: too short to check, so the quote is refused
       row({ test: "Sodium", value: "139", range_text: "136-145", quote: "Sodium 139 mmol/L 136-145\nPotassium 3.2 mmol/L 3.5-5.1 L" }), // runs into the next line
       row({ test: "Potassium", value: "3.2", range_text: "", quote: "Potassium 3.2" }), // cut short before the flag
       row({ test: "LDL", value: "100", range_text: "<100", quote: "LDL 162 mg/dL <100" }), // value copied from the range
@@ -56,9 +56,9 @@ describe("lab results: our code decides what is outside the range", () => {
     ]);
     expect(r.rows.map((x) => [x.test, x.status, x.direction, x.quote])).toEqual([
       ["Potassium", "outside", "low", "Potassium 3.2 mmol/L 3.5-5.1 L"],
-      ["Sodium", "inside", null, "Sodium 139 mmol/L 136-145"],
     ]);
     expect(r.dropped).toEqual([
+      { test: "Sodium", reason: "not_in_report" },
       { test: "Sodium", reason: "not_one_line" },
       { test: "LDL", reason: "value_not_in_quote" },
       { test: "Ferritin", reason: "test_not_in_line" },

@@ -29,16 +29,20 @@ jobs:
         working-directory: core/atlas-verify
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned: the committed pkg/atlas_verify.wasm is rebuilt below and must match byte for byte, which only holds
+      # for the same rustc. build-wasm.sh refuses any other version. Bump this, rebuild pkg/ and commit together.
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.0
           targets: wasm32-unknown-unknown
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core/atlas-verify
+      # Pinned: Node 22.23.2 is on Unicode 17.0, the same as the Rust toolchain. parity.sh fails on any skew.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.23.2
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo clippy --lib --target wasm32-unknown-unknown -- -D warnings
@@ -50,5 +54,6 @@ jobs:
       - name: Parity (fresh build)
         run: ./parity.sh
       - run: node js/demo.mjs
-      # parity.json is deterministic, so a stale committed result fails here.
-      - run: git diff --exit-code -- parity.json
+      # Proves the committed package came from this source (and that parity.json, which is deterministic, is current).
+      - name: Committed pkg and parity.json match the fresh build
+        run: git diff --exit-code -- pkg/atlas_verify.wasm pkg/atlas_verify.mjs parity.json

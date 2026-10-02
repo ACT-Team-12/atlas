@@ -40,12 +40,18 @@ function normalizeWithMap(src: string): { norm: string; map: number[] } {
   return { norm: norm.trimEnd(), map };
 }
 
-/** Strips ellipses the model sometimes adds; each fragment must still be found in order. */
+/**
+ * Splits on the ellipses the model sometimes adds; each fragment must still be found in order.
+ * Only EMPTY fragments are dropped (a leading or trailing ellipsis). If any remaining fragment is shorter than 3
+ * characters the whole quote is refused (returns []): silently dropping it would let "Take ... 5 ... mg" ground on
+ * "Take a seat." with the invented dose never checked.
+ */
 function fragments(quote: string): string[] {
-  return normalize(quote)
+  const frags = normalize(quote)
     .split(/\.\.\.|…/)
     .map((f) => f.replace(/^["'\s]+|["'\s]+$/g, "").trim())
-    .filter((f) => f.length >= 3);
+    .filter((f) => f.length > 0);
+  return frags.some((f) => f.length < 3) ? [] : frags;
 }
 
 export function findSpan(source: string, quote: string): { start: number; end: number } | null {

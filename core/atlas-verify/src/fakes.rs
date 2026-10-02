@@ -126,7 +126,58 @@ fn find_word(text: &str, word: &str) -> Option<usize> {
         .find(|&p| boundary(s, p) && s[p..p + w.len()].eq_ignore_ascii_case(w) && boundary(s, p + w.len()))
 }
 
-/// JS `Number.prototype.toString()` for the values `Number(x) * 10` can produce.
+/// Splits Rust's `{:e}` output ("d.ddde-N") into its digits and decimal exponent.
+fn sci_parts(s: &str) -> (Vec<u8>, i32) {
+    let (m, e) = s.split_once('e').expect("{:e} output has an exponent");
+    let digits = m.bytes().filter(u8::is_ascii_digit).map(|b| b - b'0').collect();
+    (digits, e.parse().expect("integer exponent"))
+}
+
+/// The digits of positive finite `a` per ECMAScript Number::toString: the fewest significant digits `k` that round-trip
+/// and, among those, the value closest to `a`, ties to an even last digit (what V8 does). Rust's `{:e}` gives the
+/// right `k` but rounds a tie up, e.g. 9912944917644.8125 prints ...813 where JS prints ...812. Returns the digits
+/// and `n`, the position of the decimal point (value = 0.d1d2... * 10^n).
+fn js_shortest_digits(a: f64) -> (Vec<u8>, i32) {
+    let (shortest, e) = sci_parts(&format!("{a:e}"));
+    let k = shortest.len();
+    // The exact binary value has at most 767 significant decimal digits, so 800 prints it exactly.
+    let (exact, mut ex) = sci_parts(&format!("{a:.800e}"));
+    let mut d = exact[..k].to_vec();
+    let rest = &exact[k..];
+    let round_up = match rest.first() {
+        Some(&r) if r > 5 => true,
+        Some(&5) => rest[1..].iter().any(|&x| x != 0) || d[k - 1] % 2 == 1,
+        _ => false,
+    };
+    if round_up {
+        let mut i = k;
+        loop {
+            if i == 0 {
+                d.insert(0, 1);
+                d.truncate(k);
+                ex += 1;
+                break;
+            }
+            i -= 1;
+            if d[i] == 9 {
+                d[i] = 0;
+            } else {
+                d[i] += 1;
+                break;
+            }
+        }
+    }
+    let as_text: String = d.iter().map(|x| char::from(b'0' + x)).collect();
+    if format!("{}e{}", as_text, ex - (k as i32 - 1)).parse::<f64>() == Ok(a) {
+        (d, ex + 1)
+    } else {
+        // The nearest k-digit value does not round-trip (only possible next to a power of two, where the gap below
+        // is half the gap above); the shortest round-tripping value Rust found is then the only candidate.
+        (shortest, e + 1)
+    }
+}
+
+/// JS `Number.prototype.toString()` (ECMAScript Number::toString, radix 10).
 fn js_number_to_string(v: f64) -> String {
     if v.is_nan() {
         return "NaN".into();
@@ -137,18 +188,26 @@ fn js_number_to_string(v: f64) -> String {
     if v == 0.0 {
         return "0".into();
     }
-    let a = v.abs();
-    if (1e-6..1e21).contains(&a) {
-        // Rust's Display prints the shortest round-tripping digits without an exponent, as JS does in this range.
-        format!("{v}")
+    let sign = if v < 0.0 { "-" } else { "" };
+    let (d, n) = js_shortest_digits(v.abs());
+    let k = d.len() as i32;
+    let s: String = d.iter().map(|x| char::from(b'0' + x)).collect();
+    let body = if k <= n && n <= 21 {
+        format!("{s}{}", "0".repeat((n - k) as usize))
+    } else if 0 < n && n <= 21 {
+        format!("{}.{}", &s[..n as usize], &s[n as usize..])
+    } else if -6 < n && n <= 0 {
+        format!("0.{}{s}", "0".repeat((-n) as usize))
     } else {
-        // JS: shortest digits, then "e+N" / "e-N".
-        let s = format!("{v:e}");
-        match s.split_once('e') {
-            Some((m, e)) if !e.starts_with('-') => format!("{m}e+{e}"),
-            _ => s,
+        let exp = n - 1;
+        let exp = if exp >= 0 { format!("+{exp}") } else { exp.to_string() };
+        if k == 1 {
+            format!("{s}e{exp}")
+        } else {
+            format!("{}.{}e{exp}", &s[..1], &s[1..])
         }
-    }
+    };
+    format!("{sign}{body}")
 }
 
 /// `fakesFor` from checkerTest.ts: the planted fakes built from one real instruction.

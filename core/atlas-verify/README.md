@@ -13,8 +13,8 @@ implementation can run on the server, in the browser (WebAssembly) and, next, in
 | `src/lib.rs` | `normalize`, `find_span`, `verify_quotes`: a line-for-line port of `verify.ts` |
 | `src/fakes.rs` | `fakes_for`, `run_checker_test`: the pure planted-fake checker from `checkerTest.ts` |
 | `src/wasm.rs` | Plain C-ABI exports for `wasm32-unknown-unknown` (no wasm-bindgen, no imports) |
-| `js/atlas_verify.mjs` | Hand-written loader for Node and the browser (about 70 lines) |
-| `pkg/` | Built package: `atlas_verify.wasm` (about 105 KB) plus the loader. Committed, rebuilt in CI |
+| `js/atlas_verify.mjs` | Hand-written loader for Node and the browser (about 75 lines) |
+| `pkg/` | Built package: `atlas_verify.wasm` (about 109 KB) plus the loader. Committed; CI rebuilds it with the pinned toolchain and fails unless the bytes match |
 | `tests/` | The TS unit tests ported 1:1, plus JS-compatibility checks |
 | `parity/` | Parity test: the real TS files against the WebAssembly build |
 | `parity.json` | The last parity result (deterministic, CI fails if it is stale) |
@@ -27,9 +27,18 @@ The port copies JS behaviour, including the parts that look odd:
 - Whitespace is the JS `\s` set: it includes U+FEFF and excludes U+0085, unlike Rust's `char::is_whitespace`.
 - The source is normalized one UTF-16 unit at a time (as `normalizeWithMap` does) while the quote is lower-cased
   as a whole string. Rust's `to_lowercase` and V8's `toLowerCase` both apply full Unicode mapping and the
-  Final_Sigma rule, and both are on Unicode 17.0 here (Rust 1.99, Node 22.23.2).
+  Final_Sigma rule. They only agree when they use the same Unicode version, because each new version adds case
+  pairs: U+A7CE/U+A7CF became one in 17.0, so `"Dose ꟎ daily"` vs `"꟏ daily"` is refused by Node 22.14 (Unicode
+  16) and accepted by Rust 1.99 (Unicode 17). **Pinned:** Rust 1.99.0 and Node 22.23.2, both Unicode 17.0, in
+  `rust-ci.yml`. `parity.sh` exits 1 before comparing anything if Node's `process.versions.unicode` differs from the
+  WebAssembly build's (`atlas_unicode_version`), and a Rust test asserts `char::UNICODE_VERSION == (17, 0, 0)`.
+  This guarantee covers the two pinned runtimes only. Whatever Node the web app is deployed on, and whatever JS
+  engine a browser has, carries its own Unicode version, so before the Rust build replaces the TS checker anywhere,
+  pin that runtime too or do the comparison on the same side.
 - The planted-fake regexes are matched by hand with JS rules (ASCII `\b` and `\d`, ASCII-only `/i`, regex
-  backtracking), and `String(Number(x) * 10)` is reproduced, e.g. `0.07` becomes `0.7000000000000001`.
+  backtracking), and `String(Number(x) * 10)` follows ECMAScript Number::toString, including its tie rule: when two
+  shortest digit strings are equally close, JS takes the even one (`991294491764.48132665` times 10 prints
+  `9912944917644.812`), where Rust's own `{}` rounds up (`...813`).
 
 ### Things the parity test found in the TS checker (reported, not changed)
 
@@ -52,12 +61,14 @@ Known input class the two cannot be compared on: a JS string with a lone surroga
 
 ## Run it
 
-Needs Rust stable with `rustup target add wasm32-unknown-unknown`, and Node 22 (for `--experimental-strip-types`).
+Needs Rust **1.99.0** with `rustup target add wasm32-unknown-unknown` (`build-wasm.sh` refuses another rustc so the
+committed `pkg/` stays reproducible; `ATLAS_ANY_RUSTC=1` overrides it for experiments), and Node 22.23.2 or any Node
+whose `process.versions.unicode` is 17.0 (`parity.sh` checks).
 No `pnpm install` is needed: the parity script imports the web app's TypeScript directly through small Node hooks.
 
 ```sh
 cd core/atlas-verify
-cargo test                 # unit tests (14), reading the web app's own fixtures
+cargo test                 # unit tests (17), reading the web app's own fixtures
 ./build-wasm.sh            # builds pkg/atlas_verify.wasm
 ./parity.sh                # TS vs WebAssembly on the full corpus, writes parity.json, exits 1 on any mismatch
 node js/demo.mjs           # loads the package in Node and checks one real quote and one planted fake
@@ -69,16 +80,21 @@ From `parity.json`, produced by `./parity.sh` on Node 22.23.2 and Rust 1.99.0:
 
 | | |
 |---|---|
-| `findSpan` cases compared | 1,195 (855 found, 340 refused) |
-| Corpus | the 10 quotes in `verify.test.ts`, every line of both sample papers (against itself and the other), the 6 eval papers' answer keys on the original and on two harder copies (a prefix of `İ`, an emoji and Amharic; every space as a no-break space), distractors, all 77 TS-generated planted fakes, 4 invented instructions, cross-paper quotes, 179 lab-report quotes, 62 hand-written adversarial cases, 600 seeded fuzz cases (seed 20261002) |
-| `normalize` compared | 1,068 distinct strings |
-| `fakesFor` compared | 1,068 distinct strings |
+| `findSpan` cases compared | 1,201 (846 found, 355 refused) |
+| Corpus | the 10 quotes in `verify.test.ts`, every line of both sample papers (against itself and the other), the 6 eval papers' answer keys on the original and on two harder copies (a prefix of `İ`, an emoji and Amharic; every space as a no-break space), distractors, all 77 TS-generated planted fakes, 4 invented instructions, cross-paper quotes, 179 lab-report quotes, 68 hand-written adversarial cases, 600 seeded fuzz cases (seed 20261002) |
+| `normalize` compared | 1,078 distinct strings |
+| `fakesFor` compared | 1,078 distinct strings, plus 3,012 seeded high-precision decimals as `take <x> mg` |
 | Mismatches | **0** |
 | Full checker report (`runCheckerTest`) | identical: 6 papers, 38 of 38 real instructions accepted, 101 of 101 planted fakes caught, 0 slipped |
 | Cases where the TS returns unusable offsets | 2 (both U+0130, see above) |
 
 The comparison is not vacuous: removing the U+2212 minus-sign fold from the Rust build made the parity script
-report 4 mismatches and exit 1.
+report 4 mismatches and exit 1. The number differential failed the previous (round-half-up) formatter on 7 of
+3,012 inputs. Faking Node's Unicode version as 16.0 makes `parity.sh` exit 1 before comparing.
+
+An ellipsis fix landed in both checkers after the first port: a quote like `"Take ... 5 ... mg"` used to ground on
+`"Take a seat."` because fragments under 3 characters were dropped silently. Now only empty fragments are dropped
+and any other fragment under 3 characters refuses the quote. That moved 14 fuzz cases from found to refused.
 
 ## Next step: the phone apps (not done)
 

@@ -72,6 +72,22 @@ fn number_formatting_follows_js() {
 }
 
 #[test]
+fn number_formatting_breaks_shortest_digit_ties_to_even_like_js() {
+    // Expected values from Node 22.23.2: String(Number(x) * 10). The first two are exact midpoints between two
+    // shortest candidates; Rust's own `{}` rounds them up (...813, ...808.3), JS picks the even digit.
+    let cases = [
+        ("991294491764.48132665", "9912944917644.812"),
+        ("77739456794380.8237018498625996275466", "777394567943808.2"),
+        ("123456789012345678901234567890", "1.2345678901234568e+30"),
+        ("0.0000001", "0.000001"),
+        ("99999999999999999999", "1e+21"),
+    ];
+    for (x, js) in cases {
+        assert_eq!(changed(&format!("take {x} mg")), Some(format!("take {js} mg")), "{x}");
+    }
+}
+
+#[test]
 fn standalone_number_backtracks_out_of_the_fraction() {
     // `\b\d+(?:\.\d+)?\b` on "1.5a": the fraction cannot end at a boundary, so JS matches "1".
     assert_eq!(changed("x 1.5a").as_deref(), Some("x 10.5a"));

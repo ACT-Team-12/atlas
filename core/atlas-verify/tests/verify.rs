@@ -38,6 +38,14 @@ fn accepts_ellipsis_fragments_only_when_they_appear_in_order() {
 }
 
 #[test]
+fn refuses_a_quote_whose_ellipsis_fragments_are_too_short_to_check() {
+    assert!(find_span("Take a seat.", "Take ... 5 ... mg").is_none());
+    assert!(find_span("Take 1 tablet by mouth daily.", "Take 1 tablet ... daily").is_some());
+    // A leading or trailing ellipsis is only an empty fragment, which is dropped.
+    assert!(find_span("Take 1 tablet by mouth daily.", "... Take 1 tablet ...").is_some());
+}
+
+#[test]
 fn refuses_a_quote_that_is_not_in_the_document() {
     let avs = common::sample_avs();
     assert!(find_span(&avs, "Take aspirin 81 mg daily").is_none());
@@ -61,6 +69,16 @@ fn verify_items_splits_grounded_items_from_refused_ones() {
 }
 
 // Rust-only checks on the JS-compatibility rules the port depends on.
+
+#[test]
+fn unicode_version_is_the_pinned_one() {
+    // Case mapping only matches JS toLowerCase when both use the same Unicode version. The pin is Rust 1.99.0 and
+    // Node 22.23.2, both on Unicode 17.0 (rust-ci.yml); parity.sh also refuses to run on a skew. Moving either side
+    // means moving both and updating this line.
+    assert_eq!(char::UNICODE_VERSION, (17, 0, 0));
+    // U+A7CE/U+A7CF became a case pair in Unicode 17.0; an older Unicode refuses this quote.
+    assert!(find_span("Dose \u{A7CE} daily", "\u{A7CF} daily").is_some());
+}
 
 #[test]
 fn normalize_matches_the_ts_rules() {

@@ -28,6 +28,15 @@ const { SAMPLE_LABS } = await import("../../../web/src/lib/sampleLabs.ts");
 const labs = (await import("../../../web/src/data/eval/labs.json")).default;
 const rust = await load(readFileSync(wasmPath));
 
+// Case mapping (toLowerCase vs Rust to_lowercase) only agrees when both sides use the same Unicode version. A newer
+// Unicode adds case pairs (e.g. U+A7CE/U+A7CF in 17.0), so a version skew is a real disagreement, not noise: fail
+// before comparing anything.
+const UNICODE = { node: process.versions.unicode, rust: rust.unicodeVersion() };
+if (UNICODE.node !== UNICODE.rust) {
+  console.error(`Unicode version mismatch: Node ${process.version} has ${UNICODE.node}, the Rust build has ${UNICODE.rust}. Pin both (see README).`);
+  process.exit(1);
+}
+
 // ---------- sources ----------
 const sources = new Map();
 sources.set("sample_avs", SAMPLE_AVS);
@@ -147,6 +156,12 @@ A("take 1 tablet then rest", "take...1 tablet", "ellipsis splits short fragment"
 A("take 1 tablet then rest", "take 1 tablet\u2026then rest", "unicode ellipsis between fragments");
 A("take 1 tablet then rest", "a...b...c", "only short fragments");
 A("take 1 tablet then rest", "tak...ablet", "3-unit fragments");
+A("Dose ꟎ daily", "꟏ daily", "Unicode 17.0 case pair (U+A7CE/U+A7CF), differs on older Unicode");
+A("꟎Ꟑ dose", "꟏ꟑ dose", "Latin Extended-D case pairs from Unicode 14.0 and 17.0 in one word");
+A("Take a seat.", "Take ... 5 ... mg", "invented dose in short ellipsis fragments (must refuse)");
+A("Take 1 tablet by mouth daily.", "Take 1 tablet ... daily", "legit ellipsis quote (must pass)");
+A("Take 1 tablet by mouth daily.", "... Take 1 tablet ...", "leading and trailing ellipsis");
+A("Take 1 tablet by mouth daily.", "Take 1 tablet ...... daily", "double ellipsis leaves an empty middle fragment");
 A("take 1 tablet\r\nthen rest", "tablet then", "CRLF");
 A("take 1 tablet\u0085then rest", "tablet then", "NEL is not JS whitespace");
 A("take 1 tablet\u0085then rest", "tablet\u0085then", "NEL on both sides");
@@ -242,6 +257,17 @@ for (const [i, c] of cases.entries()) {
   out.push({ i, origin: c.origin, source: c.source, quote: c.quote, span: a, same });
 }
 
+// Outcomes that must hold in BOTH implementations, not just agree.
+const MUST = [
+  ["Take a seat.", "Take ... 5 ... mg", false],
+  ["Take 1 tablet by mouth daily.", "Take 1 tablet ... daily", true],
+];
+for (const [src, q, found] of MUST) {
+  for (const [name, impl] of [["ts", ts], ["rust", rust]]) {
+    if ((impl.findSpan(src, q) !== null) !== found) mismatches.push({ what: "must", impl: name, source: src, quote: q, expected_found: found });
+  }
+}
+
 const strings = new Set();
 for (const s of sources.values()) strings.add(s);
 for (const c of cases) {
@@ -256,6 +282,31 @@ for (const s of strings) {
   fakesChecked++;
   const fa = tsChecker.fakesFor(s), fb = rust.fakesFor(s);
   if (!isDeepStrictEqual(fa, fb)) mismatches.push({ what: "fakesFor", input: s, ts: fa, rust: fb });
+}
+
+// Differential test of the changed-number fake (String(Number(x) * 10)) over high-precision decimal strings, where
+// shortest-digit ties and exponent switches live. Seeded; the inputs are not stored, only counted.
+const numRnd = mulberry32(SEED + 1);
+const digitsOf = (len) => Array.from({ length: len }, () => Math.floor(numRnd() * 10)).join("");
+const numberInputs = [
+  "991294491764.48132665", // the case that exposed Rust's round-half-up tie
+  "0.07", "1.005", "99999999999999999999", "100000000000000000000", "0.0000001", "0.000001", "1e5",
+  "123456789012345678901234567890", "0.00000000000000000000123", "9007199254740993", "4.35",
+];
+for (let n = 0; n < 3000; n++) {
+  const shape = numRnd();
+  let s;
+  if (shape < 0.15) s = `0.${"0".repeat(Math.floor(numRnd() * 12))}${digitsOf(1 + Math.floor(numRnd() * 20))}`;
+  else if (shape < 0.3) s = digitsOf(15 + Math.floor(numRnd() * 15)); // around and past the 1e21 switch
+  else s = `${digitsOf(1 + Math.floor(numRnd() * 18))}.${digitsOf(1 + Math.floor(numRnd() * 22))}`;
+  numberInputs.push(s);
+}
+let numberChecked = 0;
+for (const x of numberInputs) {
+  numberChecked++;
+  const s = `take ${x} mg`;
+  const fa = tsChecker.fakesFor(s), fb = rust.fakesFor(s);
+  if (!isDeepStrictEqual(fa, fb)) mismatches.push({ what: "fakesFor (number)", input: s, ts: fa, rust: fb });
 }
 
 let checkerReport = { compared: false };
@@ -283,6 +334,7 @@ for (const c of out) {
 const report = {
   about: "TS checker (web/src/lib/verify.ts, checkerTest.ts) vs Rust checker (core/atlas-verify, WebAssembly). Spans are [start, end] in UTF-16 units; \"undefined\"/\"NaN\" are the TS checker's own offsets after U+0130 (see README).",
   fuzz_seed: SEED,
+  unicode_version: UNICODE.node,
   totals: {
     find_span_cases: cases.length,
     found,
@@ -290,6 +342,7 @@ const report = {
     found_with_unusable_ts_offsets: oddOffsets,
     normalize_checked: normalizeChecked,
     fakes_for_checked: fakesChecked,
+    fakes_for_number_checked: numberChecked,
     mismatches: mismatches.length,
   },
   cases_by_origin: byOrigin,

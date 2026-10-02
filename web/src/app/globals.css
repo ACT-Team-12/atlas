@@ -179,6 +179,12 @@ body {
   0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75%, 100% { content: "..."; }
 }
 .working-dots::after { content: "..."; animation: working-dots 1.6s steps(1) infinite; }
+/* A step that just arrived while the paper is still being read. Reduced motion: it simply appears. */
+@keyframes step-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.step-in { animation: step-in 0.3s ease-out both; }
 
 html.js-motion [data-reveal] {
   visibility: hidden;
@@ -191,6 +197,7 @@ html.js-motion [data-reveal] {
     transition-duration: 0.001ms !important;
   }
   .marquee-track { animation: none; }
+  .step-in { animation: none; }
 }
 
 /* Handoff sheet: hidden on screen; when printing it, it is the only thing on the page. */

@@ -9,6 +9,7 @@ When **a patient leaves a clinic visit with new instructions (a new medicine, a 
 
 **We know:**
 
+- "Many people face barriers that prevent or limit access to needed health care services, which may increase the risk of poor health outcomes and health disparities." Named barriers include lack of insurance, poor access to transportation and limited health care resources. (ODPHP, Healthy People 2030, Access to Health Services literature summary)
 - About 36% of US adults (over 75 million) have Basic or Below Basic health literacy. Below Basic is about double the national rate among Medicaid recipients (30%) and the uninsured (28%). (NCES, National Assessment of Adult Literacy 2003, nces.ed.gov/pubs2006/2006483.pdf)
 - In one large health system, only 34.8% of 103,737 referral scheduling attempts ended in a documented completed appointment. (Patel et al., J Gen Intern Med 2018;33:715-721)
 - In two academic primary care practices, only 52.9% to 58.4% of ordered colonoscopies, stress tests and dermatology referrals were completed on time. (Amat et al., Jt Comm J Qual Patient Saf 2024;50(3):177-184)
@@ -23,7 +24,10 @@ When **a patient leaves a clinic visit with new instructions (a new medicine, a 
 | Paper after-visit summary plus memory | Clinical language, easy to lose, says nothing about getting a ride or paying for the lab |
 | Pasting the summary into ChatGPT | Explains in the moment, but can invent instructions, keeps no plan, knows nothing about the patient's barriers or local help |
 | Epic MyChart tools (Emmie) that simplify instructions | Only for patients whose health system offers it and who use the portal; explains, does not act on barriers |
-| CHW calls, 211 searches, spreadsheets | Works, but slow and manual; every worker rebuilds the same plan by hand |
+| Searching online, community resource directories | Long generic lists; the person still has to figure out which one fits their barrier, hours and location |
+| Calling the healthcare office | Helpful, but only during office hours, and the patient has to know what to ask |
+| Social workers, patient navigators, CHWs (211, spreadsheets) | The best help today, but slow and manual; every worker rebuilds the same plan by hand |
+| Friends and family | Depends on who you know and whether they've been through it |
 
 **Value proposition:** ATLAS turns one visit into a plan a person can finish. It reads the patient's own paper, explains every step in their language, shows the exact line each step came from, and matches each blocker to a verified local resource. If something is not in the paper or not in the verified list, ATLAS says so instead of guessing. We will **reduce** missed follow-ups and **eliminate** the made-up advice risk of a general chatbot.
 
@@ -48,7 +52,8 @@ When **a patient leaves a clinic visit with new instructions (a new medicine, a 
 - **Code:** https://github.com/ACT-Team-12/atlas, pull request #1. CI runs lint, typecheck, unit tests and a production build.
 - **What works today:** paste or photo, AI extraction with 7 language options (English, Spanish, Vietnamese, Korean, Chinese, Amharic, French; Spanish and Vietnamese tested so far), the source-quote check, highlighted source view, questions for the doctor, "what your paper does not say", warning-sign banner, check off and remove.
 - **What we measured (on our labeled sample paper, not a real patient):** 12 of 12 extracted steps passed the source-quote check in both Spanish and Vietnamese, 0 held back, about 22 to 27 seconds per run on the live site.
-- **Next code task:** the barrier check and a verified resource list for one Atlanta area, using the same "only show what you can point to" rule.
+- **Also working now (added tonight):** the barrier check and a verified resource list for Fulton and DeKalb (41 HRSA community health centers with their nearest MARTA rail and bus stop, and 10 official programs such as Georgia Gateway, Medicaid, Grady financial assistance, MARTA Mobility and Reduced Fare, 211, the food bank and Lifeline). The plan can only cite resources from that list; anything else is dropped.
+- **Next code task:** reminders by text or call, a CHW view of several patients, and real-user testing.
 - **Owners:** build Akhil (owner) and Stephen (backup); Stephen owns testing and release.
 
 ## 6. FACTS check

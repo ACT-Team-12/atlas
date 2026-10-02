@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyTarget, restoredTab, shownTab, tabInfo } from "./phoneTabs";
+import { keyTarget, restoredTab, scrollTargetAfter, shownTab, tabInfo } from "./phoneTabs";
 
 const fresh = { hasCare: false, hasPlan: false };
 const read = { hasCare: true, hasPlan: false };
@@ -57,5 +57,14 @@ describe("keyTarget", () => {
   it("ignores other keys", () => {
     expect(keyTarget(1, "Enter", planned)).toBeNull();
     expect(keyTarget(1, "ArrowDown", planned)).toBeNull();
+  });
+});
+
+describe("scrollTargetAfter", () => {
+  it("desktop goes on to step 2 after a read", () => expect(scrollTargetAfter("read", false)).toBe(2));
+  it("phones stay on step 1 after a read", () => expect(scrollTargetAfter("read", true)).toBeNull());
+  it("both go to step 3 after a plan", () => {
+    expect(scrollTargetAfter("plan", false)).toBe(3);
+    expect(scrollTargetAfter("plan", true)).toBe(3);
   });
 });

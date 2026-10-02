@@ -10,6 +10,7 @@ import labPlantedRaw from "@/data/eval/lab-planted.json";
 import type { LabPlantedReport } from "@/lib/labPlanted";
 import { deviceParitySet } from "@/lib/deviceParity";
 import { DeviceParity } from "@/ui/DeviceParity";
+import { PREP_TRUTH, runPrepPlantedTest } from "@/lib/prepPlanted";
 
 type LabTotals = { rows: number; found: number; right: number; false_flags: number; missed_flags: number; dropped: number };
 type LabEval = {
@@ -50,6 +51,7 @@ function Stat({ big, label, note, tone = "bg-paper" }: { big: string; label: str
 
 export default async function TestsPage() {
   const c = runCheckerTest();
+  const prep = runPrepPlantedTest();
   const live = await liveStats();
   const promoted = results.rows.flatMap((r) => r.distractors_promoted.map((d) => ({ id: r.id, d })));
   const missed = results.rows.flatMap((r) => r.missed.map((m) => ({ id: r.id, m })));
@@ -242,6 +244,41 @@ export default async function TestsPage() {
             <ul className="mt-6 max-w-[46em] space-y-2 text-sm font-semibold list-disc pl-5">
               <li>Our team wrote these reports, so they are cleaner than many real ones. A perfect score here does not mean a perfect score on your report.</li>
               <li>The screenshots are drawn from the sample text, not taken with a camera. A blurry or tilted photo will be harder. That is why you check the text before anything is flagged.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="relative px-3 mt-3" aria-labelledby="prep-tests-title">
+          <div className="section-card bg-lilac px-6 sm:px-12 py-20">
+            <span className="chip bg-paper text-ink">Live · rerun just now · no AI</span>
+            <h2 id="prep-tests-title" className="display text-[clamp(2rem,4vw,3.6rem)] mt-4 max-w-[18em]">Prep mode: does every time come from the paper?</h2>
+            <p className="mt-4 max-w-[44em] font-semibold text-ink-soft">
+              We wrote a sample colonoscopy prep paper (no real patient) and, by hand, the answer a correct AI would give: {PREP_TRUTH.length} steps,
+              each with its line from the paper and where a person reading that line would put it, or &quot;ask your clinic&quot; when the line
+              doesn&apos;t say when. Then we planted the mistakes a wrong AI could make. These numbers are computed by our code each time this page loads.
+            </p>
+            <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <Stat big={`${prep.real.right}/${prep.real.total}`} label="correct steps placed right" />
+              <Stat big={`${prep.planted.caught}/${prep.planted.total}`} label="planted mistakes caught" tone="bg-mint" />
+            </div>
+            <ul className="mt-6 max-w-[50em] space-y-2 text-sm font-semibold">
+              {Object.entries(prep.planted.byKind).map(([k, v]) => (
+                <li key={k} className="card p-4 bg-paper [overflow-wrap:anywhere]">
+                  <span className="font-extrabold">{k}: {v.caught}/{v.total} caught.</span> For example: {prep.planted.examples[k]}.
+                </li>
+              ))}
+            </ul>
+            {prep.planted.slipped.length > 0 && (
+              <div className="mt-6 card p-6 bg-red-soft">
+                <p className="font-bold">Mistakes that got through:</p>
+                <ul className="mt-2 text-sm font-semibold list-disc pl-5">
+                  {prep.planted.slipped.map((s, i) => <li key={i}>{s.kind}: {s.what} (shown as {s.got})</li>)}
+                </ul>
+              </div>
+            )}
+            <ul className="mt-6 max-w-[46em] space-y-2 text-sm font-semibold list-disc pl-5">
+              <li>This tests our code, not the AI. How well the AI finds every step on a real prep paper has not been measured yet.</li>
+              <li>One sample paper, written by our team, in English. Our time reader knows English time words only, so on a paper in another language every step goes under &quot;ask your clinic&quot;.</li>
             </ul>
           </div>
         </section>

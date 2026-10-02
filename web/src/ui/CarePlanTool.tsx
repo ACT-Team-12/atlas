@@ -16,10 +16,11 @@ import { ShareFamily } from "./ShareFamily";
 import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
-import { restoredTab, shownTab, type Tab } from "@/lib/phoneTabs";
+import { restoredTab, scrollTargetAfter, shownTab, type Tab } from "@/lib/phoneTabs";
 import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
 import { speechLines } from "@/lib/speechText";
+import { SPEECH_LANG } from "@/lib/speechLang";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -39,7 +40,6 @@ type Saved = {
   done: Record<string, boolean>; removed: Record<string, boolean>; photoChecked?: boolean; savedAt: string;
 };
 
-const SPEECH_LANG: Record<string, string> = { English: "en-US", Spanish: "es-US", Vietnamese: "vi-VN", Korean: "ko-KR", Chinese: "zh-CN", Amharic: "am-ET", French: "fr-FR" };
 /** Same limit as /api/speak (lib/voice.ts, server only). A longer plan is read by the phone's voice. */
 const MAX_SPEAK_CHARS = 4000;
 
@@ -333,8 +333,9 @@ export function CarePlanTool() {
       setReadLevel(usedLevel);
       if (json.source_kind === "image") { setTranscript(json.source_text); return; }
       void checkMeaningFor(json);
-      // Phones stay on step 1 so the person sees their steps; "Next: your needs" moves on.
-      if (!isPhoneNow()) document.getElementById("step-2")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared).
+      const target = scrollTargetAfter("read", isPhoneNow());
+      if (target) scrollAfter.current = { t: target, onlyIfHidden: false };
     } catch (e) { setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong."); }
     finally { setReading(false); }
   }
@@ -363,8 +364,9 @@ export function CarePlanTool() {
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
       setTab(3);
-      if (isPhoneNow()) scrollAfter.current = { t: 3, onlyIfHidden: false };
-      else document.getElementById("step-3")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Step 3 only exists after this render, so scroll once it is on the page (desktop and phones).
+      const target = scrollTargetAfter("plan", isPhoneNow());
+      if (target) scrollAfter.current = { t: target, onlyIfHidden: false };
     } catch (e) { if (planRun.current === run) setError(e instanceof Error ? e.message : "Something went wrong."); }
     finally { if (planRun.current === run) setPlanning(false); }
   }

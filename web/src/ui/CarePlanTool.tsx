@@ -17,7 +17,7 @@ import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
 import { restoredTab, shownTab, type Tab } from "@/lib/phoneTabs";
-import { canMakeSimpler } from "@/lib/simpler";
+import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
 
 const KIND: Record<string, { label: string; cls: string }> = {
@@ -207,6 +207,8 @@ export function CarePlanTool() {
   // Verified steps that arrived while the paper is still being read. Shown, never final.
   const [partial, setPartial] = useState<VerifiedItem[]>([]);
   const readRun = useRef(0);
+  // Plan requests in flight. A new read or a clear bumps it, so an older plan reply cannot land on newer steps.
+  const planRun = useRef(0);
   const [care, setCare] = useState<CarePlanResponse | null>(null);
   const [barriers, setBarriers] = useState<Barrier[]>([]);
   const [zip, setZip] = useState("");
@@ -265,6 +267,7 @@ export function CarePlanTool() {
 
   function clearSaved() {
     try { localStorage.removeItem(SAVE_KEY); } catch {}
+    planRun.current++; setPlanning(false);
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
     setTab(1);
   }
@@ -296,6 +299,7 @@ export function CarePlanTool() {
     setTranscript(null); setPhotoChecked(false); setPartial([]); setTab(1);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }
     const run = ++readRun.current;
+    planRun.current++; setPlanning(false); // drop any plan still on its way: it was built from the old steps
     try {
       const body: Record<string, unknown> = { language, reading_level: usedLevel };
       if (corrected !== undefined) body.text = corrected;
@@ -334,6 +338,7 @@ export function CarePlanTool() {
 
   async function makePlan() {
     if (needsPhotoCheck) return;
+    const run = ++planRun.current;
     setPlanning(true); setError(null); setPlan(null);
     try {
       const body = {
@@ -343,13 +348,14 @@ export function CarePlanTool() {
       };
       const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const json = await res.json();
+      if (planRun.current !== run) return; // a new read or a clear happened meanwhile
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
       setTab(3);
       if (isPhoneNow()) scrollAfter.current = { t: 3, onlyIfHidden: false };
       else document.getElementById("step-3")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong."); }
-    finally { setPlanning(false); }
+    } catch (e) { if (planRun.current === run) setError(e instanceof Error ? e.message : "Something went wrong."); }
+    finally { if (planRun.current === run) setPlanning(false); }
   }
 
   function useMyLocation() {
@@ -458,7 +464,9 @@ export function CarePlanTool() {
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
   const flow = { hasCare: !!care, hasPlan: !!plan };
-  const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0 });
+  // The person changed our reading of their photo. Accepting or re-reading the old text would silently drop their fix.
+  const transcriptEdited = !!care && isTranscriptEdited(transcript, care.source_text);
+  const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0, transcriptEdited, hasPlan: !!plan, planning });
   const shown = shownTab(tab, flow);
   // Phones: one step card at a time. Hidden cards stay mounted (state, timers and requests carry on).
   const panel = (t: Tab) => ({
@@ -539,8 +547,16 @@ export function CarePlanTool() {
                 <button type="button" className="rounded-full bg-ink text-paper px-4 py-2 disabled:opacity-40"
                   disabled={reading || (transcript ?? care.source_text).trim().length < 20 || transcript === care.source_text}
                   onClick={() => readPaper(transcript ?? care.source_text)}>Use my corrected text</button>
-                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>It matches my paper</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint disabled:opacity-40"
+                  disabled={transcriptEdited} aria-describedby={transcriptEdited ? "photo-edited" : undefined}
+                  onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>It matches my paper</button>
+                {transcriptEdited && (
+                  <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => setTranscript(care.source_text)}>Undo my changes</button>
+                )}
               </div>
+              {transcriptEdited && (
+                <p id="photo-edited" className="mt-2 text-sm font-bold text-ink/70">You changed the text, so use your corrected text, or undo your changes.</p>
+              )}
             </div>
           )}
 

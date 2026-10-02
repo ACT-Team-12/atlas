@@ -106,12 +106,21 @@ struct HomeView: View {
         }
     }
 
-    /// The document camera cannot run in the Simulator, so there it falls back to the photo picker.
+    /// The document camera cannot see anything in the Simulator (iOS 26 reports it as supported but shows a
+    /// black view), so the Simulator build and any device without it fall back to the photo picker.
     private func startScan() {
-        if VNDocumentCameraViewController.isSupported {
+        if Self.documentCameraWorks {
             showScanner = true
         } else {
             showPhotoPicker = true
         }
+    }
+
+    private static var documentCameraWorks: Bool {
+        #if targetEnvironment(simulator)
+        false
+        #else
+        VNDocumentCameraViewController.isSupported
+        #endif
     }
 }

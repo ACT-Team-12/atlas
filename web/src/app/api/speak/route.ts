@@ -1,5 +1,6 @@
 import { guard } from "@/lib/guard";
 import { SpeakRequestSchema, synthesize, VoiceError } from "@/lib/voice";
+import { verifySpeakToken } from "@/lib/speakToken";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -16,6 +17,10 @@ export async function POST(request: Request) {
   }
   const parsed = SpeakRequestSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
+  // Only text a plan produced, with the token that plan came with. Anything else uses the phone's voice.
+  if (!verifySpeakToken(parsed.data.token, parsed.data.language, parsed.data.text)) {
+    return Response.json({ error: "This text can't use the natural voice. Using your phone's voice." }, { status: 403 });
+  }
   try {
     const { audio, cached } = await synthesize(parsed.data.text, parsed.data.language);
     return new Response(audio, { headers: { "content-type": "audio/mpeg", "cache-control": "private, max-age=3600", "x-atlas-voice-cache": cached ? "hit" : "miss" } });

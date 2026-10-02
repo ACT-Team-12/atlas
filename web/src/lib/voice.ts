@@ -17,8 +17,11 @@ export const VOICE_LANG: Partial<Record<(typeof LANGUAGES)[number], string>> = {
 export const MAX_SPEAK_CHARS = 2500;
 
 export const SpeakRequestSchema = z.object({
-  text: z.string().trim().min(1).max(MAX_SPEAK_CHARS),
+  // Not trimmed: the token signs the exact text the plan produced.
+  text: z.string().min(1).max(MAX_SPEAK_CHARS).refine((t) => t.trim().length > 0, "Send some text."),
   language: z.enum(LANGUAGES).default("English"),
+  /** Issued by /api/plan for exactly this text and language (speakToken.ts). */
+  token: z.string().min(1).max(200),
 });
 
 export class VoiceError extends Error {
@@ -27,6 +30,19 @@ export class VoiceError extends Error {
 
 const CACHE_MAX = 40;
 const cache = new Map<string, ArrayBuffer>();
+// Identical requests while one is in flight share it, so a double tap or a replay is one paid call, not two.
+const inflight = new Map<string, Promise<ArrayBuffer>>();
+// A fuse per server instance on top of the per-plan token: at most this many paid characters per hour.
+export const HOURLY_CHAR_BUDGET = 40_000;
+let budget = { hour: -1, used: 0 };
+export function chargeBudget(chars: number, now = Date.now()): boolean {
+  const hour = Math.floor(now / 3_600_000);
+  if (budget.hour !== hour) budget = { hour, used: 0 };
+  if (budget.used + chars > HOURLY_CHAR_BUDGET) return false;
+  budget.used += chars;
+  return true;
+}
+export const resetVoiceStateForTests = () => { cache.clear(); inflight.clear(); budget = { hour: -1, used: 0 }; };
 // Length-prefixed, never joined on a separator: free text can contain any separator and collide.
 export const cacheKey = (language: string, text: string) => createHash("sha256").update(`${language.length}:${language}${text.length}:${text}`).digest("hex");
 
@@ -39,17 +55,28 @@ export async function synthesize(text: string, language: (typeof LANGUAGES)[numb
   const k = cacheKey(language, text);
   const hit = cache.get(k);
   if (hit) { cache.delete(k); cache.set(k, hit); return { audio: hit, cached: true }; } // refresh LRU order
+  const pending = inflight.get(k);
+  if (pending) return { audio: await pending, cached: true };
+  if (!chargeBudget(text.length)) throw new VoiceError("Natural voice is resting for a bit. Using your phone's voice.", 429);
 
+  const job = vendor(key, code, text).finally(() => inflight.delete(k));
+  inflight.set(k, job);
+  const audio = await job;
+  cache.set(k, audio);
+  if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
+  return { audio, cached: false };
+}
+
+async function vendor(key: string, code: string, text: string): Promise<ArrayBuffer> {
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_64`, {
     method: "POST",
     headers: { "xi-api-key": key, "content-type": "application/json", accept: "audio/mpeg" },
     body: JSON.stringify({ text, model_id: VOICE_MODEL, language_code: code, voice_settings: { stability: 0.6, similarity_boost: 0.75 } }),
     signal: AbortSignal.timeout(30_000),
   });
-  if (!res.ok) throw new VoiceError(res.status === 401 || res.status === 429 ? "Natural voice is busy. Using your phone's voice." : "Natural voice failed. Using your phone's voice.", 502);
+  // Status only, never the text: a 401 or 429 here means the key or the monthly allowance needs a person.
+  if (!res.ok) { console.error("elevenlabs failed", res.status); throw new VoiceError(res.status === 401 || res.status === 429 ? "Natural voice is busy. Using your phone's voice." : "Natural voice failed. Using your phone's voice.", 502); }
   const audio = await res.arrayBuffer();
   if (audio.byteLength < 1000) throw new VoiceError("Natural voice returned no audio. Using your phone's voice.", 502);
-  cache.set(k, audio);
-  if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
-  return { audio, cached: false };
+  return audio;
 }

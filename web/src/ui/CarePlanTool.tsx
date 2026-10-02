@@ -19,6 +19,7 @@ import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEven
 import { restoredTab, shownTab, type Tab } from "@/lib/phoneTabs";
 import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
+import { speechLines } from "@/lib/speechText";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -231,12 +232,16 @@ export function CarePlanTool() {
   const [speaking, setSpeaking] = useState(false);
   const speechRun = useRef(0);
   const speechAudio = useRef<HTMLAudioElement | null>(null);
+  const speechUrl = useRef<string | null>(null);
+  const speechAbort = useRef<AbortController | null>(null);
+  const speechLinesRef = useRef<string[]>([]);
   const [voiceNote, setVoiceNote] = useState("");
   // Phones only: which step card is showing. Desktop shows all three and ignores this.
   const [tab, setTab] = useState<Tab>(1);
   const isPhone = useIsPhone();
   // A scroll to run after the next render, once the newly shown card is on the page.
   const scrollAfter = useRef<{ t: Tab; onlyIfHidden: boolean } | null>(null);
+  const [tapToPlay, setTapToPlay] = useState(false);
 
   // Saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
   // One-time restore after hydration: localStorage does not exist during the server render.
@@ -367,30 +372,70 @@ export function CarePlanTool() {
     );
   }
 
+  // One cleanup for every way reading ends: stop, finish, error, a new read, unmount. Safe to call twice.
   function silence() {
     speechRun.current++; // ignore end events from the run being cancelled
+    speechAbort.current?.abort();
+    speechAbort.current = null;
     const a = speechAudio.current;
-    if (a) { a.pause(); if (a.src.startsWith("blob:")) URL.revokeObjectURL(a.src); speechAudio.current = null; }
+    if (a) { a.onended = null; a.onerror = null; a.pause(); a.removeAttribute("src"); speechAudio.current = null; }
+    if (speechUrl.current) { URL.revokeObjectURL(speechUrl.current); speechUrl.current = null; }
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    setTapToPlay(false);
   }
 
   function stopSpeaking() {
     silence();
     setSpeaking(false);
+    setVoiceNote("");
   }
 
   // The phone's own voice. One utterance per line: Chrome silently stops a single long utterance after about 15 seconds.
+  // If the browser never starts (iPhone Safari can ignore speech that isn't started by a tap), give up after 5 seconds.
   function phoneVoice(lines: string[], run: number) {
-    if (!("speechSynthesis" in window)) { setSpeaking(false); return; }
-    setVoiceNote(lines.length ? "Reading with your phone's voice." : "");
+    if (!("speechSynthesis" in window)) { setSpeaking(false); setVoiceNote("This device can't read aloud. Try Print or Send to family."); return; }
+    setVoiceNote("Reading with your phone's voice.");
+    let started = false;
     lines.forEach((line, i) => {
       const u = new SpeechSynthesisUtterance(line);
       u.lang = SPEECH_LANG[language] ?? "en-US";
       u.rate = 0.95;
-      if (i === lines.length - 1) u.onend = () => { if (speechRun.current === run) setSpeaking(false); };
-      u.onerror = () => { if (speechRun.current === run) setSpeaking(false); };
+      u.onstart = () => { started = true; };
+      if (i === lines.length - 1) u.onend = () => { if (speechRun.current === run) { setSpeaking(false); setVoiceNote(""); } };
+      u.onerror = () => { if (speechRun.current === run) { setSpeaking(false); setVoiceNote(""); } };
       window.speechSynthesis.speak(u);
     });
+    window.setTimeout(() => {
+      if (speechRun.current !== run || started) return;
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      setVoiceNote("This device didn't start reading. Tap Read it out loud again, or use Print or Send to family.");
+    }, 5000);
+  }
+
+  // Natural voice not usable: drop the audio and read with the phone's voice instead.
+  function fallBack(run: number) {
+    if (speechRun.current !== run) return;
+    const a = speechAudio.current;
+    if (a) { a.onended = null; a.onerror = null; a.pause(); speechAudio.current = null; }
+    if (speechUrl.current) { URL.revokeObjectURL(speechUrl.current); speechUrl.current = null; }
+    setTapToPlay(false);
+    phoneVoice(speechLinesRef.current, run);
+  }
+
+  async function startAudio(run: number) {
+    const a = speechAudio.current;
+    if (!a || speechRun.current !== run) return;
+    try {
+      await a.play();
+      setTapToPlay(false);
+      setVoiceNote("");
+    } catch (e) {
+      if (speechRun.current !== run) return;
+      // iPhone Safari: the tap that started this expired during the download. One more tap plays it.
+      if (e instanceof DOMException && e.name === "NotAllowedError") { setTapToPlay(true); setVoiceNote("The voice is ready. Tap play."); }
+      else fallBack(run);
+    }
   }
 
   // Natural voice first (server, ElevenLabs); the phone's voice if that is off, busy, too long, or has no voice for this language.
@@ -399,27 +444,30 @@ export function CarePlanTool() {
     if (speaking) return stopSpeaking();
     silence();
     const run = speechRun.current;
-    const lines = [plan.summary, ...plan.steps.map((s, i) => `${i + 1}. ${s.title}. ${s.action}`)];
+    const lines = speechLines(plan);
+    speechLinesRef.current = lines;
     setSpeaking(true);
     setVoiceNote("");
-    // Made inside the tap so iPhone Safari lets it play after the fetch.
+    const text = lines.join("\n");
+    if (text.length > MAX_SPEAK_CHARS || !plan.speak_token) return phoneVoice(lines, run);
     const audio = new Audio();
     speechAudio.current = audio;
-    const text = lines.join("\n");
+    const ctrl = new AbortController();
+    speechAbort.current = ctrl;
     try {
-      if (text.length > MAX_SPEAK_CHARS) throw new Error("too long");
-      const r = await fetch("/api/speak", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, language }) });
+      const r = await fetch("/api/speak", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, language, token: plan.speak_token }), signal: ctrl.signal });
       if (!r.ok || !(r.headers.get("content-type") ?? "").startsWith("audio/")) throw new Error("no natural voice");
-      const url = URL.createObjectURL(await r.blob());
-      if (speechRun.current !== run) { URL.revokeObjectURL(url); return; } // stopped while loading
+      const blob = await r.blob();
+      if (speechRun.current !== run) return; // stopped while loading
+      speechAbort.current = null;
+      const url = URL.createObjectURL(blob);
+      speechUrl.current = url;
       audio.src = url;
-      audio.onended = () => { if (speechRun.current === run) { URL.revokeObjectURL(url); speechAudio.current = null; setSpeaking(false); } };
-      audio.onerror = () => { if (speechRun.current === run) setSpeaking(false); };
-      await audio.play();
+      audio.onended = () => { if (speechRun.current === run) { silence(); setSpeaking(false); setVoiceNote(""); } };
+      audio.onerror = () => fallBack(run);
+      await startAudio(run);
     } catch {
-      if (speechRun.current !== run) return;
-      speechAudio.current = null;
-      phoneVoice(lines, run);
+      fallBack(run);
     }
   }
 
@@ -427,7 +475,7 @@ export function CarePlanTool() {
   useEffect(() => () => {
     silence();
     setSpeaking(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setVoiceNote("");
   }, [plan]);
 
   // Runs after every render; does nothing unless a phone tab change asked for a scroll.
@@ -706,10 +754,13 @@ export function CarePlanTool() {
             <StepHeader n={3} title="Your plan" done note={plan.located.label} />
             <p className="mt-4 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
-              <button type="button" onClick={speak} aria-pressed={speaking} className={`rounded-full border-2 border-ink px-4 py-2 ${speaking ? "bg-ink text-paper" : "bg-sun"}`}>
-                {speaking ? "⏹ Stop reading" : "🔊 Read it out loud"}
-              </button>
-              {voiceNote && speaking && <span className="self-center text-xs font-semibold text-ink/70">{voiceNote}</span>}
+              {tapToPlay
+                ? <button type="button" onClick={() => void startAudio(speechRun.current)} className="rounded-full border-2 border-ink bg-sun px-4 py-2">▶ Tap to play</button>
+                : <button type="button" onClick={speak} aria-pressed={speaking} className={`rounded-full border-2 border-ink px-4 py-2 ${speaking ? "bg-ink text-paper" : "bg-sun"}`}>
+                    {speaking ? "⏹ Stop reading" : "🔊 Read it out loud"}
+                  </button>}
+              {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2">Cancel</button>}
+              <span role="status" className={voiceNote ? "self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
               <button type="button" onClick={() => window.print()} className="rounded-full border-2 border-ink px-4 py-2">🖨️ Print for the next visit</button>
               <button type="button" onClick={printSheet} className="rounded-full border-2 border-ink px-4 py-2">📄 Print a handoff sheet</button>
               {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={meaning} />}

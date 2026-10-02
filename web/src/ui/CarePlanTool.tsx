@@ -10,6 +10,8 @@ import type { MeaningResponse, MeaningResult } from "@/lib/meaning";
 import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
+import { BookIt } from "./BookIt";
+import { bookableItem } from "@/lib/booking";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -270,6 +272,12 @@ export function CarePlanTool() {
   }, [plan]);
 
   const careById = Object.fromEntries((care?.items ?? []).map((i) => [i.id, i]));
+  // Show "Book it now" once per thing to book: on the first plan step that serves it.
+  const bookAt = new Map<string, number>();
+  plan?.steps.forEach((s, i) => {
+    const b = bookableItem(s.care_ids.map((id) => careById[id]).filter(Boolean));
+    if (b && !bookAt.has(b.id)) bookAt.set(b.id, i);
+  });
   const items = (care?.items ?? []).filter((i) => !removed[i.id]);
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
@@ -499,6 +507,10 @@ export function CarePlanTool() {
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       {s.resource_ids.map((id) => plan.resources[id] && <Resource key={id} r={plan.resources[id]} />)}
                     </div>
+                  )}
+                  {[...bookAt.values()].includes(i) && (
+                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean)} resources={s.resource_ids.map((id) => plan.resources[id]).filter(Boolean)}
+                      barriers={barriers} language={language} />
                   )}
                 </li>
               ))}

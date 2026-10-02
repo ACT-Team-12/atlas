@@ -60,6 +60,14 @@ struct HomeView: View {
                     Text("\(Sample.label).").font(.caption).foregroundStyle(Palette.inkSoft)
                 }
 
+                Card(background: Palette.peach, border: Palette.ink) {
+                    Text("Lab results full of jargon?").font(.headline.weight(.heavy))
+                    Text("See only what your report marks outside its range, in plain words, with questions for your clinic.")
+                        .font(.subheadline.weight(.semibold)).wraps()
+                    Button { model.path = [.labs] } label: { Label("Explain my lab results", systemImage: "list.bullet.clipboard") }
+                        .buttonStyle(PillButtonStyle(fill: Palette.ink, text: Palette.paper))
+                }
+
                 Card(background: Palette.mint, border: Palette.ink) {
                     Label("Your photo never leaves this phone.", systemImage: "lock.iphone").font(.subheadline.weight(.heavy))
                     Text("ATLAS reads the words on your phone. You check them, and only the text you confirm is sent to make your steps.")

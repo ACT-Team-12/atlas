@@ -19,7 +19,9 @@ object Links {
 
     /** Google Maps transit directions to the clinic's street address (opens the Maps app when installed). */
     fun transit(c: Clinic): String {
-        val dest = URLEncoder.encode("${c.address}, ${c.city}, GA ${c.zip}", "UTF-8")
+        // Clinics outside Atlanta come with "City, ST"; Atlanta records have the city only.
+        val place = if (c.city.contains(",")) "${c.address}, ${c.city} ${c.zip}" else "${c.address}, ${c.city}, GA ${c.zip}"
+        val dest = URLEncoder.encode(place, "UTF-8")
         return "https://www.google.com/maps/dir/?api=1&destination=$dest&travelmode=transit"
     }
 

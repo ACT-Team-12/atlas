@@ -125,6 +125,12 @@ fun HomeScreen(model: AppModel, onAbout: () -> Unit) {
             Text("${Sample.LABEL}.", style = Type.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Normal))
         }
 
+        AtlasCard(background = Palette.peach) {
+            Text("Lab results full of jargon?", style = Type.headline)
+            Text("See only what your report marks outside its range, in plain words, with questions for your clinic.", style = Type.sub)
+            PillButton("Explain my lab results", onClick = { model.push(com.stephensookra.atlas.Route.Labs) }, fill = Palette.ink, textColor = Palette.paper)
+        }
+
         AtlasCard(background = Palette.mint) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Filled.Lock, contentDescription = null, tint = Palette.ink)

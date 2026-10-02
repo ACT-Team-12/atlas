@@ -53,7 +53,7 @@ fun AboutDialog(model: AppModel, onDismiss: () -> Unit) {
                         }
                     }
                     Text(
-                        "ATLAS reads your after-visit paper, turns it into steps that quote your paper word for word, and builds a plan with verified Atlanta clinics and programs.",
+                        "ATLAS reads your after-visit paper, turns it into steps that quote your paper word for word, and builds a plan with verified clinics and programs: richest in metro Atlanta, and the nearest federally funded health centers anywhere in the US.",
                         style = Type.sub.copy(fontWeight = FontWeight.Normal),
                     )
                     MedicalNote()

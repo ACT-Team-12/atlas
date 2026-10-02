@@ -30,7 +30,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-enum class Route { Check, Steps, Barriers, Plan, Reminders }
+enum class Route { Check, Steps, Barriers, Plan, Reminders, Labs }
 
 /** Where the text on the "Check the text" screen came from. */
 enum class TextSource { Scan, Photo, Typed, Sample }

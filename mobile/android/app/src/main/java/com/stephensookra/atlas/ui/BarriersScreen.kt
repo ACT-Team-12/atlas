@@ -107,7 +107,7 @@ fun BarriersScreen(model: AppModel) {
         }
 
         AtlasCard {
-            Text("Your ZIP (metro Atlanta)", style = Type.sub.copy(fontWeight = FontWeight.Bold))
+            Text("Your ZIP", style = Type.sub.copy(fontWeight = FontWeight.Bold))
             InputBox(model.zip, { model.updateZip(it) }, placeholder = "e.g. 30340", label = "Your ZIP code", keyboard = KeyboardType.Number)
             val label = when {
                 locating -> "Finding you..."

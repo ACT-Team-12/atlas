@@ -156,8 +156,8 @@ struct LatLng: Codable, Hashable, Sendable {
     let lat: Double
     let lng: Double
 
-    /// The server accepts only metro Atlanta (PlanRequestSchema: lat 33 to 34.6, lng -85 to -83.6).
-    var isInServiceArea: Bool { (33...34.6).contains(lat) && (-85 ... -83.6).contains(lng) }
+    /// The server accepts the US and its territories (PlanRequestSchema: lat -20 to 72, lng -180 to 180).
+    var isInServiceArea: Bool { (-20...72).contains(lat) && (-180...180).contains(lng) }
 }
 
 struct PlanRequest: Encodable, Sendable {
@@ -293,6 +293,66 @@ struct PlanResponse: Codable, Hashable, Sendable {
     let located: Located
     let stats: PlanStats
     let model: String
+}
+
+// MARK: - /api/results (web/src/lib/results.ts)
+
+struct ResultsRequest: Encodable, Sendable {
+    let text: String
+    let language: Language
+}
+
+/// One test on the report. status is decided by the server's code from the printed flag or printed range, never by the AI.
+struct ResultRow: Codable, Hashable, Sendable {
+    let test: String
+    let value: String
+    let unit: String
+    let range_text: String
+    let quote: String
+    let plain_name: String
+    let ask: String
+    let status: String // "outside" | "inside" | "unknown"
+    let direction: String? // "high" | "low" | null
+    let reason: String
+}
+
+struct ResultsCounts: Codable, Hashable, Sendable {
+    let outside: Int
+    let inside: Int
+    let unknown: Int
+}
+
+struct ResultsDropped: Codable, Hashable, Sendable {
+    let test: String
+    let reason: String
+}
+
+/// How many result-looking lines the server's code found in the report, and how many a verified row covered.
+struct ResultsCoverage: Codable, Hashable, Sendable {
+    let candidates: Int
+    let checked: Int
+    let unchecked: [String]
+}
+
+struct ResultsResponse: Codable, Hashable, Sendable {
+    let rows: [ResultRow]
+    let dropped: [ResultsDropped]
+    let counts: ResultsCounts
+    /// Optional so an older server still decodes; without it the app never claims an all-clear.
+    let coverage: ResultsCoverage?
+    let model: String
+    let ms: Int
+
+    /// Same rules as headline() in web/src/ui/LabResults.tsx: never a report-wide all-clear unless every result line
+    /// the server's code found was checked.
+    var headline: String {
+        if rows.isEmpty { return "We couldn't read any results from this. Check the text or ask your clinic." }
+        if counts.outside > 0 { return "\(counts.outside) \(counts.outside == 1 ? "result is" : "results are") outside the range on your report." }
+        guard let c = coverage else { return "None of the results we read is outside its range. Check the rest of your report too." }
+        if c.checked < c.candidates { return "We checked \(c.checked) of \(c.candidates) result lines. None of the ones we checked is outside its range." }
+        if counts.unknown > 0 { return "Nothing is marked outside its range, but we couldn't tell for \(counts.unknown) \(counts.unknown == 1 ? "result" : "results")." }
+        return "Nothing on this report is marked or printed as outside its range."
+    }
 }
 
 struct APIErrorBody: Decodable, Sendable {

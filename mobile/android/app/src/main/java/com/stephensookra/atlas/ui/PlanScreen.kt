@@ -10,6 +10,8 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Share
+import android.content.Intent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +33,7 @@ import com.stephensookra.atlas.data.Barrier
 import com.stephensookra.atlas.data.PlanResponse
 import com.stephensookra.atlas.data.PlanStep
 import com.stephensookra.atlas.data.ResourceCard
+import com.stephensookra.atlas.data.ShareText
 import com.stephensookra.atlas.data.VerifiedItem
 import com.stephensookra.atlas.data.nonEmpty
 import java.text.NumberFormat
@@ -53,6 +56,18 @@ fun PlanScreen(model: AppModel) {
         if (model.care?.has_warning_signs == true) WarningBanner()
         Text(plan.summary, style = Type.title3.copy(fontWeight = FontWeight.SemiBold, fontSize = 19.sp))
         ReadAloudBar(speaker, model.language, listOf(plan.summary) + plan.steps.mapIndexed { i, s -> "${i + 1}. ${s.title}. ${s.action}" })
+        val context = LocalContext.current
+        OutlinePill("Send to family", onClick = {
+            val text = ShareText.plan(model.items, plan, model.care?.questions_for_doctor.orEmpty())
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, ShareText.TITLE)
+                putExtra(Intent.EXTRA_TEXT, text)
+            }
+            context.startActivity(Intent.createChooser(send, "Send the plan to family"))
+        }, fill = Palette.mint, icon = Icons.Filled.Share,
+            contentDescription = "Send to family. Opens the share sheet to text or email the plan. ATLAS does not see or keep it.")
+        Text("Send to family goes from your own phone. ATLAS doesn't see or keep it.", style = Type.caption.copy(fontWeight = FontWeight.Normal))
         Text(
             "${plan.stats.steps} steps · ${plan.stats.candidates} verified options checked · ${plan.stats.dropped_refs} unverified suggestions removed",
             style = Type.foot.copy(fontWeight = FontWeight.Bold),
@@ -61,7 +76,7 @@ fun PlanScreen(model: AppModel) {
         if (plan.ask_a_person) {
             AtlasCard(background = Palette.peach, border = Palette.peachDeep) {
                 Text("This needs a person too", style = Type.headline.copy(color = Palette.peachDeep))
-                Text("${plan.ask_a_person_reason} Call 211 (United Way of Greater Atlanta) or your community health worker.", style = Type.sub)
+                Text("${plan.ask_a_person_reason} Call 211 or your community health worker.", style = Type.sub)
                 CallButton("Call 211", "211")
             }
         }

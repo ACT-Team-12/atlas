@@ -77,6 +77,7 @@ fun AtlasRoot(model: AppModel) {
                 Route.Barriers -> { TopBar("Step 2 of 3", onBack = { model.back() }); BarriersScreen(model) }
                 Route.Plan -> { TopBar("Step 3 of 3", onBack = { model.back() }); PlanScreen(model) }
                 Route.Reminders -> { TopBar("Your reminders", onBack = { model.back() }); RemindersListScreen() }
+                Route.Labs -> { TopBar("Lab results", onBack = { model.back() }); LabResultsScreen(model) }
             }
         }
 
@@ -138,7 +139,7 @@ fun BusyOverlay(busy: Busy, onCancel: () -> Unit) {
     val (title, note) = when (busy) {
         Busy.Recognizing -> "Reading your photo on this phone..." to "The photo stays on your phone."
         Busy.Reading -> "Reading your paper..." to "Finding each step and checking it against your paper. This takes 10 to 25 seconds."
-        Busy.Planning -> "Building your plan..." to "Matching your steps with verified Atlanta clinics and programs. This takes 10 to 25 seconds."
+        Busy.Planning -> "Building your plan..." to "Matching your steps with verified clinics and programs near you. This takes 10 to 25 seconds."
     }
     Box(
         Modifier

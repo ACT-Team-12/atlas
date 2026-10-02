@@ -31,7 +31,7 @@ struct BarriersView: View {
                 }
 
                 Card {
-                    Text("Your ZIP (metro Atlanta)").font(.subheadline.weight(.bold))
+                    Text("Your ZIP").font(.subheadline.weight(.bold))
                     TextField("e.g. 30340", text: Binding(
                         get: { model.zip },
                         set: { v in model.zip = String(v.filter(\.isNumber).prefix(5)); model.location = nil }
@@ -97,7 +97,7 @@ struct BarriersView: View {
                 let c = try await locator.currentLocation()
                 let point = LatLng(lat: c.latitude, lng: c.longitude)
                 guard point.isInServiceArea else {
-                    model.error = "Your location is outside metro Atlanta, where ATLAS has verified clinics. Type a metro Atlanta ZIP instead."
+                    model.error = "Your location is outside the US, where ATLAS has verified clinics. Type a US ZIP instead."
                     return
                 }
                 model.location = point

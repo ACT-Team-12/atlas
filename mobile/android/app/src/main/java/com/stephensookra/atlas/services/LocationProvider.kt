@@ -17,7 +17,7 @@ object LocationProvider {
     const val DENIED = "Location is off for ATLAS. Type a ZIP instead."
     const val UNAVAILABLE = "We could not find your location. Type a ZIP instead."
     const val OUTSIDE =
-        "Your location is outside metro Atlanta, where ATLAS has verified clinics. Type a metro Atlanta ZIP instead."
+        "Your location is outside the US, where ATLAS has verified clinics. Type a US ZIP instead."
 
     /** Caller must already hold ACCESS_COARSE_LOCATION. Returns null when no fix arrives in time. */
     @SuppressLint("MissingPermission")

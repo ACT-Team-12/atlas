@@ -3,7 +3,7 @@ import Foundation
 import Observation
 
 enum Route: Hashable {
-    case check, steps, barriers, plan, reminders
+    case check, steps, barriers, plan, reminders, labs
 }
 
 /// Where the text on the "Check the text" screen came from.

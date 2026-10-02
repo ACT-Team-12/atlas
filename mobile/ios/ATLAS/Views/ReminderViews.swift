@@ -15,6 +15,7 @@ struct ReminderSheet: View {
     @State private var date = Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
     @State private var message: String?
     @State private var saving = false
+    @State private var showCalendar = false
 
     private var draft: ReminderDraft { ReminderDraft(stepTitle: target.title, quote: target.quote, date: date, detail: target.detail) }
 
@@ -51,12 +52,25 @@ struct ReminderSheet: View {
                     } label: { Text(saving ? "Saving..." : "Set reminder") }
                         .buttonStyle(PillButtonStyle())
                         .disabled(saving)
+
+                    Button { showCalendar = true } label: { Label("Add to my calendar", systemImage: "calendar.badge.plus") }
+                        .buttonStyle(PillButtonStyle(fill: Palette.paper, text: Palette.ink))
+                        .accessibilityHint("Opens your calendar with this step filled in. You save it yourself; ATLAS never reads your calendar.")
+                    Text("The calendar event carries the line from your paper and reminds you the day before and 2 hours before.")
+                        .font(.footnote.weight(.semibold)).foregroundStyle(Palette.inkSoft)
                 }
                 .padding(16)
             }
             .screenBackground()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            }
+            .sheet(isPresented: $showCalendar) {
+                CalendarEditor(draft: CalendarDraft(title: target.title, start: date, quote: target.quote, detail: target.detail)) { saved in
+                    showCalendar = false
+                    if saved { message = "Added to your calendar." }
+                }
+                .ignoresSafeArea()
             }
         }
     }

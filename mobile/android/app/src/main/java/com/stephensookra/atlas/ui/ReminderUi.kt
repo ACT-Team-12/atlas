@@ -1,5 +1,7 @@
 package com.stephensookra.atlas.ui
 
+import com.stephensookra.atlas.services.CalendarDraft
+
 import android.Manifest
 import android.app.TimePickerDialog
 import android.os.Build
@@ -123,6 +125,14 @@ fun ReminderDialog(target: ReminderTarget, onDismiss: () -> Unit) {
                         save()
                     }
                 })
+                OutlinePill("Add to my calendar", onClick = {
+                    try {
+                        context.startActivity(CalendarDraft(target.title, draft.atMillis, target.quote, target.detail).intent())
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        message = "No calendar app on this phone can add events."
+                    }
+                }, fill = Palette.paper, contentDescription = "Add to my calendar. Opens your calendar with this step filled in. ATLAS never reads your calendar.")
+                Text("The calendar event carries the line from your paper.", style = Type.foot)
                 Spacer(Modifier.padding(8.dp))
             }
         }

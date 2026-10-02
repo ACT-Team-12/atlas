@@ -15,6 +15,10 @@ struct APIClient: Sendable {
         try await post("/api/plan", body: request)
     }
 
+    func results(text: String, language: Language) async throws -> ResultsResponse {
+        try await post("/api/results", body: ResultsRequest(text: text, language: language))
+    }
+
     private func post<Body: Encodable, Out: Decodable>(_ path: String, body: Body) async throws -> Out {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))
         req.httpMethod = "POST"

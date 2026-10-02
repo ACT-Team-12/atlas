@@ -19,13 +19,21 @@ struct PlanView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     ReadAloudBar(speaker: speaker, language: model.language, lines: readLines(plan))
+                    ShareLink(item: ShareText.plan(items: model.items, plan: plan, questions: model.care?.questions_for_doctor ?? []),
+                              subject: Text(ShareText.title), preview: SharePreview(ShareText.title)) {
+                        Label("Send to family", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(OutlinePillStyle(fill: Palette.mint))
+                    .accessibilityHint("Opens the share sheet to text or email the plan. ATLAS does not see or keep it.")
+                    Text("Send to family goes from your own phone. ATLAS doesn't see or keep it.")
+                        .font(.caption).foregroundStyle(Palette.inkSoft)
                     Text("\(plan.stats.steps) steps · \(plan.stats.candidates) verified options checked · \(plan.stats.dropped_refs) unverified suggestions removed")
                         .font(.footnote.weight(.bold)).foregroundStyle(Palette.inkSoft)
 
                     if plan.ask_a_person {
                         Card(background: Palette.peach, border: Palette.peachDeep) {
                             Text("This needs a person too").font(.headline.weight(.heavy)).foregroundStyle(Palette.peachDeep)
-                            Text("\(plan.ask_a_person_reason) Call 211 (United Way of Greater Atlanta) or your community health worker.")
+                            Text("\(plan.ask_a_person_reason) Call 211 or your community health worker.")
                                 .font(.subheadline.weight(.semibold)).wraps()
                             CallButton(label: "Call 211", number: "211")
                         }
@@ -143,7 +151,7 @@ struct ResourceView: View {
                 }
                 if let bus = c.nearest_bus { Label("Bus stop: \(bus.name)", systemImage: "bus.fill").font(.subheadline) }
                 FlowLayout(spacing: 8) {
-                    CallButton(label: "Call \(c.phone)", number: c.phone)
+                    if !c.phone.isEmpty { CallButton(label: "Call \(c.phone)", number: c.phone) }
                     Button { openURL(Links.transit(to: c)) } label: { Label("Transit directions", systemImage: "map") }
                         .buttonStyle(OutlinePillStyle())
                         .accessibilityHint("Opens Apple Maps")
@@ -212,7 +220,8 @@ enum Links {
     static func transit(to c: Clinic) -> URL {
         var comps = URLComponents(string: "https://maps.apple.com/")!
         comps.queryItems = [
-            URLQueryItem(name: "daddr", value: "\(c.address), \(c.city), GA \(c.zip)"),
+            // Clinics outside Atlanta come with "City, ST"; Atlanta records have the city only.
+            URLQueryItem(name: "daddr", value: c.city.contains(",") ? "\(c.address), \(c.city) \(c.zip)" : "\(c.address), \(c.city), GA \(c.zip)"),
             URLQueryItem(name: "dirflg", value: "r"),
         ]
         return comps.url!

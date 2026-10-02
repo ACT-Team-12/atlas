@@ -7,6 +7,7 @@ import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
 import { BARRIERS, BARRIER_LABEL, type Barrier } from "@/lib/resources";
 import type { PlanResponse, ResourceCard } from "@/lib/plan";
 import { SquashButton } from "./SquashButton";
+import { Understand } from "./Understand";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -382,6 +383,7 @@ export function CarePlanTool() {
                   )}
                 </div>
               </div>
+              <Understand key={`${care.source_text.length}:${items.map((i) => i.id).join(",")}:${language}`} care={care} items={items} language={language} />
             </div>
           )}
         </div>

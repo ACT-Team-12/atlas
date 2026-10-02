@@ -90,6 +90,8 @@ export default function TestsPage() {
               <Stat big={`${T.plan_dropped_refs}`} label="made-up clinic or step references" note={`across ${T.plan_steps} plan steps`} tone="bg-mint" />
               <Stat big={sec(T.median_read_ms)} label="median time to read a paper" />
               <Stat big={sec(T.median_plan_ms)} label="median time to build a plan" note="for a ride and cost barrier, ZIP 30303" />
+              <Stat big={`${T.quiz_questions}/${T.quiz_questions + T.quiz_dropped}`} label="check-I-understood questions kept" note="each answer's proof must be in the paper, inside its own step" tone="bg-mint" />
+              <Stat big={sec(T.median_quiz_ms)} label="median time to write the questions" />
               <Stat big="Pending" label="time with paper and pen alone" note="our non-AI baseline, timed in Mission 3 user tests. Not measured yet." tone="bg-lilac" />
             </div>
             {(promoted.length > 0 || missed.length > 0) && (

@@ -1,66 +1,64 @@
-# Mission 2 Response: Problem & Product Concept Brief
+# Team ATLAS · Mission 2: Problem & Product Concept
 
-**Status:** Draft for team decision, due Oct 1, 2026 · 11:59 pm ET
-**Based on:** the merged proposal (Timothy's communication-gap idea + Akhil's between-visit tracking). See [research/ideas/2026-10-01-timothy-communication-gap.md](../../research/ideas/2026-10-01-timothy-communication-gap.md).
-
-> Items marked **TODO** need a teammate's input. Don't fill evidence with anything we haven't actually observed or sourced.
+**Team:** ATLAS (Team 12) · Akhil Kumar Penugonda, Timothy Birt, Lilian Huynh, Anusmita Deb, Stephen Sookra  
+**Live product:** https://atlas-team12.vercel.app · **Code:** https://github.com/ACT-Team-12/atlas (PR #1)
 
 ## 1. Problem statement
 
-When **patients leave a doctor's visit with an after-visit summary and new or changed instructions**, they try to **understand what they're supposed to do and why, and keep doing it until the next visit**, but **the summary is written in clinical language and nothing helps them track what happens between visits**, causing **missed or misunderstood instructions and appointments where they can't clearly report how things went**. We know **TODO (Anusmita): one real observation, conversation, or cited source**; we still need to check **whether patients would actually record anything between visits, and whether they can get their after-visit summary as text or a file**.
+When **a patient leaves a clinic visit with new instructions (a new medicine, a lab, a referral, a follow-up)**, **the community health worker or patient navigator helping them** tries to **turn that paperwork into steps the patient can actually finish** but **the after-visit paper is written in clinical language, and the real blockers (transportation, cost, scheduling, language, tech access, not knowing how referrals work or what help exists) are not on it**, causing **labs, referrals and follow-ups that never happen, and a next visit that starts from zero**.
 
-- **Evidence source(s):** TODO (Anusmita)
-- **Owner:** Anusmita (research) · Timothy (product decision)
+**We know:**
 
-## 2. Current alternative & value proposition
+- About 36% of US adults (over 75 million) have Basic or Below Basic health literacy. Below Basic is about double the national rate among Medicaid recipients (30%) and the uninsured (28%). (NCES, National Assessment of Adult Literacy 2003, nces.ed.gov/pubs2006/2006483.pdf)
+- In one large health system, only 34.8% of 103,737 referral scheduling attempts ended in a documented completed appointment. (Patel et al., J Gen Intern Med 2018;33:715-721)
+- In two academic primary care practices, only 52.9% to 58.4% of ordered colonoscopies, stress tests and dermatology referrals were completed on time. (Amat et al., Jt Comm J Qual Patient Saf 2024;50(3):177-184)
+- In 2017, 5.8 million people in the US (1.8%) delayed medical care because they did not have transportation. Medicaid recipients and people below the poverty line had higher odds. (Wolfe, McDonald, Holmes, Am J Public Health 2020)
 
-| Current solution / workaround | What's wrong with it for this customer |
-|-------------------------------|----------------------------------------|
-| Pasting the summary into ChatGPT or a general chatbot | Explains well in the moment, but keeps no plan, no record between visits, and nothing to bring to the next appointment. The patient has to remember to ask. |
-| Patient portal tools (e.g. Epic's Emmie in MyChart simplifies after-visit instructions) | Only available where the health system has it; focuses on explaining, not tracking how the patient actually did. |
-| Medication reminder apps (e.g. Medisafe) | Remind and log doses; don't connect to the instructions from the visit or explain the "why." |
-| Paper summary, memory, notes app | Easy to lose; the patient arrives at the next visit relying on memory. |
+**We still need to check:** whether community health workers and nonprofits in our chosen Atlanta area would use an app like this, which barriers come up most for their patients, and which local resources they already trust. These are Mission 3 interviews, not facts yet.
 
-Sources: [research/landscape/2026-10-01-similar-solutions.md](../../research/landscape/2026-10-01-similar-solutions.md)
+## 2. Current alternative and value proposition
 
-**Our product will** reduce misunderstood instructions and create a record of what happened between visits that the patient can bring back to their doctor.
+| What people do today | What it misses |
+|---|---|
+| Paper after-visit summary plus memory | Clinical language, easy to lose, says nothing about getting a ride or paying for the lab |
+| Pasting the summary into ChatGPT | Explains in the moment, but can invent instructions, keeps no plan, knows nothing about the patient's barriers or local help |
+| Epic MyChart tools (Emmie) that simplify instructions | Only for patients whose health system offers it and who use the portal; explains, does not act on barriers |
+| CHW calls, 211 searches, spreadsheets | Works, but slow and manual; every worker rebuilds the same plan by hand |
 
-**Value proposition:** Translate healthcare to the patient and the patient back to healthcare: understand your care plan in plain language, with every explanation linked to your own documents, and arrive at your next visit with a clear summary instead of relying on memory.
+**Value proposition:** ATLAS turns one visit into a plan a person can finish. It reads the patient's own paper, explains every step in their language, shows the exact line each step came from, and matches each blocker to a verified local resource. If something is not in the paper or not in the verified list, ATLAS says so instead of guessing. We will **reduce** missed follow-ups and **eliminate** the made-up advice risk of a general chatbot.
 
-## 3. One-task product path (Mission 2 scope)
+## 3. One-task product path
 
-**Task:** turn an after-visit summary into a care plan the patient understands.
+**Task:** turn an after-visit summary into a verified, doable follow-up plan.
 
-1. **Entry:** the patient pastes or uploads their after-visit summary.
-2. **Action:** the AI pulls out each care-plan item (medications, instructions, follow-ups, warning signs), explains each one in plain language, links it to the exact line it came from, and suggests questions to ask the doctor.
-3. **Meaningful result:** the patient reviews, edits, and confirms the plan, which is saved as their care plan until the next visit.
-4. **Likely failure / help state:** if the document can't be read, or an item isn't clearly stated in it, the product says so instead of guessing. Medical questions get "ask your doctor or pharmacist." A visible notice says this is not medical advice.
+1. **Entry:** a CHW, a nonprofit volunteer, or the patient opens ATLAS on a phone. No account needed.
+2. **Action:** take a photo of the after-visit paper (or paste it), pick the language and reading level, and answer a short barrier check (ride, cost, schedule, language, internet, "how do referrals work?").
+3. **Meaningful result:** a checklist of every medicine change, lab, referral, follow-up and warning sign, in plain words, each tied to the line it came from, plus a matched local resource for each barrier and a list of questions to bring to the next visit. The person checks things off, edits or removes anything.
+4. **Failure / help state:** if a step is not clearly in the paper, ATLAS does not show it as an instruction. It moves it to "held back to protect you" or to "ask your clinic". Warning signs show a red banner with the clinic or 911 path. If no verified resource fits, it says so and offers a human (the CHW).
 
-**Later missions:** between-visit logging (doses, symptoms, questions), then an AI pre-visit summary, then a doctor view (long-term vision).
+## 4. AI function, customer controls, non-AI baseline
 
-## 4. AI function
-
-- **What AI does inside the product:** extracts care-plan items from the patient's own document and explains them in plain language, citing the source line for each. It only uses the uploaded document, never general internet knowledge, and it doesn't diagnose.
-- **What the customer reviews / controls:** the patient sees every item next to its source, and can edit, remove, or confirm each one before anything is saved.
-- **Non-AI baseline for comparison:** the raw after-visit summary plus a medical glossary lookup for unfamiliar terms.
+- **AI function:** the AI receives the after-visit paper (photo or text), the chosen language and reading level, and the barrier answers. It extracts structured care steps (medicine, lab, referral, follow-up, daily care, warning sign), each with an exact quote, a plain-language explanation and the question to ask if the paper is unclear. Next, it matches each barrier to entries in our verified local resource list. A deterministic check we wrote ourselves rejects any step whose quote is not in the paper (and, next, any resource not in the verified list).
+- **What the customer controls:** language and reading level; which barriers apply; checking off, editing or removing every step; whether anything is saved (default: nothing leaves the device; no account).
+- **Non-AI baseline:** the paper summary plus a fixed checklist template and a manual 211 search. In Mission 3 we will compare both on time to a complete plan and missed steps, using sample papers.
 
 ## 5. First executable code slice
 
-- **Link:** TODO (Akhil): repo https://github.com/ACT-Team-12/atlas, plus a deployed URL once live
-- **Planned slice:** paste after-visit summary → AI extraction with source quotes → confirm screen, using a made-up sample summary (no real patient data)
-- **Or build-state note:** blocker = ___, next code task = ___
-- **Owner:** Akhil · **Backup:** Stephen
+- **Live:** https://atlas-team12.vercel.app (try "Use the sample summary", then "Make my plan")
+- **Code:** https://github.com/ACT-Team-12/atlas, pull request #1. CI runs lint, typecheck, unit tests and a production build.
+- **What works today:** paste or photo, AI extraction with 7 language options (English, Spanish, Vietnamese, Korean, Chinese, Amharic, French; Spanish and Vietnamese tested so far), the source-quote check, highlighted source view, questions for the doctor, "what your paper does not say", warning-sign banner, check off and remove.
+- **What we measured (on our labeled sample paper, not a real patient):** 12 of 12 extracted steps passed the source-quote check in both Spanish and Vietnamese, 0 held back, about 22 to 27 seconds per run on the live site.
+- **Next code task:** the barrier check and a verified resource list for one Atlanta area, using the same "only show what you can point to" rule.
+- **Owners:** build Akhil (owner) and Stephen (backup); Stephen owns testing and release.
 
 ## 6. FACTS check
 
-TODO (whole team, after the code slice runs)
-
-- **Feed:** 
-- **Assess:** 
-- **Challenge:** 
-- **Test:** 
-- **Steward:** 
+- **Feed:** real evidence (the four cited sources above) and the real build state (live URL, PR #1). The sample summary is written by us and labeled as not a real patient.
+- **Assess:** the AI pulled every step from the sample correctly and wrote plain Spanish and Vietnamese. Timing is slow (over 20 seconds) and needs work.
+- **Challenge:** Akhil asked, "what does our app do that ChatGPT can't?" Our answer: it never shows a step it cannot point to in the patient's own paper, it plans around barriers with verified local help, and it is built for the CHWs and nonprofits who already help people. We also removed claims we could not source (for example a popular "patients forget 40 to 80%" figure, whose source we could not confirm).
+- **Test:** a simpler path is the fixed checklist plus a 211 search. Mission 3 compares it to ATLAS with CHWs.
+- **Steward:** every statistic has a citation, the sample is labeled, and real patient papers stay out of the app until we have consent and privacy rules written down.
 
 ## 7. Customer question for Mission 3
 
-> Between doctor visits, would you record how you're doing (doses, symptoms, questions) if it took under 30 seconds a day, and what would make you stop?
+"When you help someone after a clinic visit, which step most often never happens (the lab, the referral, the pharmacy, the follow-up), and what stopped it?"

@@ -40,6 +40,11 @@ describe("teach-back checker", () => {
     expect(r.dropped).toEqual([{ item_id: "item-0", reason: "distractor_matches_quote" }]);
   });
 
+  it("keeps a question whose quote has several numbers and a wrong option uses one of them", () => {
+    const q: DraftQuestion = { item_id: "item-0", question: "How many tablets each time?", options: ["2 tablets", "1 tablet", "Half a tablet"], correct: 1, answer_quote: "Take 1 tablet by mouth 2 times a day with meals" };
+    expect(checkQuestions(paper.text, items, [q]).dropped).toEqual([]);
+  });
+
   it("drops a proof that is real but belongs to a different step", () => {
     const r = checkQuestions(paper.text, items, [{ ...good, answer_quote: "Call 911 if you have chest pain" }]);
     expect(r.dropped[0].reason).toBe("quote_outside_step");

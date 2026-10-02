@@ -89,13 +89,15 @@ export function checkQuestions(
     if (span.start < step.start || span.end > step.end) { dropped.push({ item_id: q.item_id, reason: "quote_outside_step" }); continue; }
     // The quote is real, but does it back THIS answer? (Codex review, 2026-10-02: correct="3 times daily" with
     // quote "2 times a day" passed.) No AI here: every number in the right answer must be in the quote, and no
-    // wrong option may carry exactly the quote's numbers. Answers without numbers keep the quote-in-step rule.
+    // wrong option may carry exactly the quote's set of numbers (a quote like "1 tablet 2 times a day" must still allow
+    // a wrong "2 tablets"). Answers without numbers keep the quote-in-step rule.
     const quoteNums = new Set(numbersIn(q.answer_quote));
     const nums = (o: string) => numbersIn(o);
     const right = nums(opts[q.correct]);
     if (right.some((n) => !quoteNums.has(n))) { dropped.push({ item_id: q.item_id, reason: "answer_not_in_quote" }); continue; }
     const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((n) => b.includes(n));
-    if (opts.some((o, i) => i !== q.correct && nums(o).length > 0 && nums(o).every((n) => quoteNums.has(n)) && !sameSet(nums(o), right))) {
+    const quoteList = [...quoteNums];
+    if (opts.some((o, i) => i !== q.correct && nums(o).length > 0 && sameSet(nums(o), quoteList) && !sameSet(right, quoteList))) {
       dropped.push({ item_id: q.item_id, reason: "distractor_matches_quote" });
       continue;
     }

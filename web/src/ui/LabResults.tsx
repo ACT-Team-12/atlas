@@ -136,13 +136,19 @@ export function LabResults() {
             {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
             {res && (
               <div className="mt-8">
-                <p className="font-extrabold text-lg">
-                  {res.counts.outside === 0 ? "Nothing on this report is marked or printed as outside its range." : `${res.counts.outside} ${res.counts.outside === 1 ? "result is" : "results are"} outside the range on your report.`}
-                </p>
-                <p className="text-xs font-semibold text-ink/70 mt-1">
-                  {res.counts.inside} inside the range{res.counts.unknown ? `, ${res.counts.unknown} with no range we could read` : ""}.
-                  {res.dropped.length > 0 && ` ${res.dropped.length} line${res.dropped.length === 1 ? "" : "s"} left out because the AI's copy didn't match your report.`}
-                </p>
+                <p className="font-extrabold text-lg">{headline(res)}</p>
+                {res.rows.length > 0 && (
+                  <p className="text-xs font-semibold text-ink/70 mt-1">
+                    {res.counts.inside} inside the range{res.counts.unknown ? `, ${res.counts.unknown} we couldn't tell` : ""}.
+                    {res.dropped.length > 0 && ` ${res.dropped.length} line${res.dropped.length === 1 ? "" : "s"} left out because the AI's copy didn't match your report.`}
+                  </p>
+                )}
+                {res.rows.length > 0 && res.coverage.unchecked.length > 0 && (
+                  <div className="mt-4 rounded-2xl border-2 border-ink/30 bg-paper p-4">
+                    <p className="font-bold">We checked {res.coverage.checked} of {res.coverage.candidates} result lines. These lines were not checked, so look at them yourself:</p>
+                    <ul className="mt-2 space-y-1 font-mono text-xs">{res.coverage.unchecked.map((l, i) => <li key={i} className="border-l-4 border-sun pl-2">{l}</li>)}</ul>
+                  </div>
+                )}
                 <ul className="mt-4 space-y-3">{flagged.map((r, i) => <Row key={i} r={r} />)}</ul>
                 {rest.length > 0 && (
                   <>
@@ -162,6 +168,17 @@ export function LabResults() {
   );
 }
 
+/** Never a report-wide all-clear unless every result line our code found was checked. */
+function headline(res: ResultsResponse) {
+  const { outside, unknown } = res.counts;
+  const { checked, candidates } = res.coverage;
+  if (res.rows.length === 0) return "We couldn't read any results from this. Check the text or ask your clinic.";
+  if (outside > 0) return `${outside} ${outside === 1 ? "result is" : "results are"} outside the range on your report.`;
+  if (checked < candidates) return `We checked ${checked} of ${candidates} result lines. None of the ones we checked is outside its range.`;
+  if (unknown > 0) return `Nothing is marked outside its range, but we couldn't tell for ${unknown} ${unknown === 1 ? "result" : "results"}.`;
+  return "Nothing on this report is marked or printed as outside its range.";
+}
+
 function Row({ r }: { r: ResultRow }) {
   const tone = r.status === "outside" ? "border-red bg-red-soft" : r.status === "inside" ? "border-ink/30 bg-paper" : "border-ink/30 bg-paper";
   return (
@@ -169,7 +186,7 @@ function Row({ r }: { r: ResultRow }) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="font-extrabold">{r.test}: {r.value} {r.unit}</p>
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-paper">
-          {r.status === "outside" ? (r.direction === "high" ? "Above range" : r.direction === "low" ? "Below range" : "Flagged") : r.status === "inside" ? "In range" : "No range"}
+          {r.status === "outside" ? (r.direction === "high" ? "Above range" : r.direction === "low" ? "Below range" : "Flagged") : r.status === "inside" ? "In range" : "Can't tell"}
         </span>
       </div>
       <p className="mt-1 text-sm">{r.plain_name}</p>

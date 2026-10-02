@@ -8,8 +8,7 @@ use atlas_verify::{find_span, normalize, verify_quotes, Span};
 /// `SAMPLE_AVS.slice(start, end)` with UTF-16 offsets.
 fn slice16(s: &str, span: Span) -> String {
     let units: Vec<u16> = s.encode_utf16().collect();
-    let r = span.range().expect("usable offsets");
-    String::from_utf16(&units[r]).expect("valid slice")
+    String::from_utf16(&units[span.range()]).expect("valid slice")
 }
 
 #[test]
@@ -89,8 +88,8 @@ fn normalize_matches_the_ts_rules() {
     // U+0085 is not JS whitespace; U+FEFF is.
     assert_eq!(normalize("a\u{0085}b"), "a\u{0085}b");
     assert_eq!(normalize("a\u{FEFF}b"), "a b");
-    // Final sigma applies to the whole quote, as String.prototype.toLowerCase does.
-    assert_eq!(normalize("ΟΔΟΣ"), "οδος");
+    // Final sigma is folded to plain sigma, so a word and its letters normalize the same.
+    assert_eq!(normalize("ΟΔΟΣ"), "οδοσ");
 }
 
 #[test]
@@ -98,25 +97,47 @@ fn offsets_are_utf16_code_units() {
     // The emoji is two UTF-16 units, so "dose" starts at 3, not 2 (chars) or 5 (bytes).
     let s = "\u{1F48A} dose 5 mg";
     let span = find_span(s, "dose 5 mg").expect("found");
+    assert_eq!(span, Span { start: 3, end: 12 });
+}
+
+// Port of the Unicode tests in verify.test.ts.
+
+fn span(s: usize, e: usize) -> Option<Span> {
+    Some(Span { start: s, end: e })
+}
+
+#[test]
+fn keeps_offsets_right_after_a_letter_that_lower_cases_to_two_units() {
+    let src = "\u{0130}la\u{00E7} g\u{00FC}nde iki kez";
+    assert_eq!(find_span(src, "g\u{00FC}nde iki kez"), span(5, 18));
+    let early = "\u{0130} take 1 tablet daily with food";
     assert_eq!(
-        span,
-        Span {
-            start: Some(3),
-            end: Some(12)
-        }
+        slice16(early, find_span(early, "take 1 tablet").expect("found")),
+        "take 1 tablet"
+    );
+    // Used to come back as { start: undefined, end: NaN } in the TS.
+    assert_eq!(find_span("\u{0130}\u{0130}\u{0130} abc", "abc"), span(4, 7));
+    assert_eq!(
+        find_span("\u{0130}la\u{00E7} g\u{00FC}nde", "\u{0130}LA\u{00C7}"),
+        span(0, 4)
     );
 }
 
 #[test]
-fn capital_i_with_dot_reproduces_the_ts_map_shift() {
-    // "İ" lower-cases to two units but gets one map entry in the TS, so offsets after it shift by one and a match
-    // that ends at the very end reads past the map. JS returns { start: 2, end: NaN } here (the true start is 1); we mirror it.
-    let span = find_span("\u{0130}abc", "abc").expect("found");
+fn matches_a_greek_word_ending_in_capital_sigma_on_both_sides() {
+    let src = "\u{039F}\u{0394}\u{039F}\u{03A3} \u{039A}\u{0391}\u{0399}";
+    assert_eq!(find_span(src, "\u{039F}\u{0394}\u{039F}\u{03A3}"), span(0, 4));
+    assert_eq!(find_span(src, "\u{03BF}\u{03B4}\u{03BF}\u{03C2}"), span(0, 4));
+}
+
+#[test]
+fn lower_cases_capital_letters_outside_the_bmp_in_the_source_too() {
     assert_eq!(
-        span,
-        Span {
-            start: Some(2),
-            end: None
-        }
+        find_span("\u{10400}\u{10401} dose", "\u{10400}\u{10401} dose"),
+        span(0, 9)
+    );
+    assert_eq!(
+        find_span("\u{10400}\u{10401} dose", "\u{10428}\u{10429} dose"),
+        span(0, 9)
     );
 }

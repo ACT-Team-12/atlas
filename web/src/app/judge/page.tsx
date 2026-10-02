@@ -74,7 +74,9 @@ export default async function JudgePage() {
             <div className="card p-6 bg-paper">
               <h2 className="display text-2xl">Phone apps</h2>
               <p className="mt-2 font-semibold text-ink-soft">Native iOS (SwiftUI) and Android (Kotlin). The photo of the paper is read on the phone and never uploaded, and reminders quote the paper.</p>
-              <p className="mt-2 font-semibold text-ink-soft">iOS: <a className="underline decoration-2 underline-offset-4" href={TESTFLIGHT}>TestFlight link</a> (opens once Apple finishes beta review).</p>
+              <p className="mt-2 font-semibold text-ink-soft">
+                <a className="underline decoration-2 underline-offset-4" href="/download">Android APK and QR codes</a> · iOS: <a className="underline decoration-2 underline-offset-4" href={TESTFLIGHT}>TestFlight link</a> (opens once Apple finishes beta review).
+              </p>
             </div>
             <div className="card p-6 bg-paper">
               <h2 className="display text-2xl">What the AI does, and what our code does</h2>

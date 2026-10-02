@@ -77,6 +77,40 @@ export async function recordEvent(e: AtlasEvent, isTest: boolean): Promise<Recor
   }
 }
 
+/**
+ * A shared daily ceiling for a paid AI route, counted in Postgres so every server instance shares it (the guard in
+ * guard.ts is per instance). One atomic upsert per request: the count goes up first, then we compare, so two
+ * instances racing at the limit can't both slip under it. "unavailable" means no database or a database error; the
+ * caller keeps the per-instance guard and goes on, since a database hiccup should not take the route down.
+ * Counts only (route name, UTC day), never the paper or the IP (db/migrations/003_daily_usage.sql).
+ */
+export type DailySlot = { status: "ok" | "over"; used: number; limit: number } | { status: "unavailable" };
+
+export async function takeDailySlot(bucket: string, limit: number): Promise<DailySlot> {
+  const p = getPool();
+  if (!p) return { status: "unavailable" };
+  try {
+    const r = await p.query(
+      `insert into atlas_daily_usage (day, bucket, n) values ((now() at time zone 'utc')::date, $1, 1)
+       on conflict (day, bucket) do update set n = atlas_daily_usage.n + 1
+       returning n`,
+      [bucket],
+    );
+    const used = Number(r.rows[0]?.n);
+    if (!Number.isFinite(used)) return { status: "unavailable" };
+    return { status: used > limit ? "over" : "ok", used, limit };
+  } catch (err) {
+    console.error("takeDailySlot failed", err instanceof Error ? err.name : typeof err, (err as { code?: string })?.code ?? "");
+    return { status: "unavailable" };
+  }
+}
+
+/** Seconds until the next UTC midnight, when the daily count starts again. */
+export function secondsToUtcMidnight(now = Date.now()): number {
+  const d = new Date(now);
+  return Math.max(1, Math.ceil((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - now) / 1000));
+}
+
 export type LiveStats = {
   reads: number;
   plans: number;

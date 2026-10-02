@@ -25,6 +25,9 @@ export const PrepRequestSchema = z.object({
 });
 export type PrepRequest = z.infer<typeof PrepRequestSchema>;
 
+/** Prep timelines per UTC day across every server instance (db.takeDailySlot). Each one is one paid model call. */
+export const PREP_DAILY_LIMIT = Math.max(1, Number(process.env.ATLAS_PREP_DAILY_LIMIT ?? 300) || 300);
+
 /** What the AI returns for each instruction. `ai_slot` is its guess of when; our code records it and never uses it to place a step. */
 export const PrepModelItem = z.object({
   kind: z.enum(PREP_KINDS),

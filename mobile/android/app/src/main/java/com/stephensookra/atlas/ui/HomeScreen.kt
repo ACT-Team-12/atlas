@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.android.gms.common.moduleinstall.ModuleInstall
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
@@ -66,14 +67,29 @@ fun HomeScreen(model: AppModel, onAbout: () -> Unit) {
             .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
             .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
             .build()
+        fun fallBack(reason: String, e: Exception? = null) {
+            Log.w("AtlasScan", "Document scanner unavailable ($reason), using the photo picker", e)
+            Toast.makeText(context, "The scanner is not ready on this phone. Choose a photo instead.", Toast.LENGTH_LONG).show()
+            pickPhoto()
+        }
         try {
-            GmsDocumentScanning.getClient(options).getStartScanIntent(activity)
-                .addOnSuccessListener { scanner.launch(IntentSenderRequest.Builder(it).build()) }
-                .addOnFailureListener { e ->
-                    Log.w("AtlasScan", "Document scanner unavailable, using the photo picker", e)
-                    Toast.makeText(context, "The scanner is not available on this phone. Choose a photo instead.", Toast.LENGTH_LONG).show()
-                    pickPhoto()
+            val client = GmsDocumentScanning.getClient(options)
+            val modules = ModuleInstall.getClient(context)
+            // Only open the scanner when its Play services module is already on the phone. Otherwise
+            // Play services shows a download screen that can fail ("Try again later") and returns nothing.
+            modules.areModulesAvailable(client)
+                .addOnSuccessListener { status ->
+                    if (status.areModulesAvailable()) {
+                        client.getStartScanIntent(activity)
+                            .addOnSuccessListener { scanner.launch(IntentSenderRequest.Builder(it).build()) }
+                            .addOnFailureListener { e -> fallBack("start failed", e) }
+                    } else {
+                        // Ask Play services to fetch it quietly for next time.
+                        modules.deferredInstall(client)
+                        fallBack("module not installed")
+                    }
                 }
+                .addOnFailureListener { e -> fallBack("availability check failed", e) }
         } catch (e: Exception) {
             Log.w("AtlasScan", "Document scanner failed to start", e)
             pickPhoto()

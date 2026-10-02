@@ -1,25 +1,31 @@
 /**
- * Abuse guard for the AI endpoints. Two cheap layers:
- * 1. Same-site check: browsers send Origin on fetch POSTs; requests from other sites are refused.
- * 2. Per-IP sliding window, kept in this server instance's memory. It is best effort (each serverless
- *    instance keeps its own count), which is enough to stop a casual script from draining the AI budget.
+ * Abuse guard for the AI endpoints (they call a paid model).
+ *
+ * - Rate limit (the real protection): a per-IP sliding window kept in this server instance's memory. Best effort,
+ *   since each serverless instance keeps its own counts, but it stops a casual script from draining the budget.
+ *   The IP comes from x-real-ip, which Vercel sets itself; a client-supplied x-forwarded-for is not trusted.
+ * - Origin check (defense in depth only): browsers on other sites are refused. A script can fake this header, so it
+ *   is not a security boundary; that is why the rate limit applies to every request either way.
  */
 
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_PER_WINDOW = Number(process.env.ATLAS_RATE_LIMIT ?? 30);
+const MAX_KEYS = 5000;
 const hits = new Map<string, number[]>();
 
+// Our production host and our own Vercel preview URLs (atlas-team12-<hash>-<team>.vercel.app).
+const OWN_HOST = /^atlas-team12(-[a-z0-9-]+)?\.vercel\.app$/;
+
 export function clientIp(req: Request) {
-  return (req.headers.get("x-forwarded-for")?.split(",")[0] ?? req.headers.get("x-real-ip") ?? "unknown").trim();
+  return (req.headers.get("x-real-ip") ?? "unknown").trim();
 }
 
 export function allowedOrigin(req: Request) {
   const origin = req.headers.get("origin");
-  if (!origin) return true; // same-origin navigations and server-to-server tools omit it; the rate limit still applies
+  if (!origin) return true;
   try {
     const host = new URL(origin).host;
-    const self = req.headers.get("host");
-    return host === self || host.endsWith(".vercel.app") || host.startsWith("localhost") || host.startsWith("127.0.0.1");
+    return host === req.headers.get("host") || OWN_HOST.test(host) || /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
   } catch {
     return false;
   }
@@ -32,8 +38,13 @@ export function rateLimit(key: string, now = Date.now()): { ok: boolean; retryAf
     return { ok: false, retryAfterSec: Math.ceil((WINDOW_MS - (now - recent[0])) / 1000) };
   }
   recent.push(now);
-  hits.set(key, recent);
-  if (hits.size > 5000) hits.clear();
+  hits.delete(key);
+  hits.set(key, recent); // re-insert so Map order is least-recently-used first
+  while (hits.size > MAX_KEYS) {
+    const oldest = hits.keys().next().value;
+    if (oldest === undefined) break;
+    hits.delete(oldest); // evict the stalest key only; never reset everyone's limits
+  }
   return { ok: true, retryAfterSec: 0 };
 }
 

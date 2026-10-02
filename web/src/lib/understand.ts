@@ -91,8 +91,9 @@ export function checkQuestions(
     // quote "2 times a day" passed.) No AI here: every number in the right answer must be in the quote, and no
     // wrong option may carry exactly the quote's set of numbers (a quote like "1 tablet 2 times a day" must still allow
     // a wrong "2 tablets"). Answers without numbers keep the quote-in-step rule.
-    const quoteNums = new Set(numbersIn(q.answer_quote));
-    const nums = (o: string) => numbersIn(o);
+    // A fraction ("1/2 tablet") is one value, not the numbers 1 and 2 (Grok review, 2026-10-02).
+    const nums = (o: string) => [...(o.match(/\d+\s*\/\s*\d+/g) ?? []).map((f) => f.replace(/\s/g, "")), ...numbersIn(o.replace(/\d+\s*\/\s*\d+/g, " "))];
+    const quoteNums = new Set(nums(q.answer_quote));
     const right = nums(opts[q.correct]);
     if (right.some((n) => !quoteNums.has(n))) { dropped.push({ item_id: q.item_id, reason: "answer_not_in_quote" }); continue; }
     const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((n) => b.includes(n));

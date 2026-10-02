@@ -45,6 +45,14 @@ describe("teach-back checker", () => {
     expect(checkQuestions(paper.text, items, [q]).dropped).toEqual([]);
   });
 
+  it("treats a fraction as one value, so a wrong '2 tablets' cannot pass against '1/2 tablet' (Grok 2026-10-02)", () => {
+    const halfPaper = "Take 1/2 tablet by mouth at bedtime.";
+    const halfItems = [{ id: "item-0", kind: "medication", title: "Half tablet", source_quote: halfPaper }];
+    const base: DraftQuestion = { item_id: "item-0", question: "How much do you take?", options: ["1/2 tablet", "2 tablets", "1 tablet"], correct: 0, answer_quote: "Take 1/2 tablet" };
+    expect(checkQuestions(halfPaper, halfItems, [base]).dropped).toEqual([]);
+    expect(checkQuestions(halfPaper, halfItems, [{ ...base, correct: 1 }]).dropped).toEqual([{ item_id: "item-0", reason: "answer_not_in_quote" }]);
+  });
+
   it("drops a proof that is real but belongs to a different step", () => {
     const r = checkQuestions(paper.text, items, [{ ...good, answer_quote: "Call 911 if you have chest pain" }]);
     expect(r.dropped[0].reason).toBe("quote_outside_step");

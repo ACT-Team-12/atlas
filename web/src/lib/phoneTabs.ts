@@ -51,6 +51,16 @@ export function restoredTab(s: FlowState): Tab {
   return 1;
 }
 
+/**
+ * Which step card to bring to the top once the page has rendered the result.
+ * After a read: desktop goes on to step 2; phones stay on step 1 so the person sees their steps.
+ * After a plan: step 3 on both.
+ */
+export function scrollTargetAfter(event: "read" | "plan", phone: boolean): Tab | null {
+  if (event === "plan") return 3;
+  return phone ? null : 2;
+}
+
 /** Arrow keys, Home and End move between open tabs and wrap around, skipping closed ones. */
 export function keyTarget(current: Tab, key: string, s: FlowState): Tab | null {
   const info = tabInfo(s);

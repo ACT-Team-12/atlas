@@ -16,7 +16,7 @@ import { ShareFamily } from "./ShareFamily";
 import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
-import { restoredTab, shownTab, type Tab } from "@/lib/phoneTabs";
+import { restoredTab, scrollTargetAfter, shownTab, type Tab } from "@/lib/phoneTabs";
 import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
 import { speechLines } from "@/lib/speechText";
@@ -327,8 +327,9 @@ export function CarePlanTool() {
       setReadLevel(usedLevel);
       if (json.source_kind === "image") { setTranscript(json.source_text); return; }
       void checkMeaningFor(json);
-      // Phones stay on step 1 so the person sees their steps; "Next: your needs" moves on.
-      if (!isPhoneNow()) document.getElementById("step-2")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared).
+      const target = scrollTargetAfter("read", isPhoneNow());
+      if (target) scrollAfter.current = { t: target, onlyIfHidden: false };
     } catch (e) { setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong."); }
     finally { setReading(false); }
   }
@@ -357,8 +358,9 @@ export function CarePlanTool() {
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
       setTab(3);
-      if (isPhoneNow()) scrollAfter.current = { t: 3, onlyIfHidden: false };
-      else document.getElementById("step-3")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Step 3 only exists after this render, so scroll once it is on the page (desktop and phones).
+      const target = scrollTargetAfter("plan", isPhoneNow());
+      if (target) scrollAfter.current = { t: target, onlyIfHidden: false };
     } catch (e) { if (planRun.current === run) setError(e instanceof Error ? e.message : "Something went wrong."); }
     finally { if (planRun.current === run) setPlanning(false); }
   }

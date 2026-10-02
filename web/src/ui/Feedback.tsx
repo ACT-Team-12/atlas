@@ -45,14 +45,14 @@ export function Feedback({ language }: { language: string }) {
     return (
       <div className="mt-6 rounded-2xl border-2 border-teal bg-mint-soft p-5" role="status">
         <p className="font-extrabold">Thank you. That helps us make ATLAS better.</p>
-        <p className="text-sm font-semibold text-ink/65">Saved without your paper, your name or your location. See the totals on <a className="underline" href="/tests">our tests page</a>.</p>
+        <p className="text-sm font-semibold text-ink/70">Saved without your paper, your name or your location. See the totals on <a className="underline" href="/tests">our tests page</a>.</p>
       </div>
     );
   }
   return (
     <div className="mt-6 rounded-2xl border-2 border-ink/70 bg-paper p-5" aria-labelledby="fb-title">
       <p id="fb-title" className="display text-2xl">How did this go?</p>
-      <p className="text-sm font-semibold text-ink/60">Three taps, no typing. Saved anonymously.</p>
+      <p className="text-sm font-semibold text-ink/70">Three taps, no typing. Saved anonymously.</p>
       <fieldset className="mt-4">
         <legend className="text-sm font-bold">Who are you?</legend>
         <div className="mt-2 flex flex-wrap gap-2">{ROLES.map((r) => <button key={r.v} type="button" aria-pressed={role === r.v} className={pill(role === r.v)} onClick={() => setRole(r.v)}>{r.label}</button>)}</div>

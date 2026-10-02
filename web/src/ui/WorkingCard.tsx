@@ -49,7 +49,7 @@ export function WorkingCard({ kind }: { kind: keyof typeof COPY }) {
       </div>
       <div className="min-w-0">
         <p className="display text-2xl">{c.title}<span className="working-dots" aria-hidden="true" /></p>
-        <p className="text-sm font-bold text-ink/60 mt-1">
+        <p className="text-sm font-bold text-ink/70 mt-1">
           <span className="tabular-nums">{sec}s</span> · {c.typical}
         </p>
         <ol className="mt-3 space-y-1.5 text-sm font-semibold list-decimal pl-5">

@@ -246,7 +246,7 @@ export function CarePlanTool() {
           <StepHeader n={1} title="Your visit paper" done={!!care} note="optional, but it makes the plan yours" />
           <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_15rem]">
             <div>
-              <textarea aria-label="After-visit summary text" className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
+              <textarea data-lenis-prevent aria-label="After-visit summary text" className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 placeholder="Paste the after-visit summary here..." value={text} onChange={(e) => { setText(e.target.value); setPhoto(null); }} />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setText(SAMPLE_AVS); setPhoto(null); }}>Use the sample paper</button>
@@ -281,7 +281,7 @@ export function CarePlanTool() {
               <p className="text-sm font-semibold text-ink/70">
                 Every step below has to quote this text. If a word or number is wrong here, fix it, then read it again so the steps come from your corrected text.
               </p>
-              <textarea aria-label="Text read from your photo" className="mt-3 h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
+              <textarea data-lenis-prevent aria-label="Text read from your photo" className="mt-3 h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 value={transcript ?? care.source_text} onChange={(e) => setTranscript(e.target.value)} />
               <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full bg-ink text-paper px-4 py-2 disabled:opacity-40"
@@ -328,7 +328,7 @@ export function CarePlanTool() {
                 <div className="space-y-4">
                   <div className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
                     <p className="font-extrabold mb-2">Your paper, every step highlighted</p>
-                    <div className="max-h-[26rem] overflow-auto"><Highlighted text={care.source_text} items={items} active={active} /></div>
+                    <div data-lenis-prevent className="max-h-[26rem] overflow-auto"><Highlighted text={care.source_text} items={items} active={active} /></div>
                   </div>
                   {removedItems.length > 0 && (
                     <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4 text-sm">
@@ -387,7 +387,7 @@ export function CarePlanTool() {
               </button>
             </div>
             <label className="text-sm font-bold">Anything else we should know? (optional)
-              <textarea className="mt-1 h-24 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" placeholder="e.g. no car, I work mornings, I prefer home remedies first"
+              <textarea data-lenis-prevent className="mt-1 h-24 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" placeholder="e.g. no car, I work mornings, I prefer home remedies first"
                 value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           </div>

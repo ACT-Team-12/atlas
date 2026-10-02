@@ -9,7 +9,8 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
   useEffect(() => {
     setupGsap();
     if (prefersReducedMotion()) return;
-    const lenis = new Lenis({ lerp: 0.2, wheelMultiplier: 0.9 });
+    // Backstop for scroll boxes that forget data-lenis-prevent: let any textarea or select scroll natively.
+    const lenis = new Lenis({ lerp: 0.2, wheelMultiplier: 0.9, prevent: (node) => node.tagName === "TEXTAREA" || node.tagName === "SELECT" });
     lenis.on("scroll", ScrollTrigger.update);
     const tick = (t: number) => lenis.raf(t * 1000);
     gsap.ticker.add(tick);

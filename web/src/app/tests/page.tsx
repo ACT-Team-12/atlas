@@ -8,6 +8,8 @@ import { liveStats } from "@/lib/db";
 import labEvalRaw from "@/data/eval/lab-eval.json";
 import labPlantedRaw from "@/data/eval/lab-planted.json";
 import type { LabPlantedReport } from "@/lib/labPlanted";
+import { deviceParitySet } from "@/lib/deviceParity";
+import { DeviceParity } from "@/ui/DeviceParity";
 
 type LabTotals = { rows: number; found: number; right: number; false_flags: number; missed_flags: number; dropped: number };
 type LabEval = {
@@ -93,6 +95,20 @@ export default async function TestsPage() {
             <p className="mt-6 text-sm font-semibold">
               Raw numbers: <a className="underline decoration-2 underline-offset-4" href="/api/checker">/api/checker</a> (free, no key, recomputed on every request).
             </p>
+          </div>
+        </section>
+
+        <section className="relative px-3 mt-3" aria-labelledby="device-title">
+          <div className="section-card bg-mint px-6 sm:px-12 py-20">
+            <span className="chip bg-paper text-teal-deep">Live · runs in your browser · no AI</span>
+            <h2 id="device-title" className="display text-[clamp(2rem,4vw,3.6rem)] mt-4 max-w-[18em]">Same checker, server and this browser</h2>
+            <p className="mt-4 max-w-[44em] font-semibold text-ink-soft">
+              Our server checks every quote with one program. After a read, your browser downloads the same checker (built from Rust as
+              WebAssembly) and checks every step again on your own device. Here it runs over all {PAPERS.length} sample papers: every real
+              instruction, every non-instruction, and every planted fake from the test above. The server&apos;s answers were computed when this page
+              loaded; your browser computes its own and we count how many match.
+            </p>
+            <DeviceParity set={deviceParitySet()} />
           </div>
         </section>
 

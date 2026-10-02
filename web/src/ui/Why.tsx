@@ -35,7 +35,7 @@ export function Why() {
             <a key={s.big} href={s.href} target="_blank" rel="noreferrer" className="why-stat group card block p-7 transition-transform hover:-translate-y-1" style={{ rotate: `${s.rot}deg` }}>
               <p className="display text-[clamp(3rem,4.6vw,4.4rem)] text-sky-deep">{s.big}</p>
               <p className="mt-3 text-lg font-semibold leading-snug">{s.line}</p>
-              <p className="mt-5 text-sm font-bold text-ink/60 group-hover:text-ink underline decoration-2 underline-offset-4">Source: {s.src} ↗</p>
+              <p className="mt-5 text-sm font-bold text-ink/70 group-hover:text-ink underline decoration-2 underline-offset-4">Source: {s.src} ↗</p>
             </a>
           ))}
         </div>

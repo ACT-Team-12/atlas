@@ -70,7 +70,7 @@ function StepHeader({ n, title, done, note }: { n: number; title: string; done?:
     <div className="flex flex-wrap items-center gap-3">
       <span className={`grid place-items-center w-10 h-10 rounded-full border-2 border-ink font-extrabold ${done ? "bg-teal text-paper" : "bg-paper"}`}>{done ? "✓" : n}</span>
       <h3 className="display text-3xl">{title}</h3>
-      {note && <span className="hand text-2xl text-ink/60 -rotate-1">{note}</span>}
+      {note && <span className="hand text-2xl text-ink/70 -rotate-1">{note}</span>}
     </div>
   );
 }
@@ -84,7 +84,7 @@ function Resource({ r }: { r: ResourceCard }) {
       <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="chip bg-mint text-teal-deep">Health center</span>
-          {r.km != null && <span className="text-xs font-bold text-ink/60">{r.km} km away</span>}
+          {r.km != null && <span className="text-xs font-bold text-ink/70">{r.km} km away</span>}
           {open != null && <span className={`chip ${open ? "bg-teal text-paper" : "bg-paper border border-ink/30 text-ink/70"}`}>{open ? "Listed as open now" : "Listed as closed now"}</span>}
           {(opensEvenings(c) || opensWeekends(c)) && <span className="chip bg-sun text-ink">{[opensEvenings(c) && "Evenings", opensWeekends(c) && "Weekends"].filter(Boolean).join(" + ")}</span>}
         </div>
@@ -99,14 +99,14 @@ function Resource({ r }: { r: ResourceCard }) {
             <p className="text-xs italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{c.hours_quote}&rdquo;</p>
           </>
         )}
-        {hours && c.hours_source_id !== "clinic-site" && <p className="text-sm mt-1">🕘 Listed hours: {hours} <span className="text-ink/55">(call to confirm)</span></p>}
+        {hours && c.hours_source_id !== "clinic-site" && <p className="text-sm mt-1">🕘 Listed hours: {hours} <span className="text-ink/70">(call to confirm)</span></p>}
         <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
           <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${c.phone.replace(/[^\d]/g, "")}`}>Call {c.phone}</a>
           {c.website && <a className="rounded-full border-2 border-ink px-3 py-1" href={c.website} target="_blank" rel="noreferrer">Website ↗</a>}
           <a className="rounded-full border-2 border-ink px-3 py-1" target="_blank" rel="noreferrer"
             href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${c.address}, ${c.city}, GA ${c.zip}`)}&travelmode=transit`}>Transit directions ↗</a>
         </div>
-        <p className="mt-2 text-[11px] text-ink/50">
+        <p className="mt-2 text-[11px] text-ink/70">
           Source: HRSA health center data
           {hours && c.hours_source_id === "clinic-site" && c.hours_url
             ? <> · hours quoted from <a className="underline" href={c.hours_url} target="_blank" rel="noreferrer">{new URL(c.hours_url).hostname.replace(/^www\./, "")}</a>, checked Oct 2</>
@@ -126,7 +126,7 @@ function Resource({ r }: { r: ResourceCard }) {
         {p.access.url && <a className="rounded-full border-2 border-ink px-3 py-1" href={p.access.url} target="_blank" rel="noreferrer">Open ↗</a>}
       </div>
       {p.access.text && <p className="text-sm mt-2">{p.access.text}</p>}
-      <p className="mt-2 text-[11px] text-ink/50">Verified on the official page: <a className="underline" href={p.source_url} target="_blank" rel="noreferrer">{new URL(p.source_url).hostname}</a></p>
+      <p className="mt-2 text-[11px] text-ink/70">Verified on the official page: <a className="underline" href={p.source_url} target="_blank" rel="noreferrer">{new URL(p.source_url).hostname}</a></p>
     </div>
   );
 }
@@ -342,7 +342,7 @@ export function CarePlanTool() {
                     onChange={(e) => { const f = e.target.files?.[0] ?? null; setPhoto(f); if (f) setText(""); }} />
                 </label>
               </div>
-              <p className="mt-2 text-xs text-ink/55">{SAMPLE_LABEL}.</p>
+              <p className="mt-2 text-xs text-ink/70">{SAMPLE_LABEL}.</p>
             </div>
             <div className="flex flex-col gap-3">
               <label className="text-sm font-bold">Explain it in
@@ -401,12 +401,12 @@ export function CarePlanTool() {
                           <div className="flex flex-wrap items-center gap-2">
                             <span className={`chip ${KIND[it.kind]?.cls}`}>{KIND[it.kind]?.label}</span>
                             <span className="font-extrabold">{it.title}</span>
-                            {it.when && <span className="text-xs font-bold text-ink/55">· {it.when}</span>}
+                            {it.when && <span className="text-xs font-bold text-ink/70">· {it.when}</span>}
                           </div>
                           <p className="mt-1">{it.plain_language}</p>
                           {it.needs_clarification && it.question_for_clinic && <p className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">Ask your clinic: {it.question_for_clinic}</p>}
-                          <p className="mt-2 border-l-4 border-sun pl-2 text-xs italic text-ink/60">From your paper: &ldquo;{it.source_quote}&rdquo;</p>
-                          {meaning.status === "loading" && <p className="mt-1 text-[11px] font-semibold text-ink/45">Double-checking this against your paper...</p>}
+                          <p className="mt-2 border-l-4 border-sun pl-2 text-xs italic text-ink/70">From your paper: &ldquo;{it.source_quote}&rdquo;</p>
+                          {meaning.status === "loading" && <p className="mt-1 text-[11px] font-semibold text-ink/70">Double-checking this against your paper...</p>}
                           {meaning.status === "done" && meaning.byId[it.id]?.flagged && (
                             <p role="note" className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">
                               Double-check this one with your clinic: our second check says the explanation may not match your paper.
@@ -418,7 +418,7 @@ export function CarePlanTool() {
                             <p className="mt-1 text-[11px] font-bold text-teal-deep">✓ Double-checked: the explanation matches this line</p>
                           )}
                         </div>
-                        <button type="button" aria-label={`Remove ${it.title}`} className="text-xs font-bold text-ink/45 hover:text-red"
+                        <button type="button" aria-label={`Remove ${it.title}`} className="text-xs font-bold text-ink/70 hover:text-red"
                           onClick={() => setRemoved((r) => ({ ...r, [it.id]: true }))}>Remove</button>
                       </div>
                     </li>
@@ -427,7 +427,9 @@ export function CarePlanTool() {
                 <div className="space-y-4">
                   <div className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
                     <p className="font-extrabold mb-2">Your paper, every step highlighted</p>
-                    <div data-lenis-prevent className="max-h-[26rem] overflow-auto"><Highlighted text={care.source_text} items={items} active={active} /></div>
+                    {/* Focusable so keyboard users can scroll the paper (axe scrollable-region-focusable). */}
+                    <div data-lenis-prevent tabIndex={0} role="region" aria-label="Your paper with every step highlighted"
+                      className="max-h-[26rem] overflow-auto rounded-lg focus-visible:outline-2 focus-visible:outline-teal"><Highlighted text={care.source_text} items={items} active={active} /></div>
                   </div>
                   {removedItems.length > 0 && (
                     <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4 text-sm">
@@ -445,14 +447,14 @@ export function CarePlanTool() {
                   {care.not_in_document.length > 0 && (
                     <div className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
                       <p className="font-extrabold">What your paper does not say</p>
-                      <p className="text-xs text-ink/60">Worth asking your clinic about.</p>
+                      <p className="text-xs text-ink/70">Worth asking your clinic about.</p>
                       <ul className="mt-2 list-disc pl-5 text-sm">{care.not_in_document.map((q, i) => <li key={i}>{q}</li>)}</ul>
                     </div>
                   )}
                   {care.refused.length > 0 && (
                     <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4">
                       <p className="font-extrabold">Held back to protect you ({care.refused.length})</p>
-                      <p className="text-xs text-ink/60">The AI suggested these, but the words aren&apos;t in your paper.</p>
+                      <p className="text-xs text-ink/70">The AI suggested these, but the words aren&apos;t in your paper.</p>
                       <ul className="mt-2 list-disc pl-5 text-sm">{care.refused.map((r) => <li key={r.id}>{r.title}</li>)}</ul>
                     </div>
                   )}
@@ -513,7 +515,7 @@ export function CarePlanTool() {
               </button>
               <button type="button" onClick={() => window.print()} className="rounded-full border-2 border-ink px-4 py-2">🖨️ Print for the next visit</button>
               <button type="button" onClick={printSheet} className="rounded-full border-2 border-ink px-4 py-2">📄 Print a handoff sheet</button>
-              <span className="self-center text-ink/55">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
+              <span className="self-center text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
             </div>
             {plan.ask_a_person && (
               <div className="mt-5 rounded-2xl border-2 border-peach-deep bg-peach p-4">
@@ -555,7 +557,7 @@ export function CarePlanTool() {
               </div>
             )}
             <Feedback key={plan.summary} language={language} />
-            <p className="mt-6 text-xs text-ink/55">ATLAS explains your own paperwork and points to verified public resources. It is not medical advice. Model: {plan.model}.</p>
+            <p className="mt-6 text-xs text-ink/70">ATLAS explains your own paperwork and points to verified public resources. It is not medical advice. Model: {plan.model}.</p>
           </div>
         )}
       </div>

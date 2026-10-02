@@ -58,7 +58,7 @@ export function Understand({ care, items, language }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p id="understand-title" className="font-extrabold text-lg">Check I understood</p>
-          <p className="text-sm font-semibold text-ink/65">One quick question per step. Most people don&apos;t notice what they misread, so we ask.</p>
+          <p className="text-sm font-semibold text-ink/70">One quick question per step. Most people don&apos;t notice what they misread, so we ask.</p>
         </div>
         {(status === "idle" || status === "error") && (
           <button type="button" onClick={start} disabled={items.length === 0}
@@ -74,7 +74,7 @@ export function Understand({ care, items, language }: Props) {
 
         {status === "ready" && q && !finished && (
           <div className="mt-5">
-            <p className="text-xs font-bold uppercase tracking-wider text-ink/50">Question {at + 1} of {qs.length} · {titleOf(q.item_id)}</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-ink/70">Question {at + 1} of {qs.length} · {titleOf(q.item_id)}</p>
             <p className="mt-1 text-xl font-extrabold">{q.question}</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-3" role="group" aria-label="Answers">
               {q.options.map((o, i) => {
@@ -118,7 +118,7 @@ export function Understand({ care, items, language }: Props) {
       </div>
 
       {data && (
-        <p className="mt-4 text-[11px] font-semibold text-ink/50">
+        <p className="mt-4 text-[11px] font-semibold text-ink/70">
           Every answer here is backed by words in your paper, checked by our own checker inside the same step. {data.dropped.length > 0 ? `${data.dropped.length} question${data.dropped.length === 1 ? "" : "s"} held back because the proof was not in the right place.` : ""}
         </p>
       )}

@@ -56,7 +56,7 @@ export function BookIt({ items, resources, barriers, language }: { items: Bookab
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold">
                 <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${target.phone.replace(/[^\d]/g, "")}`}>Call {target.phone}</a>
                 {target.type === "clinic" && (
-                  <span className="text-xs font-semibold text-ink/60">
+                  <span className="text-xs font-semibold text-ink/70">
                     {target.hours_per_week ? `Listed as open about ${target.hours_per_week} hours a week. Ask for times that fit you.` : "Hours not listed. Ask when they are open."}
                   </span>
                 )}
@@ -71,7 +71,7 @@ export function BookIt({ items, resources, barriers, language }: { items: Bookab
               <p className="font-extrabold">2. What to say</p>
               <button type="button" onClick={copy} className="rounded-full border border-ink/40 px-2.5 py-0.5 text-xs font-bold">{copied ? "Copied" : "Copy"}</button>
             </div>
-            {language !== "English" && <p className="text-xs text-ink/60 mt-1">In English, so the front desk can follow it. A helper can read it for you.</p>}
+            {language !== "English" && <p className="text-xs text-ink/70 mt-1">In English, so the front desk can follow it. A helper can read it for you.</p>}
             <ol className="mt-2 space-y-1 text-sm list-decimal pl-5">{script.map((l, i) => <li key={i}>{l}</li>)}</ol>
           </div>
 
@@ -83,13 +83,13 @@ export function BookIt({ items, resources, barriers, language }: { items: Bookab
               <button type="button" onClick={download} disabled={!when}
                 className="rounded-full bg-teal text-paper px-4 py-1.5 text-sm font-bold disabled:opacity-40">Add to my calendar</button>
             </div>
-            <p className="text-xs text-ink/55 mt-1">Reminds you the day before and 2 hours before. The reminder carries the line from your paper.</p>
+            <p className="text-xs text-ink/70 mt-1">Reminds you the day before and 2 hours before. The reminder carries the line from your paper.</p>
           </div>
 
           <div className="rounded-xl bg-peach/70 p-3">
             <p className="font-extrabold text-sm">Even if you feel better, your paper still says:</p>
             <p className="text-sm italic mt-1 border-l-4 border-sun pl-2">&ldquo;{item.source_quote}&rdquo;</p>
-            <p className="text-xs text-ink/60 mt-1">Feeling better is the most common reason people skip a referral. Ask your clinic before you skip it.</p>
+            <p className="text-xs text-ink/70 mt-1">Feeling better is the most common reason people skip a referral. Ask your clinic before you skip it.</p>
           </div>
         </div>
       )}

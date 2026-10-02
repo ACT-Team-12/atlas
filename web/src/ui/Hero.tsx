@@ -25,13 +25,13 @@ function PlanLoop() {
       <div className="card p-5 rotate-[-2deg] bg-paper">
         <div className="flex items-center justify-between">
           <span className="hand text-2xl text-ink-soft">Your plan</span>
-          <span className="text-xs font-bold text-ink/50">sample</span>
+          <span className="text-xs font-bold text-ink/70">sample</span>
         </div>
         <div key={i} className="mt-3 animate-[fadein_0.5s_ease]">
           <span className={`chip ${s.chipCls}`}>{s.chip}</span>
           <p className="display text-2xl mt-3">{s.title}</p>
           <p className="mt-2 font-semibold text-ink/80">{s.body}</p>
-          <p className="mt-3 border-l-4 border-sun pl-2 text-sm italic text-ink/60">&ldquo;{s.quote}&rdquo;</p>
+          <p className="mt-3 border-l-4 border-sun pl-2 text-sm italic text-ink/70">&ldquo;{s.quote}&rdquo;</p>
         </div>
         <div className="mt-4 flex gap-1.5">
           {LOOP.map((_, j) => <span key={j} className={`h-1.5 flex-1 rounded-full ${j === i ? "bg-teal" : "bg-ink/15"}`} />)}

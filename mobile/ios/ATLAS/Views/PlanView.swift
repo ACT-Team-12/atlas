@@ -152,7 +152,7 @@ struct ResourceView: View {
                             .buttonStyle(OutlinePillStyle())
                     }
                 }
-                Text("Source: HRSA health center data · \(c.hours_per_week.map { "\(Int($0.rounded())) hrs/week listed" } ?? "hours not listed")")
+                Text("Source: HRSA health center data · \(c.hours_per_week.map { "\($0.formatted(.number.locale(Locale(identifier: "en_US")))) hrs/week listed" } ?? "hours not listed")")
                     .font(.caption2).foregroundStyle(Palette.inkSoft)
             }
         case let .program(_, p):

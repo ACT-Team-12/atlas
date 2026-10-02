@@ -87,7 +87,6 @@ struct RemindersListView: View {
                     .swipeActions {
                         Button("Delete", role: .destructive) { delete([r.id]) }
                     }
-                    .accessibilityAction(named: "Delete") { delete([r.id]) }
                 }
                 .onDelete { idx in delete(idx.map { pending[$0].id }) }
             } footer: {

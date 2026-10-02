@@ -35,6 +35,7 @@ struct AboutSheet: View {
                     Button(role: .destructive) { confirmClear = true } label: {
                         Label("Clear from this phone", systemImage: "trash")
                     }
+                    .foregroundStyle(Palette.ink) // red is kept for warning signs only
                 }
                 Section {
                     Button { web = IdentifiedURL(url: Self.websiteURL) } label: { Label("ATLAS on the web", systemImage: "safari") }

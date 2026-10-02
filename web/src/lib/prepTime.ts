@@ -22,6 +22,13 @@ export const SLOT_LABEL: Record<Slot, string> = {
 };
 export const ASK_LABEL = "Ask your clinic when";
 
+export const PREP_KINDS = ["food_drink", "medicine", "bowel_prep", "bring", "arrival", "ride", "call", "other"] as const;
+export type PrepKind = (typeof PREP_KINDS)[number];
+export const PREP_KIND_LABEL: Record<PrepKind, string> = {
+  food_drink: "Eating and drinking", medicine: "Medicine", bowel_prep: "Bowel prep", bring: "What to bring",
+  arrival: "Arrival", ride: "Ride home", call: "When to call", other: "Other",
+};
+
 /** Why a step was or was not placed on the timeline. */
 export type WhenReason = "placed" | "no_time_words" | "clock_without_day" | "conflict" | "multi_line";
 

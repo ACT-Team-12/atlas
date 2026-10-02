@@ -11,7 +11,8 @@ Where we park ideas, customer evidence, and decisions so the whole team can disc
 | Date | Idea | Proposed by | Status | File |
 |------|------|-------------|--------|------|
 | 2026-10-01 | All-in-one healthcare hub (wearables, appointments, meds, guardians, AI insights, doctor access) | Akhil | Merged into the between-visits loop below. Medication logging becomes step 2; doctor access stays the long-term vision | [ideas/2026-10-01-healthcare-hub.md](ideas/2026-10-01-healthcare-hub.md) |
-| 2026-10-01 | Close the communication gap: explain the after-visit summary with sources, track between visits, AI summary for the next appointment | Timothy | Under discussion. **Merged proposal:** after-visit summary → care plan → between-visit log → pre-visit summary. Mission 2 = step 1 | [ideas/2026-10-01-timothy-communication-gap.md](ideas/2026-10-01-timothy-communication-gap.md) |
+| 2026-10-01 | Close the communication gap: explain the after-visit summary with sources, track between visits, AI summary for the next appointment | Timothy | **Merged and built** (Mission 2 submitted). Merged proposal: after-visit summary → care plan → between-visit log → pre-visit summary. Mission 2 = step 1 | [ideas/2026-10-01-timothy-communication-gap.md](ideas/2026-10-01-timothy-communication-gap.md) |
+| 2026-10-01 | Barrier-first navigation: person lists barriers (transport, cost, scheduling, language, tech, referrals), AI builds a plan from verified local resources; CHWs and nonprofits as users | Timothy, Lilian, Anusmita | **Chosen and built** (live: barrier check + 41 HRSA health centers + 10 verified programs, Fulton and DeKalb) | team-12-formation thread, 2026-10-01 7:30 pm |
 
 **Status values:** Proposed → Under discussion → Merged / Chosen / Parked (later mission) / Dropped
 

@@ -9,12 +9,16 @@ Ideas, customer evidence, and team decisions live in [research/](research/).
 | # | Mission | Due (ET) | Points | Status | Folder |
 |---|---------|----------|--------|--------|--------|
 | 1 | Team Formation & Build Readiness | Sep 30, 2026 · 11:00 pm | 125 | Submitted, awaiting staff review | [01-team-formation](missions/01-team-formation/) |
-| 2 | Problem & Product Concept | Oct 1, 2026 · 11:59 pm | 125 | **In progress, due tonight** | [02-problem-product-concept](missions/02-problem-product-concept/) |
-| 3 | Customer profiles (from evidence) | TBD | — | Not released | — |
-| 4 | TBD | TBD | — | Not released | — |
-| 5 | Working coded MVP with AI inside | TBD | — | Not released | — |
+| 2 | Problem & Product Concept | Oct 1, 2026 · 11:59 pm | 125 | Submitted by Lilian 9:28 pm (+100 early bonus window), awaiting staff review | [02-problem-product-concept](missions/02-problem-product-concept/) |
+| 3 | Customer Research & User Personas | Oct 2 · 11:59 pm (packet drops 12:05 am) | 150 | Not released | — |
+| 4 | Business Model & Adoption | TBD | 150 | Not released | — |
+| 5 | Build & Ship a Code-Based MVP | TBD | 175 | Not released | — |
+| 6 | Brand Identity & Product Experience | TBD | 175 | Not released | — |
+| 7 | Product Demo & Pitch | TBD | 200 | Not released | — |
 
-**How to submit:** ATL Cup 2026 submission page. Upload one completed packet file with team name + mission title.
+**How to submit:** ATL Cup 2026 submission page (Airtable form). Upload one completed packet file with team name + mission title. **+100 points if Airtable receives it at least 2 hours before the deadline; -30 if late.**
+
+**Plan for the rest of the challenge:** [PLAN.md](PLAN.md) (judging criteria, owners, build tiers).
 
 ## Team
 
@@ -36,9 +40,11 @@ Ideas, customer evidence, and team decisions live in [research/](research/).
 | Testing & release | Stephen | Akhil |
 | Team communication | Lilian | Anusmita |
 
-## Current hypothesis (from Mission 1)
+## Current hypothesis (from Mission 2)
 
-> We think **patients who struggle to understand or manage their healthcare** need to **easily understand and prepare for their care** when **they receive medications, lab results, after-visit information, or have an upcoming appointment.**
+> When **a patient leaves a clinic visit with new instructions**, **the community health worker or patient navigator helping them** tries to **turn that paperwork into steps the patient can actually finish**, but **the paper is clinical and the real blockers (transportation, cost, scheduling, language, tech access, not knowing how referrals work or what help exists) are not on it**. We still need to check which barriers matter most to CHWs and nonprofits in our Atlanta area (Mission 3).
+
+_Mission 1 version: patients who struggle to understand or manage their healthcare need to easily understand and prepare for their care._
 
 ## Standing rules from the program
 

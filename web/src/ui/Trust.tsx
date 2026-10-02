@@ -18,7 +18,7 @@ export function Trust() {
           </div>
           <div className="card p-6">
             <span className="chip bg-peach text-peach-deep">Private by default</span>
-            <p className="mt-3 font-semibold">No account. Nothing is stored on our side. Please use the sample or your own paper only if you&apos;re comfortable; ATLAS explains paperwork and is not medical advice.</p>
+            <p className="mt-3 font-semibold">No account. Nothing is stored on our side: your paper goes to our server and the AI provider only to be read. Your plan is saved in this browser so you can come back, and you can clear it anytime. ATLAS explains paperwork and is not medical advice.</p>
           </div>
         </div>
         <div className="mt-10 card p-6 bg-paper">

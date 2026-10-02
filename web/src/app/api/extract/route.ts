@@ -1,3 +1,4 @@
+import { guard } from "@/lib/guard";
 import { RequestSchema } from "@/lib/schema";
 import { extractCarePlan, ExtractError } from "@/lib/extract";
 
@@ -5,6 +6,8 @@ export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const refused = guard(request, "extract");
+  if (refused) return refused;
   let body: unknown;
   try {
     body = await request.json();

@@ -36,6 +36,8 @@ const KIND: Record<string, { label: string; cls: string }> = {
   warning_sign: { label: "Warning sign", cls: "bg-red-soft text-red" },
 };
 
+type DeviceVerdict = "match" | "differ" | "missing";
+
 /** Id for a saved plan. randomUUID needs a secure page; the fallback is fine for a local key. */
 function newPlanId() {
   return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -231,6 +233,10 @@ export function CarePlanTool() {
   // Second-model meaning check: does each explanation say the same thing as its quoted line?
   const [meaning, setMeaning] = useState<{ status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult> }>({ status: "idle", byId: {} });
   const meaningFor = useRef("");
+  // The same quote checker, run again on this device (WebAssembly, loaded only after a read). Per step: did the
+  // browser find the same words in the same place as the server?
+  // Stored with the reading it belongs to, so a newer read never shows an older result.
+  const [deviceRun, setDeviceRun] = useState<{ for: CarePlanResponse | null; ok: boolean; byId: Record<string, DeviceVerdict> }>({ for: null, ok: false, byId: {} });
   const loaded = useRef(false);
   const [speaking, setSpeaking] = useState(false);
   const speechRun = useRef(0);
@@ -542,6 +548,26 @@ export function CarePlanTool() {
     scrollToPanel(req.t, req.onlyIfHidden);
   });
 
+  // Re-check every shown step on this device once a reading is final (and, for a photo, once the person checked it).
+  // The checker is fetched only now, so a visitor who never reads a paper never downloads it.
+  const deviceWanted = !!care && !(care.source_kind === "image" && !photoChecked) && care.items.length > 0;
+  useEffect(() => {
+    if (!care || !deviceWanted) return;
+    let live = true;
+    import("@/lib/deviceChecker")
+      .then(async ({ loadDeviceChecker, sameSpan }) => {
+        const checker = await loadDeviceChecker();
+        const byId: Record<string, DeviceVerdict> = {};
+        for (const it of care.items) {
+          const mine = checker.findSpan(care.source_text, it.source_quote);
+          byId[it.id] = sameSpan(it.span, mine) ? "match" : mine ? "differ" : "missing";
+        }
+        if (live) setDeviceRun({ for: care, ok: true, byId });
+      })
+      .catch(() => { if (live) setDeviceRun({ for: care, ok: false, byId: {} }); });
+    return () => { live = false; };
+  }, [care, deviceWanted]);
+
   function pickTab(t: Tab, onlyIfHidden = true) {
     setTab(t);
     scrollAfter.current = { t, onlyIfHidden };
@@ -567,6 +593,8 @@ export function CarePlanTool() {
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
+  const deviceStatus: "idle" | "loading" | "done" | "error" =
+    !care || needsPhotoCheck || care.items.length === 0 ? "idle" : deviceRun.for !== care ? "loading" : deviceRun.ok ? "done" : "error";
   const flow = { hasCare: !!care, hasPlan: !!plan };
   const openName = store.plans.find((p) => p.id === store.active)?.name ?? null;
   // The person changed our reading of their photo. Accepting or re-reading the old text would silently drop their fix.
@@ -677,6 +705,8 @@ export function CarePlanTool() {
                 </div>
               )}
               <p className="text-sm font-bold text-ink/70">{care.stats.grounded} steps found in your paper · {care.stats.refused} held back because we couldn&apos;t find the words · {(care.stats.ms / 1000).toFixed(1)}s</p>
+              {deviceStatus === "loading" && <p className="mt-1 text-xs font-semibold text-ink/70">Checking each step again on this device...</p>}
+              {deviceStatus === "error" && <p className="mt-1 text-xs font-semibold text-ink/70">This device couldn&apos;t run its own check, so each step shows our server&apos;s check only.</p>}
               {simplerOk && (
                 <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <button type="button" onClick={makeSimpler} aria-describedby="simpler-why"
@@ -703,6 +733,14 @@ export function CarePlanTool() {
                           <p className="mt-1">{it.plain_language}</p>
                           {it.needs_clarification && it.question_for_clinic && <p className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">Ask your clinic: {it.question_for_clinic}</p>}
                           <p className="mt-2 border-l-4 border-sun pl-2 text-xs italic text-ink/70">From your paper: &ldquo;{it.source_quote}&rdquo;</p>
+                          {deviceStatus === "done" && deviceRun.byId[it.id] === "match" && (
+                            <p className="mt-1 text-[11px] font-bold text-teal-deep" data-device-check="match">✓ Checked on this device: same words, same place in your paper</p>
+                          )}
+                          {deviceStatus === "done" && deviceRun.byId[it.id] && deviceRun.byId[it.id] !== "match" && (
+                            <p role="note" className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep" data-device-check="differ">
+                              Double-check this one: this device&apos;s own check {deviceRun.byId[it.id] === "missing" ? "could not find these words in your paper" : "found these words in a different place in your paper"}. Read the line from your paper above.
+                            </p>
+                          )}
                           {meaning.status === "loading" && <p className="mt-1 text-[11px] font-semibold text-ink/70">Double-checking this against your paper...</p>}
                           {meaning.status === "done" && meaning.byId[it.id]?.flagged && (
                             <p role="note" className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">

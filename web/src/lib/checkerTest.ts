@@ -13,7 +13,7 @@ export const PAPERS = (evalSet as unknown as { papers: Paper[] }).papers;
 const SWAPS: [string, string][] = [
   ["morning", "evening"], ["daily", "weekly"], ["days", "weeks"], ["week", "month"], ["once", "twice"], ["before", "after"],
 ];
-const INVENTED = [
+export const INVENTED = [
   "Take warfarin 5 mg by mouth every night",
   "Double your dose if you feel worse",
   "Stop all of your medicines before the lab",

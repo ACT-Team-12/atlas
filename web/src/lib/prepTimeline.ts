@@ -2,7 +2,7 @@ import { z } from "zod";
 import { LANGUAGES } from "./schema";
 import { findSpan } from "./verify";
 import { unexpectedNumbers } from "./meaning";
-import { PREP_KINDS, PREP_KIND_LABEL, readWhen, SLOTS, SLOT_LABEL, type PrepKind, type Slot, type WhenReason } from "./prepTime";
+import { LINE_BREAK, PREP_KINDS, PREP_KIND_LABEL, readWhen, SLOTS, SLOT_LABEL, type PrepKind, type Slot, type WhenReason } from "./prepTime";
 
 /**
  * "Get ready for your procedure" (prep mode). Asked for by a Registered Nurse at a specialist practice on Oct 2:
@@ -63,6 +63,19 @@ export type PrepResponse = {
 };
 
 const MAX_ITEMS = 40;
+
+/**
+ * True when the matched span sits inside one line of the paper. A line ends at CR, LF, U+0085, U+2028, U+2029,
+ * vertical tab or form feed (LINE_BREAK), so a time on the next line can never place this step.
+ */
+export function withinOneLine(source: string, span: { start: number; end: number }): boolean {
+  if (span.start < 0 || span.end > source.length || span.end < span.start) return false;
+  let lineEnd = source.length;
+  for (let i = span.start; i < source.length; i++) {
+    if (LINE_BREAK.test(source[i])) { lineEnd = i; break; }
+  }
+  return span.end <= lineEnd;
+}
 const clip = (s: string, n: number) => s.trim().slice(0, n);
 
 /** The deterministic part of prep mode: verify, place, group. `source` is the paper the person pasted. */
@@ -74,7 +87,7 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[]): Omit<
     const quote = it.source_quote.trim();
     const span = quote ? findSpan(source, quote) : null;
     if (!span) { heldKinds.push(it.kind); return; }
-    const multiLine = /[\r\n]/.test(source.slice(span.start, span.end));
+    const multiLine = !withinOneLine(source, span);
     const when = readWhen(quote, multiLine);
     if ((it.ai_slot === "not_stated" ? null : it.ai_slot) !== when.slot) overridden++;
     const title = clip(it.title, 160);

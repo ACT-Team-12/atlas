@@ -148,3 +148,11 @@ describe("Codex review: a relative time must be relative to the procedure", () =
   });
 });
 
+describe("Codex review: every Unicode line break ends a line", () => {
+  const breaks: [string, string][] = [["U+0085", "\u0085"], ["U+2028", "\u2028"], ["U+2029", "\u2029"], ["vertical tab", "\v"], ["form feed", "\f"], ["CR", "\r"]];
+  it.each(breaks)("a quote holding a %s is never placed", (_name, br) => {
+    const q = `Bring your ID.${br}The morning of your procedure, take your pill.`;
+    expect(readWhen(q)).toEqual({ slot: null, reason: "multi_line", words: [] });
+    expect(readWhen(`Bring your ID${br}2 hours before your procedure`).reason).toBe("multi_line");
+  });
+});

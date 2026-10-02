@@ -66,6 +66,12 @@ const CLOCK = /(?<![\w:])(?:\d{1,2}(?::\d{2})?\s?(?:[ap]\.\s?m\.|[ap]\s?m)(?![a-
 const MIDNIGHT = /\bmidnight\b/gi;
 const ARRIVE = /\b(?:arrive|arrival|check[- ]?in|check in)\b/i;
 
+/**
+ * Every character that ends a line. CR and LF are not the only ones: U+0085 (next line), U+2028 (line separator),
+ * U+2029 (paragraph separator), vertical tab and form feed all start a new line when a paper is pasted or copied.
+ */
+export const LINE_BREAK = /[\r\n\v\f\u0085\u2028\u2029]/;
+
 type Hit = { slot: Slot; text: string; at: number };
 
 /** Every day or time phrase in one stretch of text, each with the slot it names. */
@@ -117,7 +123,7 @@ export function firstClause(quote: string): string {
  * because a time on the next line belongs to the next line.
  */
 export function readWhen(quote: string, multiLine = false): WhenRead {
-  if (multiLine) return { slot: null, reason: "multi_line", words: [] };
+  if (multiLine || LINE_BREAK.test(quote)) return { slot: null, reason: "multi_line", words: [] };
   const t = firstClause(quote);
   const days = dayHits(t);
   const clocks = [...t.matchAll(CLOCK)].map((m) => ({ text: m[0], at: m.index ?? 0 }));

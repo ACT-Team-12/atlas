@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPrepTimeline, PrepRequestSchema, type PrepModelItem } from "./prepTimeline";
+import { buildPrepTimeline, PrepRequestSchema, withinOneLine, type PrepModelItem } from "./prepTimeline";
 import { prepSpeechLines } from "./prepSpeech";
 import { SAMPLE_PREP, SAMPLE_PREP_LABEL } from "./samplePrep";
 import { PREP_PLANT_KINDS, PREP_TRUTH, prepPlants, runPrepPlantedTest } from "./prepPlanted";
@@ -126,5 +126,36 @@ describe("prep mode: planted mistakes (no AI)", () => {
     const wrongClaims = plants.filter((p) => p.kind === "wrong time claimed");
     expect(wrongClaims.length).toBe(PREP_TRUTH.filter((t) => t.truth !== "ask").length);
     expect(wrongClaims.every((p) => p.item.ai_slot !== p.truth)).toBe(true);
+  });
+});
+
+describe("Codex review: Unicode line separators", () => {
+  const breaks: [string, string][] = [["U+0085", "\u0085"], ["U+2028", "\u2028"], ["U+2029", "\u2029"], ["vertical tab", "\v"], ["form feed", "\f"], ["CR", "\r"], ["LF", "\n"]];
+  it.each(breaks)("a quote that runs across a %s is never placed at the next line's time", (_name, br) => {
+    const paper = `PREP SHEET (sample)${br}Bring your photo ID${br}2 hours before your procedure, stop drinking.`;
+    const quote = `Bring your photo ID${br}2 hours before your procedure`;
+    const r = buildPrepTimeline(paper, [item({ kind: "bring", source_quote: quote, plain_language: "", ai_slot: "hours_before" })]);
+    expect(r.timeline).toEqual([]);
+    expect(r.ask).toHaveLength(1);
+    expect(r.ask[0]).toMatchObject({ slot: null, reason: "multi_line" });
+  });
+
+  it.each(breaks.filter(([n]) => !["U+0085"].includes(n)))("the AI's quote has a plain space where the paper has a %s: still not placed", (_name, br) => {
+    const paper = `PREP SHEET (sample)${br}Bring your photo ID${br}2 hours before your procedure, stop drinking.`;
+    const r = buildPrepTimeline(paper, [item({ kind: "bring", source_quote: "Bring your photo ID 2 hours before your procedure", plain_language: "", ai_slot: "hours_before" })]);
+    expect(r.timeline).toEqual([]);
+    expect(r.ask[0]).toMatchObject({ reason: "multi_line" });
+  });
+
+  it.each(breaks)("withinOneLine refuses a span across a %s", (_name, br) => {
+    const src = `abc${br}def`;
+    expect(withinOneLine(src, { start: 0, end: 3 })).toBe(true);
+    expect(withinOneLine(src, { start: 4, end: 7 })).toBe(true);
+    expect(withinOneLine(src, { start: 1, end: 6 })).toBe(false);
+  });
+
+  it("refuses a span outside the paper", () => {
+    expect(withinOneLine("abc", { start: 0, end: 9 })).toBe(false);
+    expect(withinOneLine("abc", { start: 2, end: 1 })).toBe(false);
   });
 });

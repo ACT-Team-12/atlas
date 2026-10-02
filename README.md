@@ -10,7 +10,7 @@ Ideas, customer evidence, and team decisions live in [research/](research/).
 |---|---------|----------|--------|--------|--------|
 | 1 | Team Formation & Build Readiness | Sep 30, 2026 · 11:00 pm | 125 | Submitted, awaiting staff review | [01-team-formation](missions/01-team-formation/) |
 | 2 | Problem & Product Concept | Oct 1, 2026 · 11:59 pm | 125 | Submitted by Lilian 9:28 pm (+100 early bonus window), awaiting staff review | [02-problem-product-concept](missions/02-problem-product-concept/) |
-| 3 | Customer Research & User Personas | Oct 2 · 11:59 pm (packet drops 12:05 am) | 150 | Not released | — |
+| 3 | Customer Research & User Personas | Oct 2, 2026 · 11:59 pm | 150 | In progress, target submit 9:30 pm (+100) | [03-customer-research](missions/03-customer-research/) |
 | 4 | Business Model & Adoption | TBD | 150 | Not released | — |
 | 5 | Build & Ship a Code-Based MVP | TBD | 175 | Not released | — |
 | 6 | Brand Identity & Product Experience | TBD | 175 | Not released | — |

@@ -1,6 +1,6 @@
 import { SAMPLE_PREP } from "./samplePrep";
 import { buildPrepTimeline, type PrepModelItem } from "./prepTimeline";
-import { SLOTS, type PrepKind, type Slot } from "./prepTime";
+import { SLOTS, SLOT_LABEL, type PrepKind, type Slot } from "./prepTime";
 
 /**
  * Planted-mistake test for prep mode (no AI involved, recomputed on every load of /tests).
@@ -65,7 +65,7 @@ export function prepPlants(paper = SAMPLE_PREP, truth = PREP_TRUTH): Plant[] {
     // The AI claims a different time than the line says. Our code must still place it from the line.
     if (t.truth !== "ask") {
       const wrong = SLOTS.find((s) => s !== t.truth)!;
-      p("wrong time claimed", "placed right", { ai_slot: wrong }, `"${short}" claimed for ${wrong}`);
+      p("wrong time claimed", "placed right", { ai_slot: wrong }, `"${short}" claimed for "${SLOT_LABEL[wrong].toLowerCase()}"`);
     } else {
       p("untimed step given a time", "not placed", { ai_slot: "morning_of" }, `"${short}" claimed for the morning of`);
     }

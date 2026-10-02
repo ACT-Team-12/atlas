@@ -5,6 +5,18 @@ import { PAPERS, runCheckerTest } from "@/lib/checkerTest";
 import results from "@/data/eval/results.json";
 import meaningRaw from "@/data/eval/meaning.json";
 import { liveStats } from "@/lib/db";
+import labEvalRaw from "@/data/eval/lab-eval.json";
+import labPlantedRaw from "@/data/eval/lab-planted.json";
+import type { LabPlantedReport } from "@/lib/labPlanted";
+
+type LabTotals = { rows: number; found: number; right: number; false_flags: number; missed_flags: number; dropped: number };
+type LabEval = {
+  measured_at: string; base_url: string; commit: string; model: string; command: string; reports: number;
+  text: { totals: LabTotals & { flags_truth: number; flags_right: number; lines_checked: number; lines_found: number; median_ms: number }; rows: { id: string; rows: { test: string; truth: string; got: string; right: boolean }[] }[] };
+  photo: { note: string; totals: LabTotals & { lines_numbers_right: number; lines_exact: number; unreadable_marks: number; median_read_ms: number }; rows: { id: string; rows: { test: string; truth: string; got: string; right: boolean }[] }[] };
+};
+const labEval = labEvalRaw as unknown as LabEval;
+const labPlanted = labPlantedRaw as unknown as LabPlantedReport & { measured_at: string; command: string };
 
 // Typed explicitly: inferring from the JSON breaks when a run has no flags or no misses.
 type MeaningEval = {
@@ -150,6 +162,71 @@ export default async function TestsPage() {
                 </ul>
               </div>
             )}
+          </div>
+        </section>
+
+        <section className="relative px-3 mt-3" aria-labelledby="labs-tests-title">
+          <div className="section-card bg-peach px-6 sm:px-12 py-20">
+            <span className="chip bg-paper text-peach-deep">Measured runs · lab results</span>
+            <h2 id="labs-tests-title" className="display text-[clamp(2rem,4vw,3.6rem)] mt-4 max-w-[18em]">Lab results: does it flag the right lines?</h2>
+            <p className="mt-4 max-w-[44em] font-semibold text-ink-soft">
+              We wrote {labEval.reports} sample lab reports (no real patients) in different layouts: a blood count, a lipid panel with H and L flags,
+              a thyroid panel with ranges only, ranges with &lt; and &gt;=, counts with commas, and tricky lines like a liter &quot;L&quot;. By hand we
+              marked each result as high, low, inside its range, or no range. Then we checked what ATLAS showed.
+            </p>
+
+            <h3 className="mt-10 text-2xl font-extrabold">Planted mistakes (no AI)</h3>
+            <p className="mt-2 max-w-[44em] font-semibold text-ink-soft">
+              We took the correct rows and planted the mistakes a wrong AI could make. Our code must leave each one out, or still judge it from what the report prints.
+            </p>
+            <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <Stat big={`${labPlanted.real.right}/${labPlanted.real.total}`} label="correct rows judged right" />
+              <Stat big={`${labPlanted.planted.caught}/${labPlanted.planted.total}`} label="planted mistakes caught" note={`${labPlanted.planted.dropped} left out, ${labPlanted.planted.judged_right} still judged right`} tone="bg-mint" />
+            </div>
+            <ul className="mt-6 max-w-[50em] space-y-2 text-sm font-semibold">
+              {Object.entries(labPlanted.planted.byKind).map(([k, v]) => (
+                <li key={k} className="card p-4 bg-paper">
+                  <span className="font-extrabold">{k}: {v.caught}/{v.total} caught.</span> For example: {labPlanted.planted.examples[k]}.
+                </li>
+              ))}
+            </ul>
+            {labPlanted.planted.slipped.length > 0 && (
+              <div className="mt-6 card p-6 bg-red-soft">
+                <p className="font-bold">Mistakes that got through:</p>
+                <ul className="mt-2 text-sm font-semibold list-disc pl-5">
+                  {labPlanted.planted.slipped.map((s, i) => <li key={i}>{s.report}, {s.test}: {s.what} (shown as {s.got}, should be {s.truth})</li>)}
+                </ul>
+              </div>
+            )}
+            <p className="mt-4 text-sm font-semibold">Run with <code className="font-mono">{labPlanted.command}</code>. The test suite fails if this file is out of date with the code.</p>
+
+            <h3 className="mt-12 text-2xl font-extrabold">With real AI calls</h3>
+            <p className="mt-2 max-w-[44em] font-semibold text-ink-soft">
+              Run on {new Date(labEval.measured_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} against a {labEval.base_url} of
+              commit {labEval.commit}, model {labEval.model}, with <code className="font-mono">{labEval.command}</code>. These are the numbers from that run, not from this page load.
+            </p>
+            <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <Stat big={`${labEval.text.totals.right}/${labEval.text.totals.rows}`} label="pasted text: results judged right" tone="bg-mint" />
+              <Stat big={`${labEval.text.totals.flags_right}/${labEval.text.totals.flags_truth}`} label="high or low results flagged" />
+              <Stat big={`${labEval.text.totals.false_flags}`} label="normal results wrongly flagged" note="lower is better" />
+              <Stat big={sec(labEval.text.totals.median_ms)} label="median time per report" />
+              <Stat big={`${labEval.photo.totals.lines_numbers_right}/${labEval.photo.totals.rows}`} label="screenshot: lines read with every number right" note={`${labEval.photo.totals.lines_exact} copied character for character`} />
+              <Stat big={`${labEval.photo.totals.right}/${labEval.photo.totals.rows}`} label="screenshot: results judged right" note="using the read text with no fixes" tone="bg-mint" />
+              <Stat big={sec(labEval.photo.totals.median_read_ms)} label="median time to read a screenshot" />
+            </div>
+            {[...labEval.text.rows, ...labEval.photo.rows].some((r) => r.rows.some((x) => !x.right)) && (
+              <div className="mt-6 card p-6 bg-paper">
+                <p className="font-bold">Where it went wrong</p>
+                <ul className="mt-2 text-sm font-semibold list-disc pl-5">
+                  {labEval.text.rows.flatMap((r) => r.rows.filter((x) => !x.right).map((x) => <li key={`t${r.id}${x.test}`}>Text, {r.id}, {x.test}: shown as {x.got}, should be {x.truth}</li>))}
+                  {labEval.photo.rows.flatMap((r) => r.rows.filter((x) => !x.right).map((x) => <li key={`p${r.id}${x.test}`}>Screenshot, {r.id}, {x.test}: shown as {x.got}, should be {x.truth}</li>))}
+                </ul>
+              </div>
+            )}
+            <ul className="mt-6 max-w-[46em] space-y-2 text-sm font-semibold list-disc pl-5">
+              <li>Our team wrote these reports, so they are cleaner than many real ones. A perfect score here does not mean a perfect score on your report.</li>
+              <li>The screenshots are drawn from the sample text, not taken with a camera. A blurry or tilted photo will be harder. That is why you check the text before anything is flagged.</li>
+            </ul>
           </div>
         </section>
 

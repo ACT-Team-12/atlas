@@ -519,7 +519,7 @@ export function CarePlanTool() {
               </button>
               <button type="button" onClick={() => window.print()} className="rounded-full border-2 border-ink px-4 py-2">🖨️ Print for the next visit</button>
               <button type="button" onClick={printSheet} className="rounded-full border-2 border-ink px-4 py-2">📄 Print a handoff sheet</button>
-              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} />}
+              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={meaning} />}
               <span className="self-center text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
             </div>
             {plan.ask_a_person && (

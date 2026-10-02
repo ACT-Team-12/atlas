@@ -55,13 +55,23 @@ export function locateZip(zip: string): { lat: number; lng: number } | null {
 }
 
 /**
+ * Specialty-only sites by name (HRSA has no service-type field): same rule as scripts/build_national.py SPECIALTY.
+ * They cannot take a general medical follow-up, so they are never offered as "the nearest health center".
+ */
+export const SPECIALTY_NAME = new RegExp(
+  "\\b(pharmacy|pharmacies|rx|vision|eye|optometr\\w*|ophthalm\\w*|behavioral|mental|psychiatr\\w*|counsel\\w*|recovery|" +
+  "substance|addiction|detox|women'?s|obstetric\\w*|ob/?gyn|gyn\\w*|maternity|prenatal|pediatric\\w*|children'?s|kids|" +
+  "teen|youth|adolescent|laborator\\w*|lab|wic|podiatr\\w*|chiropract\\w*|hearing|audiolog\\w*|physical therapy|" +
+  "radiology|imaging|x-ray|mammograph\\w*|dialysis|hiv|aids|hospice|college|university|student)\\b", "i");
+
+/**
  * Nearest general-public clinics within maxKm. School-based sites are excluded: HRSA does not say they serve the public.
  * The distance cap keeps a person far from Atlanta from being sent to an Atlanta clinic.
  */
 export function nearestClinics(loc: { lat: number; lng: number }, n = 4, maxKm = 60) {
   return D.clinics
     // School sites serve enrolled students; dental-only sites (named so by HRSA) can't take a medical follow-up.
-    .filter((c) => c.setting !== "School" && !/\bdental\b/i.test(c.name))
+    .filter((c) => c.setting !== "School" && !/\bdental\b/i.test(c.name) && !SPECIALTY_NAME.test(c.name))
     .map((c) => ({ clinic: c, km: km(loc, c) }))
     .filter((x) => x.km <= maxKm)
     .sort((a, b) => a.km - b.km)
@@ -113,7 +123,7 @@ export function openNow(c: Clinic, at: Date = new Date()): boolean | null {
  */
 export function afterHoursClinics(loc: { lat: number; lng: number }, n = 2, maxKm = 20) {
   return D.clinics
-    .filter((c) => c.setting !== "School" && !/\bdental\b/i.test(c.name) && (opensEvenings(c) || opensWeekends(c)))
+    .filter((c) => c.setting !== "School" && !/\bdental\b/i.test(c.name) && !SPECIALTY_NAME.test(c.name) && (opensEvenings(c) || opensWeekends(c)))
     .map((c) => ({ clinic: c, km: km(loc, c) }))
     .filter((x) => x.km <= maxKm)
     .sort((a, b) => a.km - b.km)

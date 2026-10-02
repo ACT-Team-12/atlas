@@ -50,7 +50,8 @@ export function locateZip(zip: string): { lat: number; lng: number } | null {
 /** Nearest general-public clinics. School-based sites are excluded: HRSA does not say they serve the public. */
 export function nearestClinics(loc: { lat: number; lng: number }, n = 4) {
   return D.clinics
-    .filter((c) => c.setting !== "School")
+    // School sites serve enrolled students; dental-only sites (named so by HRSA) can't take a medical follow-up.
+    .filter((c) => c.setting !== "School" && !/\bdental\b/i.test(c.name))
     .map((c) => ({ clinic: c, km: km(loc, c) }))
     .sort((a, b) => a.km - b.km)
     .slice(0, n);

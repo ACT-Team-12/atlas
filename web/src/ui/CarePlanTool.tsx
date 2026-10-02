@@ -6,7 +6,10 @@ import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
 import { BARRIERS, BARRIER_LABEL, type Barrier } from "@/lib/resources";
 import type { PlanResponse, ResourceCard } from "@/lib/plan";
+import type { MeaningResponse, MeaningResult } from "@/lib/meaning";
 import { SquashButton } from "./SquashButton";
+import { Feedback } from "./Feedback";
+import { Understand } from "./Understand";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -129,7 +132,12 @@ export function CarePlanTool() {
   // Photo reads: the quote check runs against the AI's own reading of the photo, so the person checks that reading first.
   const [transcript, setTranscript] = useState<string | null>(null);
   const [photoChecked, setPhotoChecked] = useState(false);
+  // Second-model meaning check: does each explanation say the same thing as its quoted line?
+  const [meaning, setMeaning] = useState<{ status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult> }>({ status: "idle", byId: {} });
+  const meaningFor = useRef("");
   const loaded = useRef(false);
+  const [speaking, setSpeaking] = useState(false);
+  const speechRun = useRef(0);
 
   // Saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
   // One-time restore after hydration: localStorage does not exist during the server render.
@@ -163,7 +171,28 @@ export function CarePlanTool() {
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
   }
 
+  async function checkMeaningFor(c: CarePlanResponse) {
+    const key = `${c.source_text.length}:${c.items.length}:${c.stats.ms}`;
+    meaningFor.current = key;
+    if (c.items.length === 0) return setMeaning({ status: "idle", byId: {} });
+    setMeaning({ status: "loading", byId: {} });
+    try {
+      const res = await fetch("/api/meaning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: c.items.slice(0, 40).map(({ id, plain_language, when, source_quote }) => ({ id, plain_language, when, source_quote })) }),
+      });
+      const json: MeaningResponse = await res.json();
+      if (meaningFor.current !== key) return; // a newer paper was read meanwhile
+      if (!res.ok) throw new Error();
+      setMeaning({ status: "done", byId: Object.fromEntries(json.results.map((r) => [r.id, r])) });
+    } catch {
+      if (meaningFor.current === key) setMeaning({ status: "error", byId: {} });
+    }
+  }
+
   async function readPaper(corrected?: string) {
+    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
     setReading(true); setError(null); setCare(null); setPlan(null); setDone({}); setRemoved({}); setRestoredAt(null);
     setTranscript(null); setPhotoChecked(false);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }
@@ -176,6 +205,7 @@ export function CarePlanTool() {
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setCare(json);
       if (json.source_kind === "image") { setTranscript(json.source_text); return; }
+      void checkMeaningFor(json);
       document.getElementById("step-2")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong."); }
     finally { setReading(false); }
@@ -208,15 +238,36 @@ export function CarePlanTool() {
     );
   }
 
+  function stopSpeaking() {
+    speechRun.current++; // ignore end events from the run being cancelled
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    setSpeaking(false);
+  }
+
+  // One utterance per line: Chrome silently stops a single long utterance after about 15 seconds.
   function speak() {
     if (!plan || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (speaking) return stopSpeaking();
     window.speechSynthesis.cancel();
+    const run = ++speechRun.current;
     const lines = [plan.summary, ...plan.steps.map((s, i) => `${i + 1}. ${s.title}. ${s.action}`)];
-    const u = new SpeechSynthesisUtterance(lines.join(" "));
-    u.lang = SPEECH_LANG[language] ?? "en-US";
-    u.rate = 0.95;
-    window.speechSynthesis.speak(u);
+    lines.forEach((line, i) => {
+      const u = new SpeechSynthesisUtterance(line);
+      u.lang = SPEECH_LANG[language] ?? "en-US";
+      u.rate = 0.95;
+      if (i === lines.length - 1) u.onend = () => { if (speechRun.current === run) setSpeaking(false); };
+      u.onerror = () => { if (speechRun.current === run) setSpeaking(false); };
+      window.speechSynthesis.speak(u);
+    });
+    setSpeaking(true);
   }
+
+  // Stop reading if the plan changes or goes away, or the page unmounts.
+  useEffect(() => () => {
+    speechRun.current++;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    setSpeaking(false);
+  }, [plan]);
 
   const careById = Object.fromEntries((care?.items ?? []).map((i) => [i.id, i]));
   const items = (care?.items ?? []).filter((i) => !removed[i.id]);
@@ -246,7 +297,7 @@ export function CarePlanTool() {
           <StepHeader n={1} title="Your visit paper" done={!!care} note="optional, but it makes the plan yours" />
           <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_15rem]">
             <div>
-              <textarea aria-label="After-visit summary text" className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
+              <textarea data-lenis-prevent aria-label="After-visit summary text" className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 placeholder="Paste the after-visit summary here..." value={text} onChange={(e) => { setText(e.target.value); setPhoto(null); }} />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setText(SAMPLE_AVS); setPhoto(null); }}>Use the sample paper</button>
@@ -281,13 +332,13 @@ export function CarePlanTool() {
               <p className="text-sm font-semibold text-ink/70">
                 Every step below has to quote this text. If a word or number is wrong here, fix it, then read it again so the steps come from your corrected text.
               </p>
-              <textarea aria-label="Text read from your photo" className="mt-3 h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
+              <textarea data-lenis-prevent aria-label="Text read from your photo" className="mt-3 h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 value={transcript ?? care.source_text} onChange={(e) => setTranscript(e.target.value)} />
               <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full bg-ink text-paper px-4 py-2 disabled:opacity-40"
                   disabled={reading || (transcript ?? care.source_text).trim().length < 20 || transcript === care.source_text}
                   onClick={() => readPaper(transcript ?? care.source_text)}>Use my corrected text</button>
-                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => setPhotoChecked(true)}>It matches my paper</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>It matches my paper</button>
               </div>
             </div>
           )}
@@ -318,6 +369,17 @@ export function CarePlanTool() {
                           <p className="mt-1">{it.plain_language}</p>
                           {it.needs_clarification && it.question_for_clinic && <p className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">Ask your clinic: {it.question_for_clinic}</p>}
                           <p className="mt-2 border-l-4 border-sun pl-2 text-xs italic text-ink/60">From your paper: &ldquo;{it.source_quote}&rdquo;</p>
+                          {meaning.status === "loading" && <p className="mt-1 text-[11px] font-semibold text-ink/45">Double-checking this against your paper...</p>}
+                          {meaning.status === "done" && meaning.byId[it.id]?.flagged && (
+                            <p role="note" className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">
+                              Double-check this one with your clinic: our second check says the explanation may not match your paper.
+                              {meaning.byId[it.id].what_differs ? ` ${meaning.byId[it.id].what_differs.charAt(0).toUpperCase()}${meaning.byId[it.id].what_differs.slice(1)}` : ""}
+                              {meaning.byId[it.id].unexpected_numbers.length > 0 ? ` (Number not in your paper: ${meaning.byId[it.id].unexpected_numbers.join(", ")}.)` : ""}
+                            </p>
+                          )}
+                          {meaning.status === "done" && meaning.byId[it.id] && !meaning.byId[it.id].flagged && (
+                            <p className="mt-1 text-[11px] font-bold text-teal-deep">✓ Double-checked: the explanation matches this line</p>
+                          )}
                         </div>
                         <button type="button" aria-label={`Remove ${it.title}`} className="text-xs font-bold text-ink/45 hover:text-red"
                           onClick={() => setRemoved((r) => ({ ...r, [it.id]: true }))}>Remove</button>
@@ -328,7 +390,7 @@ export function CarePlanTool() {
                 <div className="space-y-4">
                   <div className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
                     <p className="font-extrabold mb-2">Your paper, every step highlighted</p>
-                    <div className="max-h-[26rem] overflow-auto"><Highlighted text={care.source_text} items={items} active={active} /></div>
+                    <div data-lenis-prevent className="max-h-[26rem] overflow-auto"><Highlighted text={care.source_text} items={items} active={active} /></div>
                   </div>
                   {removedItems.length > 0 && (
                     <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4 text-sm">
@@ -359,6 +421,7 @@ export function CarePlanTool() {
                   )}
                 </div>
               </div>
+              <Understand key={`${care.source_text.length}:${items.map((i) => i.id).join(",")}:${language}`} care={care} items={items} language={language} />
             </div>
           )}
         </div>
@@ -387,7 +450,7 @@ export function CarePlanTool() {
               </button>
             </div>
             <label className="text-sm font-bold">Anything else we should know? (optional)
-              <textarea className="mt-1 h-24 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" placeholder="e.g. no car, I work mornings, I prefer home remedies first"
+              <textarea data-lenis-prevent className="mt-1 h-24 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" placeholder="e.g. no car, I work mornings, I prefer home remedies first"
                 value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           </div>
@@ -405,7 +468,9 @@ export function CarePlanTool() {
             <StepHeader n={3} title="Your plan" done note={plan.located.label} />
             <p className="mt-4 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
-              <button type="button" onClick={speak} className="rounded-full border-2 border-ink bg-sun px-4 py-2">🔊 Read it out loud</button>
+              <button type="button" onClick={speak} aria-pressed={speaking} className={`rounded-full border-2 border-ink px-4 py-2 ${speaking ? "bg-ink text-paper" : "bg-sun"}`}>
+                {speaking ? "⏹ Stop reading" : "🔊 Read it out loud"}
+              </button>
               <button type="button" onClick={() => window.print()} className="rounded-full border-2 border-ink px-4 py-2">🖨️ Print for the next visit</button>
               <span className="self-center text-ink/55">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
             </div>
@@ -421,7 +486,7 @@ export function CarePlanTool() {
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="display text-3xl text-teal">{i + 1}</span>
                     <p className="display text-2xl">{s.title}</p>
-                    <span className="chip bg-paper border border-ink/30">{s.barrier}</span>
+                    {s.barrier && <span className="chip bg-paper border border-ink/30">{BARRIER_LABEL[s.barrier as Barrier] ?? s.barrier}</span>}
                   </div>
                   <p className="mt-2 font-semibold">{s.action}</p>
                   {s.why && <p className="mt-1 text-sm text-ink/75">Why: {s.why}</p>}
@@ -444,6 +509,7 @@ export function CarePlanTool() {
                 <ul className="mt-2 list-disc pl-5 space-y-1">{care.questions_for_doctor.map((q, i) => <li key={i}>{q}</li>)}</ul>
               </div>
             )}
+            <Feedback key={plan.summary} language={language} />
             <p className="mt-6 text-xs text-ink/55">ATLAS explains your own paperwork and points to verified public resources. It is not medical advice. Model: {plan.model}.</p>
           </div>
         )}

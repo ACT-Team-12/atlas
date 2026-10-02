@@ -9,6 +9,11 @@ const body = localFont({ src: "./fonts/figtree-latin.woff2", variable: "--font-b
 const hand = localFont({ src: "./fonts/caveat-latin.woff2", variable: "--font-hand", weight: "500 700", display: "swap" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://atlas-team12.vercel.app"),
+  applicationName: "ATLAS",
+  openGraph: { type: "website", siteName: "ATLAS", url: "/" },
+  twitter: { card: "summary_large_image" },
+  appleWebApp: { capable: true, title: "ATLAS", statusBarStyle: "default" },
   title: "ATLAS · Your visit, turned into a plan you can finish",
   description:
     "Snap the after-visit summary. ATLAS explains every step in your language, shows the exact line it came from, and matches what gets in the way to verified Atlanta resources.",

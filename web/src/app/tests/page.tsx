@@ -3,6 +3,16 @@ import { Nav } from "@/ui/Nav";
 import { Footer } from "@/ui/Footer";
 import { PAPERS, runCheckerTest } from "@/lib/checkerTest";
 import results from "@/data/eval/results.json";
+import meaningRaw from "@/data/eval/meaning.json";
+import { liveStats } from "@/lib/db";
+
+// Typed explicitly: inferring from the JSON breaks when a run has no flags or no misses.
+type MeaningEval = {
+  checker_model: string; commit: string; base_url: string; command: string;
+  totals: { originals: number; false_alarms: number; planted: number; caught: number; caught_by_numbers: number; caught_by_model: number; by_kind: Record<string, { planted: number; caught: number }> };
+  rows: { id: string; false_alarms: { id: string; numbers: string[]; why: string }[]; by_kind: { kind: string; flagged: boolean; quote?: string; planted_text?: string }[] }[];
+};
+const meaning = meaningRaw as unknown as MeaningEval;
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -24,8 +34,9 @@ function Stat({ big, label, note, tone = "bg-paper" }: { big: string; label: str
   );
 }
 
-export default function TestsPage() {
+export default async function TestsPage() {
   const c = runCheckerTest();
+  const live = await liveStats();
   const promoted = results.rows.flatMap((r) => r.distractors_promoted.map((d) => ({ id: r.id, d })));
   const missed = results.rows.flatMap((r) => r.missed.map((m) => ({ id: r.id, m })));
   return (
@@ -90,6 +101,8 @@ export default function TestsPage() {
               <Stat big={`${T.plan_dropped_refs}`} label="made-up clinic or step references" note={`across ${T.plan_steps} plan steps`} tone="bg-mint" />
               <Stat big={sec(T.median_read_ms)} label="median time to read a paper" />
               <Stat big={sec(T.median_plan_ms)} label="median time to build a plan" note="for a ride and cost barrier, ZIP 30303" />
+              <Stat big={`${T.quiz_questions}/${T.quiz_questions + T.quiz_dropped}`} label="check-I-understood questions kept" note="each answer's proof must be in the paper, inside its own step" tone="bg-mint" />
+              <Stat big={sec(T.median_quiz_ms)} label="median time to write the questions" />
               <Stat big="Pending" label="time with paper and pen alone" note="our non-AI baseline, timed in Mission 3 user tests. Not measured yet." tone="bg-lilac" />
             </div>
             {(promoted.length > 0 || missed.length > 0) && (
@@ -102,6 +115,67 @@ export default function TestsPage() {
                   ))}
                 </ul>
               </div>
+            )}
+          </div>
+        </section>
+
+        <section className="relative px-3 mt-3" aria-labelledby="meaning-title">
+          <div className="section-card bg-lilac px-6 sm:px-12 py-20">
+            <span className="chip bg-paper text-ink">Measured run · a second AI checks the first</span>
+            <h2 id="meaning-title" className="display text-[clamp(2rem,4vw,3.6rem)] mt-4 max-w-[18em]">Does the explanation say what the paper says?</h2>
+            <p className="mt-4 max-w-[44em] font-semibold text-ink-soft">
+              The quote checker proves a line is in your paper. It cannot prove the plain-language explanation next to it means the same thing.
+              So a different model ({meaning.checker_model}) compares them, and our own code checks that every number in the explanation is in the line.
+              To test it, we planted mistakes into real explanations: a changed number, a swapped time word, start and stop reversed.
+            </p>
+            <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <Stat big={`${meaning.totals.caught}/${meaning.totals.planted}`} label="planted mistakes caught" tone="bg-mint" />
+              {Object.entries(meaning.totals.by_kind).map(([k, v]) => (
+                <Stat key={k} big={`${v.caught}/${v.planted}`} label={k} />
+              ))}
+              <Stat big={`${meaning.totals.false_alarms}/${meaning.totals.originals}`} label="real explanations flagged" note="lower is better; we read each one" />
+              <Stat big={`${meaning.totals.caught_by_numbers}/${meaning.totals.planted}`} label="caught by the number check alone" note="no AI involved" />
+            </div>
+            <p className="mt-6 max-w-[46em] text-sm font-semibold text-ink-soft">
+              Run with <code className="font-mono">{meaning.command}</code> on a {meaning.base_url} of commit {meaning.commit}. Each run reads the papers fresh, so counts move a little between runs. We read every flag on a real explanation:
+              {" "}{meaning.rows.flatMap((r) => r.false_alarms).map((f) => f.why).join(" ") || "none."}
+            </p>
+            {meaning.rows.flatMap((r) => r.by_kind.filter((c) => !c.flagged)).length > 0 && (
+              <div className="mt-6 card p-6 bg-paper">
+                <p className="font-bold">What it missed</p>
+                <ul className="mt-2 text-sm font-semibold list-disc pl-5 space-y-1">
+                  {meaning.rows.flatMap((r) => r.by_kind.filter((c) => !c.flagged).map((c, i) => (
+                    <li key={`${r.id}-${i}`}>{r.id}, {c.kind}: the paper says &ldquo;{c.quote ?? ""}&rdquo;; the planted explanation said &ldquo;{c.planted_text ?? ""}&rdquo;.</li>
+                  )))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="relative px-3 mt-3" aria-labelledby="live-title">
+          <div className="section-card bg-mint px-6 sm:px-12 py-20">
+            <span className="chip bg-paper text-teal-deep">Live · real use on this site · our own tests excluded</span>
+            <h2 id="live-title" className="display text-[clamp(2rem,4vw,3.6rem)] mt-4 max-w-[18em]">What happens when people use it</h2>
+            <p className="mt-4 max-w-[42em] font-semibold text-ink-soft">
+              Counted anonymously from the live site and apps: no paper, no name, no location. Feedback is three taps after a plan.
+            </p>
+            {live ? (
+              <>
+                <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  <Stat big={`${live.reads}`} label="papers read" note={live.median_read_ms ? `median ${sec(live.median_read_ms)}` : undefined} />
+                  <Stat big={`${live.plans}`} label="plans built" note={live.median_plan_ms ? `median ${sec(live.median_plan_ms)}` : undefined} />
+                  <Stat big={`${live.feedback}`} label="people told us how it went" note={live.avg_rating ? `average ${live.avg_rating.toFixed(1)} of 5` : "no ratings yet"} />
+                  <Stat big={live.feedback ? `${live.would_use.yes ?? 0}/${live.feedback}` : "0"} label="would use it again" note={live.feedback ? `${live.would_use.maybe ?? 0} maybe, ${live.would_use.no ?? 0} no` : undefined} />
+                </div>
+                <p className="mt-6 text-sm font-semibold">
+                  {live.feedback ? `Who answered: ${Object.entries(live.roles).map(([k, v]) => `${v} ${k}`).join(", ")}. ` : ""}
+                  {live.since ? `Counting since ${new Date(live.since).toLocaleDateString("en-US", { month: "long", day: "numeric" })}. ` : "Nothing counted yet. "}
+                  Raw numbers: <a className="underline decoration-2 underline-offset-4" href="/api/stats">/api/stats</a>.
+                </p>
+              </>
+            ) : (
+              <p className="mt-8 card p-6 bg-paper font-semibold">Live numbers are not reachable right now. The tests above still run.</p>
             )}
           </div>
         </section>

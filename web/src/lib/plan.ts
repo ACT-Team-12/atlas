@@ -128,7 +128,9 @@ export async function buildPlan(req: PlanRequest): Promise<PlanResponse> {
     .map((s) => {
       const bad = [...s.care_ids.filter((id) => !careIds.has(id)), ...s.resource_ids.filter((id) => !resourceIds.has(id))];
       dropped += bad.length;
-      return { ...s, care_ids: s.care_ids.filter((id) => careIds.has(id)), resource_ids: s.resource_ids.filter((id) => resourceIds.has(id)), dropped_refs: bad };
+      // The barrier label must be one the person actually picked; anything else (or blank) is cleared.
+      const barrier = (req.barriers as string[]).includes(s.barrier) ? s.barrier : "";
+      return { ...s, barrier, care_ids: s.care_ids.filter((id) => careIds.has(id)), resource_ids: s.resource_ids.filter((id) => resourceIds.has(id)), dropped_refs: bad };
     })
     .filter((s) => s.care_ids.length + s.resource_ids.length > 0);
 

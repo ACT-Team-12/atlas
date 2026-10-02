@@ -449,7 +449,7 @@ export function CarePlanTool() {
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="display text-3xl text-teal">{i + 1}</span>
                     <p className="display text-2xl">{s.title}</p>
-                    <span className="chip bg-paper border border-ink/30">{s.barrier}</span>
+                    {s.barrier && <span className="chip bg-paper border border-ink/30">{BARRIER_LABEL[s.barrier as Barrier] ?? s.barrier}</span>}
                   </div>
                   <p className="mt-2 font-semibold">{s.action}</p>
                   {s.why && <p className="mt-1 text-sm text-ink/75">Why: {s.why}</p>}

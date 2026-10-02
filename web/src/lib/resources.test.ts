@@ -28,6 +28,13 @@ describe("verified resource dataset", () => {
     expect(locateZip("99999")).toBeNull();
   });
 
+  it("never suggests a dental-only site for a medical follow-up (found by the Clarkston persona run)", () => {
+    const clarkston = nearestClinics(locateZip("30021")!, 4);
+    expect(clarkston.some((n) => /dental/i.test(n.clinic.name))).toBe(false);
+    expect(clarkston[0].clinic.name).toMatch(/Ethne Health/);
+    for (const z of ["30317", "30340", "30303"]) expect(nearestClinics(locateZip(z)!, 4).some((n) => /dental/i.test(n.clinic.name))).toBe(false);
+  });
+
   it("matches programs by barrier", () => {
     const t = programsFor(["transport"]).map((p) => p.id);
     expect(t).toContain("marta-mobility");

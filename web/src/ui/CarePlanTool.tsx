@@ -205,6 +205,8 @@ export function CarePlanTool() {
   // Verified steps that arrived while the paper is still being read. Shown, never final.
   const [partial, setPartial] = useState<VerifiedItem[]>([]);
   const readRun = useRef(0);
+  // Plan requests in flight. A new read or a clear bumps it, so an older plan reply cannot land on newer steps.
+  const planRun = useRef(0);
   const [care, setCare] = useState<CarePlanResponse | null>(null);
   const [barriers, setBarriers] = useState<Barrier[]>([]);
   const [zip, setZip] = useState("");
@@ -261,6 +263,7 @@ export function CarePlanTool() {
 
   function clearSaved() {
     try { localStorage.removeItem(SAVE_KEY); } catch {}
+    planRun.current++; setPlanning(false);
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
     setTab(1);
   }
@@ -292,6 +295,7 @@ export function CarePlanTool() {
     setTranscript(null); setPhotoChecked(false); setPartial([]); setTab(1);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }
     const run = ++readRun.current;
+    planRun.current++; setPlanning(false); // drop any plan still on its way: it was built from the old steps
     try {
       const body: Record<string, unknown> = { language, reading_level: usedLevel };
       if (corrected !== undefined) body.text = corrected;
@@ -330,6 +334,7 @@ export function CarePlanTool() {
 
   async function makePlan() {
     if (needsPhotoCheck) return;
+    const run = ++planRun.current;
     setPlanning(true); setError(null); setPlan(null);
     try {
       const body = {
@@ -339,13 +344,14 @@ export function CarePlanTool() {
       };
       const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const json = await res.json();
+      if (planRun.current !== run) return; // a new read or a clear happened meanwhile
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
       setTab(3);
       if (isPhoneNow()) scrollAfter.current = { t: 3, onlyIfHidden: false };
       else document.getElementById("step-3")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong."); }
-    finally { setPlanning(false); }
+    } catch (e) { if (planRun.current === run) setError(e instanceof Error ? e.message : "Something went wrong."); }
+    finally { if (planRun.current === run) setPlanning(false); }
   }
 
   function useMyLocation() {

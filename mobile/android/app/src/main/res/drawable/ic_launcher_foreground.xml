@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The ATLAS mark from web/src/ui/Mark.tsx (same as the iOS icon): folded paper with a check on teal.
+     Paths are in the mark's 64-unit box, scaled 1.3x and centered in the 108dp adaptive canvas
+     so the paper sits inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="1.3"
+        android:scaleY="1.3"
+        android:translateX="13.05"
+        android:translateY="10.45">
+        <path
+            android:fillColor="#FBF8F3"
+            android:pathData="M20,14 L37,14 L46,23 L46,50 Q46,53 43,53 L20,53 Q17,53 17,50 L17,17 Q17,14 20,14 Z" />
+        <path
+            android:fillColor="#BFE9DC"
+            android:pathData="M37,14 L37,23 L46,23 Z" />
+        <path
+            android:strokeColor="#0B7A75"
+            android:strokeWidth="4.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M23.5,37.5 L29,43 L40,31" />
+    </group>
+</vector>

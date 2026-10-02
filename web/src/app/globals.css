@@ -169,6 +169,17 @@ body {
   width: max-content;
 }
 
+/* Wait state: a scan line moving down a paper, and three dots. Reduced motion stops both (rule below). */
+@keyframes working-scan {
+  from { top: -24px; }
+  to { top: 128px; }
+}
+.working-scan { animation: working-scan 1.8s ease-in-out infinite alternate; }
+@keyframes working-dots {
+  0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75%, 100% { content: "..."; }
+}
+.working-dots::after { content: "..."; animation: working-dots 1.6s steps(1) infinite; }
+
 html.js-motion [data-reveal] {
   visibility: hidden;
 }

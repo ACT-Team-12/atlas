@@ -29,7 +29,8 @@ export function Footer() {
             <div className="mt-8 flex flex-wrap gap-3">
               <SquashButton href="/#try" bg="var(--paper)" fg="var(--ink)" accent="var(--mint)">Try it now</SquashButton>
               <SquashButton href="/tests" bg="var(--teal)" accent="var(--sun)">See our tests</SquashButton>
-              <SquashButton href="https://github.com/ACT-Team-12/atlas" bg="var(--ink-soft)" accent="var(--sky)">Read the code</SquashButton>
+              {/* The repo is private (404 for visitors), so this points to the judge tour instead. */}
+              <SquashButton href="/judge" bg="var(--ink-soft)" accent="var(--sky)">For judges</SquashButton>
             </div>
           </div>
           <div className="ft-tag justify-self-end rotate-[-4deg] rounded-[1.5rem] bg-mint text-ink border-2 border-paper p-6 w-[16rem]">
@@ -40,7 +41,7 @@ export function Footer() {
         </div>
         <div className="ft-row mt-16 pt-8 border-t border-paper/20 flex flex-wrap items-center justify-between gap-6 text-sm font-semibold text-paper/70">
           <div className="flex items-center gap-3"><Mark size={36} /><span>ATLAS · Team 12 · ATL Innovation Cup 2026</span></div>
-          <p>Akhil · Timothy · Lilian · Anusmita · Stephen · <a className="underline decoration-2 underline-offset-4 hover:text-paper" href="/privacy">Privacy</a> · <a className="underline decoration-2 underline-offset-4 hover:text-paper" href="/tests">Our tests</a></p>
+          <p>Akhil · Timothy · Lilian · Anusmita · Stephen · <a className="underline decoration-2 underline-offset-4 hover:text-paper" href="/privacy">Privacy</a> · <a className="underline decoration-2 underline-offset-4 hover:text-paper" href="/tests">Our tests</a> · <a className="underline decoration-2 underline-offset-4 hover:text-paper" href="/judge">For judges</a></p>
         </div>
       </div>
     </footer>

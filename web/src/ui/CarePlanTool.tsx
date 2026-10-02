@@ -3,14 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
+import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
-import { BARRIERS, BARRIER_LABEL, type Barrier } from "@/lib/resources";
+import { BARRIERS, BARRIER_LABEL, type Barrier, formatHours, openNow, opensEvenings, opensWeekends } from "@/lib/resources";
 import type { PlanResponse, ResourceCard } from "@/lib/plan";
 import type { MeaningResponse, MeaningResult } from "@/lib/meaning";
 import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
 import { HandoffSheet } from "./HandoffSheet";
+import { BookIt } from "./BookIt";
+import { bookableItem } from "@/lib/booking";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -75,24 +78,29 @@ function StepHeader({ n, title, done, note }: { n: number; title: string; done?:
 function Resource({ r }: { r: ResourceCard }) {
   if (r.type === "clinic") {
     const c = r.clinic;
+    const hours = formatHours(c.hours);
+    const open = openNow(c);
     return (
       <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="chip bg-mint text-teal-deep">Health center</span>
           {r.km != null && <span className="text-xs font-bold text-ink/60">{r.km} km away</span>}
+          {open != null && <span className={`chip ${open ? "bg-teal text-paper" : "bg-paper border border-ink/30 text-ink/70"}`}>{open ? "Listed as open now" : "Listed as closed now"}</span>}
+          {(opensEvenings(c) || opensWeekends(c)) && <span className="chip bg-sun text-ink">{[opensEvenings(c) && "Evenings", opensWeekends(c) && "Weekends"].filter(Boolean).join(" + ")}</span>}
         </div>
         <p className="font-extrabold mt-2">{c.name}</p>
         <p className="text-sm font-semibold text-ink/75">{c.address}, {c.city} {c.zip}</p>
         <p className="text-sm font-semibold mt-1">Fees adjust to your income and family size (federal health center rule).</p>
         {c.nearest_rail && <p className="text-sm mt-1">🚆 {c.nearest_rail.name}, {(c.nearest_rail.meters / 1000).toFixed(1)} km straight-line</p>}
         {c.nearest_bus && <p className="text-sm">🚌 Bus stop: {c.nearest_bus.name}</p>}
+        {hours && <p className="text-sm mt-1">🕘 Listed hours: {hours} <span className="text-ink/55">(call to confirm)</span></p>}
         <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
           <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${c.phone.replace(/[^\d]/g, "")}`}>Call {c.phone}</a>
           {c.website && <a className="rounded-full border-2 border-ink px-3 py-1" href={c.website} target="_blank" rel="noreferrer">Website ↗</a>}
           <a className="rounded-full border-2 border-ink px-3 py-1" target="_blank" rel="noreferrer"
             href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${c.address}, ${c.city}, GA ${c.zip}`)}&travelmode=transit`}>Transit directions ↗</a>
         </div>
-        <p className="mt-2 text-[11px] text-ink/50">Source: HRSA health center data · {c.hours_per_week ? `${c.hours_per_week} hrs/week listed` : "hours not listed"}</p>
+        <p className="mt-2 text-[11px] text-ink/50">Source: HRSA health center data{hours ? " · hours from its Google Maps listing, checked Oct 2" : c.hours_per_week ? ` · ${c.hours_per_week} hrs/week listed, times not listed` : " · hours not listed"}</p>
       </div>
     );
   }
@@ -280,6 +288,12 @@ export function CarePlanTool() {
   }
 
   const careById = Object.fromEntries((care?.items ?? []).map((i) => [i.id, i]));
+  // Show "Book it now" once per thing to book: on the first plan step that serves it.
+  const bookAt = new Map<string, number>();
+  plan?.steps.forEach((s, i) => {
+    const b = bookableItem(s.care_ids.map((id) => careById[id]).filter(Boolean));
+    if (b && !bookAt.has(b.id)) bookAt.set(b.id, i);
+  });
   const items = (care?.items ?? []).filter((i) => !removed[i.id]);
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
@@ -335,6 +349,8 @@ export function CarePlanTool() {
               </SquashButton>
             </div>
           </div>
+
+          {reading && <WorkingCard kind="read" />}
 
           {care && needsPhotoCheck && (
             <div className="mt-8 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4 sm:p-5">
@@ -469,6 +485,7 @@ export function CarePlanTool() {
               {planning ? "Building your plan..." : "Make my plan"}
             </SquashButton>
             {needsPhotoCheck && <p className="mt-3 text-sm font-bold text-ink/70">First check how we read your photo in step 1.</p>}
+            {planning && <WorkingCard kind="plan" />}
           </div>
         </div>
 
@@ -512,6 +529,10 @@ export function CarePlanTool() {
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       {s.resource_ids.map((id) => plan.resources[id] && <Resource key={id} r={plan.resources[id]} />)}
                     </div>
+                  )}
+                  {[...bookAt.values()].includes(i) && (
+                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean)} resources={s.resource_ids.map((id) => plan.resources[id]).filter(Boolean)}
+                      barriers={barriers} language={language} />
                   )}
                 </li>
               ))}

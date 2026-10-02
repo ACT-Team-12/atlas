@@ -53,7 +53,7 @@ export default function PrivacyPage() {
               <p>ATLAS explains your paper and helps you plan around what gets in the way. It does not diagnose or change your care. Check with your doctor or clinic before changing anything, and if you have a warning sign from your paper, call your clinic or 911.</p>
             </Block>
             <Block title="Questions or deletion">
-              <p>Because we do not keep your paper or plan, there is nothing on our side to delete. Your saved plan is removed with Clear it from this device. Questions: open an issue at <a className="underline decoration-2 underline-offset-4" href="https://github.com/ACT-Team-12/atlas/issues" target="_blank" rel="noreferrer">github.com/ACT-Team-12/atlas</a>.</p>
+              <p>Because we do not keep your paper or plan, there is nothing on our side to delete. Your saved plan is removed with Clear it from this device. Questions: reach Team 12 through the ATL Innovation Cup organizers.</p>
             </Block>
           </div>
         </section>

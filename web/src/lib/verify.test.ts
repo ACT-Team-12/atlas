@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findSpan, verifyItems } from "./verify";
 import { SAMPLE_AVS } from "./sample";
+import { dedupe } from "./extract";
 
 const item = (source_quote: string) => ({
   kind: "medication" as const,
@@ -48,5 +49,11 @@ describe("verifyItems", () => {
     expect(refused).toHaveLength(1);
     expect(refused[0].grounded).toBe(false);
     expect(kept[0].span).not.toBeNull();
+  });
+});
+
+describe("dedupe", () => {
+  it("removes repeated questions regardless of case and punctuation", () => {
+    expect(dedupe(["Where do I get the A1c?", "where do I get the A1c", "Another?"])).toEqual(["Where do I get the A1c?", "Another?"]);
   });
 });

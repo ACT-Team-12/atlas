@@ -36,6 +36,17 @@ const ModelOutput = z.object({
   not_in_document: z.array(z.string()),
 });
 
+/** Drops repeated questions (case and punctuation insensitive). */
+export function dedupe(qs: string[]) {
+  const seen = new Set<string>();
+  return qs.filter((q) => {
+    const k = q.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
 export class ExtractError extends Error {
   constructor(message: string, public status = 500) {
     super(message);
@@ -84,10 +95,10 @@ export async function extractCarePlan(req: ExtractRequest): Promise<CarePlanResp
     source_kind: sourceKind,
     items: kept,
     refused,
-    questions_for_doctor: [
+    questions_for_doctor: dedupe([
       ...parsed.data.questions_for_doctor,
       ...kept.filter((i) => i.needs_clarification && i.question_for_clinic).map((i) => i.question_for_clinic),
-    ],
+    ]),
     not_in_document: parsed.data.not_in_document,
     has_warning_signs: kept.some((i) => i.kind === "warning_sign"),
     model: MODEL,

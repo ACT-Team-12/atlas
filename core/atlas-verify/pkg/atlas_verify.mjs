@@ -63,5 +63,13 @@ function wrap(x) {
     fakesFor(real) {
       return JSON.parse(withString(real, (p, l) => out(x.atlas_fakes_for(p, l))));
     },
+    /**
+     * The Unicode version the Rust build lower-cases with, as "major.minor" (the form of process.versions.unicode).
+     * Case mapping only matches the JS engine's toLowerCase when the two versions are equal.
+     */
+    unicodeVersion() {
+      const v = x.atlas_unicode_version();
+      return `${Math.floor(v / 1_000_000)}.${Math.floor(v / 1_000) % 1_000}`;
+    },
   };
 }

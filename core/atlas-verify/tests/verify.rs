@@ -71,6 +71,16 @@ fn verify_items_splits_grounded_items_from_refused_ones() {
 // Rust-only checks on the JS-compatibility rules the port depends on.
 
 #[test]
+fn unicode_version_is_the_pinned_one() {
+    // Case mapping only matches JS toLowerCase when both use the same Unicode version. The pin is Rust 1.99.0 and
+    // Node 22.23.2, both on Unicode 17.0 (rust-ci.yml); parity.sh also refuses to run on a skew. Moving either side
+    // means moving both and updating this line.
+    assert_eq!(char::UNICODE_VERSION, (17, 0, 0));
+    // U+A7CE/U+A7CF became a case pair in Unicode 17.0; an older Unicode refuses this quote.
+    assert!(find_span("Dose \u{A7CE} daily", "\u{A7CF} daily").is_some());
+}
+
+#[test]
 fn normalize_matches_the_ts_rules() {
     assert_eq!(
         normalize("  A\u{00A0}\u{2014}B \u{2022} \u{201C}x\u{201D}\t"),

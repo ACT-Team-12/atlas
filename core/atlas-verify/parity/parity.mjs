@@ -28,6 +28,15 @@ const { SAMPLE_LABS } = await import("../../../web/src/lib/sampleLabs.ts");
 const labs = (await import("../../../web/src/data/eval/labs.json")).default;
 const rust = await load(readFileSync(wasmPath));
 
+// Case mapping (toLowerCase vs Rust to_lowercase) only agrees when both sides use the same Unicode version. A newer
+// Unicode adds case pairs (e.g. U+A7CE/U+A7CF in 17.0), so a version skew is a real disagreement, not noise: fail
+// before comparing anything.
+const UNICODE = { node: process.versions.unicode, rust: rust.unicodeVersion() };
+if (UNICODE.node !== UNICODE.rust) {
+  console.error(`Unicode version mismatch: Node ${process.version} has ${UNICODE.node}, the Rust build has ${UNICODE.rust}. Pin both (see README).`);
+  process.exit(1);
+}
+
 // ---------- sources ----------
 const sources = new Map();
 sources.set("sample_avs", SAMPLE_AVS);
@@ -147,6 +156,8 @@ A("take 1 tablet then rest", "take...1 tablet", "ellipsis splits short fragment"
 A("take 1 tablet then rest", "take 1 tablet\u2026then rest", "unicode ellipsis between fragments");
 A("take 1 tablet then rest", "a...b...c", "only short fragments");
 A("take 1 tablet then rest", "tak...ablet", "3-unit fragments");
+A("Dose ꟎ daily", "꟏ daily", "Unicode 17.0 case pair (U+A7CE/U+A7CF), differs on older Unicode");
+A("꟎Ꟑ dose", "꟏ꟑ dose", "Latin Extended-D case pairs from Unicode 14.0 and 17.0 in one word");
 A("Take a seat.", "Take ... 5 ... mg", "invented dose in short ellipsis fragments (must refuse)");
 A("Take 1 tablet by mouth daily.", "Take 1 tablet ... daily", "legit ellipsis quote (must pass)");
 A("Take 1 tablet by mouth daily.", "... Take 1 tablet ...", "leading and trailing ellipsis");
@@ -298,6 +309,7 @@ for (const c of out) {
 const report = {
   about: "TS checker (web/src/lib/verify.ts, checkerTest.ts) vs Rust checker (core/atlas-verify, WebAssembly). Spans are [start, end] in UTF-16 units; \"undefined\"/\"NaN\" are the TS checker's own offsets after U+0130 (see README).",
   fuzz_seed: SEED,
+  unicode_version: UNICODE.node,
   totals: {
     find_span_cases: cases.length,
     found,

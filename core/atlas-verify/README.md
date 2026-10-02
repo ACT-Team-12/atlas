@@ -27,7 +27,14 @@ The port copies JS behaviour, including the parts that look odd:
 - Whitespace is the JS `\s` set: it includes U+FEFF and excludes U+0085, unlike Rust's `char::is_whitespace`.
 - The source is normalized one UTF-16 unit at a time (as `normalizeWithMap` does) while the quote is lower-cased
   as a whole string. Rust's `to_lowercase` and V8's `toLowerCase` both apply full Unicode mapping and the
-  Final_Sigma rule, and both are on Unicode 17.0 here (Rust 1.99, Node 22.23.2).
+  Final_Sigma rule. They only agree when they use the same Unicode version, because each new version adds case
+  pairs: U+A7CE/U+A7CF became one in 17.0, so `"Dose ꟎ daily"` vs `"꟏ daily"` is refused by Node 22.14 (Unicode
+  16) and accepted by Rust 1.99 (Unicode 17). **Pinned:** Rust 1.99.0 and Node 22.23.2, both Unicode 17.0, in
+  `rust-ci.yml`. `parity.sh` exits 1 before comparing anything if Node's `process.versions.unicode` differs from the
+  WebAssembly build's (`atlas_unicode_version`), and a Rust test asserts `char::UNICODE_VERSION == (17, 0, 0)`.
+  This guarantee covers the two pinned runtimes only. Whatever Node the web app is deployed on, and whatever JS
+  engine a browser has, carries its own Unicode version, so before the Rust build replaces the TS checker anywhere,
+  pin that runtime too or do the comparison on the same side.
 - The planted-fake regexes are matched by hand with JS rules (ASCII `\b` and `\d`, ASCII-only `/i`, regex
   backtracking), and `String(Number(x) * 10)` is reproduced, e.g. `0.07` becomes `0.7000000000000001`.
 

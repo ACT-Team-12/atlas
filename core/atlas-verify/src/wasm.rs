@@ -110,3 +110,11 @@ pub unsafe extern "C" fn atlas_fakes_for(ptr: *const u8, len: usize) -> i32 {
 pub extern "C" fn atlas_out_ptr() -> *const u8 {
     OUT.with(|o| o.borrow().as_ptr())
 }
+
+/// The Unicode version this build lower-cases with, as major * 1_000_000 + minor * 1_000 + update. The JS side
+/// compares it with the engine's own version, because case mapping only agrees when the two are equal.
+#[no_mangle]
+pub extern "C" fn atlas_unicode_version() -> u32 {
+    let (major, minor, update) = char::UNICODE_VERSION;
+    u32::from(major) * 1_000_000 + u32::from(minor) * 1_000 + u32::from(update)
+}

@@ -23,7 +23,8 @@ export async function POST(request: Request) {
     return Response.json(plan);
   } catch (e) {
     if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status });
-    console.error("extract failed", e);
+    // Log the kind of error only, never the request or message, so a paper can never land in the host logs.
+    console.error("extract failed", e instanceof Error ? e.name : typeof e, (e as { status?: number })?.status ?? "");
     return Response.json({ error: "Something went wrong reading that document. Try again." }, { status: 500 });
   }
 }

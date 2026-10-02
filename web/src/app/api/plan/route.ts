@@ -23,7 +23,8 @@ export async function POST(request: Request) {
     return Response.json(await buildPlan(parsed.data));
   } catch (e) {
     if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status });
-    console.error("plan failed", e);
+    // Log the kind of error only, never the request or message, so a paper can never land in the host logs.
+    console.error("plan failed", e instanceof Error ? e.name : typeof e, (e as { status?: number })?.status ?? "");
     return Response.json({ error: "Something went wrong building the plan. Try again." }, { status: 500 });
   }
 }

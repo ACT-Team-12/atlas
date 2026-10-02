@@ -20,6 +20,11 @@ import { restoredTab, scrollTargetAfter, shownTab, type Tab } from "@/lib/phoneT
 import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
 import { speechLines } from "@/lib/speechText";
+import {
+  closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan, saveSession,
+  STORE_KEY, type Session, type Store,
+} from "@/lib/savedPlans";
+import { SavedPlans } from "./SavedPlans";
 import { SPEECH_LANG } from "@/lib/speechLang";
 
 const KIND: Record<string, { label: string; cls: string }> = {
@@ -31,12 +36,10 @@ const KIND: Record<string, { label: string; cls: string }> = {
   warning_sign: { label: "Warning sign", cls: "bg-red-soft text-red" },
 };
 
-const SAVE_KEY = "atlas-session-v1";
-type Saved = {
-  text: string; language: (typeof LANGUAGES)[number]; level: (typeof READING_LEVELS)[number];
-  care: CarePlanResponse | null; barriers: Barrier[]; zip: string; note: string; plan: PlanResponse | null;
-  done: Record<string, boolean>; removed: Record<string, boolean>; photoChecked?: boolean; savedAt: string;
-};
+/** Id for a saved plan. randomUUID needs a secure page; the fallback is fine for a local key. */
+function newPlanId() {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
 
 /** Same limit as /api/speak (lib/voice.ts, server only). A longer plan is read by the phone's voice. */
 const MAX_SPEAK_CHARS = 4000;
@@ -243,38 +246,85 @@ export function CarePlanTool() {
   const scrollAfter = useRef<{ t: Tab; onlyIfHidden: boolean } | null>(null);
   const [tapToPlay, setTapToPlay] = useState(false);
 
-  // Saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
-  // One-time restore after hydration: localStorage does not exist during the server render.
+  // "My saved plans": saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
+  const [store, setStore] = useState<Store>(emptyStore);
+  const storeRef = useRef<Store>(emptyStore());
+  const [saveFailed, setSaveFailed] = useState(false);
+
+  function writeStore(next: Store) {
+    if (next === storeRef.current) return;
+    storeRef.current = next;
+    setStore(next);
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(next)); setSaveFailed(false); } catch { setSaveFailed(true); }
+  }
+
+  /** Puts a saved plan into the tool. Anything still running belongs to the plan being left, so it is dropped. */
+  function applySession(v: Session) {
+    readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
+    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
+    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setLoc(null);
+    setText(v.text); setLanguage(v.language); setLevel(v.level);
+    setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
+    setPlan(v.plan); setDone(v.done); setRemoved(v.removed); setPhotoChecked(v.photoChecked ?? false);
+    setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan }));
+  }
+
+  /** Empties the tool for a new plan. Saved plans stay as they are. */
+  function resetTool() {
+    readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
+    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
+    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setPhotoChecked(false); setReadLevel(null);
+    setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
+    setTab(1);
+  }
+
+  // One-time load after hydration (localStorage does not exist during the server render).
+  // The old single saved session moves into the list once, then its key is removed.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (raw) {
-        const v = JSON.parse(raw) as Saved;
-        setText(v.text ?? ""); setLanguage(v.language ?? "English"); setLevel(v.level ?? "simple");
-        setCare(v.care ?? null); setReadLevel(v.care ? (v.level ?? "simple") : null); setBarriers(v.barriers ?? []); setZip(v.zip ?? ""); setNote(v.note ?? "");
-        setPlan(v.plan ?? null); setDone(v.done ?? {}); setRemoved(v.removed ?? {}); setPhotoChecked(v.photoChecked ?? false);
-        if (v.care || v.plan) { setRestoredAt(v.savedAt); setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan })); }
-      }
-    } catch {}
+    let raw: string | null = null, old: string | null = null;
+    try { raw = localStorage.getItem(STORE_KEY); old = localStorage.getItem(OLD_KEY); } catch {}
+    const { store: s, migrated } = loadStore(raw, old, newPlanId());
+    storeRef.current = s; setStore(s);
+    if (migrated) { try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); localStorage.removeItem(OLD_KEY); } catch {} }
+    const open = s.plans.find((p) => p.id === s.active);
+    if (open) { applySession(open); setRestoredAt(open.savedAt); }
     loaded.current = true;
+    // Runs once on mount by design: applySession only calls setters and refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Every change to the open plan is saved into it; the first read or plan of a new one creates it.
   useEffect(() => {
     if (!loaded.current) return;
     if (!care && !plan) return;
-    try {
-      const v: Saved = { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, savedAt: new Date().toISOString() };
-      localStorage.setItem(SAVE_KEY, JSON.stringify(v));
-    } catch {}
+    writeStore(saveSession(storeRef.current, { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked }, new Date().toISOString(), newPlanId()));
   }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
+  /** "Clear it from this device": deletes the open plan. Other saved plans stay. */
   function clearSaved() {
-    try { localStorage.removeItem(SAVE_KEY); } catch {}
-    planRun.current++; setPlanning(false);
-    setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
-    setTab(1);
+    if (storeRef.current.active) writeStore(deletePlan(storeRef.current, storeRef.current.active));
+    resetTool();
+  }
+
+  function openSaved(id: string) {
+    const p = storeRef.current.plans.find((x) => x.id === id);
+    if (!p) return;
+    writeStore(openPlan(storeRef.current, id));
+    applySession(p);
+    setRestoredAt(p.savedAt);
+  }
+
+  function deleteSaved(id: string) {
+    const wasOpen = storeRef.current.active === id;
+    writeStore(deletePlan(storeRef.current, id));
+    if (wasOpen) resetTool();
+  }
+
+  function newPlan() {
+    writeStore(closePlan(storeRef.current));
+    resetTool();
   }
 
   async function checkMeaningFor(c: CarePlanResponse) {
@@ -299,6 +349,10 @@ export function CarePlanTool() {
 
   async function readPaper(corrected?: string, levelOverride?: (typeof READING_LEVELS)[number]) {
     const usedLevel = levelOverride ?? level;
+    // Reading someone else's paper while a saved plan is open starts a new plan instead of overwriting it.
+    const openSavedPlan = storeRef.current.plans.find((p) => p.id === storeRef.current.active);
+    const fresh = corrected === undefined;
+    if (readStartsNewPlan({ openPlanHasPaper: !!openSavedPlan?.care, fresh, isPhoto: fresh && !!photo, sameText: openSavedPlan?.text === text })) writeStore(closePlan(storeRef.current));
     meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
     setReading(true); setError(null); setCare(null); setPlan(null); setDone({}); setRemoved({}); setRestoredAt(null);
     setTranscript(null); setPhotoChecked(false); setPartial([]); setTab(1);
@@ -514,6 +568,7 @@ export function CarePlanTool() {
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
   const flow = { hasCare: !!care, hasPlan: !!plan };
+  const openName = store.plans.find((p) => p.id === store.active)?.name ?? null;
   // The person changed our reading of their photo. Accepting or re-reading the old text would silently drop their fix.
   const transcriptEdited = !!care && isTranscriptEdited(transcript, care.source_text);
   const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0, transcriptEdited, hasPlan: !!plan, planning });
@@ -535,10 +590,13 @@ export function CarePlanTool() {
 
         {restoredAt && (
           <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-teal bg-paper p-4">
-            <p className="font-bold">Welcome back. Your last plan is saved on this device ({new Date(restoredAt).toLocaleString()}).</p>
+            <p className="font-bold">Welcome back. {openName ? <>&ldquo;{openName}&rdquo; is</> : "Your plan is"} saved on this device ({new Date(restoredAt).toLocaleString()}).</p>
             <button type="button" onClick={clearSaved} className="rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold hover:bg-red-soft">Clear it from this device</button>
           </div>
         )}
+
+        <SavedPlans plans={listPlans(store)} activeId={store.active} busy={reading || planning} saveFailed={saveFailed}
+          onOpen={openSaved} onRename={(id, name) => writeStore(renamePlan(storeRef.current, id, name))} onDelete={deleteSaved} onNew={newPlan} />
 
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
 

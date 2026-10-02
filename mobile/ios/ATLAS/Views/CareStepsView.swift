@@ -113,11 +113,11 @@ struct CareItemCard: View {
                         }
                     }
                     Text(item.title).font(.headline.weight(.heavy)).foregroundStyle(Palette.ink)
-                        .strikethrough(done, color: Palette.ink.opacity(0.4))
-                    Text(item.plain_language).font(.body).foregroundStyle(Palette.ink)
+                        .strikethrough(done, color: Palette.ink.opacity(0.4)).wraps()
+                    Text(item.plain_language).font(.body).foregroundStyle(Palette.ink).wraps()
                     if item.needs_clarification && !item.question_for_clinic.isEmpty {
                         Text("Ask your clinic: \(item.question_for_clinic)")
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.peachDeep)
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.peachDeep).wraps()
                             .padding(8).frame(maxWidth: .infinity, alignment: .leading)
                             .background(Palette.peach, in: RoundedRectangle(cornerRadius: 12))
                     }

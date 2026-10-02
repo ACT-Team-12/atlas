@@ -27,7 +27,7 @@ struct CheckTextView: View {
                     .font(.callout)
                     .scrollContentBackground(.hidden)
                     .padding(10)
-                    .frame(minHeight: 280)
+                    .frame(height: 320)
                     .background(Palette.paper, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Palette.ink.opacity(0.7), lineWidth: 2))
                     .accessibilityLabel("After-visit summary text")

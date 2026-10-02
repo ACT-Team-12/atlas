@@ -26,7 +26,7 @@ struct PlanView: View {
                         Card(background: Palette.peach, border: Palette.peachDeep) {
                             Text("This needs a person too").font(.headline.weight(.heavy)).foregroundStyle(Palette.peachDeep)
                             Text("\(plan.ask_a_person_reason) Call 211 (United Way of Greater Atlanta) or your community health worker.")
-                                .font(.subheadline.weight(.semibold))
+                                .font(.subheadline.weight(.semibold)).wraps()
                             CallButton(label: "Call 211", number: "211")
                         }
                     }
@@ -92,15 +92,15 @@ struct PlanStepCard: View {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("\(index)").font(.system(.title, design: .rounded).weight(.black)).foregroundStyle(Palette.teal)
                     .accessibilityHidden(true)
-                Text(step.title).font(.title3.weight(.black)).foregroundStyle(Palette.ink)
+                Text(step.title).font(.title3.weight(.black)).foregroundStyle(Palette.ink).wraps()
                     .accessibilityLabel("Step \(index): \(step.title)")
                     .accessibilityAddTraits(.isHeader)
             }
             if !step.barrier.isEmpty {
                 Chip(text: Barrier(rawValue: step.barrier)?.label ?? step.barrier, background: Palette.mintSoft, foreground: Palette.ink)
             }
-            Text(step.action).font(.body.weight(.semibold))
-            if !step.why.isEmpty { Text("Why: \(step.why)").font(.subheadline).foregroundStyle(Palette.inkSoft) }
+            Text(step.action).font(.body.weight(.semibold)).wraps()
+            if !step.why.isEmpty { Text("Why: \(step.why)").font(.subheadline).foregroundStyle(Palette.inkSoft).wraps() }
 
             ForEach(step.care_ids, id: \.self) { id in
                 if let item = careByID[id] {
@@ -135,7 +135,7 @@ struct ResourceView: View {
                     Chip(text: "Health center")
                     if let km { Text("\(km, specifier: "%.1f") km away").font(.caption.weight(.bold)).foregroundStyle(Palette.inkSoft) }
                 }
-                Text(c.name).font(.headline.weight(.heavy))
+                Text(c.name).font(.headline.weight(.heavy)).wraps()
                 Text("\(c.address), \(c.city) \(c.zip)").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.inkSoft)
                 Text("Fees adjust to your income and family size (federal health center rule).").font(.subheadline.weight(.semibold))
                 if let rail = c.nearest_rail {
@@ -158,11 +158,9 @@ struct ResourceView: View {
         case let .program(_, p):
             Card(background: Palette.sky.opacity(0.5), border: Palette.ink.opacity(0.8), lineWidth: 2) {
                 Chip(text: "Program", background: Palette.sky, foreground: Palette.skyDeep)
-                Text(p.name).font(.headline.weight(.heavy))
-                HStack(alignment: .top, spacing: 8) {
-                    Rectangle().fill(Palette.sun).frame(width: 4)
-                    Text("\u{201C}\(p.evidence_quote)\u{201D}").font(.footnote.italic()).foregroundStyle(Palette.inkSoft)
-                }
+                Text(p.name).font(.headline.weight(.heavy)).wraps()
+                Text("\u{201C}\(p.evidence_quote)\u{201D}").font(.footnote.italic()).foregroundStyle(Palette.inkSoft)
+                    .wraps().sunRule()
                 FlowLayout(spacing: 8) {
                     if let phone = p.access.phone { CallButton(label: "Call \(phone)", number: phone) }
                     if let s = p.access.url, let url = URL(string: s) {

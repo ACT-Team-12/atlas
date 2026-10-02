@@ -118,13 +118,11 @@ struct PaperQuote: View {
     let quote: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Rectangle().fill(Palette.sun).frame(width: 4)
-            Text("From your paper: \u{201C}\(quote)\u{201D}")
-                .font(.footnote.italic())
-                .foregroundStyle(Palette.ink.opacity(0.75))
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        Text("From your paper: \u{201C}\(quote)\u{201D}")
+            .font(.footnote.italic())
+            .foregroundStyle(Palette.ink.opacity(0.75))
+            .fixedSize(horizontal: false, vertical: true)
+            .sunRule()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("From your paper, quote: \(quote)")
     }
@@ -178,6 +176,17 @@ struct ScreenTitle: View {
 }
 
 extension View {
+    /// Sun-yellow rule on the left, sized to the content (used for quotes).
+    func sunRule() -> some View {
+        padding(.leading, 12)
+            .overlay(alignment: .leading) { Rectangle().fill(Palette.sun).frame(width: 4) }
+    }
+
+    /// Lets body text wrap to as many lines as it needs instead of truncating.
+    func wraps() -> some View {
+        fixedSize(horizontal: false, vertical: true)
+    }
+
     func screenBackground() -> some View {
         background(Palette.mintSoft.ignoresSafeArea())
     }

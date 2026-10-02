@@ -162,14 +162,15 @@ struct ResourceView: View {
                 Text("\u{201C}\(p.evidence_quote)\u{201D}").font(.footnote.italic()).foregroundStyle(Palette.inkSoft)
                     .wraps().sunRule()
                 FlowLayout(spacing: 8) {
-                    if let phone = p.access.phone { CallButton(label: "Call \(phone)", number: phone) }
-                    if let s = p.access.url, let url = URL(string: s) {
+                    // The server sends "" for a missing phone or link; the web hides those, so do we.
+                    if let phone = p.access.phone.nonEmpty { CallButton(label: "Call \(phone)", number: phone) }
+                    if let s = p.access.url.nonEmpty, let url = URL(string: s) {
                         Button { open(url) } label: { Label("Open", systemImage: "safari") }
                             .buttonStyle(OutlinePillStyle())
                             .accessibilityLabel("Open \(p.name) website")
                     }
                 }
-                if let text = p.access.text { Text(text).font(.subheadline) }
+                if let text = p.access.text.nonEmpty { Text(text).font(.subheadline).wraps() }
                 if let url = URL(string: p.source_url), let host = url.host() {
                     Button { open(url) } label: { Text("Verified on the official page: \(host)").underline() }
                         .font(.caption2).foregroundStyle(Palette.inkSoft)
@@ -190,6 +191,14 @@ struct CallButton: View {
         } label: { Label(label, systemImage: "phone.fill") }
             .buttonStyle(OutlinePillStyle(fill: Palette.ink, text: Palette.paper))
             .accessibilityLabel(label)
+    }
+}
+
+extension Optional where Wrapped == String {
+    /// nil for nil, "" or whitespace, matching how the web treats empty strings as absent.
+    var nonEmpty: String? {
+        guard let s = self?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
+        return s
     }
 }
 

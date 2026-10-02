@@ -94,6 +94,17 @@ struct DecodingTests {
         #expect(APIError.from(status: 502, data: Data("<html>".utf8)) == .message("ATLAS had a problem on its side. Try again in a minute."))
     }
 
+    /// The live API sends "" for a program with no phone (e.g. marta-reduced-fare). It must not get a Call button.
+    @Test func emptyProgramPhoneIsTreatedAsMissing() throws {
+        let plan = try JSONDecoder().decode(PlanResponse.self, from: Fixture.data("plan_sample_30303_live"))
+        guard case let .program(_, p)? = plan.resources["marta-reduced-fare"] else { Issue.record("fixture changed"); return }
+        #expect(p.access.phone == "")
+        #expect(p.access.phone.nonEmpty == nil)
+        #expect(p.access.url.nonEmpty != nil)
+        #expect(Links.tel("404-848-5389")?.absoluteString == "tel:4048485389")
+        #expect(Links.tel("") == nil)
+    }
+
     @Test func serviceAreaMatchesServerBounds() {
         #expect(LatLng(lat: 33.749, lng: -84.388).isInServiceArea)
         #expect(!LatLng(lat: 37.33, lng: -122.03).isInServiceArea)

@@ -34,6 +34,8 @@ type Saved = {
 };
 
 const SPEECH_LANG: Record<string, string> = { English: "en-US", Spanish: "es-US", Vietnamese: "vi-VN", Korean: "ko-KR", Chinese: "zh-CN", Amharic: "am-ET", French: "fr-FR" };
+/** Same limit as /api/speak (lib/voice.ts, server only). A longer plan is read by the phone's voice. */
+const MAX_SPEAK_CHARS = 2500;
 
 async function fileToBase64(file: File) {
   const bitmap = await createImageBitmap(file);
@@ -221,6 +223,8 @@ export function CarePlanTool() {
   const loaded = useRef(false);
   const [speaking, setSpeaking] = useState(false);
   const speechRun = useRef(0);
+  const speechAudio = useRef<HTMLAudioElement | null>(null);
+  const [voiceNote, setVoiceNote] = useState("");
 
   // Saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
   // One-time restore after hydration: localStorage does not exist during the server render.
@@ -333,19 +337,22 @@ export function CarePlanTool() {
     );
   }
 
-  function stopSpeaking() {
+  function silence() {
     speechRun.current++; // ignore end events from the run being cancelled
+    const a = speechAudio.current;
+    if (a) { a.pause(); if (a.src.startsWith("blob:")) URL.revokeObjectURL(a.src); speechAudio.current = null; }
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  }
+
+  function stopSpeaking() {
+    silence();
     setSpeaking(false);
   }
 
-  // One utterance per line: Chrome silently stops a single long utterance after about 15 seconds.
-  function speak() {
-    if (!plan || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    if (speaking) return stopSpeaking();
-    window.speechSynthesis.cancel();
-    const run = ++speechRun.current;
-    const lines = [plan.summary, ...plan.steps.map((s, i) => `${i + 1}. ${s.title}. ${s.action}`)];
+  // The phone's own voice. One utterance per line: Chrome silently stops a single long utterance after about 15 seconds.
+  function phoneVoice(lines: string[], run: number) {
+    if (!("speechSynthesis" in window)) { setSpeaking(false); return; }
+    setVoiceNote(lines.length ? "Reading with your phone's voice." : "");
     lines.forEach((line, i) => {
       const u = new SpeechSynthesisUtterance(line);
       u.lang = SPEECH_LANG[language] ?? "en-US";
@@ -354,14 +361,43 @@ export function CarePlanTool() {
       u.onerror = () => { if (speechRun.current === run) setSpeaking(false); };
       window.speechSynthesis.speak(u);
     });
+  }
+
+  // Natural voice first (server, ElevenLabs); the phone's voice if that is off, busy, too long, or has no voice for this language.
+  async function speak() {
+    if (!plan || typeof window === "undefined") return;
+    if (speaking) return stopSpeaking();
+    silence();
+    const run = speechRun.current;
+    const lines = [plan.summary, ...plan.steps.map((s, i) => `${i + 1}. ${s.title}. ${s.action}`)];
     setSpeaking(true);
+    setVoiceNote("");
+    // Made inside the tap so iPhone Safari lets it play after the fetch.
+    const audio = new Audio();
+    speechAudio.current = audio;
+    const text = lines.join("\n");
+    try {
+      if (text.length > MAX_SPEAK_CHARS) throw new Error("too long");
+      const r = await fetch("/api/speak", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, language }) });
+      if (!r.ok || !(r.headers.get("content-type") ?? "").startsWith("audio/")) throw new Error("no natural voice");
+      const url = URL.createObjectURL(await r.blob());
+      if (speechRun.current !== run) { URL.revokeObjectURL(url); return; } // stopped while loading
+      audio.src = url;
+      audio.onended = () => { if (speechRun.current === run) { URL.revokeObjectURL(url); speechAudio.current = null; setSpeaking(false); } };
+      audio.onerror = () => { if (speechRun.current === run) setSpeaking(false); };
+      await audio.play();
+    } catch {
+      if (speechRun.current !== run) return;
+      speechAudio.current = null;
+      phoneVoice(lines, run);
+    }
   }
 
   // Stop reading if the plan changes or goes away, or the page unmounts.
   useEffect(() => () => {
-    speechRun.current++;
-    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    silence();
     setSpeaking(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan]);
 
   // The handoff sheet is the only thing printed while html.print-sheet is set; afterprint clears it.
@@ -596,6 +632,7 @@ export function CarePlanTool() {
               <button type="button" onClick={speak} aria-pressed={speaking} className={`rounded-full border-2 border-ink px-4 py-2 ${speaking ? "bg-ink text-paper" : "bg-sun"}`}>
                 {speaking ? "⏹ Stop reading" : "🔊 Read it out loud"}
               </button>
+              {voiceNote && speaking && <span className="self-center text-xs font-semibold text-ink/70">{voiceNote}</span>}
               <button type="button" onClick={() => window.print()} className="rounded-full border-2 border-ink px-4 py-2">🖨️ Print for the next visit</button>
               <button type="button" onClick={printSheet} className="rounded-full border-2 border-ink px-4 py-2">📄 Print a handoff sheet</button>
               {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={meaning} />}

@@ -39,7 +39,7 @@ type Saved = {
 
 const SPEECH_LANG: Record<string, string> = { English: "en-US", Spanish: "es-US", Vietnamese: "vi-VN", Korean: "ko-KR", Chinese: "zh-CN", Amharic: "am-ET", French: "fr-FR" };
 /** Same limit as /api/speak (lib/voice.ts, server only). A longer plan is read by the phone's voice. */
-const MAX_SPEAK_CHARS = 2500;
+const MAX_SPEAK_CHARS = 4000;
 
 async function fileToBase64(file: File) {
   const bitmap = await createImageBitmap(file);

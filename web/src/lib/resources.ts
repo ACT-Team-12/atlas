@@ -24,8 +24,11 @@ export type Clinic = {
   phone: string; website: string; lat: number; lng: number; hours_per_week: number | null;
   setting: string; health_center_type: string; nearest_rail: Stop | null; nearest_bus: Stop | null;
   barriers: string[]; source_id: string;
-  /** Listed hours (Google Maps, matched by scripts/add_hours.py); null when not listed or not matched. */
-  hours?: OpenPeriod[] | null; hours_source_id?: string | null;
+  /**
+   * Opening hours (scripts/add_hours.py). hours_source_id "clinic-site": quoted from the health center's own page
+   * (hours_quote is on hours_url). "gmaps-hours": its Google Maps listing. null when neither gives hours.
+   */
+  hours?: OpenPeriod[] | null; hours_source_id?: string | null; hours_quote?: string; hours_url?: string;
 };
 export type Program = {
   id: string; name: string; barriers: string[];

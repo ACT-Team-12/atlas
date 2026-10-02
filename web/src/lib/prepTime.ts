@@ -8,13 +8,14 @@
  * Pure functions, no network, no AI. Safe to import in the browser.
  */
 
-export const SLOTS = ["days_before", "day_before", "evening_before", "hours_before", "morning_of", "arrival", "after"] as const;
+export const SLOTS = ["days_before", "day_before", "evening_before", "day_of", "hours_before", "morning_of", "arrival", "after"] as const;
 export type Slot = (typeof SLOTS)[number];
 
 export const SLOT_LABEL: Record<Slot, string> = {
   days_before: "Days before",
   day_before: "The day before",
   evening_before: "The evening before",
+  day_of: "The day of your procedure",
   hours_before: "In the hours before your procedure",
   morning_of: "The morning of",
   arrival: "When you arrive",
@@ -53,9 +54,14 @@ const NUM_WORDS: Record<string, number> = {
 };
 const NUM = String.raw`(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|an?)`;
 const toNum = (s: string) => (/^\d+$/.test(s) ? Number(s) : NUM_WORDS[s.toLowerCase()] ?? NaN);
-const PROCEDURE = String.raw`(?:procedure|test|exam|colonoscopy|endoscopy|surgery|scope)`;
+/**
+ * What a relative time must be relative to. "2 hours before bedtime" or "a week before your trip" says nothing about
+ * the procedure, so a relation only counts when it names the procedure, test, exam, appointment or arrival.
+ */
+const TARGET = String.raw`(?:your|the|this)\s+(?:scheduled\s+)?(?:procedure|test|exam|examination|appointment|arrival|surgery|operation|colonoscopy|endoscopy|scope|scan)\b`;
+const BEFORE = String.raw`(?:before|prior\s+to)`;
 
-/** A clock time: "8 PM", "7:30 a.m.", "noon". Midnight is read separately. */
+/** A clock time: "8 PM", "7:30 a.m.", "noon". Midnight is read separately: alone it is a time with no day. */
 const CLOCK = /(?<![\w:])(?:\d{1,2}(?::\d{2})?\s?(?:[ap]\.\s?m\.|[ap]\s?m)(?![a-z])|noon)/gi;
 const MIDNIGHT = /\bmidnight\b/gi;
 const ARRIVE = /\b(?:arrive|arrival|check[- ]?in|check in)\b/i;
@@ -71,21 +77,21 @@ function dayHits(t: string): Hit[] {
       if (slot) hits.push({ slot, text: m[0], at: m.index ?? 0 });
     }
   };
-  // "7 days before", "a week before", "1 day before"
-  add(new RegExp(String.raw`\b${NUM}\s+(days?|weeks?)\s+(?:before|prior)\b`, "gi"), (m) => {
+  // "7 days before your procedure", "a week before your exam", "1 day before your test"
+  add(new RegExp(String.raw`\b${NUM}\s+(days?|weeks?)\s+${BEFORE}\s+${TARGET}`, "gi"), (m) => {
     const n = toNum(m[1]);
     if (!Number.isFinite(n) || n < 1) return null;
     return /^week/i.test(m[2]) || n >= 2 ? "days_before" : "day_before";
   });
-  // "the day before" (never part of "days before"; numbered forms are read above)
-  add(new RegExp(String.raw`(?<!\b${NUM}\s+)\b(?:the\s+)?day\s+(?:before|prior)\b`, "gi"), () => "day_before");
-  add(/\b(?:the\s+)?(?:night|evening)\s+(?:before|prior)\b/gi, () => "evening_before");
-  // "2 hours before your procedure", "30 minutes before" (no day is said, so it gets its own slot)
-  add(new RegExp(String.raw`\b${NUM}\s+(?:hours?|hrs?|minutes?|mins?)\s+(?:before|prior)\b`, "gi"), () => "hours_before");
-  add(/\b(?:the\s+)?morning\s+of\b/gi, () => "morning_of");
-  add(new RegExp(String.raw`\b(?:on\s+)?the\s+day\s+of\s+(?:your|the)\s+${PROCEDURE}\b`, "gi"), () => "morning_of");
-  add(new RegExp(String.raw`\bafter\s+(?:your|the)\s+${PROCEDURE}\b`, "gi"), () => "after");
-  add(/\bwhen you (?:get|are) (?:back )?home\b/gi, () => "after");
+  // "the day before your procedure" (never part of "days before"; numbered forms are read above)
+  add(new RegExp(String.raw`(?<!\b${NUM}\s+)\b(?:the\s+)?day\s+${BEFORE}\s+${TARGET}`, "gi"), () => "day_before");
+  add(new RegExp(String.raw`\b(?:the\s+)?(?:night|evening)\s+${BEFORE}\s+${TARGET}`, "gi"), () => "evening_before");
+  // "2 hours before your procedure", "30 minutes before your arrival", "1 hour before you arrive" (no day is said)
+  add(new RegExp(String.raw`\b${NUM}\s+(?:hours?|hrs?|minutes?|mins?)\s+(?:${BEFORE}\s+${TARGET}|before\s+you\s+arrive\b)`, "gi"), () => "hours_before");
+  add(new RegExp(String.raw`\b(?:the\s+)?morning\s+of\s+${TARGET}`, "gi"), () => "morning_of");
+  // "On the day of your procedure" says the day, not the morning: a procedure can be in the afternoon.
+  add(new RegExp(String.raw`\b(?:on\s+)?the\s+day\s+of\s+${TARGET}`, "gi"), () => "day_of");
+  add(new RegExp(String.raw`\bafter\s+${TARGET}`, "gi"), () => "after");
   // Overlaps ("1 day before" also contains "day before"): keep the longer phrase.
   return hits
     .sort((a, b) => a.at - b.at || b.text.length - a.text.length)
@@ -122,21 +128,22 @@ export function readWhen(quote: string, multiLine = false): WhenRead {
   // "Arrive at 7:00 AM", "Check in 1 hour before": an arrival with its own time. It happens on the day itself.
   const arrivalTimed = ARRIVE.test(t) && (clocks.length > 0 || slots.has("hours_before"));
   if (arrivalTimed) {
-    const rest = [...slots].filter((s) => s !== "morning_of" && s !== "hours_before");
+    const rest = [...slots].filter((s) => s !== "day_of" && s !== "morning_of" && s !== "hours_before");
     return rest.length ? { slot: null, reason: "conflict", words } : { slot: "arrival", reason: "placed", words };
   }
-  // Midnight ends the evening before ("after midnight the night before", "at midnight the day before").
-  if (midnight.length && (slots.size === 0 || [...slots].every((s) => s === "day_before" || s === "evening_before"))) {
+  // Midnight ends the evening before ("after midnight the night before your procedure"). Alone it names no day.
+  if (midnight.length && slots.size > 0 && [...slots].every((s) => s === "day_before" || s === "evening_before")) {
     slots = new Set(["evening_before"]);
-  } else if (midnight.length) {
+  } else if (midnight.length && slots.size > 0) {
     return { slot: null, reason: "conflict", words };
   }
   // A more exact phrase for the same moment wins ("the day before, at 5 PM the evening before").
   if (slots.has("evening_before") && slots.has("day_before")) slots.delete("day_before");
   if (slots.has("morning_of") && slots.has("hours_before")) slots.delete("hours_before");
+  if (slots.has("day_of") && (slots.has("morning_of") || slots.has("hours_before"))) slots.delete("day_of");
 
   if (slots.size === 1) return { slot: [...slots][0], reason: "placed", words };
   if (slots.size > 1) return { slot: null, reason: "conflict", words };
-  if (clocks.length) return { slot: null, reason: "clock_without_day", words };
+  if (clocks.length || midnight.length) return { slot: null, reason: "clock_without_day", words };
   return { slot: null, reason: "no_time_words", words: [] };
 }

@@ -8,26 +8,26 @@ describe("readWhen: places a step only from the time words in its own quote", ()
     ["Stop taking iron pills and fish oil 7 days before your procedure.", "days_before"],
     ["Starting 3 days before your procedure, do not eat nuts, seeds, popcorn, or raw vegetables.", "days_before"],
     ["Stop aspirin one week before your colonoscopy.", "days_before"],
-    ["Stop it a week before.", "days_before"],
+    ["Stop it a week prior to your appointment.", "days_before"],
     ["Pick up the prep kit 1 day before your procedure.", "day_before"],
     ["The day before your procedure, drink only clear liquids all day.", "day_before"],
-    ["On the day prior, eat a light breakfast only.", "day_before"],
+    ["On the day prior to your exam, eat a light breakfast only.", "day_before"],
     ["At 5 PM the evening before your procedure, drink the first half of the bowel prep.", "evening_before"],
     ["Do not eat or drink anything after midnight the night before your procedure.", "evening_before"],
-    ["Nothing to eat after midnight.", "evening_before"],
     ["Stop eating at midnight the day before your exam.", "evening_before"],
     ["5 hours before your procedure, drink the second half of the bowel prep.", "hours_before"],
     ["Stop drinking all liquids 2 hours before your procedure.", "hours_before"],
     ["Stop drinking two hours prior to your exam.", "hours_before"],
     ["The morning of your procedure, take your blood pressure pill with a small sip of water.", "morning_of"],
-    ["On the day of your procedure, wear loose clothes.", "morning_of"],
+    ["On the day of your procedure, wear loose clothes.", "day_of"],
+    ["On the day of your procedure, stop drinking 2 hours before your procedure.", "hours_before"],
+    ["Check in 30 minutes before you arrive at the desk.", "arrival"],
     ["The morning of your test, 4 hours before, finish the prep.", "morning_of"],
     ["Arrive at 7:00 AM at Midtown Endoscopy Center, 2nd floor.", "arrival"],
     ["Please check in 1 hour before your procedure time.", "arrival"],
     ["Arrive at 6:45 a.m. the morning of your procedure.", "arrival"],
     ["An adult must drive you home after your procedure.", "after"],
     ["Do not drive for 24 hours after your colonoscopy.", "after"],
-    ["Rest when you get home.", "after"],
   ];
   it.each(cases)("%s -> %s", (q, slot) => {
     const r = readWhen(q);
@@ -38,9 +38,9 @@ describe("readWhen: places a step only from the time words in its own quote", ()
   });
 
   it("returns the time words exactly as written, in order", () => {
-    expect(readWhen("At 5 PM the evening before your procedure, drink half.").words).toEqual(["5 PM", "the evening before"]);
-    expect(readWhen("Do not eat after midnight the night before.").words).toEqual(["midnight", "the night before"]);
-    expect(readWhen("Stop iron 1 day before.").words).toEqual(["1 day before"]);
+    expect(readWhen("At 5 PM the evening before your procedure, drink half.").words).toEqual(["5 PM", "the evening before your procedure"]);
+    expect(readWhen("Do not eat after midnight the night before your test.").words).toEqual(["midnight", "the night before your test"]);
+    expect(readWhen("Stop iron 1 day before your exam.").words).toEqual(["1 day before your exam"]);
   });
 });
 
@@ -66,7 +66,7 @@ describe("readWhen: refuses to place what the quote does not say", () => {
 
   it("two different moments in one line -> ask, never a guess", () => {
     expect(readWhen("Starting the day before your procedure, drink only clear liquids until 2 hours before your procedure.").reason).toBe("conflict");
-    expect(readWhen("Stop iron 7 days before and start again after your procedure.").reason).toBe("conflict");
+    expect(readWhen("Stop iron 7 days before your procedure and start again after your procedure.").reason).toBe("conflict");
     expect(readWhen("Arrive at 7 AM, 3 days before your procedure.").reason).toBe("conflict");
     expect(readWhen("Eat nothing after midnight the morning of your procedure.").reason).toBe("conflict");
   });
@@ -94,8 +94,8 @@ describe("readWhen: refuses to place what the quote does not say", () => {
     expect(placed("Afterward, go to bed.")).toBeNull(); // after what? the line doesn't say // "after" with no procedure word is not "after your procedure"
   });
 
-  it("'after midnight' is not 'after your procedure'", () => {
-    expect(placed("Do not eat after midnight.")).toBe("evening_before");
+  it("'after midnight' is not 'after your procedure', and midnight alone names no day", () => {
+    expect(readWhen("Do not eat after midnight.")).toEqual({ slot: null, reason: "clock_without_day", words: ["midnight"] });
   });
 });
 
@@ -123,3 +123,28 @@ describe("firstClause", () => {
     expect(firstClause("  Drink\n water  ")).toBe("Drink water");
   });
 });
+
+describe("Codex review: a relative time must be relative to the procedure", () => {
+  it.each([
+    "Take your sleeping pill 2 hours before bedtime.",
+    "Stop the cream a week before your trip.",
+    "Eat a light dinner the night before your flight.",
+    "Call your sister the morning of your birthday.",
+    "Do not eat 3 days before.",
+    "Stop it the day before.",
+    "Shower the evening before.",
+    "Take it 30 minutes before meals.",
+    "Rest when you get home.",
+    "You may eat after the movie.",
+  ])("%s -> ask your clinic", (q) => {
+    const r = readWhen(q);
+    expect(r.slot).toBeNull();
+  });
+
+  it("'On the day of your procedure' is the day, never the morning", () => {
+    expect(readWhen("On the day of your procedure, do not wear jewelry.")).toMatchObject({ slot: "day_of", reason: "placed" });
+    expect(readWhen("The day of your test, bring your glasses.").slot).toBe("day_of");
+    expect(readWhen("On the day of your procedure, take your pill in the morning.").slot).toBe("day_of");
+  });
+});
+

@@ -13,7 +13,7 @@ describe("buildPrepTimeline", () => {
     const r = buildPrepTimeline(SAMPLE_PREP, [item({})]);
     expect(r.timeline).toHaveLength(1);
     expect(r.timeline[0].slot).toBe("days_before");
-    expect(r.timeline[0].steps[0]).toMatchObject({ when_words: ["7 days before"], reason: "placed", explanation_hidden: false });
+    expect(r.timeline[0].steps[0]).toMatchObject({ when_words: ["7 days before your procedure"], reason: "placed", explanation_hidden: false });
     expect(r.stats).toMatchObject({ extracted: 1, verified: 1, held_back: 0, placed: 1, ask: 0, ai_slot_overridden: 0 });
   });
 

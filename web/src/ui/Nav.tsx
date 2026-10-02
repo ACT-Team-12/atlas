@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 import { Mark } from "./Mark";
 
 const LINKS = [
-  { href: "#how", label: "How it works" },
-  { href: "#try", label: "Try it" },
-  { href: "#why", label: "Why it matters" },
-  { href: "#trust", label: "Trust & data" },
+  { href: "/#how", label: "How it works" },
+  { href: "/#try", label: "Try it" },
+  { href: "/#why", label: "Why it matters" },
+  { href: "/#trust", label: "Trust & data" },
+  { href: "/tests", label: "Our tests" },
 ];
 
 export function Nav() {
@@ -29,13 +30,13 @@ export function Nav() {
       </Link>
       <nav aria-label="Main" className="pointer-events-auto hidden md:flex items-center gap-1.5">
         {LINKS.map((l) => (
-          <a key={l.href} href={l.href}
+          <Link key={l.href} href={l.href}
             className="rounded-full bg-mint-soft border-2 border-ink px-4 py-2 font-bold text-sm hover:bg-mint transition-colors shadow-[0_2px_0_var(--ink)]">
             {l.label}
-          </a>
+          </Link>
         ))}
       </nav>
-      <a href="#try" className="pointer-events-auto md:hidden rounded-full bg-ink text-paper px-4 py-2.5 font-bold text-sm">Try it</a>
+      <Link href="/#try" className="pointer-events-auto md:hidden rounded-full bg-ink text-paper px-4 py-2.5 font-bold text-sm">Try it</Link>
     </header>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
@@ -15,6 +15,13 @@ const KIND: Record<string, { label: string; cls: string }> = {
   follow_up_visit: { label: "Next visit", cls: "bg-mint text-teal-deep" },
   self_care: { label: "Daily care", cls: "bg-mint-soft text-teal-deep" },
   warning_sign: { label: "Warning sign", cls: "bg-red-soft text-red" },
+};
+
+const SAVE_KEY = "atlas-session-v1";
+type Saved = {
+  text: string; language: (typeof LANGUAGES)[number]; level: (typeof READING_LEVELS)[number];
+  care: CarePlanResponse | null; barriers: Barrier[]; zip: string; note: string; plan: PlanResponse | null;
+  done: Record<string, boolean>; removed: Record<string, boolean>; savedAt: string;
 };
 
 const SPEECH_LANG: Record<string, string> = { English: "en-US", Spanish: "es-US", Vietnamese: "vi-VN", Korean: "ko-KR", Chinese: "zh-CN", Amharic: "am-ET", French: "fr-FR" };
@@ -117,9 +124,44 @@ export function CarePlanTool() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string | null>(null);
+  const [removed, setRemoved] = useState<Record<string, boolean>>({});
+  const [restoredAt, setRestoredAt] = useState<string | null>(null);
+  const loaded = useRef(false);
+
+  // Saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
+  // One-time restore after hydration: localStorage does not exist during the server render.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) {
+        const v = JSON.parse(raw) as Saved;
+        setText(v.text ?? ""); setLanguage(v.language ?? "English"); setLevel(v.level ?? "simple");
+        setCare(v.care ?? null); setBarriers(v.barriers ?? []); setZip(v.zip ?? ""); setNote(v.note ?? "");
+        setPlan(v.plan ?? null); setDone(v.done ?? {}); setRemoved(v.removed ?? {});
+        if (v.care || v.plan) setRestoredAt(v.savedAt);
+      }
+    } catch {}
+    loaded.current = true;
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (!loaded.current) return;
+    if (!care && !plan) return;
+    try {
+      const v: Saved = { text, language, level, care, barriers, zip, note, plan, done, removed, savedAt: new Date().toISOString() };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(v));
+    } catch {}
+  }, [text, language, level, care, barriers, zip, note, plan, done, removed]);
+
+  function clearSaved() {
+    try { localStorage.removeItem(SAVE_KEY); } catch {}
+    setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
+  }
 
   async function readPaper() {
-    setReading(true); setError(null); setCare(null); setPlan(null); setDone({});
+    setReading(true); setError(null); setCare(null); setPlan(null); setDone({}); setRemoved({}); setRestoredAt(null);
     try {
       const body: Record<string, unknown> = { language, reading_level: level };
       if (photo) { body.image_base64 = await fileToBase64(photo); body.image_media_type = "image/jpeg"; } else body.text = text;
@@ -136,7 +178,7 @@ export function CarePlanTool() {
     setPlanning(true); setError(null); setPlan(null);
     try {
       const body = {
-        care: (care?.items ?? []).map((i) => ({ id: i.id, kind: i.kind, title: i.title, plain_language: i.plain_language, when: i.when, source_quote: i.source_quote })),
+        care: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => ({ id: i.id, kind: i.kind, title: i.title, plain_language: i.plain_language, when: i.when, source_quote: i.source_quote })),
         barriers, language, note,
         ...(loc ? { location: loc } : /^\d{5}$/.test(zip) ? { zip } : {}),
       };
@@ -169,7 +211,8 @@ export function CarePlanTool() {
   }
 
   const careById = Object.fromEntries((care?.items ?? []).map((i) => [i.id, i]));
-  const items = care?.items ?? [];
+  const items = (care?.items ?? []).filter((i) => !removed[i.id]);
+  const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
 
   return (
     <section id="try" className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="try-title">
@@ -178,6 +221,13 @@ export function CarePlanTool() {
           <h2 id="try-title" className="display text-[clamp(2.4rem,5vw,5rem)]">Try it</h2>
           <p className="hand text-3xl text-teal-deep rotate-1 max-w-[16em]">use the sample, or a paper you&apos;re comfortable sharing</p>
         </div>
+
+        {restoredAt && (
+          <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-teal bg-paper p-4">
+            <p className="font-bold">Welcome back. Your last plan is saved on this device ({new Date(restoredAt).toLocaleString()}).</p>
+            <button type="button" onClick={clearSaved} className="rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold hover:bg-red-soft">Clear it from this device</button>
+          </div>
+        )}
 
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
 
@@ -242,6 +292,8 @@ export function CarePlanTool() {
                           {it.needs_clarification && it.question_for_clinic && <p className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">Ask your clinic: {it.question_for_clinic}</p>}
                           <p className="mt-2 border-l-4 border-sun pl-2 text-xs italic text-ink/60">From your paper: &ldquo;{it.source_quote}&rdquo;</p>
                         </div>
+                        <button type="button" aria-label={`Remove ${it.title}`} className="text-xs font-bold text-ink/45 hover:text-red"
+                          onClick={() => setRemoved((r) => ({ ...r, [it.id]: true }))}>Remove</button>
                       </div>
                     </li>
                   ))}
@@ -251,6 +303,26 @@ export function CarePlanTool() {
                     <p className="font-extrabold mb-2">Your paper, every step highlighted</p>
                     <div className="max-h-[26rem] overflow-auto"><Highlighted text={care.source_text} items={items} active={active} /></div>
                   </div>
+                  {removedItems.length > 0 && (
+                    <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4 text-sm">
+                      <p className="font-extrabold">You removed {removedItems.length}</p>
+                      <ul className="mt-2 space-y-1">
+                        {removedItems.map((r) => (
+                          <li key={r.id} className="flex items-center justify-between gap-2">
+                            <span>{r.title}</span>
+                            <button type="button" className="font-bold underline" onClick={() => setRemoved((x) => { const n = { ...x }; delete n[r.id]; return n; })}>Undo</button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {care.not_in_document.length > 0 && (
+                    <div className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
+                      <p className="font-extrabold">What your paper does not say</p>
+                      <p className="text-xs text-ink/60">Worth asking your clinic about.</p>
+                      <ul className="mt-2 list-disc pl-5 text-sm">{care.not_in_document.map((q, i) => <li key={i}>{q}</li>)}</ul>
+                    </div>
+                  )}
                   {care.refused.length > 0 && (
                     <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4">
                       <p className="font-extrabold">Held back to protect you ({care.refused.length})</p>

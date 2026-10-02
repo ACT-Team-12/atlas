@@ -60,6 +60,8 @@ export type PlanResponse = {
   model: string;
   /** One-time token to rate this plan (added by /api/plan; null when feedback is not configured). */
   feedback_token?: string | null;
+  /** Lets this plan's own read-aloud text use the paid natural voice (added by /api/plan; see speakToken.ts). */
+  speak_token?: string | null;
 };
 
 const SYSTEM = `You are ATLAS, helping a community health worker or a patient in the United States (our local records are richest for metro Atlanta) turn a clinic visit into a plan they can finish.

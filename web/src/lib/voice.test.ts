@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cacheKey, MAX_SPEAK_CHARS, SpeakRequestSchema, synthesize, VOICE_LANG, VoiceError } from "./voice";
+import { cacheKey, chargeBudget, HOURLY_CHAR_BUDGET, MAX_SPEAK_CHARS, resetVoiceStateForTests, SpeakRequestSchema, synthesize, VOICE_LANG, VoiceError } from "./voice";
+import { issueSpeakToken, verifySpeakToken, SPEAK_TOKEN_TTL_MS } from "./speakToken";
+import { speechText } from "./speechText";
 import { LANGUAGES } from "./schema";
 
 const mp3 = (n = 4000) => new Uint8Array(n).fill(7).buffer;
@@ -10,6 +12,7 @@ describe("natural voice", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
     fetchMock.mockReset();
+    resetVoiceStateForTests();
   });
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
@@ -57,9 +60,58 @@ describe("natural voice", () => {
     expect(cacheKey("English", "a\u0000b")).not.toBe(cacheKey("English\u0000a", "b"));
   });
 
-  it("caps the request size", () => {
-    expect(SpeakRequestSchema.safeParse({ text: "x".repeat(MAX_SPEAK_CHARS + 1) }).success).toBe(false);
-    expect(SpeakRequestSchema.safeParse({ text: "   " }).success).toBe(false);
-    expect(SpeakRequestSchema.parse({ text: "hi" }).language).toBe("English");
+  it("caps the request size and requires a token", () => {
+    expect(SpeakRequestSchema.safeParse({ text: "x".repeat(MAX_SPEAK_CHARS + 1), token: "t" }).success).toBe(false);
+    expect(SpeakRequestSchema.safeParse({ text: "   ", token: "t" }).success).toBe(false);
+    expect(SpeakRequestSchema.safeParse({ text: "hi" }).success).toBe(false);
+    expect(SpeakRequestSchema.parse({ text: " hi ", token: "t" })).toMatchObject({ language: "English", text: " hi " });
+  });
+
+  it("makes one paid call for identical requests that arrive together", async () => {
+    let release!: () => void;
+    fetchMock.mockReturnValue(new Promise<Response>((r) => { release = () => r(new Response(mp3(), { status: 200 })); }));
+    const a = synthesize("same words", "English"), b = synthesize("same words", "English");
+    release();
+    const [ra, rb] = await Promise.all([a, b]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(ra.audio.byteLength).toBe(rb.audio.byteLength);
+  });
+
+  it("stops paying past the hourly character fuse", async () => {
+    const t = 1_000 * 3_600_000;
+    expect(chargeBudget(HOURLY_CHAR_BUDGET, t)).toBe(true);
+    expect(chargeBudget(1, t)).toBe(false);
+    expect(chargeBudget(1, t + 3_600_000)).toBe(true); // next hour
+    resetVoiceStateForTests();
+    for (let i = 0; i < Math.floor(HOURLY_CHAR_BUDGET / MAX_SPEAK_CHARS); i++) chargeBudget(MAX_SPEAK_CHARS);
+    await expect(synthesize("x".repeat(MAX_SPEAK_CHARS), "English")).rejects.toMatchObject({ status: 429 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("speak token", () => {
+  const plan = { summary: "Get your blood test this week.", steps: [{ title: "Lab", action: "Go Friday" }] } as Parameters<typeof speechText>[0];
+  const text = speechText(plan);
+
+  it("accepts only the plan's own text and language", () => {
+    const tok = issueSpeakToken("Spanish", text, "s3cret", 1_000)!;
+    expect(verifySpeakToken(tok, "Spanish", text, "s3cret", 2_000)).toBe(true);
+    expect(verifySpeakToken(tok, "Spanish", text + " and buy crypto", "s3cret", 2_000)).toBe(false);
+    expect(verifySpeakToken(tok, "English", text, "s3cret", 2_000)).toBe(false);
+    expect(verifySpeakToken(tok, "Spanish", text, "other", 2_000)).toBe(false);
+  });
+
+  it("expires, refuses tampering, and is off without a secret", () => {
+    const tok = issueSpeakToken("English", text, "s3cret", 1_000)!;
+    expect(verifySpeakToken(tok, "English", text, "s3cret", 1_000 + SPEAK_TOKEN_TTL_MS + 1)).toBe(false);
+    const [t, sig] = tok.split(".");
+    expect(verifySpeakToken(`${Number(t) + 1}.${sig}`, "English", text, "s3cret", 2_000)).toBe(false);
+    expect(verifySpeakToken("garbage", "English", text, "s3cret", 2_000)).toBe(false);
+    expect(issueSpeakToken("English", text, "")).toBeNull();
+    expect(verifySpeakToken(tok, "English", text, "")).toBe(false);
+  });
+
+  it("signs exactly what the page reads aloud", () => {
+    expect(text).toBe("Get your blood test this week.\n1. Lab. Go Friday");
   });
 });

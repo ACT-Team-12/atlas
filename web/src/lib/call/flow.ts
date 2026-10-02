@@ -23,6 +23,10 @@ type Language = (typeof LANGUAGES)[number];
 
 export const CODE_CALLS_PER_NUMBER = 3;
 export const PLAN_CALLS_PER_NUMBER = 3;
+/** Code calls one caller (by IP, counted in Postgres so every server instance agrees) may start per day. */
+export const CODE_CALLS_PER_IP = 8;
+/** Code calls may use only this share of the site cap, so verified people can still get their plan call. */
+export const CODE_SHARE_OF_SITE_CAP = 0.75;
 const CODE_CALL_SECONDS = 60;
 
 export type Deps = {
@@ -48,10 +52,10 @@ const codeHash = (secret: string, id: string, numberHash: string, code: string) 
 const ticket = (cfg: CallConfig, t: Omit<CallTicket, "exp">, now: number) => encodeURIComponent(signTicket(cfg.secret, t, SESSION_TTL_MS, now));
 const urls = (cfg: CallConfig) => `${cfg.baseUrl}/api/call`;
 
-export type StartInput = { phone: unknown; consent: unknown; text: unknown; language: unknown; token: unknown };
+export type StartInput = { phone: unknown; consent: unknown; text: unknown; language: unknown; token: unknown; /** HMAC of the caller's IP. */ caller?: string };
 export type StartOutcome =
   | { state: "calling"; id: string; last4: string }
-  | { state: "no-consent" | "language" | "token" | "phone" | "in-flight" | "capped-code" | "capped-plan" | "capped-site" | "no-db" | "failed" };
+  | { state: "no-consent" | "language" | "token" | "phone" | "in-flight" | "capped-caller" | "capped-code" | "capped-plan" | "capped-site" | "no-db" | "failed" };
 
 export async function startCall(deps: Deps, input: StartInput): Promise<StartOutcome> {
   const { store, cfg } = deps;
@@ -87,10 +91,15 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
   if (started === "in-flight") return { state: "in-flight" };
   if (started === "error") return { state: "no-db" };
 
-  const r = await reserveSlots(store, [{ key: `code:${hash}:${day}`, cap: CODE_CALLS_PER_NUMBER }, { key: `site:${day}`, cap: cfg.siteDailyCap }], now);
+  const slots = [
+    ...(input.caller ? [{ key: `ip:${input.caller}:${day}`, cap: CODE_CALLS_PER_IP, why: "capped-caller" as const }] : []),
+    { key: `code:${hash}:${day}`, cap: CODE_CALLS_PER_NUMBER, why: "capped-code" as const },
+    { key: `site:${day}`, cap: Math.floor(cfg.siteDailyCap * CODE_SHARE_OF_SITE_CAP), why: "capped-site" as const },
+  ];
+  const r = await reserveSlots(store, slots, now);
   if (!r.ok) {
     await store.drop(id);
-    return { state: r.refused === 0 ? "capped-code" : "capped-site" };
+    return { state: slots[r.refused].why };
   }
   const placed = await placeCall({
     applicationId: cfg.applicationId, privateKey: cfg.privateKey, to: phone, from: cfg.from,
@@ -99,7 +108,7 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
   }, deps.fetchImpl);
   if (!placed.ok) {
     // The slots stay spent (the phone may have rung). Error kind only, never the number.
-    console.error("code call failed", placed.error.slice(0, 120));
+    console.error("code call failed", placed.error);
     await store.drop(id);
     return { state: "failed" };
   }
@@ -131,7 +140,7 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
   // Exactly one request moves a session past its code.
   if (!(await store.update(id, { phase: "calling", code_hash: null }, ["code"]))) return { state: "expired" };
   const fail = async (state: "token" | "capped-plan" | "capped-site" | "failed", note: string) => {
-    await store.update(id, { ...WIPE, phase: "failed", note });
+    await store.update(id, { ...WIPE, phase: "failed", note }, ["calling"]);
     return { state } as const;
   };
 
@@ -166,7 +175,7 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
     lengthTimer: planLengthSeconds({ audioBytes: bytes?.byteLength ?? null, textChars: text.length }),
   }, deps.fetchImpl);
   if (!placed.ok) {
-    console.error("plan call failed", placed.error.slice(0, 120));
+    console.error("plan call failed", placed.error);
     return fail("failed", "the plan call could not be placed");
   }
   await store.update(id, { plan_status: "placed", plan_mode: mode }, ["calling"]);

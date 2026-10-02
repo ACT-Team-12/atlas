@@ -71,6 +71,16 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     expect(await store.counter("num:y")).toBe(0);
   });
 
+  it("wipes a session whose code ran out, without touching a live call", async () => {
+    await store.startCode(session("g", "h5"), NOW);
+    await store.startCode(session("h", "h6"), NOW);
+    await store.update("h", { phase: "calling", code_hash: null }, ["code"]);
+    await store.sweep(NOW + 11 * 60_000);
+    const g = await store.get("g", NOW + 11 * 60_000);
+    expect([g?.phase, g?.sealed_phone, g?.sealed_text, g?.sealed_token]).toEqual(["expired", null, null, null]);
+    expect((await store.get("h", NOW + 11 * 60_000))?.sealed_phone).toEqual(Buffer.from([1, 2, 3]));
+  });
+
   it("sweeps expired sessions and counters", async () => {
     await store.sweep(NOW + 3 * 24 * 3600_000);
     const { rows } = await pool.query("select (select count(*) from atlas_calls)::int as s, (select count(*) from atlas_call_counters)::int as c");

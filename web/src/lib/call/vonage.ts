@@ -57,8 +57,8 @@ export async function placeCall(o: PlaceOptions, fetchImpl: typeof fetch = fetch
       }),
     });
     const text = await res.text();
-    // Status and a short body only: Vonage error bodies describe the request, never the person.
-    if (!res.ok) return { ok: false, error: `Vonage HTTP ${res.status}: ${text.slice(0, 160)}` };
+    // Status only: an error body could echo the request, and this string reaches the logs.
+    if (!res.ok) return { ok: false, error: `Vonage HTTP ${res.status}` };
     try {
       const j = JSON.parse(text) as { uuid?: unknown };
       return typeof j.uuid === "string" ? { ok: true, uuid: j.uuid } : { ok: false, error: "Vonage answered without a call uuid" };

@@ -121,6 +121,12 @@ export class PgCallStore implements CallStore {
     try {
       const at = new Date(now);
       await this.db.query("delete from atlas_calls where expires_at < $1", [at]);
+      // A code nobody typed in time: the session can go no further, so its encrypted data goes now, not at 30 minutes.
+      await this.db.query(
+        `update atlas_calls set phase = 'expired', code_hash = null, sealed_phone = null, sealed_text = null, sealed_token = null, sealed_audio = null
+         where (phase = 'code' and code_expires_at < $1) or (phase in ('code_missed', 'expired', 'failed', 'done') and sealed_phone is not null)`,
+        [at],
+      );
       await this.db.query("delete from atlas_call_counters where expires_at < $1", [at]);
     } catch (e) { logErr("call sweep failed", e); }
   }

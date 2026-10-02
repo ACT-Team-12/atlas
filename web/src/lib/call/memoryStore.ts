@@ -11,7 +11,15 @@ export class MemoryCallStore implements CallStore {
 
   private boom() { if (this.failNext) { this.failNext = false; throw new Error("db down"); } }
 
-  async sweep(now: number) { for (const [k, r] of this.rows) if (r.expires_at.getTime() < now) this.rows.delete(k); }
+  async sweep(now: number) {
+    for (const [k, r] of this.rows) {
+      if (r.expires_at.getTime() < now) { this.rows.delete(k); continue; }
+      const stale = r.phase === "code" && (r.code_expires_at?.getTime() ?? 0) < now;
+      if (stale || (["code_missed", "expired", "failed", "done"].includes(r.phase) && r.sealed_phone)) {
+        Object.assign(r, { phase: "expired", code_hash: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null });
+      }
+    }
+  }
 
   async startCode(s: NewSession, now: number) {
     try { this.boom(); } catch { return "error" as const; }

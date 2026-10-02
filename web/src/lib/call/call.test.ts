@@ -253,6 +253,37 @@ describe("the call flow", () => {
     expect(site.counters.get(`code:${phoneHash(SECRET, "+14045552368")}:2026-10-02`)).toBe(0); // the number's slot was given back
   });
 
+  it("caps code calls per caller across numbers, counted in the store", async () => {
+    const numbers = ["404-555-2301", "404-555-2302", "404-555-2303", "404-555-2304", "404-555-2305", "404-555-2306", "404-555-2307", "404-555-2308"];
+    for (const phone of numbers) expect((await startCall(deps(), input({ phone, caller: "ip1" }))).state).toBe("calling");
+    expect((await startCall(deps(), input({ phone: "404-555-2309", caller: "ip1" }))).state).toBe("capped-caller");
+    expect((await startCall(deps(), input({ phone: "404-555-2309", caller: "ip2" }))).state).toBe("calling");
+  });
+
+  it("keeps a quarter of the site cap for plan calls, so code calls alone cannot use it up", async () => {
+    const id = await started();
+    store.counters.set("site:2026-10-02", 30); // 75% of 40, counting this session's code call
+    expect((await startCall(deps(), input({ phone: "404-555-2399" }))).state).toBe("capped-site");
+    expect((await verifyAndCall(deps(), { id, code: "4821" })).state).toBe("calling");
+    expect(store.counters.get("site:2026-10-02")).toBe(31);
+  });
+
+  it("wipes a session's encrypted data as soon as its code expires", async () => {
+    const id = await started();
+    await store.sweep(NOW + 11 * 60_000);
+    const row = store.rows.get(id)!;
+    expect(row.phase).toBe("expired");
+    expect([row.sealed_phone, row.sealed_text, row.sealed_token]).toEqual([null, null, null]);
+  });
+
+  it("logs and returns only the Vonage status, never its body", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchImpl = vi.fn(async () => new Response("bad number 14045552368", { status: 400 }));
+    expect((await startCall(deps(), input())).state).toBe("failed");
+    expect(JSON.stringify(spy.mock.calls)).not.toContain("4045552368");
+    spy.mockRestore();
+  });
+
   it("does not spend a code call when the number already used its plan calls today", async () => {
     store.counters.set(`plan:${phoneHash(SECRET, "+14045552368")}:2026-10-02`, 3);
     expect((await startCall(deps(), input())).state).toBe("capped-plan");

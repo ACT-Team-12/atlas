@@ -3,10 +3,10 @@
 - **Who (no names):** a family caregiver who helps manage care for her parents and grandparents, who live in another state. A sibling does the day-to-day care in person.
 - **How we reached them:** Timothy (team member) let her try the live site in person, about 2:50 pm on Oct 2.
 - **Interviewer:** Timothy. Observed try on the live site (atlas-team12.vercel.app).
-- **Consent to quote (anonymous):** **PENDING.** Asked for by Stephen in Slack. Do not put her words in the packet until she says yes.
+- **Consent to quote (anonymous):** **YES**, relayed by Timothy in team Slack, 4:4x pm Oct 2: "Yes it's fine." (reply to "did she say ok to quote her with no name?"). Quote her as "a family caregiver for her parents in another state", no name, state left out.
 - **Channel:** in person. Her words are **as relayed by Timothy in team Slack** (his recollection, written right after), not a recording.
 
-## What she said (as relayed by Timothy, 2:50 pm)
+## What she said (as relayed by Timothy, 2:50 pm; his recollection written right after, not a recording)
 - "This is amazing! I can use this for my parents and grandparents who stay in Ohio."
 - "This can help me understand everything that needs to go on and put it on my schedule to keep them on track."
 - "Is this going to be a real app?"

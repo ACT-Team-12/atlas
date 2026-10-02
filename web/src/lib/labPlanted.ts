@@ -55,7 +55,8 @@ export function plantsFor(rep: LabReport): Plant[] {
     p("changed value", "drop", { value: wrong }, `value ${r.value} changed to ${wrong}`);
 
     const bound = r.range_text.match(/\d[\d,]*(?:\.\d+)?/g)?.at(-1);
-    if (bound) p("value copied from the range", "drop", { value: bound }, `value ${r.value} replaced by the range limit ${bound}`);
+    // Skipped when the result really is the limit ("100" with "<100"): then it is not a mistake.
+    if (bound && Number(bound.replace(/,/g, "")) !== Number(r.value.replace(/[^\d.-]/g, ""))) p("value copied from the range", "drop", { value: bound }, `value ${r.value} replaced by the range limit ${bound}`);
 
     p("changed range", "drop or right", { range_text: "1-2" }, `range ${r.range_text || "(none)"} changed to 1-2`);
     if (r.range_text) p("range left out", "drop or right", { range_text: "" }, `range ${r.range_text} left out`);

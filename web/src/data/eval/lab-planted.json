@@ -1,57 +1,57 @@
 {
-  "measured_at": "2026-10-02T20:11:07.436Z",
+  "measured_at": "2026-10-02T20:22:51.237Z",
   "command": "node scripts/lab-planted.mjs",
-  "reports": 6,
+  "reports": 7,
   "real": {
-    "total": 37,
-    "right": 37,
+    "total": 45,
+    "right": 45,
     "wrong": []
   },
   "planted": {
-    "total": 374,
-    "caught": 374,
-    "dropped": 227,
-    "judged_right": 147,
+    "total": 453,
+    "caught": 453,
+    "dropped": 274,
+    "judged_right": 179,
     "byKind": {
       "changed value": {
-        "total": 37,
-        "caught": 37
+        "total": 45,
+        "caught": 45
       },
       "value copied from the range": {
-        "total": 36,
-        "caught": 36
+        "total": 42,
+        "caught": 42
       },
       "changed range": {
-        "total": 37,
-        "caught": 37
+        "total": 45,
+        "caught": 45
       },
       "range left out": {
-        "total": 36,
-        "caught": 36
+        "total": 44,
+        "caught": 44
       },
       "quote not in report": {
-        "total": 37,
-        "caught": 37
+        "total": 45,
+        "caught": 45
       },
       "test name from another line": {
-        "total": 37,
-        "caught": 37
+        "total": 45,
+        "caught": 45
       },
       "flag added to the quote": {
-        "total": 74,
-        "caught": 74
+        "total": 90,
+        "caught": 90
       },
       "flag moved from another line": {
-        "total": 37,
-        "caught": 37
+        "total": 45,
+        "caught": 45
       },
       "quote cut short": {
-        "total": 37,
-        "caught": 37
+        "total": 45,
+        "caught": 45
       },
       "invented test": {
-        "total": 6,
-        "caught": 6
+        "total": 7,
+        "caught": 7
       }
     },
     "slipped": [],

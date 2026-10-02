@@ -344,6 +344,78 @@
           "truth": "low"
         }
       ]
+    },
+    {
+      "id": "edge-cases",
+      "title": "Extra tests with tricky lines",
+      "layout": "a liter unit L, High Sensitivity in a name, values right on a < or > limit, a value printed as <0.2, a negative value, a (H) flag",
+      "text": "SAMPLE LAB REPORT (written by Team ATLAS, not a real patient)\nEXTRA TESTS\nTest                              Result     Units      Range         Flag\nUrine Volume, 24 hour             1.8        L          0.8-2.0\nHigh Sensitivity CRP              1.0        mg/L       0.0-3.0\nLDL Cholesterol, Direct           100        mg/dL      <100\neGFR (CKD-EPI)                    60         mL/min     >60\nBilirubin, Direct                 <0.2       mg/dL      0.1-0.3\nUric Acid                         8.1        mg/dL      3.5-7.2       (H)\nBase Excess                       -1         mmol/L     -2 to 3\nHDL Cholesterol (High-density)    35         mg/dL      >40           L\n",
+      "rows": [
+        {
+          "test": "Urine Volume, 24 hour",
+          "line": "Urine Volume, 24 hour             1.8        L          0.8-2.0",
+          "value": "1.8",
+          "unit": "L",
+          "range_text": "0.8-2.0",
+          "truth": "inside"
+        },
+        {
+          "test": "High Sensitivity CRP",
+          "line": "High Sensitivity CRP              1.0        mg/L       0.0-3.0",
+          "value": "1.0",
+          "unit": "mg/L",
+          "range_text": "0.0-3.0",
+          "truth": "inside"
+        },
+        {
+          "test": "LDL Cholesterol, Direct",
+          "line": "LDL Cholesterol, Direct           100        mg/dL      <100",
+          "value": "100",
+          "unit": "mg/dL",
+          "range_text": "<100",
+          "truth": "high"
+        },
+        {
+          "test": "eGFR (CKD-EPI)",
+          "line": "eGFR (CKD-EPI)                    60         mL/min     >60",
+          "value": "60",
+          "unit": "mL/min",
+          "range_text": ">60",
+          "truth": "low"
+        },
+        {
+          "test": "Bilirubin, Direct",
+          "line": "Bilirubin, Direct                 <0.2       mg/dL      0.1-0.3",
+          "value": "<0.2",
+          "unit": "mg/dL",
+          "range_text": "0.1-0.3",
+          "truth": "unknown"
+        },
+        {
+          "test": "Uric Acid",
+          "line": "Uric Acid                         8.1        mg/dL      3.5-7.2       (H)",
+          "value": "8.1",
+          "unit": "mg/dL",
+          "range_text": "3.5-7.2",
+          "truth": "high"
+        },
+        {
+          "test": "Base Excess",
+          "line": "Base Excess                       -1         mmol/L     -2 to 3",
+          "value": "-1",
+          "unit": "mmol/L",
+          "range_text": "-2 to 3",
+          "truth": "inside"
+        },
+        {
+          "test": "HDL Cholesterol (High-density)",
+          "line": "HDL Cholesterol (High-density)    35         mg/dL      >40           L",
+          "value": "35",
+          "unit": "mg/dL",
+          "range_text": ">40",
+          "truth": "low"
+        }
+      ]
     }
   ]
 }

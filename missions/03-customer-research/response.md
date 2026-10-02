@@ -151,14 +151,17 @@ AI-HYPOTHESIS personas, each run through the live site with a labeled sample pap
 6. **Printable handoff sheet** for someone without a smartphone (teen-caregiver persona).
 7. **Honest wait screen** while the AI reads, and a **/judge** page with a three-minute tour.
 8. **Fixes from the persona runs** (no dental-only clinics; clean barrier labels).
+9. **Explain my lab results** (PR #25), asked for by our first real patient: shows only the lines the report itself marks High/Low or prints out of range; our code decides, the AI only explains; every row quotes its line; nothing stored. Labeled sample report: 10/10 rows right (5 out, 5 in), English and Spanish. MEASURED.
+10. **Send to family** (PR #26), from a family caregiver's observed try: one tap sends the plan by text or email from the person's own phone (steps, the line from the paper, checked numbers). Nothing reaches our server.
 
-All live at atlas-team12.vercel.app (commit 0a1a9ae), tested on the live site at desktop and phone sizes with 0 page errors.
+Items 1 to 9 live at atlas-team12.vercel.app (commit 46310f2), tested on the live site at desktop and phone sizes with 0 page errors. Item 10 is built and tested; live when PR #26 merges.
 
-**Customer reaction (exact counts, 2 pm Oct 2):** 1 patient survey response, 2 clinical survey responses.
+**Customer reaction (exact counts, 3 pm Oct 2):** 1 patient survey response, 2 clinical survey responses, 1 observed try by a family caregiver.
 - **Patient, own care (consented):** "it's very difficult to even find the information and then to comprehend it since it's a lot of medical jargon". Would ask AI but is "unsure how accurate it'd be". Asked for "a summary option that only highlights what I need to improve or cut back on".
-- **What it changes:** the accuracy worry is why every step quotes the paper and a second model double-checks it. The results summary is a gap (ATLAS reads instructions, not lab values) and is next on our build list.
+- **What it changes:** the accuracy worry is why every step quotes the paper and a second model double-checks it. The results summary was a gap, so we shipped "Explain my lab results" the same day.
 - **Clinical:** both from patient-safety nurses not in direct care; logged, not quoted as front-line helpers.
-- *Pending: more answers and interviews this afternoon; live three-tap feedback counts on /tests.*
+- **Family caregiver, observed try with Timothy** (evidence file `research/evidence/2026-10-02-caregiver-try-1.md`; consent to quote PENDING, so paraphrased): manages her parents' care from another state while a relative does the appointments; said she'd use it for her family, asked if it will be a real app, wanted to keep the relative on track; liked read aloud and print; impatient with a sub-30 s wait. **Changed:** we built Send to family that afternoon.
+- *Pending: Timothy's 4 pm interviews (travel nurses, in-home caregivers), more survey answers, one nurse interview, live three-tap counts on /tests.*
 
 ## 9. FACTS pass (team first, then AI challenge)
 

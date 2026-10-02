@@ -16,6 +16,9 @@ import { ShareFamily } from "./ShareFamily";
 import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
+import { restoredTab, shownTab, type Tab } from "@/lib/phoneTabs";
+import { canMakeSimpler } from "@/lib/simpler";
+import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -198,6 +201,8 @@ export function CarePlanTool() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [language, setLanguage] = useState<(typeof LANGUAGES)[number]>("English");
   const [level, setLevel] = useState<(typeof READING_LEVELS)[number]>("simple");
+  // The level the steps on screen were read at (the select can change after a read).
+  const [readLevel, setReadLevel] = useState<(typeof READING_LEVELS)[number] | null>(null);
   const [reading, setReading] = useState(false);
   // Verified steps that arrived while the paper is still being read. Shown, never final.
   const [partial, setPartial] = useState<VerifiedItem[]>([]);
@@ -225,6 +230,11 @@ export function CarePlanTool() {
   const speechRun = useRef(0);
   const speechAudio = useRef<HTMLAudioElement | null>(null);
   const [voiceNote, setVoiceNote] = useState("");
+  // Phones only: which step card is showing. Desktop shows all three and ignores this.
+  const [tab, setTab] = useState<Tab>(1);
+  const isPhone = useIsPhone();
+  // A scroll to run after the next render, once the newly shown card is on the page.
+  const scrollAfter = useRef<{ t: Tab; onlyIfHidden: boolean } | null>(null);
 
   // Saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
   // One-time restore after hydration: localStorage does not exist during the server render.
@@ -235,9 +245,9 @@ export function CarePlanTool() {
       if (raw) {
         const v = JSON.parse(raw) as Saved;
         setText(v.text ?? ""); setLanguage(v.language ?? "English"); setLevel(v.level ?? "simple");
-        setCare(v.care ?? null); setBarriers(v.barriers ?? []); setZip(v.zip ?? ""); setNote(v.note ?? "");
+        setCare(v.care ?? null); setReadLevel(v.care ? (v.level ?? "simple") : null); setBarriers(v.barriers ?? []); setZip(v.zip ?? ""); setNote(v.note ?? "");
         setPlan(v.plan ?? null); setDone(v.done ?? {}); setRemoved(v.removed ?? {}); setPhotoChecked(v.photoChecked ?? false);
-        if (v.care || v.plan) setRestoredAt(v.savedAt);
+        if (v.care || v.plan) { setRestoredAt(v.savedAt); setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan })); }
       }
     } catch {}
     loaded.current = true;
@@ -256,6 +266,7 @@ export function CarePlanTool() {
   function clearSaved() {
     try { localStorage.removeItem(SAVE_KEY); } catch {}
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
+    setTab(1);
   }
 
   async function checkMeaningFor(c: CarePlanResponse) {
@@ -278,14 +289,15 @@ export function CarePlanTool() {
     }
   }
 
-  async function readPaper(corrected?: string) {
+  async function readPaper(corrected?: string, levelOverride?: (typeof READING_LEVELS)[number]) {
+    const usedLevel = levelOverride ?? level;
     meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
     setReading(true); setError(null); setCare(null); setPlan(null); setDone({}); setRemoved({}); setRestoredAt(null);
-    setTranscript(null); setPhotoChecked(false); setPartial([]);
+    setTranscript(null); setPhotoChecked(false); setPartial([]); setTab(1);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }
     const run = ++readRun.current;
     try {
-      const body: Record<string, unknown> = { language, reading_level: level };
+      const body: Record<string, unknown> = { language, reading_level: usedLevel };
       if (corrected !== undefined) body.text = corrected;
       else if (photo) { body.image_base64 = await fileToBase64(photo); body.image_media_type = "image/jpeg"; } else body.text = text;
       let json: CarePlanResponse;
@@ -303,11 +315,21 @@ export function CarePlanTool() {
       if (readRun.current !== run) return;
       setPartial([]);
       setCare(json);
+      setReadLevel(usedLevel);
       if (json.source_kind === "image") { setTranscript(json.source_text); return; }
       void checkMeaningFor(json);
-      document.getElementById("step-2")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Phones stay on step 1 so the person sees their steps; "Next: your needs" moves on.
+      if (!isPhoneNow()) document.getElementById("step-2")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) { setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong."); }
     finally { setReading(false); }
+  }
+
+  // "Too much? Make it simpler": the same paper, read again the normal way at the simple level.
+  // It re-reads the text the steps came from (for a photo, the reading the person already checked).
+  function makeSimpler() {
+    if (!care || !simplerOk) return;
+    setLevel("simple");
+    void readPaper(care.source_text, "simple");
   }
 
   async function makePlan() {
@@ -323,7 +345,9 @@ export function CarePlanTool() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
-      document.getElementById("step-3")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setTab(3);
+      if (isPhoneNow()) scrollAfter.current = { t: 3, onlyIfHidden: false };
+      else document.getElementById("step-3")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong."); }
     finally { setPlanning(false); }
   }
@@ -400,6 +424,19 @@ export function CarePlanTool() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan]);
 
+  // Runs after every render; does nothing unless a phone tab change asked for a scroll.
+  useEffect(() => {
+    const req = scrollAfter.current;
+    if (!req) return;
+    scrollAfter.current = null;
+    scrollToPanel(req.t, req.onlyIfHidden);
+  });
+
+  function pickTab(t: Tab, onlyIfHidden = true) {
+    setTab(t);
+    scrollAfter.current = { t, onlyIfHidden };
+  }
+
   // The handoff sheet is the only thing printed while html.print-sheet is set; afterprint clears it.
   function printSheet() {
     const root = document.documentElement;
@@ -420,6 +457,15 @@ export function CarePlanTool() {
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
+  const flow = { hasCare: !!care, hasPlan: !!plan };
+  const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0 });
+  const shown = shownTab(tab, flow);
+  // Phones: one step card at a time. Hidden cards stay mounted (state, timers and requests carry on).
+  const panel = (t: Tab) => ({
+    id: panelId(t),
+    ...(isPhone ? { role: "tabpanel", "aria-labelledby": tabId(t) } : {}),
+  });
+  const onPhone = (t: Tab) => (t === shown ? "" : "max-md:hidden");
 
   return (
     <section id="try" className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="try-title">
@@ -438,15 +484,17 @@ export function CarePlanTool() {
 
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
 
+        <PhoneTabBar shown={shown} state={flow} onPick={pickTab} />
+
         {/* Step 1 */}
-        <div className="card mt-10 p-5 sm:p-8">
+        <div {...panel(1)} className={`card mt-10 max-md:mt-4 p-5 sm:p-8 max-md:scroll-mt-44 ${onPhone(1)}`}>
           <StepHeader n={1} title="Your visit paper" done={!!care} note="optional, but it makes the plan yours" />
           <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_15rem]">
             <div>
               <textarea data-lenis-prevent aria-label="After-visit summary text" className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 placeholder="Paste the after-visit summary here..." value={text} onChange={(e) => { setText(e.target.value); setPhoto(null); }} />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
-                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setText(SAMPLE_AVS); setPhoto(null); }}>Use the sample paper</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setText(SAMPLE_AVS); setPhoto(null); setTab(1); }}>Use the sample paper</button>
                 <label className="cursor-pointer rounded-full border-2 border-ink px-4 py-2 hover:bg-mint">
                   📷 {photo ? photo.name : "Take or upload a photo"}
                   <input type="file" accept="image/*" capture="environment" className="hidden"
@@ -505,6 +553,15 @@ export function CarePlanTool() {
                 </div>
               )}
               <p className="text-sm font-bold text-ink/70">{care.stats.grounded} steps found in your paper · {care.stats.refused} held back because we couldn&apos;t find the words · {(care.stats.ms / 1000).toFixed(1)}s</p>
+              {simplerOk && (
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <button type="button" onClick={makeSimpler} aria-describedby="simpler-why"
+                    className="rounded-full border-2 border-ink bg-sun px-4 py-2 text-sm font-bold shadow-[0_2px_0_var(--ink)] hover:bg-mint focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+                    Too much? Make it simpler
+                  </button>
+                  <span id="simpler-why" className="text-xs font-semibold text-ink/70">Reads your paper again in plainer words, in the same language.</span>
+                </div>
+              )}
               <div className="mt-4 grid gap-5 lg:grid-cols-[1.15fr_1fr]">
                 <ul className="space-y-3">
                   {items.map((it) => (
@@ -580,12 +637,16 @@ export function CarePlanTool() {
                 </div>
               </div>
               <Understand key={`${care.source_text.length}:${items.map((i) => i.id).join(",")}:${language}`} care={care} items={items} language={language} />
+              <button type="button" onClick={() => pickTab(2, false)}
+                className="md:hidden mt-8 w-full rounded-full border-2 border-ink bg-sun px-5 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+                Next: your needs →
+              </button>
             </div>
           )}
         </div>
 
         {/* Step 2 */}
-        <div id="step-2" className="card mt-6 p-5 sm:p-8 scroll-mt-24">
+        <div {...panel(2)} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 scroll-mt-24 max-md:scroll-mt-44 ${onPhone(2)}`}>
           <StepHeader n={2} title="What gets in the way?" done={!!plan} note="pick any that fit" />
           <div className="mt-6 flex flex-wrap gap-2.5" role="group" aria-label="Barriers">
             {BARRIERS.map((b) => {
@@ -625,7 +686,7 @@ export function CarePlanTool() {
 
         {/* Step 3 */}
         {plan && (
-          <div id="step-3" className="card mt-6 p-5 sm:p-8 scroll-mt-24">
+          <div {...panel(3)} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 scroll-mt-24 max-md:scroll-mt-44 ${onPhone(3)}`}>
             <StepHeader n={3} title="Your plan" done note={plan.located.label} />
             <p className="mt-4 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">

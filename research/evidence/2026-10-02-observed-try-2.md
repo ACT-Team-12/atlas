@@ -21,5 +21,8 @@
 - **Who it's for:** a healthy person without a current need doesn't see it as for them. That supports aiming ATLAS at people right after a visit and at the helpers around them (caregivers, CHWs), not the general public.
 - **The wait:** the recording shows the wait screen at 13 s, the moment both testers today noticed. Streaming steps as they are ready is being built.
 
+## Product change this suggests
+- **Tabs on phones** (Paper / Your needs / Plan) so each step is one short screen. Being built on Oct 2.
+
 ## Limits
 - One person, a friend of the team, no voiceover, relayed second hand. A reaction, not a rate. Recording not yet watched in full.

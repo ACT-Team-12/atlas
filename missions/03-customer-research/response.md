@@ -1,6 +1,6 @@
 # Mission 3 response: Customer Evidence & Product Change (Team 12, ATLAS)
 
-Status: **draft v1, 10:45 am Oct 2.** Personas are COMPOSITE v1 (our team's reasoning + published evidence). Interview answers from today replace or confirm every line marked *to confirm*. Submit target 9:30 pm ET.
+Status: **draft v2, 12:50 pm Oct 2.** Personas are COMPOSITE v1 (our team's reasoning + published evidence). Interview answers from today replace or confirm every line marked *to confirm*. Submit target 9:30 pm ET.
 
 **Evidence rules for this packet.**
 - Every quote has an evidence file (consented) or a public URL.
@@ -79,7 +79,7 @@ Paper handed over → read at home → (moment of truth 1: does she understand i
 |---|---|---|
 | Reading the paper | Confusion she doesn't notice | Every step quotes the paper. "Check I understood" asks one question per step and shows the line again when she misses one. A second AI checks every explanation against its line. |
 | Planning around barriers | No car, no time, doesn't know where to go | Barrier check, then a plan built only from verified clinics and programs, with MARTA stops |
-| Doing it | Forgets, or feels better | Reminders on the phone that quote the exact line, and why it still matters |
+| Doing it | Forgets, can't get an appointment, or feels better | **Book it now**: who to call (verified number only), a script built from the paper's own line, an add-to-calendar reminder that carries that line, and "even if you feel better, your paper still says...". Phone reminders in the iOS and Android apps. |
 | Next visit | Starts from zero | Questions for the doctor, printed or saved *(pre-visit brief is next on our build list)* |
 
 ## 5. Priority need → decision for our core task → how AI helps
@@ -104,8 +104,8 @@ AI-HYPOTHESIS personas, each run through the live site with a labeled sample pap
 | Persona (AI hypothesis) | Language | What we learned |
 |---|---|---|
 | Parent resettled in Clarkston, child with asthma | Amharic | Worked end to end, but a dental-only clinic was suggested. **Fixed.** Plan took 29.6 s |
-| Night-shift worker in Doraville | Spanish | We can't say which clinic is open at night: we hold hours per week, not opening times |
-| Teen translating for a grandparent after heart failure | Vietnamese | Grandparent has no smartphone, so a printable handoff sheet matters |
+| Night-shift worker in Doraville | Spanish | We couldn't say which clinic is open after work. **Shipped:** opening hours (quoted from 12 clinics' own sites), "open now", and evening/weekend clinics offered when work hours are the barrier |
+| Teen translating for a grandparent after heart failure | Vietnamese | Grandparent has no smartphone. **Shipped:** a large-type printable handoff sheet, a box to tick per step, the paper's line under each |
 | Uninsured day laborer after urgent care | English | Cost, insurance and food all matched to verified programs |
 | CHW helping a client with a cardiology referral | English | Only one verified program for referrals, scheduling and housing: the list needs to grow |
 
@@ -146,9 +146,13 @@ AI-HYPOTHESIS personas, each run through the live site with a labeled sample pap
 1. **Check I understood (teach-back).**
 2. **The double-check by a second model.**
 3. **Three-tap feedback after a plan**, counted live and anonymously on /tests (real use only, our own tests excluded).
-4. **Fixes from the persona runs** (no dental-only clinics; clean barrier labels).
+4. **Book it now** (pain point 2: booking by staff predicts completion; "I felt better" is the top reason to skip): call script, verified number, calendar reminder with the paper's line. No AI call.
+5. **Clinic hours quoted from each clinic's own website** (night-shift persona). Kept only when the quoted text is on the clinic's page. It caught a public listing that showed Southside East Point open evenings and Saturdays; its own page says Monday to Friday, 8 to 5.
+6. **Printable handoff sheet** for someone without a smartphone (teen-caregiver persona).
+7. **Honest wait screen** while the AI reads, and a **/judge** page with a three-minute tour.
+8. **Fixes from the persona runs** (no dental-only clinics; clean barrier labels).
 
-All are on GitHub with CI green; live once merged and deployed.
+All live at atlas-team12.vercel.app (commit 0a1a9ae), tested on the live site at desktop and phone sizes with 0 page errors.
 
 **Customer reaction:** *to confirm: today's interviews and the live feedback counts go here, with exact numbers, even if small. If we observe 3 people, we report 3.*
 
@@ -158,7 +162,7 @@ All are on GitHub with CI green; live once merged and deployed.
 - **Assess:** in Mission 2 we dropped a popular "patients forget 40 to 80%" figure because we couldn't find its source. For Mission 3 we used only claims we could re-read at the source, such as Engel 2009 and the Hoek et al. meta-analysis (Ann Emerg Med; studies through March 2018).
 - **Challenge:**
   - Akhil's "ChatGPT can do this" pushed us to build what ChatGPT doesn't: grounding, teach-back, verified local help, a second check.
-  - The AI's own persona runs challenged our clinic list (dental site) and our coverage (night hours).
+  - The AI's own persona runs challenged our clinic list (dental site) and our coverage (night hours). Checking hours against clinics' own sites then challenged a public listing (East Point).
 - **Test:** measured on labeled sample papers and planted mistakes (section 5). Simulated personas are labeled as such.
 - **Steward:**
   - No real patient data.
@@ -170,5 +174,5 @@ All are on GitHub with CI green; live once merged and deployed.
 
 - What CHWs actually use today and how long a plan takes (clinic-worker form and interviews).
 - Whether patients would use a teach-back check, or find it annoying (observe today).
-- Opening hours for clinics (for night-shift workers).
+- Opening hours for the 18 clinics whose own sites don't list them for that address (shown as "hours not listed" or the public listing, marked "call to confirm").
 - Who pays: clinics, CHW programs, health plans (Mission 4).

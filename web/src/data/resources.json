@@ -113,6 +113,13 @@
       "url": "https://www.lifelinesupport.org/",
       "retrieved": "2026-10-01",
       "notes": "Official page; verbatim quote in programs[]."
+    },
+    {
+      "id": "gmaps-hours",
+      "name": "Google Maps listings (opening hours), matched to HRSA sites",
+      "url": "https://www.google.com/maps",
+      "retrieved": "2026-10-02",
+      "notes": "Google Maps listings via Apify compass/crawler-google-places, run wkI5jeYjy0m3fMMBz. Used for 21 of 41 clinics: only when the listing's street number and health-center name match the HRSA site. Shown as listed hours to confirm by phone. Spot check: Southside Main matched its own site exactly; Mercy Care Chamblee's site says 7am-5pm Mon-Fri while the listing shows Wednesday to 7pm."
     }
   ],
   "clinics": [
@@ -148,7 +155,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "09:00",
+          "close": "13:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-ethne-health-main-30021",
@@ -182,7 +217,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "09:00",
+          "close": "21:00"
+        },
+        {
+          "day": 1,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "09:00",
+          "close": "13:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-medcura-candler-30032",
@@ -216,7 +279,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-medcura-clarkston-30021",
@@ -250,7 +315,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-medcura-decatur-30032",
@@ -284,7 +377,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-medcura-doraville-30340",
@@ -318,7 +413,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-medcura-health-inc-30083",
@@ -352,7 +449,40 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 5,
+          "open": "08:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-medcura-hillandale-30058",
@@ -386,7 +516,25 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-medcura-lithonia-30058",
@@ -420,7 +568,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-medcura-mcnair-30032",
@@ -454,7 +630,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-medcura-northlake-30345",
@@ -488,7 +666,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-medcura-whitefoord-30317",
@@ -522,7 +728,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-medcura-whitefoord-dental-30317",
@@ -556,7 +790,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-mercy-care-chamblee-30341",
@@ -590,7 +826,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "07:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "07:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "07:00",
+          "close": "19:00"
+        },
+        {
+          "day": 3,
+          "open": "07:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "07:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-mercy-care-at-chris-180-30316",
@@ -624,7 +888,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-recovery-consultants-of-atlanta-medical-30035",
@@ -658,7 +924,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "09:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-recovery-consultants-tucker-30084",
@@ -692,7 +986,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "09:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "09:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-southside-medical-center-gresham-clinic-30316",
@@ -726,7 +1048,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-care-center-at-dobbs-elementary-30315",
@@ -760,7 +1110,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-heal-hollis-innovation-academy-30314",
@@ -794,7 +1146,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-healing-community-center-30331",
@@ -828,7 +1182,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-healing-community-center-abernathy-30310",
@@ -862,7 +1244,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-medcura-buckhead-30309",
@@ -896,7 +1280,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-medcura-midtown-30308",
@@ -930,7 +1316,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-medcura-whitefoord-kipp-woodson-park-30318",
@@ -964,7 +1352,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-mercy-care-decatur-street-30312",
@@ -998,7 +1388,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "07:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "07:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "07:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "07:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "07:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-mercy-care-at-city-of-refuge-30314",
@@ -1032,7 +1450,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-mercy-care-at-gateway-center-30303",
@@ -1066,7 +1486,30 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "16:30"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "16:30"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "16:30"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "16:30"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-mercy-care-at-salvation-army-30318",
@@ -1100,7 +1543,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-miles-elementary-school-30331",
@@ -1134,7 +1579,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-southside-medical-center-east-point-clinic-30344",
@@ -1168,7 +1615,40 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "19:30"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "19:30"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "19:30"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "19:30"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "19:30"
+        },
+        {
+          "day": 5,
+          "open": "08:00",
+          "close": "16:30"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-southside-medical-center-main-center-corporate-hq-30315",
@@ -1202,7 +1682,40 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "20:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "20:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "20:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "20:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "20:00"
+        },
+        {
+          "day": 5,
+          "open": "09:00",
+          "close": "14:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-southside-medical-center-school-based-health-center-at-kipp-vision-30315",
@@ -1236,7 +1749,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-the-family-health-center-at-west-end-30310",
@@ -1270,7 +1785,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "21:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-the-family-health-center-at-banneker-school-based-health-center-30349",
@@ -1304,7 +1847,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-the-family-health-center-at-college-park-school-based-30337",
@@ -1338,7 +1883,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-the-family-health-center-at-lake-forest-30328",
@@ -1372,7 +1919,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-the-family-health-center-of-ga-dba-georgia-center-for-women-at-peachtree-30308",
@@ -1406,7 +1955,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "17:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-the-family-health-centers-at-love-t-nolan-school-base-30349",
@@ -1440,7 +2017,9 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": null,
+      "hours_source_id": null
     },
     {
       "id": "hrsa-yourtown-health-30268",
@@ -1474,7 +2053,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "17:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "12:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     },
     {
       "id": "hrsa-yourtown-health-quickcare-30268",
@@ -1508,7 +2115,35 @@
         "cost",
         "insurance"
       ],
-      "source_id": "hrsa-sites"
+      "source_id": "hrsa-sites",
+      "hours": [
+        {
+          "day": 0,
+          "open": "08:00",
+          "close": "18:00"
+        },
+        {
+          "day": 1,
+          "open": "08:00",
+          "close": "18:00"
+        },
+        {
+          "day": 2,
+          "open": "08:00",
+          "close": "18:00"
+        },
+        {
+          "day": 3,
+          "open": "08:00",
+          "close": "18:00"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "18:00"
+        }
+      ],
+      "hours_source_id": "gmaps-hours"
     }
   ],
   "programs": [

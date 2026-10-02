@@ -1,5 +1,5 @@
 // Measured eval of the live AI path. Usage: node scripts/eval.mjs [baseUrl]   (default http://localhost:3000)
-// Sends each labeled sample paper in src/data/eval/papers.json to /api/extract, then a plan request to /api/plan,
+// Sends each labeled sample paper in src/data/eval/papers.json to /api/extract, then a plan request to /api/plan and a teach-back quiz request to /api/understand,
 // and writes the measured numbers to src/data/eval/results.json. Uses real AI calls (costs a few cents per paper).
 import { readFileSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
@@ -39,6 +39,11 @@ for (const p of papers) {
     zip: "30303",
     language: "English",
   });
+  const quiz = await post("/api/understand", {
+    source_text: care.source_text,
+    language: "English",
+    items: care.items.slice(0, 20).map(({ id, kind, title, source_quote }) => ({ id, kind, title, source_quote })),
+  });
   rows.push({
     id: p.id,
     title: p.title,
@@ -56,6 +61,9 @@ for (const p of papers) {
     plan_steps: plan.json.stats.steps,
     plan_dropped_refs: plan.json.stats.dropped_refs,
     plan_ms: plan.ms,
+    quiz_questions: quiz.json.questions.length,
+    quiz_dropped: quiz.json.dropped.length,
+    quiz_ms: quiz.ms,
   });
   console.log(`found ${found.length}/${p.expected.length}, grounded ${care.stats.grounded}/${care.stats.extracted}, ${readMs} ms`);
 }
@@ -82,6 +90,9 @@ const out = {
     plan_dropped_refs: sum("plan_dropped_refs"),
     median_read_ms: median(rows.map((r) => r.read_ms)),
     median_plan_ms: median(rows.map((r) => r.plan_ms)),
+    quiz_questions: sum("quiz_questions"),
+    quiz_dropped: sum("quiz_dropped"),
+    median_quiz_ms: median(rows.map((r) => r.quiz_ms)),
   },
   rows,
 };

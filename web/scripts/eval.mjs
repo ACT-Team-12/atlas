@@ -63,6 +63,7 @@ for (const p of papers) {
     plan_ms: plan.ms,
     quiz_questions: quiz.json.questions.length,
     quiz_dropped: quiz.json.dropped.length,
+    quiz_dropped_reasons: quiz.json.dropped.map((d) => d.reason),
     quiz_ms: quiz.ms,
   });
   console.log(`found ${found.length}/${p.expected.length}, grounded ${care.stats.grounded}/${care.stats.extracted}, ${readMs} ms`);

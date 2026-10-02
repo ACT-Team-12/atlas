@@ -20,7 +20,7 @@ describe("measurement helpers", () => {
   it("does nothing and never throws when no database is configured", async () => {
     const saved = process.env.DATABASE_URL;
     delete process.env.DATABASE_URL;
-    await expect(recordEvent({ surface: "web", kind: "read", steps: 3 }, false)).resolves.toBe(false);
+    await expect(recordEvent({ surface: "web", kind: "read", steps: 3 }, false)).resolves.toBe("failed");
     await expect(liveStats()).resolves.toBeNull();
     if (saved) process.env.DATABASE_URL = saved;
   });

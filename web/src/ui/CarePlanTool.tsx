@@ -414,8 +414,11 @@ export function CarePlanTool() {
                               {meaning.byId[it.id].unexpected_numbers.length > 0 ? ` (Number not in your paper: ${meaning.byId[it.id].unexpected_numbers.join(", ")}.)` : ""}
                             </p>
                           )}
-                          {meaning.status === "done" && meaning.byId[it.id] && !meaning.byId[it.id].flagged && (
+                          {meaning.status === "done" && meaning.byId[it.id]?.certified && (
                             <p className="mt-1 text-[11px] font-bold text-teal-deep">✓ Double-checked: the explanation matches this line</p>
+                          )}
+                          {meaning.status === "done" && meaning.byId[it.id] && !meaning.byId[it.id].flagged && !meaning.byId[it.id].certified && (
+                            <p className="mt-1 text-[11px] font-semibold text-ink/70">Not double-checked: our second check couldn&apos;t confirm this one. Read the line from your paper above.</p>
                           )}
                         </div>
                         <button type="button" aria-label={`Remove ${it.title}`} className="text-xs font-bold text-ink/70 hover:text-red"
@@ -544,8 +547,7 @@ export function CarePlanTool() {
                     </div>
                   )}
                   {[...bookAt.values()].includes(i) && (
-                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean)} resources={s.resource_ids.map((id) => plan.resources[id]).filter(Boolean)}
-                      barriers={barriers} language={language} />
+                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean)} barriers={barriers} language={language} />
                   )}
                 </li>
               ))}
@@ -556,7 +558,7 @@ export function CarePlanTool() {
                 <ul className="mt-2 list-disc pl-5 space-y-1">{care.questions_for_doctor.map((q, i) => <li key={i}>{q}</li>)}</ul>
               </div>
             )}
-            <Feedback key={plan.summary} language={language} />
+            <Feedback key={plan.summary} language={language} token={plan.feedback_token ?? null} />
             <p className="mt-6 text-xs text-ink/70">ATLAS explains your own paperwork and points to verified public resources. It is not medical advice. Model: {plan.model}.</p>
           </div>
         )}

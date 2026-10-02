@@ -40,7 +40,9 @@ export function WorkingCard({ kind }: { kind: keyof typeof COPY }) {
   }, []);
 
   return (
-    <div className="mt-6 rounded-3xl border-2 border-ink bg-paper p-5 sm:p-6 flex flex-col sm:flex-row gap-5 items-start" role="status" aria-live="polite" aria-busy="true">
+    <div className="mt-6 rounded-3xl border-2 border-ink bg-paper p-5 sm:p-6 flex flex-col sm:flex-row gap-5 items-start" aria-busy="true">
+      {/* One static announcement. The ticking timer stays out of the live region so screen readers are not interrupted every second. */}
+      <p className="sr-only" role="status" aria-live="polite">{c.title}. {c.typical}</p>
       <div className="working-paper relative shrink-0 w-24 h-32 rounded-lg border-2 border-ink bg-white overflow-hidden" aria-hidden="true">
         {[18, 30, 42, 54, 66, 78, 90, 102].map((y, i) => (
           <span key={y} className="absolute left-3 h-1.5 rounded-full bg-ink/20" style={{ top: y, width: `${[70, 55, 64, 40, 68, 50, 60, 35][i]}%` }} />
@@ -50,7 +52,7 @@ export function WorkingCard({ kind }: { kind: keyof typeof COPY }) {
       <div className="min-w-0">
         <p className="display text-2xl">{c.title}<span className="working-dots" aria-hidden="true" /></p>
         <p className="text-sm font-bold text-ink/70 mt-1">
-          <span className="tabular-nums">{sec}s</span> · {c.typical}
+          <span className="tabular-nums" aria-hidden="true">{sec}s · </span>{c.typical}
         </p>
         <ol className="mt-3 space-y-1.5 text-sm font-semibold list-decimal pl-5">
           {c.steps.map((s) => <li key={s}>{s}</li>)}

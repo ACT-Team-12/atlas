@@ -84,7 +84,7 @@ export default async function JudgePage() {
             </div>
             <div className="card p-6 bg-paper">
               <h2 className="display text-2xl">What we don&apos;t claim</h2>
-              <p className="mt-2 font-semibold text-ink-soft">It is not medical advice. No real patient data is used. Clinic hours are listed hours to confirm by phone. <a className="underline decoration-2 underline-offset-4" href="/privacy">Privacy</a>.</p>
+              <p className="mt-2 font-semibold text-ink-soft">It is not medical advice. Our sample papers, tests and evals contain no real patient records. A paper someone pastes is sent to build their plan and is not stored by us. Clinic hours come from each clinic&apos;s own site where we could confirm them, otherwise a public listing to confirm by phone. <a className="underline decoration-2 underline-offset-4" href="/privacy">Privacy</a>.</p>
             </div>
           </div>
         </section>

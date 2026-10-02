@@ -38,6 +38,8 @@ export type MeaningResult = {
   unexpected_numbers: string[];
   model_verdict: "same" | "different" | "unclear";
   what_differs: string;
+  /** True only when the second model said "same" AND every number checks out. Only this earns the green check. */
+  certified: boolean;
 };
 export type MeaningResponse = { results: MeaningResult[]; flagged: number; checker_model: string; ms: number };
 
@@ -83,6 +85,8 @@ export function combine(id: string, item: MeaningRequest["items"][number], verdi
     model_verdict: verdict,
     what_differs: verdict === "same" ? "" : what,
     flagged: unexpected.length > 0 || verdict === "different",
+    // "unclear", or a step the checker skipped, is neither flagged nor certified: the UI says it could not double-check it.
+    certified: verdict === "same" && unexpected.length === 0,
   };
 }
 

@@ -6,6 +6,8 @@
 // renders them in a real browser, Claude pulls out this location's hours with a verbatim quote, and our
 // code keeps the hours only if that quote is really on the fetched page (the same rule the app uses for
 // after-visit papers). Output: data-raw/official-hours-<date>.json. scripts/add_hours.py merges it.
+// The strict check is src/lib/hoursQuote.ts (day ranges + am/pm times on token boundaries); its test runs it
+// over every clinic-site record in resources.json on every CI run, so a weak extraction cannot ship.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

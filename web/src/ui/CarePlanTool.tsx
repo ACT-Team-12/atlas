@@ -126,6 +126,9 @@ export function CarePlanTool() {
   const [active, setActive] = useState<string | null>(null);
   const [removed, setRemoved] = useState<Record<string, boolean>>({});
   const [restoredAt, setRestoredAt] = useState<string | null>(null);
+  // Photo reads: the quote check runs against the AI's own reading of the photo, so the person checks that reading first.
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const [photoChecked, setPhotoChecked] = useState(false);
   const loaded = useRef(false);
 
   // Saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
@@ -160,15 +163,19 @@ export function CarePlanTool() {
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
   }
 
-  async function readPaper() {
+  async function readPaper(corrected?: string) {
     setReading(true); setError(null); setCare(null); setPlan(null); setDone({}); setRemoved({}); setRestoredAt(null);
+    setTranscript(null); setPhotoChecked(false);
+    if (corrected !== undefined) { setPhoto(null); setText(corrected); }
     try {
       const body: Record<string, unknown> = { language, reading_level: level };
-      if (photo) { body.image_base64 = await fileToBase64(photo); body.image_media_type = "image/jpeg"; } else body.text = text;
+      if (corrected !== undefined) body.text = corrected;
+      else if (photo) { body.image_base64 = await fileToBase64(photo); body.image_media_type = "image/jpeg"; } else body.text = text;
       const res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setCare(json);
+      if (json.source_kind === "image") { setTranscript(json.source_text); return; }
       document.getElementById("step-2")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong."); }
     finally { setReading(false); }
@@ -259,11 +266,28 @@ export function CarePlanTool() {
                   {READING_LEVELS.map((l) => <option key={l}>{l}</option>)}
                 </select>
               </label>
-              <SquashButton onClick={readPaper} disabled={reading || (!photo && text.trim().length < 20)} bg="var(--teal)" accent="var(--sun)" className="mt-auto">
+              <SquashButton onClick={() => readPaper()} disabled={reading || (!photo && text.trim().length < 20)} bg="var(--teal)" accent="var(--sun)" className="mt-auto">
                 {reading ? "Reading..." : "Read my paper"}
               </SquashButton>
             </div>
           </div>
+
+          {care && care.source_kind === "image" && !photoChecked && (
+            <div className="mt-8 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4 sm:p-5">
+              <p className="font-extrabold">Check how we read your photo</p>
+              <p className="text-sm font-semibold text-ink/70">
+                Every step below has to quote this text. If a word or number is wrong here, fix it, then read it again so the steps come from your corrected text.
+              </p>
+              <textarea aria-label="Text read from your photo" className="mt-3 h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
+                value={transcript ?? care.source_text} onChange={(e) => setTranscript(e.target.value)} />
+              <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
+                <button type="button" className="rounded-full bg-ink text-paper px-4 py-2 disabled:opacity-40"
+                  disabled={reading || (transcript ?? care.source_text).trim().length < 20 || transcript === care.source_text}
+                  onClick={() => readPaper(transcript ?? care.source_text)}>Use my corrected text</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => setPhotoChecked(true)}>It matches my paper</button>
+              </div>
+            </div>
+          )}
 
           {care && (
             <div className="mt-8">

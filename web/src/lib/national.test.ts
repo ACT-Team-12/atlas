@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { NATIONAL, isGeorgiaZip, locateAnyZip, nationalPrograms, nearestNationalClinics, regionOf } from "./national";
-import { nearestClinics, programsFor } from "./resources";
+import { SPECIALTY_NAME, nearestClinics, programsFor } from "./resources";
 import { mergeNearest } from "./plan";
 
 const at = (zip: string) => locateAnyZip(zip)!;
 
 describe("nationwide: any US ZIP finds real HRSA health centers", () => {
-  it("loads every US ZIP and over 10,000 HRSA sites", () => {
+  it("loads every US ZIP and over 9,000 general-care HRSA sites", () => {
     expect(NATIONAL.zipCount).toBeGreaterThan(33000);
-    expect(NATIONAL.clinicCount).toBeGreaterThan(10000);
+    expect(NATIONAL.clinicCount).toBeGreaterThan(9000);
     expect(locateAnyZip("43215")).not.toBeNull(); // Columbus, OH
     expect(locateAnyZip("00000")).toBeNull();
   });
@@ -23,7 +23,9 @@ describe("nationwide: any US ZIP finds real HRSA health centers", () => {
     expect(regionOf(at("31401"), "31401")).toBe("georgia"); // Savannah
     expect(regionOf(at("43215"), "43215")).toBe("us");
     expect(regionOf({ lat: 33.77, lng: -84.39 })).toBe("metro");
-    expect(regionOf(at("31401"))).toBe("georgia");
+    // Outside metro a shared location can't be placed in a state reliably, so it never gets state-only programs.
+    expect(regionOf(at("31401"))).toBe("us");
+    expect(regionOf({ lat: 32.4709, lng: -85.0008 })).toBe("us"); // Phenix City, AL, next to Columbus, GA
     expect(regionOf(at("43215"))).toBe("us");
   });
 
@@ -39,6 +41,17 @@ describe("nationwide: any US ZIP finds real HRSA health centers", () => {
     expect(nearestNationalClinics({ lat: 30, lng: -40 }, 4)).toEqual([]); // mid-Atlantic Ocean
     expect(nearestClinics(at("43215"), 4)).toEqual([]);
     expect(nearestClinics(at("30030"), 4).length).toBe(4);
+  });
+
+  it("never offers a specialty-only site (pharmacy, eye, mental health, women's, student) as the nearest health center", () => {
+    for (const n of ["CVS Pharmacy", "Vision Center", "Eye Clinic", "Behavioral Health", "Mental Health Services", "Women's Clinic",
+      "Children's Clinic", "Laboratory", "WIC Office", "Davis and Elkins College Wellness Center", "Recovery Consultants: Tucker"])
+      expect(SPECIALTY_NAME.test(n)).toBe(true);
+    for (const n of ["Grace Health Medical Campus", "Valley Health Care Elkins - Health Center", "MedCura Decatur", "Labette Health Clinic"])
+      expect(SPECIALTY_NAME.test(n)).toBe(false);
+    // ZIPs where the first build's nearest site was a pharmacy, a mental health office, a vision center and a women's clinic.
+    for (const z of ["26241", "97304", "95476", "40701"])
+      for (const { clinic } of nearestNationalClinics(at(z), 4)) expect(SPECIALTY_NAME.test(clinic.name)).toBe(false);
   });
 
   it("only offers programs that apply where the person is", () => {

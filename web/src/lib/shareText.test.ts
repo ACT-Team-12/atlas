@@ -46,6 +46,19 @@ describe("send to family text", () => {
     expect(planShareText({ items: [], plan: p, questions: [] })).toContain("- Georgia Medicaid: https://gateway.ga.gov");
   });
 
+  it("keeps the double-check: a flagged explanation is replaced by the paper's words, unchecked ones say so", () => {
+    const r = (o: object) => ({ id: "c1", flagged: false, numbers_ok: true, unexpected_numbers: [], model_verdict: "same" as const, what_differs: "", certified: true, ...o });
+    const certified = planShareText({ items: [item({})], plan: plan(), questions: [], meaning: { status: "done", byId: { c1: r({}) } } });
+    expect(certified).toContain("Get your blood drawn.");
+    expect(certified).not.toContain("Not double-checked");
+    const flagged = planShareText({ items: [item({})], plan: plan(), questions: [], meaning: { status: "done", byId: { c1: r({ flagged: true, certified: false, model_verdict: "different" }) } } });
+    expect(flagged).not.toContain("Get your blood drawn.");
+    expect(flagged).toContain("Double-check this one with your clinic");
+    expect(flagged).toContain('Paper says: "Return for basic metabolic panel within 2 weeks."');
+    const failed = planShareText({ items: [item({})], plan: plan(), questions: [], meaning: { status: "error", byId: {} } });
+    expect(failed).toContain("(Not double-checked. If this and the paper differ, follow the paper.)");
+  });
+
   it("says when the plan needs a person", () => {
     const t = planShareText({ items: [], plan: plan({ ask_a_person: true, ask_a_person_reason: "No verified program for housing." }), questions: [] });
     expect(t).toContain("This needs a person too: No verified program for housing.");

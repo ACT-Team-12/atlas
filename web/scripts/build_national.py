@@ -13,6 +13,11 @@ ZCTA = "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer
 RETRIEVED = "2026-10-02"
 KEEP_LOCATION = {"Permanent", "Seasonal"}  # Mobile Van has no fixed address
 # Settings HRSA does not describe as open to the public (students, residents, inmates, shelter residents).
+SPECIALTY = re.compile(
+    r"\b(pharmacy|pharmacies|rx|vision|eye|optometr\w*|ophthalm\w*|behavioral|mental|psychiatr\w*|counsel\w*|recovery|"
+    r"substance|addiction|detox|women'?s|obstetric\w*|ob/?gyn|gyn\w*|maternity|prenatal|pediatric\w*|children'?s|kids|"
+    r"teen|youth|adolescent|laborator\w*|lab|wic|podiatr\w*|chiropract\w*|hearing|audiolog\w*|physical therapy|"
+    r"radiology|imaging|x-ray|mammograph\w*|dialysis|hiv|aids|hospice|college|university|student)\b", re.I)
 DROP_SETTINGS = {"School", "Nursing Home", "Correctional Facility", "Transitional Care in Carceral Setting", "Domestic Violence"}
 
 
@@ -49,6 +54,10 @@ def main() -> None:
         if re.search(r"\bdental\b", r["Site Name"], re.I): stats["dental_only"] += 1; continue
         # Sites inside a shelter serve its residents; HRSA does not say they take walk-in patients from the public.
         if re.search(r"\b(shelter|homeless)\b", r["Site Name"], re.I): stats["shelter_site"] += 1; continue
+        # The HRSA file has no service-type field, so specialty-only sites are recognized by name: a pharmacy, eye or
+        # vision center, behavioral or mental health office, women's or OB/GYN clinic, children's clinic, lab, WIC office, college or student health center
+        # and the like cannot take a general medical follow-up.
+        if SPECIALTY.search(r["Site Name"]): stats["specialty_only_by_name"] += 1; continue
         if r["BPHC Assigned Number"] in atl_ids: stats["kept_in_atlanta_records"] += 1; continue
         try:
             lat, lng = float(r["Geocoding Artifact Address Primary Y Coordinate"]), float(r["Geocoding Artifact Address Primary X Coordinate"])

@@ -31,21 +31,14 @@ export function locateAnyZip(zip: string): { lat: number; lng: number } | null {
   return p ? { lat: p[0], lng: p[1] } : null;
 }
 
-/** The ZIP whose center is closest to a point (used to tell which state a shared location is in). */
-export function nearestZip(loc: { lat: number; lng: number }): string | null {
-  let best: string | null = null, bestKm = Infinity;
-  for (const [z, [lat, lng]] of Object.entries(Z.zips)) {
-    if (Math.abs(lat - loc.lat) > 1 || Math.abs(lng - loc.lng) > 1.5) continue;
-    const d = km(loc, { lat, lng });
-    if (d < bestKm) { bestKm = d; best = z; }
-  }
-  return best;
-}
-
+/**
+ * Metro by ZIP list or by distance from downtown (the 60 km circle lies inside Georgia). Outside metro, only a ZIP
+ * says which state someone is in: a shared location near a state line (Phenix City, AL next to Columbus, GA) cannot
+ * be placed by its nearest ZIP, so it gets national programs only, never another state's benefits.
+ */
 export function regionOf(loc: { lat: number; lng: number }, zip?: string): Region {
   if (zip ? zip in M.zips : km(loc, ATL) <= METRO_KM) return "metro";
-  const z = zip ?? nearestZip(loc);
-  return z && isGeorgiaZip(z) ? "georgia" : "us";
+  return zip && isGeorgiaZip(zip) ? "georgia" : "us";
 }
 
 function toClinic(r: Row): Clinic {

@@ -224,6 +224,23 @@ html.js-motion [data-reveal] {
   .atlas-sheet .lines span { display: block; border-bottom: 0.75pt solid #000; height: 24pt; }
 }
 
+/* Prep timeline sheet: hidden on screen; when printing it, it is the only thing on the page. */
+.atlas-prep-sheet { display: none; }
+@media print {
+  html.print-prep body > *:not(#atlas-prep-sheet) { display: none !important; }
+  html.print-prep, html.print-prep body { background: #fff !important; }
+  html.print-prep .atlas-prep-sheet { display: block; color: #000; font-size: 14pt; line-height: 1.4; }
+  .atlas-prep-sheet h1 { font-size: 22pt; margin: 0 0 2pt; }
+  .atlas-prep-sheet h2 { font-size: 16pt; margin: 14pt 0 4pt; border-bottom: 1.5pt solid #000; padding-bottom: 2pt; break-after: avoid; }
+  .atlas-prep-sheet .meta, .atlas-prep-sheet .foot { font-size: 10pt; color: #333; }
+  .atlas-prep-sheet .foot { margin-top: 14pt; }
+  .atlas-prep-sheet .steps { list-style: none; padding: 0; margin: 0; }
+  .atlas-prep-sheet .steps li { display: flex; gap: 10pt; padding: 6pt 0; border-bottom: 0.5pt solid #999; break-inside: avoid; }
+  .atlas-prep-sheet .box { flex: none; width: 16pt; height: 16pt; border: 2pt solid #000; margin-top: 3pt; }
+  .atlas-prep-sheet p { margin: 0 0 2pt; }
+  .atlas-prep-sheet .quote { font-style: italic; font-size: 12pt; border-left: 3pt solid #000; padding-left: 6pt; overflow-wrap: anywhere; }
+}
+
 /* Print: only the plan and the patient's own steps, plain and readable. */
 @media print {
   header, footer, #how, #why, #trust, .hero-bg, #try > div > .flex:first-child, #try button, #try input, #try select, #try textarea, #try label { display: none !important; }

@@ -3,13 +3,14 @@
 - **Who (no names):** someone Lilian (team member) knows; role and health situation not asked.
 - **How we reached them:** Lilian asked them to try the live site and screen record it, around 4:03 pm on Oct 2.
 - **Interviewer:** Lilian.
-- **Consent to quote (anonymous):** **NOT ASKED YET.** Paraphrase only until they say yes.
+- **Consent to quote (anonymous):** **YES**, relayed by Lilian in team Slack at 5:08 pm Oct 2 ("she said it's fine!"). Her words below are Lilian's summary of what she said, so we present them as relayed, not as a verbatim quote.
 - **Channel:** a phone screen recording (1 min 23 s, no voiceover), posted by Lilian in team Slack at 4:11 pm, plus Lilian's summary at 4:09 pm.
 
 ## What they said (as relayed by Lilian)
 - It was easy to use.
 - They would not use it themselves because they don't need it right now.
 - They can see other people finding it helpful.
+- Lilian, 4:22 pm: "she also said seperating it by tabs for the phone would be helpful cause its a lot of scrolling".
 
 ## What the recording shows (from its thumbnail; the video itself not yet reviewed)
 - They used the sample paper on a phone browser.

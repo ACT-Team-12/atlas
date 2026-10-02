@@ -44,7 +44,7 @@ That argument produced our customer hypothesis: the person who helps a patient a
 
 **"Ana", 46, leaving a clinic in DeKalb with a new diabetes medicine and a lab order** *(name invented; composite)*
 
-- **Quote:** *to confirm: a real patient or caregiver quote from today's interviews goes here, with consent.*
+- **Quote:** "My doctor will give some vague advice on how to fix my problems but no actual guidance so I'm left doing it on my own." [REAL: patient survey, own care, Oct 2, consented anonymous quote; `research/evidence/2026-10-02-patient-form-response-1.md`. Ana herself is a composite.]
 - **Background:**
   - Spanish is her first language: 8.3% of DeKalb residents have limited English proficiency.
   - Many households have no car: 10.8% in Fulton, 8.6% in DeKalb.
@@ -69,7 +69,7 @@ That argument produced our customer hypothesis: the person who helps a patient a
 | 4 | Language and transportation | Concentrated in our two counties | Grady 2022 CHNA [SOURCED] |
 | 5 | "I feel better" so the step is skipped | Top stated reason for skipping a referral | Forrest 2007 (47.5%) [SOURCED] |
 
-*To confirm: today's interviews either reorder this list or confirm it. We will say which.*
+*So far 1 real patient response (consented): confirms pain point 1 ("a lot of medical jargon", waiting for "the next time I see them") and adds understanding lab **results**, not just instructions. More answers pending; we will give the count.*
 
 ## 4. Journey, touchpoints and moments of truth
 
@@ -154,7 +154,11 @@ AI-HYPOTHESIS personas, each run through the live site with a labeled sample pap
 
 All live at atlas-team12.vercel.app (commit 0a1a9ae), tested on the live site at desktop and phone sizes with 0 page errors.
 
-**Customer reaction:** *to confirm: today's interviews and the live feedback counts go here, with exact numbers, even if small. If we observe 3 people, we report 3.*
+**Customer reaction (exact counts, 2 pm Oct 2):** 1 patient survey response, 2 clinical survey responses.
+- **Patient, own care (consented):** "it's very difficult to even find the information and then to comprehend it since it's a lot of medical jargon". Would ask AI but is "unsure how accurate it'd be". Asked for "a summary option that only highlights what I need to improve or cut back on".
+- **What it changes:** the accuracy worry is why every step quotes the paper and a second model double-checks it. The results summary is a gap (ATLAS reads instructions, not lab values) and is next on our build list.
+- **Clinical:** both from patient-safety nurses not in direct care; logged, not quoted as front-line helpers.
+- *Pending: more answers and interviews this afternoon; live three-tap feedback counts on /tests.*
 
 ## 9. FACTS pass (team first, then AI challenge)
 

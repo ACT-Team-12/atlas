@@ -71,7 +71,7 @@ struct LabResultsView: View {
                     }
                     TextEditor(text: $text)
                         .font(.system(.footnote, design: .monospaced))
-                        .frame(minHeight: 180)
+                        .frame(height: 220) // fixed and scrollable, so a long report never pushes the button off screen
                         .scrollContentBackground(.hidden)
                         .padding(8)
                         .background(Palette.paper, in: RoundedRectangle(cornerRadius: 14))
@@ -95,11 +95,18 @@ struct LabResultsView: View {
                 }
 
                 if let result {
-                    Text(result.counts.outside == 0
-                         ? "Nothing on this report is marked or printed as outside its range."
-                         : "\(result.counts.outside) \(result.counts.outside == 1 ? "result is" : "results are") outside the range on your report.")
+                    Text(result.headline)
                         .font(.title3.weight(.black)).foregroundStyle(Palette.ink).wraps()
                         .accessibilityAddTraits(.isHeader)
+                    if let c = result.coverage, !result.rows.isEmpty, !c.unchecked.isEmpty {
+                        Card(background: Palette.peach, border: Palette.peachDeep) {
+                            Text("We checked \(c.checked) of \(c.candidates) result lines. These lines were not checked, so look at them yourself:")
+                                .font(.subheadline.weight(.bold)).wraps()
+                            ForEach(Array(c.unchecked.enumerated()), id: \.offset) { _, line in
+                                Text(line).font(.system(.caption, design: .monospaced)).wraps().sunRule()
+                            }
+                        }
+                    }
                     Text("\(result.counts.inside) inside the range\(result.counts.unknown > 0 ? ", \(result.counts.unknown) with no range we could read" : "").\(result.dropped.isEmpty ? "" : " \(result.dropped.count) left out because the AI's copy didn't match your report.")")
                         .font(.caption.weight(.semibold)).foregroundStyle(Palette.inkSoft).wraps()
                     ForEach(Array(flagged.enumerated()), id: \.offset) { _, r in ResultRowCard(row: r) }

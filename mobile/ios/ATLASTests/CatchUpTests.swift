@@ -67,6 +67,16 @@ struct CatchUpTests {
         #expect(!noQuote.notes.contains("Your paper says"))
     }
 
+    @Test func labHeadlineNeverClaimsAnAllClearWithoutFullCoverage() throws {
+        func r(_ json: String) throws -> ResultsResponse { try JSONDecoder().decode(ResultsResponse.self, from: Data(json.utf8)) }
+        let row = #"{"test":"Sodium","value":"139","unit":"mmol/L","range_text":"136-145","quote":"Sodium 139","plain_name":"x","ask":"y","status":"inside","direction":null,"reason":"z"}"#
+        let base = #""dropped":[],"model":"m","ms":1,"counts":{"outside":0,"inside":1,"unknown":0}"#
+        #expect(try r(#"{"rows":[],"dropped":[],"model":"m","ms":1,"counts":{"outside":0,"inside":0,"unknown":0}}"#).headline.hasPrefix("We couldn't read any results"))
+        #expect(try r("{\"rows\":[\(row)],\(base)}").headline.hasPrefix("None of the results we read")) // older server, no coverage
+        #expect(try r("{\"rows\":[\(row)],\(base),\"coverage\":{\"candidates\":3,\"checked\":1,\"unchecked\":[\"a\",\"b\"]}}").headline == "We checked 1 of 3 result lines. None of the ones we checked is outside its range.")
+        #expect(try r("{\"rows\":[\(row)],\(base),\"coverage\":{\"candidates\":1,\"checked\":1,\"unchecked\":[]}}").headline == "Nothing on this report is marked or printed as outside its range.")
+    }
+
     @Test func serviceAreaIsTheWholeUS() {
         #expect(LatLng(lat: 39.96, lng: -83.0).isInServiceArea) // Columbus, OH
         #expect(LatLng(lat: 13.44, lng: 144.79).isInServiceArea) // Guam

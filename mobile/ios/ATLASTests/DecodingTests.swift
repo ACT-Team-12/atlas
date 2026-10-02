@@ -106,7 +106,9 @@ struct DecodingTests {
     }
 
     @Test func serviceAreaMatchesServerBounds() {
+        // Server PlanRequestSchema: lat -20 to 72, lng -180 to 180 (the US and its territories).
         #expect(LatLng(lat: 33.749, lng: -84.388).isInServiceArea)
-        #expect(!LatLng(lat: 37.33, lng: -122.03).isInServiceArea)
+        #expect(LatLng(lat: 37.33, lng: -122.03).isInServiceArea)
+        #expect(!LatLng(lat: -33.87, lng: 151.21).isInServiceArea) // Sydney
     }
 }

@@ -327,12 +327,32 @@ struct ResultsDropped: Codable, Hashable, Sendable {
     let reason: String
 }
 
+/// How many result-looking lines the server's code found in the report, and how many a verified row covered.
+struct ResultsCoverage: Codable, Hashable, Sendable {
+    let candidates: Int
+    let checked: Int
+    let unchecked: [String]
+}
+
 struct ResultsResponse: Codable, Hashable, Sendable {
     let rows: [ResultRow]
     let dropped: [ResultsDropped]
     let counts: ResultsCounts
+    /// Optional so an older server still decodes; without it the app never claims an all-clear.
+    let coverage: ResultsCoverage?
     let model: String
     let ms: Int
+
+    /// Same rules as headline() in web/src/ui/LabResults.tsx: never a report-wide all-clear unless every result line
+    /// the server's code found was checked.
+    var headline: String {
+        if rows.isEmpty { return "We couldn't read any results from this. Check the text or ask your clinic." }
+        if counts.outside > 0 { return "\(counts.outside) \(counts.outside == 1 ? "result is" : "results are") outside the range on your report." }
+        guard let c = coverage else { return "None of the results we read is outside its range. Check the rest of your report too." }
+        if c.checked < c.candidates { return "We checked \(c.checked) of \(c.candidates) result lines. None of the ones we checked is outside its range." }
+        if counts.unknown > 0 { return "Nothing is marked outside its range, but we couldn't tell for \(counts.unknown) \(counts.unknown == 1 ? "result" : "results")." }
+        return "Nothing on this report is marked or printed as outside its range."
+    }
 }
 
 struct APIErrorBody: Decodable, Sendable {

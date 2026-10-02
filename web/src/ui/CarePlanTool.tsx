@@ -6,6 +6,7 @@ import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
 import { BARRIERS, BARRIER_LABEL, type Barrier } from "@/lib/resources";
 import type { PlanResponse, ResourceCard } from "@/lib/plan";
+import type { MeaningResponse, MeaningResult } from "@/lib/meaning";
 import { SquashButton } from "./SquashButton";
 
 const KIND: Record<string, { label: string; cls: string }> = {
@@ -129,6 +130,9 @@ export function CarePlanTool() {
   // Photo reads: the quote check runs against the AI's own reading of the photo, so the person checks that reading first.
   const [transcript, setTranscript] = useState<string | null>(null);
   const [photoChecked, setPhotoChecked] = useState(false);
+  // Second-model meaning check: does each explanation say the same thing as its quoted line?
+  const [meaning, setMeaning] = useState<{ status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult> }>({ status: "idle", byId: {} });
+  const meaningFor = useRef("");
   const loaded = useRef(false);
 
   // Saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
@@ -163,7 +167,28 @@ export function CarePlanTool() {
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
   }
 
+  async function checkMeaningFor(c: CarePlanResponse) {
+    const key = `${c.source_text.length}:${c.items.length}:${c.stats.ms}`;
+    meaningFor.current = key;
+    if (c.items.length === 0) return setMeaning({ status: "idle", byId: {} });
+    setMeaning({ status: "loading", byId: {} });
+    try {
+      const res = await fetch("/api/meaning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: c.items.slice(0, 40).map(({ id, plain_language, when, source_quote }) => ({ id, plain_language, when, source_quote })) }),
+      });
+      const json: MeaningResponse = await res.json();
+      if (meaningFor.current !== key) return; // a newer paper was read meanwhile
+      if (!res.ok) throw new Error();
+      setMeaning({ status: "done", byId: Object.fromEntries(json.results.map((r) => [r.id, r])) });
+    } catch {
+      if (meaningFor.current === key) setMeaning({ status: "error", byId: {} });
+    }
+  }
+
   async function readPaper(corrected?: string) {
+    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
     setReading(true); setError(null); setCare(null); setPlan(null); setDone({}); setRemoved({}); setRestoredAt(null);
     setTranscript(null); setPhotoChecked(false);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }
@@ -176,6 +201,7 @@ export function CarePlanTool() {
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setCare(json);
       if (json.source_kind === "image") { setTranscript(json.source_text); return; }
+      void checkMeaningFor(json);
       document.getElementById("step-2")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong."); }
     finally { setReading(false); }
@@ -287,7 +313,7 @@ export function CarePlanTool() {
                 <button type="button" className="rounded-full bg-ink text-paper px-4 py-2 disabled:opacity-40"
                   disabled={reading || (transcript ?? care.source_text).trim().length < 20 || transcript === care.source_text}
                   onClick={() => readPaper(transcript ?? care.source_text)}>Use my corrected text</button>
-                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => setPhotoChecked(true)}>It matches my paper</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>It matches my paper</button>
               </div>
             </div>
           )}
@@ -318,6 +344,17 @@ export function CarePlanTool() {
                           <p className="mt-1">{it.plain_language}</p>
                           {it.needs_clarification && it.question_for_clinic && <p className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">Ask your clinic: {it.question_for_clinic}</p>}
                           <p className="mt-2 border-l-4 border-sun pl-2 text-xs italic text-ink/60">From your paper: &ldquo;{it.source_quote}&rdquo;</p>
+                          {meaning.status === "loading" && <p className="mt-1 text-[11px] font-semibold text-ink/45">Double-checking this against your paper...</p>}
+                          {meaning.status === "done" && meaning.byId[it.id]?.flagged && (
+                            <p role="note" className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">
+                              Double-check this one with your clinic: our second check says the explanation may not match your paper.
+                              {meaning.byId[it.id].what_differs ? ` ${meaning.byId[it.id].what_differs.charAt(0).toUpperCase()}${meaning.byId[it.id].what_differs.slice(1)}` : ""}
+                              {meaning.byId[it.id].unexpected_numbers.length > 0 ? ` (Number not in your paper: ${meaning.byId[it.id].unexpected_numbers.join(", ")}.)` : ""}
+                            </p>
+                          )}
+                          {meaning.status === "done" && meaning.byId[it.id] && !meaning.byId[it.id].flagged && (
+                            <p className="mt-1 text-[11px] font-bold text-teal-deep">✓ Double-checked: the explanation matches this line</p>
+                          )}
                         </div>
                         <button type="button" aria-label={`Remove ${it.title}`} className="text-xs font-bold text-ink/45 hover:text-red"
                           onClick={() => setRemoved((r) => ({ ...r, [it.id]: true }))}>Remove</button>

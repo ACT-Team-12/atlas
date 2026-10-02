@@ -1,0 +1,6 @@
+ATLAS.xcodeproj/
+build/
+DerivedData/
+scripts/out/
+*.xcresult
+.DS_Store

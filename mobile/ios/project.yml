@@ -1,0 +1,71 @@
+name: ATLAS
+options:
+  bundleIdPrefix: com.stephensookra
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_TEAM: Y8XVCMLQCZ
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  ATLAS:
+    type: application
+    platform: iOS
+    sources:
+      - path: ATLAS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.stephensookra.atlas
+        PRODUCT_NAME: ATLAS
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_PREVIEWS: YES
+      configs:
+        Debug:
+          CODE_SIGN_STYLE: Automatic
+    info:
+      path: ATLAS/Info.plist
+      properties:
+        CFBundleDisplayName: ATLAS
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: ATLAS scans your visit paper on your phone. The photo stays on your phone.
+        NSLocationWhenInUseUsageDescription: ATLAS can use your location to find the nearest clinics. It is only used for this search and is not saved.
+        UILaunchScreen:
+          UIColorName: Paper
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIApplicationSupportsIndirectInputEvents: true
+        LSApplicationQueriesSchemes:
+          - tel
+          - maps
+  ATLASTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ATLASTests
+    dependencies:
+      - target: ATLAS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.stephensookra.atlas.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/ATLAS.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ATLAS
+        BUNDLE_LOADER: $(TEST_HOST)
+schemes:
+  ATLAS:
+    build:
+      targets:
+        ATLAS: all
+        ATLASTests: [test]
+    test:
+      targets:
+        - ATLASTests

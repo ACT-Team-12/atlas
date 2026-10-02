@@ -1,0 +1,682 @@
+{
+ "retrieved": "2026-10-02",
+ "model": "claude-sonnet-5-5",
+ "method": "TinyFish Search + Fetch, Claude extraction, quote verified on the fetched page",
+ "items": [
+  {
+   "id": "hrsa-ethne-health-dental-30021",
+   "name": "Ethne Health - Dental",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://www.ethnehealth.org/appointment",
+   "quote": "MON 9:00 AM – 5:00 PM\n\nTUE 9:00 AM – 5:00 PM\n\nWED 9:00 AM – 5:00 PM\n\nTHU 9:00 AM - 5:00 PM\n\nFRI 9:00 AM – 1:00 PM\n\nSAT & SUN Closed",
+   "hours": [
+    {
+     "day": 0,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 1,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 2,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 3,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 4,
+     "open": "09:00",
+     "close": "13:00"
+    }
+   ],
+   "note": "Hours are from the Dental Clinic info block for 4122 E Ponce de Leon Ave. The page does not list the suite number. Saturday and Sunday are closed."
+  },
+  {
+   "id": "hrsa-ethne-health-main-30021",
+   "name": "Ethne Health - Main",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://www.ethnehealth.org/patientservices",
+   "quote": "MON 9:00 AM – 9:00 PM\n\nTUE 9:00 AM – 5:00 PM\n\nWED 9:00 AM – 5:00 PM\n\nTHU 9:00 AM - 5:00 PM\n\nFRI 9:00 AM – 1:00 PM\n\nSAT & SUN Closed",
+   "hours": [
+    {
+     "day": 0,
+     "open": "09:00",
+     "close": "21:00"
+    },
+    {
+     "day": 1,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 2,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 3,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 4,
+     "open": "09:00",
+     "close": "13:00"
+    }
+   ],
+   "note": "Hours are from the Health Clinic info block for 980 Rowland St, Suite 4190. The dental clinic at a different address has separate hours, which were not used."
+  },
+  {
+   "id": "hrsa-healing-community-center-30331",
+   "name": "HEALing Community Center",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://healatlanta.org/",
+    "https://healatlanta.org/contact-us/",
+    "https://healatlanta.org/locations/",
+    "https://healatlanta.org/locations/healing-community-health-main-site/"
+   ],
+   "note": "The contact-us page lists 'Hours of Operation Monday – Friday: 8am -5pm' after all the office listings, but it is a general block that is not clearly tied to the main site at 3915 Cascade Rd. The main site's own location page gives no hours, so hours for this address are not clearly stated."
+  },
+  {
+   "id": "hrsa-healing-community-center-abernathy-30310",
+   "name": "Healing Community Center - Abernathy",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://healatlanta.org/locations/",
+    "https://healatlanta.org/locations/abernathy-dental-clinic/",
+    "https://healatlanta.org/",
+    "https://healatlanta.org/locations/healing-community-health-main-site/"
+   ],
+   "note": "The pages list the Abernathy location (1188 Ralph David Abernathy Blvd SW) with address and phone, but none of them give opening days or times for it."
+  },
+  {
+   "id": "hrsa-medcura-buckhead-30309",
+   "name": "MedCura Buckhead",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://medcura.org/",
+    "https://medcura.org/locations/"
+   ],
+   "note": "The pages do not give hours for MedCura Buckhead at 2140 Peachtree Rd NW. The only hours listed are extended hours for the Stone Mountain location, which are a different location. The locations page text has no address or hours blocks."
+  },
+  {
+   "id": "hrsa-medcura-candler-30032",
+   "name": "MedCura Candler",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://medcura.org/",
+    "https://medcura.org/locations/"
+   ],
+   "note": "The pages give no hours for the Candler Rd location. The homepage lists extended hours only for the Stone Mountain location, which is a different site. The locations page has only navigation text and no address or hours details."
+  },
+  {
+   "id": "hrsa-medcura-clarkston-30021",
+   "name": "MedCura Clarkston",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://medcura.org/",
+    "https://medcura.org/locations/"
+   ],
+   "note": "The pages do not give hours for the Clarkston location at 4112 E Ponce de Leon Ave. The home page lists extended hours only for the Stone Mountain location, and the locations page text has no address or hours details."
+  },
+  {
+   "id": "hrsa-medcura-decatur-30032",
+   "name": "MedCura Decatur",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://medcura.org/",
+    "https://medcura.org/locations/",
+    "https://medcura.org/events/decatur-site-grand-opening-coming-soon/"
+   ],
+   "note": "The pages do not give regular opening hours for 1706 Candler Rd, Decatur. The home page lists extended hours only for the Stone Mountain location. The locations page has no hours text. The Decatur page is only a grand opening event listing with the address."
+  },
+  {
+   "id": "hrsa-medcura-health-inc-30083",
+   "name": "MedCura Health, Inc.",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://medcura.org/faq/",
+   "quote": "MedCura Health’s **Stone Mountain location** is open Monday – Friday 8am-8pm and Saturday 8am-5pm.",
+   "hours": [
+    {
+     "day": 0,
+     "open": "08:00",
+     "close": "20:00"
+    },
+    {
+     "day": 1,
+     "open": "08:00",
+     "close": "20:00"
+    },
+    {
+     "day": 2,
+     "open": "08:00",
+     "close": "20:00"
+    },
+    {
+     "day": 3,
+     "open": "08:00",
+     "close": "20:00"
+    },
+    {
+     "day": 4,
+     "open": "08:00",
+     "close": "20:00"
+    },
+    {
+     "day": 5,
+     "open": "08:00",
+     "close": "17:00"
+    }
+   ],
+   "note": "The pages refer to the Stone Mountain location without giving the street address; the address is assumed to match. The home page lists Monday as 8 AM – 5 PM for Family Medicine and Pediatric appointments, which conflicts with the FAQ's Monday 8pm close. The FAQ hours are used here."
+  },
+  {
+   "id": "hrsa-medcura-hillandale-30058",
+   "name": "MedCura Hillandale",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://medcura.org/locations/",
+    "https://medcura.org/"
+   ],
+   "note": "The pages do not give hours for MedCura Hillandale at 5910 Hillandale Dr. The locations page has no location details, and the only hours on the homepage are extended hours for the Stone Mountain location, which is a different location."
+  },
+  {
+   "id": "hrsa-medcura-lithonia-30058",
+   "name": "MedCura Lithonia",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://medcura.org/",
+    "https://medcura.org/locations/",
+    "https://medcura.org/faq/"
+   ],
+   "note": "The pages give hours only for the Stone Mountain location. The locations page has no text for the Lithonia address (5424 Hillandale Park Ct, Suite A), so no hours for that address can be reported."
+  },
+  {
+   "id": "hrsa-medcura-midtown-30308",
+   "name": "MedCura Midtown",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://medcura.org/locations/",
+    "https://medcura.org/",
+    "https://medcura.org/faq/"
+   ],
+   "note": "None of the pages give hours for the MedCura Midtown location at 550 Peachtree St NE. The only hours listed are for the Stone Mountain location, which is a different site, so they were not used."
+  },
+  {
+   "id": "hrsa-medcura-northlake-30345",
+   "name": "MedCura Northlake",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://medcura.org/",
+    "https://medcura.org/news/medcura-atlanta-location-closure/",
+    "https://medcura.org/locations/"
+   ],
+   "note": "The pages mention the Northlake location at 2295 Parklake Drive Suite 500 only as an alternative site for OB/GYN services. The extended hours on the home page apply to the Stone Mountain location. The locations page text has no hours for Northlake. No regular hours for this address are given."
+  },
+  {
+   "id": "hrsa-medcura-whitefoord-30317",
+   "name": "MedCura Whitefoord",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://medcura.org/locations/",
+    "https://medcura.org/",
+    "https://medcura.org/events/medcura-whitefoord-community-celebration/"
+   ],
+   "note": "The pages do not give regular opening hours for MedCura Whitefoord at 1401 Hosea L. Williams Dr. SE. The only hours listed are for the Stone Mountain location, and the event page gives a one-time celebration time, not regular hours."
+  },
+  {
+   "id": "hrsa-medcura-whitefoord-dental-30317",
+   "name": "MedCura Whitefoord (Dental)",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://medcura.org/locations/",
+    "https://medcura.org/",
+    "https://medcura.org/health/welcome-to-medcura-health-whitefoord/"
+   ],
+   "note": "None of the pages give opening hours for the Whitefoord dental location at 35 Whitefoord Ave SE. The locations page text has no hours or addresses. The only hours on the home page are for the Stone Mountain location, which is a different site. The Whitefoord welcome page only announces the merger."
+  },
+  {
+   "id": "hrsa-mercy-care-at-chris-180-30316",
+   "name": "Mercy Care at CHRIS 180",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://mercyatlanta.org/locations/"
+   ],
+   "note": "The locations page does not list Mercy Care at CHRIS 180 or the address 1030 Fayetteville Rd SE. It only gives hours for other locations (Gateway Center, Chamblee, and the not-yet-open Neighborhood Union and Heritage Village), so none can be used."
+  },
+  {
+   "id": "hrsa-mercy-care-at-city-of-refuge-30314",
+   "name": "Mercy Care at City of Refuge",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://mercyatlanta.org/locations/"
+   ],
+   "note": "The locations page lists City of Refuge Clinic at 1300 Joseph E. Boone Blvd., Atlanta, GA 30314, but gives no hours for it. The hours shown on the page belong to other locations, so none were used."
+  },
+  {
+   "id": "hrsa-mercy-care-at-gateway-center-30303",
+   "name": "Mercy Care at Gateway Center",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://mercyatlanta.org/location/mercy-care-at-gateway-center/",
+   "quote": "Monday – Friday\n\n**Hours:** 8am -4:30pm",
+   "hours": [
+    {
+     "day": 0,
+     "open": "08:00",
+     "close": "16:30"
+    },
+    {
+     "day": 1,
+     "open": "08:00",
+     "close": "16:30"
+    },
+    {
+     "day": 2,
+     "open": "08:00",
+     "close": "16:30"
+    },
+    {
+     "day": 3,
+     "open": "08:00",
+     "close": "16:30"
+    },
+    {
+     "day": 4,
+     "open": "08:00",
+     "close": "16:30"
+    }
+   ],
+   "note": "Hours are the same on the locations page and the location's own page. Walk-ins are welcome."
+  },
+  {
+   "id": "hrsa-mercy-care-at-salvation-army-30318",
+   "name": "Mercy Care at Salvation Army",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://mercyatlanta.org/locations/"
+   ],
+   "note": "The locations page does not list 740 Marietta St NW (Mercy Care at Salvation Army) or give hours for that address. It only lists other locations (Gateway Center, Neighborhood Union, Heritage Village, Chamblee, Decatur Street, City of Refuge), so no hours were reported."
+  },
+  {
+   "id": "hrsa-mercy-care-chamblee-30341",
+   "name": "Mercy Care Chamblee",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://mercyatlanta.org/location/mercy-care-chamblee/",
+   "quote": "Monday – Friday\n\n**Hours:** 7am – 5pm",
+   "hours": [
+    {
+     "day": 0,
+     "open": "07:00",
+     "close": "17:00"
+    },
+    {
+     "day": 1,
+     "open": "07:00",
+     "close": "17:00"
+    },
+    {
+     "day": 2,
+     "open": "07:00",
+     "close": "17:00"
+    },
+    {
+     "day": 3,
+     "open": "07:00",
+     "close": "17:00"
+    },
+    {
+     "day": 4,
+     "open": "07:00",
+     "close": "17:00"
+    }
+   ],
+   "note": "Walk-ins are welcome at all clinics. The page lists the address as 5134 Peachtree Road, Chamblee, Georgia 30341."
+  },
+  {
+   "id": "hrsa-mercy-care-decatur-street-30312",
+   "name": "Mercy Care Decatur Street",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://mercyatlanta.org/location/mercy-care-decatur-street/",
+   "quote": "Monday – Friday\n\n**Hours:** 7am – 5pm",
+   "hours": [
+    {
+     "day": 0,
+     "open": "07:00",
+     "close": "17:00"
+    },
+    {
+     "day": 1,
+     "open": "07:00",
+     "close": "17:00"
+    },
+    {
+     "day": 2,
+     "open": "07:00",
+     "close": "17:00"
+    },
+    {
+     "day": 3,
+     "open": "07:00",
+     "close": "17:00"
+    },
+    {
+     "day": 4,
+     "open": "07:00",
+     "close": "17:00"
+    }
+   ],
+   "note": "Hours are from the Mercy Care Decatur Street location page for 424 Decatur Street SE. The separate pharmacy hours (8:30am-5:00pm, Fri until 3:00pm) apply only to the pharmacy and were not used."
+  },
+  {
+   "id": "hrsa-recovery-consultants-of-atlanta-medical-30035",
+   "name": "Recovery Consultants of Atlanta Medical",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://www.recoveryconsultants.org/contact-us",
+   "quote": "Office Hours:\n\nMonday - Friday  9AM-5PM",
+   "hours": [
+    {
+     "day": 0,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 1,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 2,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 3,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 4,
+     "open": "09:00",
+     "close": "17:00"
+    }
+   ],
+   "note": "The 4229 Snapfinger Woods Dr address is listed under the name Unity Health Clinics of Georgia on the contact page. Hours are for that address, not the Tucker location, which has the same hours. After-hours nurse triage is available by phone at 404-286-9252."
+  },
+  {
+   "id": "hrsa-recovery-consultants-tucker-30084",
+   "name": "Recovery Consultants: Tucker",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://www.recoveryconsultants.org/contact-us",
+   "quote": "Office Hours:\n\nMonday - Friday  9AM-5PM",
+   "hours": [
+    {
+     "day": 0,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 1,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 2,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 3,
+     "open": "09:00",
+     "close": "17:00"
+    },
+    {
+     "day": 4,
+     "open": "09:00",
+     "close": "17:00"
+    }
+   ],
+   "note": "Hours are from the block for Recovery Consultants of Atlanta Inc at 1957 Lakeside Parkway, Suite 510, Tucker. After-hours nurse triage is available by phone outside office hours."
+  },
+  {
+   "id": "hrsa-southside-medical-center-east-point-clinic-30344",
+   "name": "SOUTHSIDE MEDICAL CENTER - East Point Clinic",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://southsidemedical.net/east-point/",
+   "quote": "MONDAY- FRIDAY 8:00 AM – 5:00 PM",
+   "hours": [
+    {
+     "day": 0,
+     "open": "08:00",
+     "close": "17:00"
+    },
+    {
+     "day": 1,
+     "open": "08:00",
+     "close": "17:00"
+    },
+    {
+     "day": 2,
+     "open": "08:00",
+     "close": "17:00"
+    },
+    {
+     "day": 3,
+     "open": "08:00",
+     "close": "17:00"
+    },
+    {
+     "day": 4,
+     "open": "08:00",
+     "close": "17:00"
+    }
+   ],
+   "note": "Regular clinic hours from the East Point location page (1100 Cleveland Ave SW, East Point, GA 30344). Exceptions: 2nd Friday of the month the clinic is open 12:00-17:00; last Friday of the month all locations open at 9:00. A separate East Point Urgent Care listing at the same address has longer hours (Mon-Fri 8:00-19:30, Sat 8:00-16:30), but it is a distinct service line, so the clinic hours are reported here."
+  },
+  {
+   "id": "hrsa-southside-medical-center-gresham-clinic-30316",
+   "name": "SOUTHSIDE MEDICAL CENTER - Gresham Clinic",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://southsidemedical.net/",
+    "https://southsidemedical.net/frequently-asked-questions/"
+   ],
+   "note": "The pages give no hours for the Gresham Clinic at 2578 Gresham Rd SE. The FAQ lists hours only for Main Center After-Hours, Riverdale, Stockbridge Urgent Care, East Point Urgent Care and the pharmacy. None of these is clearly the Gresham address, so I did not use them."
+  },
+  {
+   "id": "hrsa-southside-medical-center-main-center-corporate-hq-30315",
+   "name": "SOUTHSIDE MEDICAL CENTER - Main Center / Corporate HQ",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://southsidemedical.net/",
+    "https://southsidemedical.net/forest-park/",
+    "https://southsidemedical.net/smc-urgent-care/",
+    "https://southsidemedical.net/frequently-asked-questions/"
+   ],
+   "note": "The pages do not clearly give hours for 1046 Ridge Ave SW. The FAQ lists 'Main Center After-Hours' (Mon-Fri 8:00 a.m.-8:00 p.m., Sat 9:00 a.m.-2:00 p.m.), but it does not tie that block to the Ridge Ave address, and these are labeled after-hours rather than regular hours. The Forest Park and urgent care hours belong to other locations."
+  },
+  {
+   "id": "hrsa-the-family-health-center-at-west-end-30310",
+   "name": "THE FAMILY HEALTH CENTER AT WEST END",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://fhcga.org/locations",
+   "quote": "**Hours:** Monday - Friday | 8:00 a.m. - 5:00 p.m.  \nOpen late on Mondays until 9:00 p.m.",
+   "hours": [
+    {
+     "day": 0,
+     "open": "08:00",
+     "close": "21:00"
+    },
+    {
+     "day": 1,
+     "open": "08:00",
+     "close": "17:00"
+    },
+    {
+     "day": 2,
+     "open": "08:00",
+     "close": "17:00"
+    },
+    {
+     "day": 3,
+     "open": "08:00",
+     "close": "17:00"
+    },
+    {
+     "day": 4,
+     "open": "08:00",
+     "close": "17:00"
+    }
+   ],
+   "note": "Page states Monday - Friday 8:00 a.m. - 5:00 p.m., and open late on Mondays until 9:00 p.m. Late night services are available for patients from all sites. Mobile units at the same address have separate hours (call for hours) and were not used."
+  },
+  {
+   "id": "hrsa-the-family-health-center-of-ga-dba-georgia-center-for-women-at-peachtree-30308",
+   "name": "The Family Health Center of GA dba Georgia Center for Women at Peachtree",
+   "status": "no_hours_on_page",
+   "urls": [
+    "https://www.gacfw.org/locations",
+    "https://fhcga.org/locations",
+    "https://www.gacfw.org/"
+   ],
+   "note": "No page lists 550 Peachtree St NE. The Emory Midtown entries (Georgia Center for Women at Emory Midtown) show hours Monday - Friday 8:00 a.m. - 5:00 p.m. but give no street address, so they cannot be clearly matched to this address."
+  },
+  {
+   "id": "hrsa-yourtown-health-30268",
+   "name": "YourTown Health",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://www.yourtownhealth.com/locations/",
+   "quote": "**Monday – Thursday:** 8:00 AM – 5:00 PM  \n**Friday:** 8:00 AM – 12:00 PM",
+   "hours": [
+    {
+     "day": 0,
+     "open": "08:00",
+     "close": "17:00"
+    },
+    {
+     "day": 1,
+     "open": "08:00",
+     "close": "17:00"
+    },
+    {
+     "day": 2,
+     "open": "08:00",
+     "close": "17:00"
+    },
+    {
+     "day": 3,
+     "open": "08:00",
+     "close": "17:00"
+    },
+    {
+     "day": 4,
+     "open": "08:00",
+     "close": "12:00"
+    }
+   ],
+   "note": "Hours are for the main Palmetto office at 643 Main Street. The same address also lists separate hours for Obstetrics (Wed 7:30 AM-5:00 PM), Dental (Mon-Fri 7:00 AM-5:30 PM) and the second-floor Pharmacy (Mon-Fri 8:30 AM-5:30 PM, closed 12-1 for lunch); these are not included in the hours above."
+  },
+  {
+   "id": "hrsa-yourtown-health-quickcare-30268",
+   "name": "YourTown Health QuickCare",
+   "status": "verified",
+   "checks": {
+    "quoteOnPage": true,
+    "timesInQuote": true,
+    "sane": true
+   },
+   "url": "https://www.yourtownhealth.com/quickcare/",
+   "quote": "**Monday – Friday**  \n8:00 AM – 6:00 PM",
+   "hours": [
+    {
+     "day": 0,
+     "open": "08:00",
+     "close": "18:00"
+    },
+    {
+     "day": 1,
+     "open": "08:00",
+     "close": "18:00"
+    },
+    {
+     "day": 2,
+     "open": "08:00",
+     "close": "18:00"
+    },
+    {
+     "day": 3,
+     "open": "08:00",
+     "close": "18:00"
+    },
+    {
+     "day": 4,
+     "open": "08:00",
+     "close": "18:00"
+    }
+   ],
+   "note": "Hours are for the QuickCare clinic at 507 Park St. The locations page lists the same hours. Separate HIV/STI (Mon-Thu 8-6, Fri closed) and Vaccine Clinic (Tue-Wed 8-5) schedules exist at the same address but are not the regular clinic hours."
+  }
+ ]
+}

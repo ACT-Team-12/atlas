@@ -20,6 +20,12 @@ describe("bookingTarget", () => {
     expect(bookingTarget(a1c)).toBeNull();
     expect(bookingTarget(lab)).toBeNull();
   });
+  it("skips bare 10-digit runs and labeled fax, NPI or order numbers (Grok 2026-10-02)", () => {
+    expect(bookingTarget({ ...lab, source_quote: "Lab order 1020304050, fasting" })).toBeNull();
+    expect(bookingTarget({ ...lab, source_quote: "NPI 1477555121" })).toBeNull();
+    expect(bookingTarget({ ...referral, source_quote: "fax 404-555-0199 or call 404-555-0100" })?.phone).toBe("404-555-0100");
+    expect(bookingTarget({ ...referral, source_quote: "Call (404)555-0134 to schedule" })?.phone).toBe("404-555-0134");
+  });
   it("does not mistake a dose or a date for a phone number", () => {
     expect(bookingTarget({ ...lab, source_quote: "Take 1 tablet 2 times a day for 1000 mg total, recheck 12/2026" })).toBeNull();
   });

@@ -30,9 +30,18 @@ export function bookableItem(items: BookableItem[]): BookableItem | null {
  * or follow-up gets booked, so they are never offered as the booking number (Codex review, 2026-10-02:
  * an A1c lab was paired with a financial-assistance line).
  */
+// A phone number written the way people write one: "(404) 555-0134", "404-555-0134", "404.555.0134".
+// A bare 10-digit run (an order number, an NPI) is not a phone number (Grok review, 2026-10-02).
+const PHONE = /(?:\((\d{3})\)\s?|\b(\d{3})[\s.-])(\d{3})[\s.-](\d{4})\b/g;
+// Numbers labeled like this are never the one to call.
+const NOT_TO_CALL = /\b(fax|npi|mrn|order|rx|acct|account|member|id|policy)\b[^0-9]{0,12}$/i;
+
 export function bookingTarget(item: BookableItem): BookingTarget | null {
-  const m = item.source_quote.match(/(?:\+?1[\s.-]?)?\(?\b(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/);
-  return m ? { type: "paper", phone: `${m[1]}-${m[2]}-${m[3]}` } : null;
+  for (const m of item.source_quote.matchAll(PHONE)) {
+    if (NOT_TO_CALL.test(item.source_quote.slice(0, m.index))) continue;
+    return { type: "paper", phone: `${m[1] ?? m[2]}-${m[3]}-${m[4]}` };
+  }
+  return null;
 }
 
 const ASK: Partial<Record<Barrier, string>> = {

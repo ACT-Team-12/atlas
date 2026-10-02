@@ -54,12 +54,16 @@ export function locateZip(zip: string): { lat: number; lng: number } | null {
   return p ? { lat: p[0], lng: p[1] } : null;
 }
 
-/** Nearest general-public clinics. School-based sites are excluded: HRSA does not say they serve the public. */
-export function nearestClinics(loc: { lat: number; lng: number }, n = 4) {
+/**
+ * Nearest general-public clinics within maxKm. School-based sites are excluded: HRSA does not say they serve the public.
+ * The distance cap keeps a person far from Atlanta from being sent to an Atlanta clinic.
+ */
+export function nearestClinics(loc: { lat: number; lng: number }, n = 4, maxKm = 60) {
   return D.clinics
     // School sites serve enrolled students; dental-only sites (named so by HRSA) can't take a medical follow-up.
     .filter((c) => c.setting !== "School" && !/\bdental\b/i.test(c.name))
     .map((c) => ({ clinic: c, km: km(loc, c) }))
+    .filter((x) => x.km <= maxKm)
     .sort((a, b) => a.km - b.km)
     .slice(0, n);
 }
@@ -116,9 +120,24 @@ export function afterHoursClinics(loc: { lat: number; lng: number }, n = 2, maxK
     .slice(0, n);
 }
 
-export function programsFor(barriers: Barrier[]) {
+/**
+ * Where each program can actually help. Metro: Atlanta-area services (MARTA, Grady for Fulton/DeKalb, the Atlanta food
+ * bank and 211). Georgia: state benefits. National: federal programs. An id missing here is treated as metro only.
+ */
+export const PROGRAM_SCOPE: Record<string, "metro" | "georgia" | "national"> = {
+  "united-way-211": "metro", "marta-mobility": "metro", "marta-language-line": "metro", "marta-reduced-fare": "metro",
+  "grady-financial-assistance": "metro", "acfb-food-map": "metro", "acfb-benefits-help": "metro",
+  "georgia-gateway": "georgia", "georgia-medicaid-apply": "georgia", lifeline: "national",
+};
+
+/** Programs that match the barriers and apply where the person is (default metro, for callers with no location). */
+export function programsFor(barriers: Barrier[], region: "metro" | "georgia" | "us" = "metro") {
   const set = new Set<string>(barriers);
-  return D.programs.filter((p) => p.barriers.some((b) => set.has(b)));
+  const ok = (id: string) => {
+    const s = PROGRAM_SCOPE[id] ?? "metro";
+    return region === "metro" || s === "national" || (region === "georgia" && s === "georgia");
+  };
+  return D.programs.filter((p) => ok(p.id) && p.barriers.some((b) => set.has(b)));
 }
 
 export function programById(id: string) {

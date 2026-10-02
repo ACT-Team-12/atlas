@@ -2,8 +2,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { MODEL, ExtractError } from "./extract";
-import { BARRIERS, BARRIER_LABEL, type Barrier, type Clinic, type Program, afterHoursClinics, formatHours, nearestClinics, opensEvenings, opensWeekends, programsFor, locateZip } from "./resources";
+import { BARRIERS, BARRIER_LABEL, type Barrier, type Clinic, type Program, afterHoursClinics, formatHours, nearestClinics, opensEvenings, opensWeekends, programsFor } from "./resources";
 import { LANGUAGES } from "./schema";
+import { type Region, isGeorgiaZip, locateAnyZip, nationalPrograms, nearestNationalClinics, regionOf } from "./national";
 
 export const PlanRequestSchema = z.object({
   care: z
@@ -21,7 +22,8 @@ export const PlanRequestSchema = z.object({
     .default([]),
   barriers: z.array(z.enum(BARRIERS)).max(BARRIERS.length),
   zip: z.string().regex(/^\d{5}$/).optional(),
-  location: z.object({ lat: z.number().min(33).max(34.6), lng: z.number().min(-85).max(-83.6) }).optional(),
+  // Anywhere in the US and its territories (Guam is east of 180, so longitude is not narrowed further).
+  location: z.object({ lat: z.number().min(-20).max(72), lng: z.number().min(-180).max(180) }).optional(),
   language: z.enum(LANGUAGES).default("English"),
   note: z.string().max(600).default(""),
 });
@@ -60,7 +62,7 @@ export type PlanResponse = {
   feedback_token?: string | null;
 };
 
-const SYSTEM = `You are ATLAS, helping a community health worker or a patient in metro Atlanta turn a clinic visit into a plan they can finish.
+const SYSTEM = `You are ATLAS, helping a community health worker or a patient in the United States (our local records are richest for metro Atlanta) turn a clinic visit into a plan they can finish.
 You get: the care steps from the patient's own after-visit paper (with ids), the barriers they told us about, and a list of VERIFIED local resources (with ids).
 Rules:
 - Use ONLY the care ids and resource ids you were given. Never invent a phone number, address, program, price, eligibility rule or medical advice. Do not write phone numbers or URLs in your text; the app shows them from the verified record.
@@ -70,6 +72,15 @@ Rules:
 - Write in the requested language, at a plain reading level, kind and direct. 3 to 7 steps.
 - Set ask_a_person true if a barrier has no matching verified resource, or the situation sounds urgent or unsafe, and say why.`;
 
+/** Nearest first, one card per site: an Atlanta record and its HRSA row can describe the same place (same name and ZIP). */
+export function mergeNearest<T extends { clinic: Clinic; km: number }>(list: T[], n: number): T[] {
+  const seen = new Set<string>();
+  return list.sort((a, b) => a.km - b.km).filter((x) => {
+    const k = `${x.clinic.name.trim().toLowerCase()}|${x.clinic.zip}`;
+    return seen.has(k) ? false : (seen.add(k), true);
+  }).slice(0, n);
+}
+
 export async function buildPlan(req: PlanRequest): Promise<PlanResponse> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
@@ -77,17 +88,30 @@ export async function buildPlan(req: PlanRequest): Promise<PlanResponse> {
 
   let loc: { lat: number; lng: number } | null = null;
   let located: PlanResponse["located"] = { by: "none", label: "No location given" };
+  // No location at all: ATLAS is Atlanta-first, so metro programs stay on the list.
+  let region: Region = "metro";
   if (req.location) {
     loc = req.location;
+    region = regionOf(loc);
     located = { by: "device", label: "Near your current location" };
   } else if (req.zip) {
-    loc = locateZip(req.zip);
-    located = loc ? { by: "zip", label: `Near ZIP ${req.zip}` } : { by: "none", label: `ZIP ${req.zip} is outside our metro Atlanta list` };
+    loc = locateAnyZip(req.zip);
+    region = loc ? regionOf(loc, req.zip) : isGeorgiaZip(req.zip) ? "georgia" : "us";
+    located = loc ? { by: "zip", label: `Near ZIP ${req.zip}` } : { by: "none", label: `ZIP ${req.zip} is not in the Census ZIP list` };
   }
 
   const resources: Record<string, ResourceCard> = {};
-  for (const p of programsFor(req.barriers as Barrier[])) resources[p.id] = { type: "program", id: p.id, program: p };
-  if (loc) for (const { clinic, km } of nearestClinics(loc, 4)) resources[clinic.id] = { type: "clinic", id: clinic.id, km: Math.round(km * 10) / 10, clinic };
+  for (const p of programsFor(req.barriers as Barrier[], region)) resources[p.id] = { type: "program", id: p.id, program: p };
+  // Outside metro Atlanta: national programs (Georgia already has its own Medicaid program on the list).
+  if (region !== "metro") {
+    const set = new Set<string>(req.barriers);
+    for (const p of nationalPrograms())
+      if (p.barriers.some((b) => set.has(b)) && !(region === "georgia" && p.id === "us-medicaid-chip")) resources[p.id] = { type: "program", id: p.id, program: p };
+  }
+  // Nearest clinics within 60 km: Atlanta records (with hours and MARTA stops) and HRSA sites everywhere else.
+  if (loc)
+    for (const { clinic, km } of mergeNearest([...nearestClinics(loc, 4), ...nearestNationalClinics(loc, 4)], 4))
+      resources[clinic.id] = { type: "clinic", id: clinic.id, km: Math.round(km * 10) / 10, clinic };
   // Work hours are the barrier: also offer the nearest clinics with listed evening or weekend hours.
   if (loc && req.barriers.includes("schedule"))
     for (const { clinic, km } of afterHoursClinics(loc, 2)) resources[clinic.id] ??= { type: "clinic", id: clinic.id, km: Math.round(km * 10) / 10, clinic };

@@ -1,4 +1,5 @@
 import { DATASET } from "@/lib/resources";
+import { NATIONAL, nationalPrograms } from "@/lib/national";
 
 /** Server component: data provenance straight from the dataset file, so the page can't drift from the data. */
 export function Trust() {
@@ -14,7 +15,7 @@ export function Trust() {
           </div>
           <div className="card p-6">
             <span className="chip bg-sky text-sky-deep">Verified</span>
-            <p className="mt-3 font-semibold">The AI can only recommend places from our verified list: {DATASET.clinicCount} community health centers and {DATASET.programCount} programs in {DATASET.area}. Phone numbers and addresses come from the record, never from the AI.</p>
+            <p className="mt-3 font-semibold">The AI can only recommend places from our verified list: {DATASET.clinicCount} community health centers and {DATASET.programCount} programs in {DATASET.area}, and outside Atlanta the nearest of {NATIONAL.clinicCount.toLocaleString("en-US")} HRSA health center sites nationwide plus {nationalPrograms().length} federal programs. Phone numbers and addresses come from the record, never from the AI.</p>
           </div>
           <div className="card p-6">
             <span className="chip bg-peach text-peach-deep">Private by default</span>

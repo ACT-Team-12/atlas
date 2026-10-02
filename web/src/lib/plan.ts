@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { MODEL, ExtractError } from "./extract";
-import { BARRIERS, BARRIER_LABEL, type Barrier, type Clinic, type Program, nearestClinics, programsFor, locateZip } from "./resources";
+import { BARRIERS, BARRIER_LABEL, type Barrier, type Clinic, type Program, afterHoursClinics, formatHours, nearestClinics, opensEvenings, opensWeekends, programsFor, locateZip } from "./resources";
 import { LANGUAGES } from "./schema";
 
 export const PlanRequestSchema = z.object({
@@ -64,6 +64,7 @@ Rules:
 - Use ONLY the care ids and resource ids you were given. Never invent a phone number, address, program, price, eligibility rule or medical advice. Do not write phone numbers or URLs in your text; the app shows them from the verified record.
 - Each step should help the person get one real thing done (get to the lab, afford the medicine, apply for coverage, understand the referral). Tie it to the care step it serves and the resource that helps.
 - For "referrals" or "schedule" barriers, explain using only what the paper says (cite the care id). If the paper does not say, tell them what to ask the clinic.
+- For a "schedule" barrier, prefer clinics with open_evenings or open_weekends true and you may say they list evening or weekend hours. Never state exact hours in your text (the app shows the listed hours), and suggest calling to confirm.
 - Write in the requested language, at a plain reading level, kind and direct. 3 to 7 steps.
 - Set ask_a_person true if a barrier has no matching verified resource, or the situation sounds urgent or unsafe, and say why.`;
 
@@ -85,6 +86,9 @@ export async function buildPlan(req: PlanRequest): Promise<PlanResponse> {
   const resources: Record<string, ResourceCard> = {};
   for (const p of programsFor(req.barriers as Barrier[])) resources[p.id] = { type: "program", id: p.id, program: p };
   if (loc) for (const { clinic, km } of nearestClinics(loc, 4)) resources[clinic.id] = { type: "clinic", id: clinic.id, km: Math.round(km * 10) / 10, clinic };
+  // Work hours are the barrier: also offer the nearest clinics with listed evening or weekend hours.
+  if (loc && req.barriers.includes("schedule"))
+    for (const { clinic, km } of afterHoursClinics(loc, 2)) resources[clinic.id] ??= { type: "clinic", id: clinic.id, km: Math.round(km * 10) / 10, clinic };
 
   const careIds = new Set(req.care.map((c) => c.id));
   const resourceIds = new Set(Object.keys(resources));
@@ -92,7 +96,8 @@ export async function buildPlan(req: PlanRequest): Promise<PlanResponse> {
   const catalog = Object.values(resources).map((r) =>
     r.type === "clinic"
       ? { id: r.id, type: "community health center (sliding fee by law)", name: r.clinic.name, city: r.clinic.city, km_away: r.km,
-          hours_per_week: r.clinic.hours_per_week, nearest_marta_rail: r.clinic.nearest_rail?.name ?? null,
+          hours_per_week: r.clinic.hours_per_week, listed_hours: formatHours(r.clinic.hours) ?? "not listed",
+          open_evenings: opensEvenings(r.clinic), open_weekends: opensWeekends(r.clinic), nearest_marta_rail: r.clinic.nearest_rail?.name ?? null,
           rail_km: r.clinic.nearest_rail ? Math.round(r.clinic.nearest_rail.meters / 100) / 10 : null, nearest_bus_stop: r.clinic.nearest_bus?.name ?? null }
       : { id: r.id, type: "program", name: r.program.name, helps_with: r.program.barriers, verified_quote: r.program.evidence_quote,
           languages: r.program.languages },

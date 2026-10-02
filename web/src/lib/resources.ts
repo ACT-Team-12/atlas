@@ -17,11 +17,15 @@ export const BARRIER_LABEL: Record<Barrier, string> = {
 };
 
 type Stop = { name: string; stop_id: string; meters: number };
+/** One open period. day: 0 = Monday ... 6 = Sunday. Times are 24h "HH:MM", Atlanta local time. */
+export type OpenPeriod = { day: number; open: string; close: string };
 export type Clinic = {
   id: string; name: string; org: string; address: string; city: string; zip: string; county: string;
   phone: string; website: string; lat: number; lng: number; hours_per_week: number | null;
   setting: string; health_center_type: string; nearest_rail: Stop | null; nearest_bus: Stop | null;
   barriers: string[]; source_id: string;
+  /** Listed hours (Google Maps, matched by scripts/add_hours.py); null when not listed or not matched. */
+  hours?: OpenPeriod[] | null; hours_source_id?: string | null;
 };
 export type Program = {
   id: string; name: string; barriers: string[];
@@ -53,6 +57,58 @@ export function nearestClinics(loc: { lat: number; lng: number }, n = 4) {
     // School sites serve enrolled students; dental-only sites (named so by HRSA) can't take a medical follow-up.
     .filter((c) => c.setting !== "School" && !/\bdental\b/i.test(c.name))
     .map((c) => ({ clinic: c, km: km(loc, c) }))
+    .sort((a, b) => a.km - b.km)
+    .slice(0, n);
+}
+
+const DAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const clock = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  const hh = h % 12 || 12;
+  return m ? `${hh}:${String(m).padStart(2, "0")}${h < 12 ? "am" : "pm"}` : `${hh}${h < 12 ? "am" : "pm"}`;
+};
+
+/** Open after 6pm on some weekday (evening appointments possible). */
+export const opensEvenings = (c: Clinic) => (c.hours ?? []).some((p) => p.day < 5 && p.close > "18:00");
+/** Open on Saturday or Sunday. */
+export const opensWeekends = (c: Clinic) => (c.hours ?? []).some((p) => p.day >= 5);
+
+/** "Mon-Fri 8am-5pm, Sat 9am-2pm": runs of days with the same hours are grouped. */
+export function formatHours(hours: OpenPeriod[] | null | undefined): string | null {
+  if (!hours?.length) return null;
+  const byDay = DAY.map((_, d) => hours.filter((p) => p.day === d).map((p) => `${clock(p.open)}-${clock(p.close)}`).join(", "));
+  const parts: string[] = [];
+  for (let d = 0; d < 7; ) {
+    if (!byDay[d]) { d++; continue; }
+    let e = d;
+    while (e + 1 < 7 && byDay[e + 1] === byDay[d]) e++;
+    parts.push(`${e > d ? `${DAY[d]}-${DAY[e]}` : DAY[d]} ${byDay[d]}`);
+    d = e + 1;
+  }
+  return parts.join(", ");
+}
+
+/** Open right now, in Atlanta time. null when hours are not listed. */
+export function openNow(c: Clinic, at: Date = new Date()): boolean | null {
+  if (!c.hours?.length) return null;
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(at).map((p) => [p.type, p.value]),
+  );
+  const day = DAY.indexOf(parts.weekday);
+  const now = `${parts.hour}:${parts.minute}`;
+  return c.hours.some((p) => p.day === day && p.open <= now && now < p.close);
+}
+
+/**
+ * For people whose barrier is work hours: up to n clinics within maxKm that are open evenings or weekends,
+ * nearest first, so the plan can offer a time that fits a shift.
+ */
+export function afterHoursClinics(loc: { lat: number; lng: number }, n = 2, maxKm = 20) {
+  return D.clinics
+    .filter((c) => c.setting !== "School" && !/\bdental\b/i.test(c.name) && (opensEvenings(c) || opensWeekends(c)))
+    .map((c) => ({ clinic: c, km: km(loc, c) }))
+    .filter((x) => x.km <= maxKm)
     .sort((a, b) => a.km - b.km)
     .slice(0, n);
 }

@@ -1,0 +1,1392 @@
+{
+ "source": "Google Maps listings via Apify compass/crawler-google-places, run wkI5jeYjy0m3fMMBz",
+ "retrieved": "2026-10-02",
+ "items": [
+  {
+   "searchString": "Ethne Health - Main, 980 Rowland St, Ste 4190, Clarkston, GA 30021",
+   "title": "Ethnē Health - a community clinic",
+   "address": "980 Rowland St Ste 4190, Clarkston, GA 30021",
+   "phone": "(470) 799-0044",
+   "placeId": "ChIJ7zgLOjGp9YgRPOFBNs0xezc",
+   "url": "https://www.google.com/maps/search/?api=1&query=Ethn%C4%93%20Health%20-%20a%20community%20clinic&query_place_id=ChIJ7zgLOjGp9YgRPOFBNs0xezc",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "9 AM to 9 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "9 AM to 1 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:38:47.291Z"
+  },
+  {
+   "searchString": "Ethne Health - Dental, 4122 E Ponce de Leon Ave, Ste 5, Clarkston, GA 30021",
+   "title": "Ethne Health Dental",
+   "address": "4122 E Ponce de Leon Ave #5, Clarkston, GA 30021",
+   "phone": "(470) 799-2919",
+   "placeId": "ChIJTTPlMPWp9YgRYDwjkvgRVG8",
+   "url": "https://www.google.com/maps/search/?api=1&query=Ethne%20Health%20Dental&query_place_id=ChIJTTPlMPWp9YgRYDwjkvgRVG8",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "9 AM to 1 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:38:47.339Z"
+  },
+  {
+   "searchString": "MedCura Clarkston, 4112 E Ponce de Leon Ave, Clarkston, GA 30021",
+   "title": "MedCura Health",
+   "address": "4112 E Ponce de Leon Ave, Clarkston, GA 30021",
+   "phone": "(404) 296-7133",
+   "placeId": "ChIJ66dLDwCp9YgRch61RXGY1j8",
+   "url": "https://www.google.com/maps/search/?api=1&query=MedCura%20Health&query_place_id=ChIJ66dLDwCp9YgRch61RXGY1j8",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:38:50.296Z"
+  },
+  {
+   "searchString": "MedCura Candler, 1760 Candler Rd, Decatur, GA 30032",
+   "title": "MedCura Health",
+   "address": "1706 Candler Rd, Decatur, GA 30032",
+   "phone": "(404) 298-8998",
+   "placeId": "ChIJS3h1BrkA9YgR2jRgxJP6dJs",
+   "url": "https://www.google.com/maps/search/?api=1&query=MedCura%20Health&query_place_id=ChIJS3h1BrkA9YgR2jRgxJP6dJs",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:38:51.091Z"
+  },
+  {
+   "searchString": "MedCura Doraville, 3630 Shallowford Rd NE, Atlanta, GA 30340",
+   "title": "MedCura Health",
+   "address": "3630 Shallowford Rd, Doraville, GA 30340",
+   "phone": "(404) 298-8998",
+   "placeId": "ChIJVVX5I8kJ9YgR18_JCLjLQP0",
+   "url": "https://www.google.com/maps/search/?api=1&query=MedCura%20Health&query_place_id=ChIJVVX5I8kJ9YgR18_JCLjLQP0",
+   "openingHours": [],
+   "scrapedAt": "2026-10-02T15:38:54.849Z"
+  },
+  {
+   "searchString": "MedCura Hillandale, 5910 Hillandale Dr, Lithonia, GA 30058",
+   "title": "MedCura Health",
+   "address": "5910 Hillandale Dr #102, Lithonia, GA 30058",
+   "phone": "(404) 298-8998",
+   "placeId": "ChIJn1txLVSs9YgR2hDwepiz_eo",
+   "url": "https://www.google.com/maps/search/?api=1&query=MedCura%20Health&query_place_id=ChIJn1txLVSs9YgR2hDwepiz_eo",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:38:56.466Z"
+  },
+  {
+   "searchString": "MedCura Health, Inc., 5582 Memorial Dr, Stone Mountain, GA 30083",
+   "title": "MedCura Health",
+   "address": "5582 Memorial Dr, Stone Mountain, GA 30083",
+   "phone": "(404) 298-8998",
+   "placeId": "ChIJXwB94uOo9YgR9s9AgQGVF3g",
+   "url": "https://www.google.com/maps/search/?api=1&query=MedCura%20Health&query_place_id=ChIJXwB94uOo9YgR9s9AgQGVF3g",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:38:57.711Z"
+  },
+  {
+   "searchString": "MedCura Lithonia, 5424 Hillandale Park Ct, Suite A, Lithonia, GA 30058",
+   "title": "MedCura Lithonia",
+   "address": "5424 Hillandale Park Ct, Lithonia, GA 30058",
+   "phone": "(404) 296-7133",
+   "placeId": "ChIJ7_3EDwCt9YgRuQ0wqhTX2U0",
+   "url": "https://www.google.com/maps/search/?api=1&query=MedCura%20Lithonia&query_place_id=ChIJ7_3EDwCt9YgRuQ0wqhTX2U0",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:38:57.789Z"
+  },
+  {
+   "searchString": "MedCura McNair, 2162 Second Ave, Decatur, GA 30032",
+   "title": "Ronald E McNair Discover Learning Academy",
+   "address": "2162 2nd Ave, Decatur, GA 30032",
+   "phone": "(678) 875-3402",
+   "placeId": "ChIJZTqmrOYA9YgRPfpdzpmU3OU",
+   "url": "https://www.google.com/maps/search/?api=1&query=Ronald%20E%20McNair%20Discover%20Learning%20Academy&query_place_id=ChIJZTqmrOYA9YgRPfpdzpmU3OU",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "7 AM to 5:30 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "7 AM to 5:30 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "7 AM to 5:30 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "7 AM to 5:30 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "7 AM to 5:30 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:00.487Z"
+  },
+  {
+   "searchString": "MedCura Northlake, 2295 Parklake Dr NE, Suite 500, Atlanta, GA 30345",
+   "title": "MedCura Health",
+   "address": "2295 Parklake Dr NE #500, Atlanta, GA 30345",
+   "phone": "(404) 298-8998",
+   "placeId": "ChIJf8vvTN2n9YgRKNvHLLj1eHM",
+   "url": "https://www.google.com/maps/search/?api=1&query=MedCura%20Health&query_place_id=ChIJf8vvTN2n9YgRKNvHLLj1eHM",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:01.052Z"
+  },
+  {
+   "searchString": "MedCura Whitefoord, 1401 Hosea L Williams Dr SE, Atlanta, GA 30317",
+   "title": "Whitefoord Health Center",
+   "address": "1401 Hosea L Williams Dr NE, Atlanta, GA 30317",
+   "phone": "(404) 373-6614",
+   "placeId": "ChIJ6ZCarzMB9YgRNTD1Jg0BMQU",
+   "url": "https://www.google.com/maps/search/?api=1&query=Whitefoord%20Health%20Center&query_place_id=ChIJ6ZCarzMB9YgRNTD1Jg0BMQU",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:02.636Z"
+  },
+  {
+   "searchString": "Mercy Care Chamblee, 5134 Peachtree Rd, Atlanta, GA 30341",
+   "title": "Mercy Care Chamblee",
+   "address": "5134 Peachtree Rd, Chamblee, GA 30341",
+   "phone": "(678) 843-8600",
+   "placeId": "ChIJ6z5oBzQJ9YgRJH8B_yoOT1g",
+   "url": "https://www.google.com/maps/search/?api=1&query=Mercy%20Care%20Chamblee&query_place_id=ChIJ6z5oBzQJ9YgRJH8B_yoOT1g",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "7 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "7 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "7 AM to 7 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "7 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "7 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:03.848Z"
+  },
+  {
+   "searchString": "MedCura Whitefoord (Dental), 35 Whitefoord Ave SE, Atlanta, GA 30317",
+   "title": "Whitefoord, Inc.",
+   "address": "35 Whitefoord Ave SE, Atlanta, GA 30317",
+   "phone": "(404) 373-6614",
+   "placeId": "ChIJeddSvU0B9YgRQi2iAkO3x-A",
+   "url": "https://www.google.com/maps/search/?api=1&query=Whitefoord%2C%20Inc.&query_place_id=ChIJeddSvU0B9YgRQi2iAkO3x-A",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8:30 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8:30 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8:30 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8:30 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8:30 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:04.970Z"
+  },
+  {
+   "searchString": "Mercy Care at CHRIS 180, 1030 Fayetteville Rd SE, Atlanta, GA 30316",
+   "title": "CHRIS 180",
+   "address": "1030 Fayetteville Rd SE, Atlanta, GA 30316",
+   "phone": "(404) 486-9034",
+   "placeId": "ChIJGb82MIEI9YgR294XqAWN17M",
+   "url": "https://www.google.com/maps/search/?api=1&query=CHRIS%20180&query_place_id=ChIJGb82MIEI9YgR294XqAWN17M",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8:30 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8:30 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8:30 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8:30 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8:30 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:05.849Z"
+  },
+  {
+   "searchString": "Recovery Consultants of Atlanta Medical, 4229 Snapfinger Woods Dr, Decatur, GA 30035",
+   "title": "Recovery Consultants of Atlanta Community Health Medical Clinic",
+   "address": "4229 Snapfinger Woods Dr, Decatur, GA 30035",
+   "phone": "(404) 286-9252",
+   "placeId": "ChIJ7fKweK-r9YgRuemhtLEeXAE",
+   "url": "https://www.google.com/maps/search/?api=1&query=Recovery%20Consultants%20of%20Atlanta%20Community%20Health%20Medical%20Clinic&query_place_id=ChIJ7fKweK-r9YgRuemhtLEeXAE",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:06.837Z"
+  },
+  {
+   "searchString": "Recovery Consultants: Tucker, 1957 Lakeside Pkwy, Suite 510, Tucker, GA 30084",
+   "title": "Recovery Consultants of Atlanta Community Health Center",
+   "address": "1957 Lakeside Pkwy Ste 510, Tucker, GA 30084",
+   "phone": "(404) 289-0313",
+   "placeId": "ChIJyfb7LY2p9YgR6CqgqdUeXEw",
+   "url": "https://www.google.com/maps/search/?api=1&query=Recovery%20Consultants%20of%20Atlanta%20Community%20Health%20Center&query_place_id=ChIJyfb7LY2p9YgR6CqgqdUeXEw",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "9 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:06.936Z"
+  },
+  {
+   "searchString": "SOUTHSIDE MEDICAL CENTER - Gresham Clinic, 2578 Gresham Rd SE, Atlanta, GA 30316",
+   "title": "Southside Medical Center",
+   "address": "2578 Gresham Rd S E, Atlanta, GA 30316",
+   "phone": "(404) 341-6686",
+   "placeId": "ChIJ0ZcEtP8A9YgRw5TDhMOrPYM",
+   "url": "https://www.google.com/maps/search/?api=1&query=Southside%20Medical%20Center&query_place_id=ChIJ0ZcEtP8A9YgRw5TDhMOrPYM",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:09.417Z"
+  },
+  {
+   "searchString": "HEALing Community Center, 3915 Cascade Rd SW, Suite T-90, Atlanta, GA 30331",
+   "title": "Healing Community Health",
+   "address": "3915 Cascade Rd Ste T-90, Atlanta, GA 30331",
+   "phone": "",
+   "placeId": "ChIJ9Y72poUc9YgRHOpB9qGUEV4",
+   "url": "https://www.google.com/maps/search/?api=1&query=Healing%20Community%20Health&query_place_id=ChIJ9Y72poUc9YgRHOpB9qGUEV4",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:10.088Z"
+  },
+  {
+   "searchString": "Care Center at Dobbs Elementary, 2025 Jonesboro Rd SE, Atlanta, GA 30315",
+   "title": "Care Center at Dobbs Elementary",
+   "address": "2025 Jonesboro Rd SE, Atlanta, GA 30315",
+   "phone": "(404) 341-6686",
+   "placeId": "ChIJVVWl4TgC9YgRHUWAoiPZC5U",
+   "url": "https://www.google.com/maps/search/?api=1&query=Care%20Center%20at%20Dobbs%20Elementary&query_place_id=ChIJVVWl4TgC9YgRHUWAoiPZC5U",
+   "openingHours": [],
+   "scrapedAt": "2026-10-02T15:39:10.170Z"
+  },
+  {
+   "searchString": "HEAL @ Hollis Innovation Academy, 225 Griffin St NW, Atlanta, GA 30314",
+   "title": "HEAL @ Hollis Innovation Academy",
+   "address": "225 Griffin St NW, Atlanta, GA 30314",
+   "phone": "(404) 481-3794",
+   "placeId": "ChIJAQAA5J0E9YgRBExDnJ8bXuE",
+   "url": "https://www.google.com/maps/search/?api=1&query=HEAL%20%40%20Hollis%20Innovation%20Academy&query_place_id=ChIJAQAA5J0E9YgRBExDnJ8bXuE",
+   "openingHours": [],
+   "scrapedAt": "2026-10-02T15:39:10.435Z"
+  },
+  {
+   "searchString": "Healing Community Center - Abernathy, 1188 Ralph David Abernathy Blvd SW, Atlanta, GA 30310",
+   "title": "Healing Community Center",
+   "address": "1188 Ralph David Abernathy Blvd SW, Atlanta, GA 30310",
+   "phone": "(404) 564-7749",
+   "placeId": "ChIJOW_J90cD9YgRd-hcPZYOub8",
+   "url": "https://www.google.com/maps/search/?api=1&query=Healing%20Community%20Center&query_place_id=ChIJOW_J90cD9YgRd-hcPZYOub8",
+   "openingHours": [],
+   "scrapedAt": "2026-10-02T15:39:12.243Z"
+  },
+  {
+   "searchString": "MedCura Midtown, 550 Peachtree St NE, Atlanta, GA 30308",
+   "title": "MedCura Midtown",
+   "address": "550 Peachtree St NE, Atlanta, GA 30308",
+   "phone": "(404) 888-7575",
+   "placeId": "ChIJwycNpHoE9YgRm0QU5RP5EVQ",
+   "url": "https://www.google.com/maps/search/?api=1&query=MedCura%20Midtown&query_place_id=ChIJwycNpHoE9YgRm0QU5RP5EVQ",
+   "openingHours": [],
+   "scrapedAt": "2026-10-02T15:39:13.275Z"
+  },
+  {
+   "searchString": "MedCura Whitefoord (Kipp Woodson Park), 1571 Donald Lee Hollowell Pkwy NW, Atlanta, GA 30318",
+   "title": "KIPP Woodson Park Academy",
+   "address": "1605 Donald Lee Hollowell Pkwy NW, Atlanta, GA 30318",
+   "phone": "(404) 802-7750",
+   "placeId": "ChIJmYPTAU4b9YgRLaQflmayap0",
+   "url": "https://www.google.com/maps/search/?api=1&query=KIPP%20Woodson%20Park%20Academy&query_place_id=ChIJmYPTAU4b9YgRLaQflmayap0",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "7:45 AM to 3:45 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "7:45 AM to 3:45 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "7:45 AM to 3:45 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "7:45 AM to 3:45 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "7:45 AM to 1:45 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:14.065Z"
+  },
+  {
+   "searchString": "MedCura Buckhead, 2140 Peachtree Rd NW, Suite 232, Atlanta, GA 30309",
+   "title": "AvitaCare Atlanta",
+   "address": "2140 Peachtree Rd #232, Atlanta, GA 30309",
+   "phone": "(404) 231-4431",
+   "placeId": "ChIJAzeL9agF9YgRXXqRTIM-UFM",
+   "url": "https://www.google.com/maps/search/?api=1&query=AvitaCare%20Atlanta&query_place_id=ChIJAzeL9agF9YgRXXqRTIM-UFM",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "7:30 AM to 5:30 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "7:30 AM to 5:30 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "7:30 AM to 5:30 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "7:30 AM to 5:30 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "7:30 AM to 5:30 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:14.384Z"
+  },
+  {
+   "searchString": "Mercy Care Decatur Street, 424 Decatur St SE, Atlanta, GA 30312",
+   "title": "Mercy Care",
+   "address": "424 Decatur St. SE, Atlanta, GA 30312",
+   "phone": "(678) 843-8600",
+   "placeId": "ChIJOaKcR_MD9YgRBxLumg-RKyA",
+   "url": "https://www.google.com/maps/search/?api=1&query=Mercy%20Care&query_place_id=ChIJOaKcR_MD9YgRBxLumg-RKyA",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "7 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "7 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "7 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "7 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "7 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:15.799Z"
+  },
+  {
+   "searchString": "Mercy Care at Salvation Army, 740 Marietta St NW, Atlanta, GA 30318",
+   "title": "The Salvation Army Adult Rehabilitation Center - Atlanta",
+   "address": "740 Marietta St NW, Atlanta, GA 30318",
+   "phone": "(404) 522-9785",
+   "placeId": "ChIJUQqlI48E9YgRx3_0okdtsJA",
+   "url": "https://www.google.com/maps/search/?api=1&query=The%20Salvation%20Army%20Adult%20Rehabilitation%20Center%20-%20Atlanta&query_place_id=ChIJUQqlI48E9YgRx3_0okdtsJA",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 4 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 4 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 4 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 4 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 4 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:17.631Z"
+  },
+  {
+   "searchString": "Mercy Care at City of Refuge, 1300 Joseph E Boone Blvd NW, Atlanta, GA 30314",
+   "title": "Mercy Care at Heritage Village",
+   "address": "239 W Lake Ave NW, Atlanta, GA 30314",
+   "phone": "(678) 843-8600",
+   "placeId": "ChIJ8x53_qgE9YgRs6XnvRiD80U",
+   "url": "https://www.google.com/maps/search/?api=1&query=Mercy%20Care%20at%20Heritage%20Village&query_place_id=ChIJ8x53_qgE9YgRs6XnvRiD80U",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:17.788Z"
+  },
+  {
+   "searchString": "Mercy Care at Gateway Center, 275 Pryor St SW, Atlanta, GA 30303",
+   "title": "Mercy Care at Gateway Center",
+   "address": "275 Pryor St SW, Atlanta, GA 30303",
+   "phone": "(678) 843-8600",
+   "placeId": "ChIJYf9zzIID9YgRGeOjHsb9KOA",
+   "url": "https://www.google.com/maps/search/?api=1&query=Mercy%20Care%20at%20Gateway%20Center&query_place_id=ChIJYf9zzIID9YgRGeOjHsb9KOA",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 4:30 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 4:30 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 4:30 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 4:30 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:17.746Z"
+  },
+  {
+   "searchString": "Miles Elementary School, 4215 Bakers Ferry Rd SW, Atlanta, GA 30331",
+   "title": "Miles Elementary School",
+   "address": "4215 Bakers Ferry Rd SW, Atlanta, GA 30331",
+   "phone": "(404) 564-7749",
+   "placeId": "ChIJ501A7qge9YgRkicbjddXbwY",
+   "url": "https://www.google.com/maps/search/?api=1&query=Miles%20Elementary%20School&query_place_id=ChIJ501A7qge9YgRkicbjddXbwY",
+   "openingHours": [],
+   "scrapedAt": "2026-10-02T15:39:18.147Z"
+  },
+  {
+   "searchString": "SOUTHSIDE MEDICAL CENTER - East Point Clinic, 1100 Cleveland Ave, Atlanta, GA 30344",
+   "title": "Southside Medical Center",
+   "address": "1100 Cleveland Ave, East Point, GA 30344",
+   "phone": "(404) 688-1350",
+   "placeId": "ChIJvYxo2aQC9YgR-DG40-tbM7w",
+   "url": "https://www.google.com/maps/search/?api=1&query=Southside%20Medical%20Center&query_place_id=ChIJvYxo2aQC9YgR-DG40-tbM7w",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 7:30 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 7:30 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 7:30 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 7:30 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 7:30 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "8 AM to 4:30 PM"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:19.587Z"
+  },
+  {
+   "searchString": "Southside Medical Center School Based Health Center at Kipp Vision, 660 McWilliams Rd SE, Atlanta, GA 30315",
+   "title": "Southside Medical Center School Based Health Center at Kipp Vision",
+   "address": "660 McWilliams Rd SE, Atlanta, GA 30315",
+   "phone": "(404) 688-1350",
+   "placeId": "ChIJVVVlthcC9YgRopTohUnUd14",
+   "url": "https://www.google.com/maps/search/?api=1&query=Southside%20Medical%20Center%20School%20Based%20Health%20Center%20at%20Kipp%20Vision&query_place_id=ChIJVVVlthcC9YgRopTohUnUd14",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "Open 24 hours"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "Open 24 hours"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "Open 24 hours"
+    },
+    {
+     "day": "Thursday",
+     "hours": "Open 24 hours"
+    },
+    {
+     "day": "Friday",
+     "hours": "Open 24 hours"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Open 24 hours"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Open 24 hours"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:21.412Z"
+  },
+  {
+   "searchString": "SOUTHSIDE MEDICAL CENTER - Main Center / Corporate HQ, 1046 Ridge Ave SW, Atlanta, GA 30315",
+   "title": "Southside Medical Center",
+   "address": "1046 Ridge Ave SW #4, Atlanta, GA 30315",
+   "phone": "(404) 688-1350",
+   "placeId": "ChIJj7-0zhIb9YgRnXjO9QFTjV8",
+   "url": "https://www.google.com/maps/search/?api=1&query=Southside%20Medical%20Center&query_place_id=ChIJj7-0zhIb9YgRnXjO9QFTjV8",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 8 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 8 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 8 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 8 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 8 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "9 AM to 2 PM"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:21.602Z"
+  },
+  {
+   "searchString": "THE FAMILY HEALTH CENTER AT WEST END, 868 York Ave SW, Atlanta, GA 30310",
+   "title": "The Family Health Centers of Georgia, Inc.",
+   "address": "868 York Ave SW, Atlanta, GA 30310",
+   "phone": "(404) 752-1400",
+   "placeId": "ChIJjTU6ThUD9YgRjE1lfvtUaVk",
+   "url": "https://www.google.com/maps/search/?api=1&query=The%20Family%20Health%20Centers%20of%20Georgia%2C%20Inc.&query_place_id=ChIJjTU6ThUD9YgRjE1lfvtUaVk",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 9 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:21.772Z"
+  },
+  {
+   "searchString": "The Family Health Center at Banneker School-Based Health Center, 6015 Feldwood Rd, Atlanta, GA 30349",
+   "title": "The Family Health Center at Morrow",
+   "address": "6685 Merchants Way, Morrow, GA 30260",
+   "phone": "(404) 282-5617",
+   "placeId": "ChIJLWUUaQD59IgRE9yWyf5fV9Y",
+   "url": "https://www.google.com/maps/search/?api=1&query=The%20Family%20Health%20Center%20at%20Morrow&query_place_id=ChIJLWUUaQD59IgRE9yWyf5fV9Y",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:22.726Z"
+  },
+  {
+   "searchString": "The Family Health Center at College Park School-Based, 2075 Princeton Dr, Atlanta, GA 30337",
+   "title": "Regional Health Center",
+   "address": "1920 John Wesley Ave, College Park, GA 30337",
+   "phone": "(770) 264-7551",
+   "placeId": "ChIJXUWIFbLi9IgR2Kij0s3w1Ho",
+   "url": "https://www.google.com/maps/search/?api=1&query=Regional%20Health%20Center&query_place_id=ChIJXUWIFbLi9IgR2Kij0s3w1Ho",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8:30 AM to 4 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8:30 AM to 4 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8:30 AM to 4 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8:30 AM to 4 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8:30 AM to 4 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:23.244Z"
+  },
+  {
+   "searchString": "The Family Health Center at Lake Forest, 5920 Sandy Springs Cir, Atlanta, GA 30328",
+   "title": "Family Practice Center PC - Building F",
+   "address": "993 Johnson Ferry Rd NE Bldg F,Ste F210, Atlanta, GA 30342",
+   "phone": "(404) 256-1727",
+   "placeId": "ChIJ3wkkW8sO9YgRYD2b9LQ8hmU",
+   "url": "https://www.google.com/maps/search/?api=1&query=Family%20Practice%20Center%20PC%20-%20Building%20F&query_place_id=ChIJ3wkkW8sO9YgRYD2b9LQ8hmU",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "7:30 AM to 4:45 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "7:30 AM to 4:45 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "7:30 AM to 4:45 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "7:30 AM to 4:45 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "7:30 AM to 4:45 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:24.484Z"
+  },
+  {
+   "searchString": "The Family Health Centers at Love T. Nolan School Base, 2725 Creel Rd, Atlanta, GA 30349",
+   "title": "Love T. Nolan Elementary School",
+   "address": "2725 Creel Rd, Atlanta, GA 30349",
+   "phone": "(470) 254-7950",
+   "placeId": "ChIJ27ZOuWLk9IgRUiCQ5FwROAc",
+   "url": "https://www.google.com/maps/search/?api=1&query=Love%20T.%20Nolan%20Elementary%20School&query_place_id=ChIJ27ZOuWLk9IgRUiCQ5FwROAc",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "7:40 AM to 2:20 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "7:40 AM to 2:20 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "7:40 AM to 2:20 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "7:40 AM to 2:20 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "7:40 AM to 2:20 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Open 24 hours"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:25.366Z"
+  },
+  {
+   "searchString": "The Family Health Center of GA dba Georgia Center for Women at Peachtree, 550 Peachtree St NE, Atlanta, GA 30308",
+   "title": "Georgia Center for Women",
+   "address": "550 Peachtree St NE, Atlanta, GA 30308",
+   "phone": "(404) 581-0307",
+   "placeId": "ChIJu2wIpHoE9YgRBf0W22Q1D9w",
+   "url": "https://www.google.com/maps/search/?api=1&query=Georgia%20Center%20for%20Women&query_place_id=ChIJu2wIpHoE9YgRBf0W22Q1D9w",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:25.763Z"
+  },
+  {
+   "searchString": "YourTown Health QuickCare, 507 Park St, Palmetto, GA 30268",
+   "title": "YourTown Health-QuickCare",
+   "address": "507 Park St, Palmetto, GA 30268",
+   "phone": "(770) 463-4644",
+   "placeId": "ChIJO6bfmK3d9IgRAZXpIAm8Bqk",
+   "url": "https://www.google.com/maps/search/?api=1&query=YourTown%20Health-QuickCare&query_place_id=ChIJO6bfmK3d9IgRAZXpIAm8Bqk",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 6 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 6 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 6 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 6 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 6 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:26.733Z"
+  },
+  {
+   "searchString": "YourTown Health, 643 Main St, Palmetto, GA 30268",
+   "title": "YourTown Health-Palmetto",
+   "address": "643 Main St, Palmetto, GA 30268",
+   "phone": "(770) 463-4644",
+   "placeId": "ChIJ_____-rc9IgRgOBgrMQogX0",
+   "url": "https://www.google.com/maps/search/?api=1&query=YourTown%20Health-Palmetto&query_place_id=ChIJ_____-rc9IgRgOBgrMQogX0",
+   "openingHours": [
+    {
+     "day": "Monday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Tuesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Wednesday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Thursday",
+     "hours": "8 AM to 5 PM"
+    },
+    {
+     "day": "Friday",
+     "hours": "8 AM to 12 PM"
+    },
+    {
+     "day": "Saturday",
+     "hours": "Closed"
+    },
+    {
+     "day": "Sunday",
+     "hours": "Closed"
+    }
+   ],
+   "scrapedAt": "2026-10-02T15:39:27.168Z"
+  }
+ ]
+}

@@ -9,6 +9,7 @@
   "found_with_unusable_ts_offsets": 2,
   "normalize_checked": 1078,
   "fakes_for_checked": 1078,
+  "fakes_for_number_checked": 3012,
   "mismatches": 0
  },
  "cases_by_origin": {

@@ -284,6 +284,31 @@ for (const s of strings) {
   if (!isDeepStrictEqual(fa, fb)) mismatches.push({ what: "fakesFor", input: s, ts: fa, rust: fb });
 }
 
+// Differential test of the changed-number fake (String(Number(x) * 10)) over high-precision decimal strings, where
+// shortest-digit ties and exponent switches live. Seeded; the inputs are not stored, only counted.
+const numRnd = mulberry32(SEED + 1);
+const digitsOf = (len) => Array.from({ length: len }, () => Math.floor(numRnd() * 10)).join("");
+const numberInputs = [
+  "991294491764.48132665", // the case that exposed Rust's round-half-up tie
+  "0.07", "1.005", "99999999999999999999", "100000000000000000000", "0.0000001", "0.000001", "1e5",
+  "123456789012345678901234567890", "0.00000000000000000000123", "9007199254740993", "4.35",
+];
+for (let n = 0; n < 3000; n++) {
+  const shape = numRnd();
+  let s;
+  if (shape < 0.15) s = `0.${"0".repeat(Math.floor(numRnd() * 12))}${digitsOf(1 + Math.floor(numRnd() * 20))}`;
+  else if (shape < 0.3) s = digitsOf(15 + Math.floor(numRnd() * 15)); // around and past the 1e21 switch
+  else s = `${digitsOf(1 + Math.floor(numRnd() * 18))}.${digitsOf(1 + Math.floor(numRnd() * 22))}`;
+  numberInputs.push(s);
+}
+let numberChecked = 0;
+for (const x of numberInputs) {
+  numberChecked++;
+  const s = `take ${x} mg`;
+  const fa = tsChecker.fakesFor(s), fb = rust.fakesFor(s);
+  if (!isDeepStrictEqual(fa, fb)) mismatches.push({ what: "fakesFor (number)", input: s, ts: fa, rust: fb });
+}
+
 let checkerReport = { compared: false };
 if (native) {
   const tsReport = tsChecker.runCheckerTest();
@@ -317,6 +342,7 @@ const report = {
     found_with_unusable_ts_offsets: oddOffsets,
     normalize_checked: normalizeChecked,
     fakes_for_checked: fakesChecked,
+    fakes_for_number_checked: numberChecked,
     mismatches: mismatches.length,
   },
   cases_by_origin: byOrigin,

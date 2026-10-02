@@ -34,11 +34,19 @@ export function bookableItem(items: BookableItem[]): BookableItem | null {
 // A bare 10-digit run (an order number, an NPI) is not a phone number (Grok review, 2026-10-02).
 const PHONE = /(?:\((\d{3})\)\s?|\b(\d{3})[\s.-])(\d{3})[\s.-](\d{4})\b/g;
 // Numbers labeled like this are never the one to call.
-const NOT_TO_CALL = /\b(fax|npi|mrn|order|rx|acct|account|member|id|policy)\b[^0-9]{0,12}$/i;
+const LABEL = /\b(fax|npi|mrn|order|rx|acct|account|member|id|policy)\b/i;
 
 export function bookingTarget(item: BookableItem): BookingTarget | null {
-  for (const m of item.source_quote.matchAll(PHONE)) {
-    if (NOT_TO_CALL.test(item.source_quote.slice(0, m.index))) continue;
+  const q = item.source_quote;
+  let prevEnd = 0;
+  for (const m of q.matchAll(PHONE)) {
+    // The label that belongs to THIS number: the text since the previous number or the start of its clause, and a
+    // label right after it ("404-555-0199 (fax)"). (Codex re-check, 2026-10-02: suffix and long-prefix labels.)
+    const clauseStart = Math.max(prevEnd, q.slice(0, m.index).search(/[.;|\n][^.;|\n]*$/) + 1);
+    const before = q.slice(clauseStart, m.index);
+    const after = q.slice(m.index! + m[0].length, m.index! + m[0].length + 16);
+    prevEnd = m.index! + m[0].length;
+    if (LABEL.test(before) || /^\s*[([]?\s*(fax|npi|mrn)\b/i.test(after)) continue;
     return { type: "paper", phone: `${m[1] ?? m[2]}-${m[3]}-${m[4]}` };
   }
   return null;

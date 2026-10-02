@@ -25,6 +25,10 @@ describe("bookingTarget", () => {
     expect(bookingTarget({ ...lab, source_quote: "NPI 1477555121" })).toBeNull();
     expect(bookingTarget({ ...referral, source_quote: "fax 404-555-0199 or call 404-555-0100" })?.phone).toBe("404-555-0100");
     expect(bookingTarget({ ...referral, source_quote: "Call (404)555-0134 to schedule" })?.phone).toBe("404-555-0134");
+    // Codex re-check: suffix and long-prefix labels
+    expect(bookingTarget({ ...referral, source_quote: "404-555-0199 (fax)" })).toBeNull();
+    expect(bookingTarget({ ...referral, source_quote: "Fax number for referrals: 404-555-0199" })).toBeNull();
+    expect(bookingTarget({ ...referral, source_quote: "404-555-0199 (fax). To schedule call 404-555-0100." })?.phone).toBe("404-555-0100");
   });
   it("does not mistake a dose or a date for a phone number", () => {
     expect(bookingTarget({ ...lab, source_quote: "Take 1 tablet 2 times a day for 1000 mg total, recheck 12/2026" })).toBeNull();

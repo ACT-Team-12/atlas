@@ -1,0 +1,421 @@
+{
+  "about": "Sample lab reports written by Team ATLAS, not a real patient. Each row's truth is labeled by hand from what the report prints: high or low when the line is flagged or the value is outside the range printed on that line, inside when it is within that range, unknown when the line prints no range.",
+  "reports": [
+    {
+      "id": "cbc",
+      "title": "Complete blood count",
+      "layout": "column table, flags spelled out (High / Low), units after the range",
+      "text": "SAMPLE LAB REPORT (written by Team ATLAS, not a real patient)\nCOMPLETE BLOOD COUNT (CBC) WITH DIFFERENTIAL\nCollected 09/28/2026 08:12\n\nComponent            Your Value     Standard Range         Flag\nWBC                  11.8 x10^3/uL  4.0 - 11.0 x10^3/uL    High\nRBC                  4.21 x10^6/uL  3.80 - 5.20 x10^6/uL\nHemoglobin           11.2 g/dL      12.0 - 15.5 g/dL       Low\nHematocrit           35.1 %         35.0 - 45.0 %\nMCV                  83 fL          80 - 100 fL\nPlatelets            250,000 /uL    150,000 - 450,000 /uL\nNeutrophils          72 %           40 - 70 %\nLymphocytes          21 %           20 - 40 %\n",
+      "rows": [
+        {
+          "test": "WBC",
+          "line": "WBC                  11.8 x10^3/uL  4.0 - 11.0 x10^3/uL    High",
+          "value": "11.8",
+          "unit": "x10^3/uL",
+          "range_text": "4.0 - 11.0",
+          "truth": "high"
+        },
+        {
+          "test": "RBC",
+          "line": "RBC                  4.21 x10^6/uL  3.80 - 5.20 x10^6/uL",
+          "value": "4.21",
+          "unit": "x10^6/uL",
+          "range_text": "3.80 - 5.20",
+          "truth": "inside"
+        },
+        {
+          "test": "Hemoglobin",
+          "line": "Hemoglobin           11.2 g/dL      12.0 - 15.5 g/dL       Low",
+          "value": "11.2",
+          "unit": "g/dL",
+          "range_text": "12.0 - 15.5",
+          "truth": "low"
+        },
+        {
+          "test": "Hematocrit",
+          "line": "Hematocrit           35.1 %         35.0 - 45.0 %",
+          "value": "35.1",
+          "unit": "%",
+          "range_text": "35.0 - 45.0",
+          "truth": "inside"
+        },
+        {
+          "test": "MCV",
+          "line": "MCV                  83 fL          80 - 100 fL",
+          "value": "83",
+          "unit": "fL",
+          "range_text": "80 - 100",
+          "truth": "inside"
+        },
+        {
+          "test": "Platelets",
+          "line": "Platelets            250,000 /uL    150,000 - 450,000 /uL",
+          "value": "250,000",
+          "unit": "/uL",
+          "range_text": "150,000 - 450,000",
+          "truth": "inside"
+        },
+        {
+          "test": "Neutrophils",
+          "line": "Neutrophils          72 %           40 - 70 %",
+          "value": "72",
+          "unit": "%",
+          "range_text": "40 - 70",
+          "truth": "high"
+        },
+        {
+          "test": "Lymphocytes",
+          "line": "Lymphocytes          21 %           20 - 40 %",
+          "value": "21",
+          "unit": "%",
+          "range_text": "20 - 40",
+          "truth": "inside"
+        }
+      ]
+    },
+    {
+      "id": "lipid",
+      "title": "Lipid panel",
+      "layout": "column table with H / L flag letters before the units",
+      "text": "SAMPLE LAB REPORT (written by Team ATLAS, not a real patient)\nLIPID PANEL, FASTING\nTEST                              RESULT   FLAG   UNITS    REF RANGE\nCholesterol, Total                231      H      mg/dL    <200\nTriglycerides                     162      H      mg/dL    <150\nHigh-density lipoprotein (HDL)    38       L      mg/dL    >=40\nLow-density lipoprotein (LDL)     158      H      mg/dL    <100\nVLDL Cholesterol                  24              mg/dL    5-40\nCholesterol/HDL Ratio             6.1      H      ratio    <5.0\n",
+      "rows": [
+        {
+          "test": "Cholesterol, Total",
+          "line": "Cholesterol, Total                231      H      mg/dL    <200",
+          "value": "231",
+          "unit": "mg/dL",
+          "range_text": "<200",
+          "truth": "high"
+        },
+        {
+          "test": "Triglycerides",
+          "line": "Triglycerides                     162      H      mg/dL    <150",
+          "value": "162",
+          "unit": "mg/dL",
+          "range_text": "<150",
+          "truth": "high"
+        },
+        {
+          "test": "High-density lipoprotein (HDL)",
+          "line": "High-density lipoprotein (HDL)    38       L      mg/dL    >=40",
+          "value": "38",
+          "unit": "mg/dL",
+          "range_text": ">=40",
+          "truth": "low"
+        },
+        {
+          "test": "Low-density lipoprotein (LDL)",
+          "line": "Low-density lipoprotein (LDL)     158      H      mg/dL    <100",
+          "value": "158",
+          "unit": "mg/dL",
+          "range_text": "<100",
+          "truth": "high"
+        },
+        {
+          "test": "VLDL Cholesterol",
+          "line": "VLDL Cholesterol                  24              mg/dL    5-40",
+          "value": "24",
+          "unit": "mg/dL",
+          "range_text": "5-40",
+          "truth": "inside"
+        },
+        {
+          "test": "Cholesterol/HDL Ratio",
+          "line": "Cholesterol/HDL Ratio             6.1      H      ratio    <5.0",
+          "value": "6.1",
+          "unit": "ratio",
+          "range_text": "<5.0",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "thyroid",
+      "title": "Thyroid panel",
+      "layout": "ranges only, no flag column, units after the range",
+      "text": "SAMPLE LAB REPORT (written by Team ATLAS, not a real patient)\nTHYROID PANEL\nTest Name                       Result     Reference Interval\nTSH                             6.84       0.45-4.50 uIU/mL\nFree T4                         0.71       0.82-1.77 ng/dL\nT3, Total                       102        71-180 ng/dL\nThyroid Peroxidase (TPO) Ab     12         0-34 IU/mL\n",
+      "rows": [
+        {
+          "test": "TSH",
+          "line": "TSH                             6.84       0.45-4.50 uIU/mL",
+          "value": "6.84",
+          "unit": "uIU/mL",
+          "range_text": "0.45-4.50",
+          "truth": "high"
+        },
+        {
+          "test": "Free T4",
+          "line": "Free T4                         0.71       0.82-1.77 ng/dL",
+          "value": "0.71",
+          "unit": "ng/dL",
+          "range_text": "0.82-1.77",
+          "truth": "low"
+        },
+        {
+          "test": "T3, Total",
+          "line": "T3, Total                       102        71-180 ng/dL",
+          "value": "102",
+          "unit": "ng/dL",
+          "range_text": "71-180",
+          "truth": "inside"
+        },
+        {
+          "test": "Thyroid Peroxidase (TPO) Ab",
+          "line": "Thyroid Peroxidase (TPO) Ab     12         0-34 IU/mL",
+          "value": "12",
+          "unit": "IU/mL",
+          "range_text": "0-34",
+          "truth": "inside"
+        }
+      ]
+    },
+    {
+      "id": "diabetes-kidney",
+      "title": "Diabetes and kidney check",
+      "layout": "dot leaders, ranges in parentheses using <, <= and >=, a value printed as <0.5",
+      "text": "SAMPLE LAB REPORT (written by Team ATLAS, not a real patient)\nDIABETES AND KIDNEY CHECK\nHemoglobin A1c ............ 6.1 %              (<5.7)\nGlucose, Fasting .......... 94 mg/dL           (70-99)\neGFR ...................... 54 mL/min/1.73m2   (>=60)\nUrine Albumin/Creatinine .. 12 mg/g            (<30)\nVitamin D, 25-Hydroxy ..... 31 ng/mL           (>=30)\nC-Reactive Protein ........ <0.5 mg/L          (<=3.0)\n",
+      "rows": [
+        {
+          "test": "Hemoglobin A1c",
+          "line": "Hemoglobin A1c ............ 6.1 %              (<5.7)",
+          "value": "6.1",
+          "unit": "%",
+          "range_text": "<5.7",
+          "truth": "high"
+        },
+        {
+          "test": "Glucose, Fasting",
+          "line": "Glucose, Fasting .......... 94 mg/dL           (70-99)",
+          "value": "94",
+          "unit": "mg/dL",
+          "range_text": "70-99",
+          "truth": "inside"
+        },
+        {
+          "test": "eGFR",
+          "line": "eGFR ...................... 54 mL/min/1.73m2   (>=60)",
+          "value": "54",
+          "unit": "mL/min/1.73m2",
+          "range_text": ">=60",
+          "truth": "low"
+        },
+        {
+          "test": "Urine Albumin/Creatinine",
+          "line": "Urine Albumin/Creatinine .. 12 mg/g            (<30)",
+          "value": "12",
+          "unit": "mg/g",
+          "range_text": "<30",
+          "truth": "inside"
+        },
+        {
+          "test": "Vitamin D, 25-Hydroxy",
+          "line": "Vitamin D, 25-Hydroxy ..... 31 ng/mL           (>=30)",
+          "value": "31",
+          "unit": "ng/mL",
+          "range_text": ">=30",
+          "truth": "inside"
+        },
+        {
+          "test": "C-Reactive Protein",
+          "line": "C-Reactive Protein ........ <0.5 mg/L          (<=3.0)",
+          "value": "<0.5",
+          "unit": "mg/L",
+          "range_text": "<=3.0",
+          "truth": "inside"
+        }
+      ]
+    },
+    {
+      "id": "annual",
+      "title": "Annual physical panel",
+      "layout": "counts printed with commas, HDL and LDL with High-density and Low-density in the name",
+      "text": "SAMPLE LAB REPORT (written by Team ATLAS, not a real patient)\nANNUAL PHYSICAL PANEL\nAnalyte                                       Result     Units     Range               Flag\nPlatelet Count                                482,000    /uL       150,000-400,000     H\nWhite Blood Cell Count                        7,400      /uL       4,500-11,000\nHDL Cholesterol (High-density lipoprotein)    61         mg/dL     >40\nLDL Cholesterol (Low-density lipoprotein)     96         mg/dL     <100\nSodium                                        133        mmol/L    136-145             L\nPotassium                                     4.4        mmol/L    3.5-5.1\nFerritin                                      9          ng/mL     15-150              L\n",
+      "rows": [
+        {
+          "test": "Platelet Count",
+          "line": "Platelet Count                                482,000    /uL       150,000-400,000     H",
+          "value": "482,000",
+          "unit": "/uL",
+          "range_text": "150,000-400,000",
+          "truth": "high"
+        },
+        {
+          "test": "White Blood Cell Count",
+          "line": "White Blood Cell Count                        7,400      /uL       4,500-11,000",
+          "value": "7,400",
+          "unit": "/uL",
+          "range_text": "4,500-11,000",
+          "truth": "inside"
+        },
+        {
+          "test": "HDL Cholesterol (High-density lipoprotein)",
+          "line": "HDL Cholesterol (High-density lipoprotein)    61         mg/dL     >40",
+          "value": "61",
+          "unit": "mg/dL",
+          "range_text": ">40",
+          "truth": "inside"
+        },
+        {
+          "test": "LDL Cholesterol (Low-density lipoprotein)",
+          "line": "LDL Cholesterol (Low-density lipoprotein)     96         mg/dL     <100",
+          "value": "96",
+          "unit": "mg/dL",
+          "range_text": "<100",
+          "truth": "inside"
+        },
+        {
+          "test": "Sodium",
+          "line": "Sodium                                        133        mmol/L    136-145             L",
+          "value": "133",
+          "unit": "mmol/L",
+          "range_text": "136-145",
+          "truth": "low"
+        },
+        {
+          "test": "Potassium",
+          "line": "Potassium                                     4.4        mmol/L    3.5-5.1",
+          "value": "4.4",
+          "unit": "mmol/L",
+          "range_text": "3.5-5.1",
+          "truth": "inside"
+        },
+        {
+          "test": "Ferritin",
+          "line": "Ferritin                                      9          ng/mL     15-150              L",
+          "value": "9",
+          "unit": "ng/mL",
+          "range_text": "15-150",
+          "truth": "low"
+        }
+      ]
+    },
+    {
+      "id": "bmp-colon",
+      "title": "Basic metabolic panel, one line per test",
+      "layout": "\"Test: value unit [Ref a-b] HIGH\" lines, one test with no range at all",
+      "text": "SAMPLE LAB REPORT (written by Team ATLAS, not a real patient)\nBASIC METABOLIC PANEL + EXTRAS\nGlucose: 142 mg/dL [Ref 65-99] HIGH\nBUN: 18 mg/dL [Ref 7-25]\nCreatinine: 1.42 mg/dL [Ref 0.60-1.35] HIGH\nCalcium: 9.6 mg/dL [Ref 8.6-10.3]\nVitamin B12: 410 pg/mL\nMagnesium: 1.6 mg/dL [Ref 1.7-2.2] LOW\n",
+      "rows": [
+        {
+          "test": "Glucose",
+          "line": "Glucose: 142 mg/dL [Ref 65-99] HIGH",
+          "value": "142",
+          "unit": "mg/dL",
+          "range_text": "65-99",
+          "truth": "high"
+        },
+        {
+          "test": "BUN",
+          "line": "BUN: 18 mg/dL [Ref 7-25]",
+          "value": "18",
+          "unit": "mg/dL",
+          "range_text": "7-25",
+          "truth": "inside"
+        },
+        {
+          "test": "Creatinine",
+          "line": "Creatinine: 1.42 mg/dL [Ref 0.60-1.35] HIGH",
+          "value": "1.42",
+          "unit": "mg/dL",
+          "range_text": "0.60-1.35",
+          "truth": "high"
+        },
+        {
+          "test": "Calcium",
+          "line": "Calcium: 9.6 mg/dL [Ref 8.6-10.3]",
+          "value": "9.6",
+          "unit": "mg/dL",
+          "range_text": "8.6-10.3",
+          "truth": "inside"
+        },
+        {
+          "test": "Vitamin B12",
+          "line": "Vitamin B12: 410 pg/mL",
+          "value": "410",
+          "unit": "pg/mL",
+          "range_text": "",
+          "truth": "unknown"
+        },
+        {
+          "test": "Magnesium",
+          "line": "Magnesium: 1.6 mg/dL [Ref 1.7-2.2] LOW",
+          "value": "1.6",
+          "unit": "mg/dL",
+          "range_text": "1.7-2.2",
+          "truth": "low"
+        }
+      ]
+    },
+    {
+      "id": "edge-cases",
+      "title": "Extra tests with tricky lines",
+      "layout": "a liter unit L, High Sensitivity in a name, values right on a < or > limit, a value printed as <0.2, a negative value, a (H) flag",
+      "text": "SAMPLE LAB REPORT (written by Team ATLAS, not a real patient)\nEXTRA TESTS\nTest                              Result     Units      Range         Flag\nUrine Volume, 24 hour             1.8        L          0.8-2.0\nHigh Sensitivity CRP              1.0        mg/L       0.0-3.0\nLDL Cholesterol, Direct           100        mg/dL      <100\neGFR (CKD-EPI)                    60         mL/min     >60\nBilirubin, Direct                 <0.2       mg/dL      0.1-0.3\nUric Acid                         8.1        mg/dL      3.5-7.2       (H)\nBase Excess                       -1         mmol/L     -2 to 3\nHDL Cholesterol (High-density)    35         mg/dL      >40           L\n",
+      "rows": [
+        {
+          "test": "Urine Volume, 24 hour",
+          "line": "Urine Volume, 24 hour             1.8        L          0.8-2.0",
+          "value": "1.8",
+          "unit": "L",
+          "range_text": "0.8-2.0",
+          "truth": "inside"
+        },
+        {
+          "test": "High Sensitivity CRP",
+          "line": "High Sensitivity CRP              1.0        mg/L       0.0-3.0",
+          "value": "1.0",
+          "unit": "mg/L",
+          "range_text": "0.0-3.0",
+          "truth": "inside"
+        },
+        {
+          "test": "LDL Cholesterol, Direct",
+          "line": "LDL Cholesterol, Direct           100        mg/dL      <100",
+          "value": "100",
+          "unit": "mg/dL",
+          "range_text": "<100",
+          "truth": "high"
+        },
+        {
+          "test": "eGFR (CKD-EPI)",
+          "line": "eGFR (CKD-EPI)                    60         mL/min     >60",
+          "value": "60",
+          "unit": "mL/min",
+          "range_text": ">60",
+          "truth": "low"
+        },
+        {
+          "test": "Bilirubin, Direct",
+          "line": "Bilirubin, Direct                 <0.2       mg/dL      0.1-0.3",
+          "value": "<0.2",
+          "unit": "mg/dL",
+          "range_text": "0.1-0.3",
+          "truth": "unknown"
+        },
+        {
+          "test": "Uric Acid",
+          "line": "Uric Acid                         8.1        mg/dL      3.5-7.2       (H)",
+          "value": "8.1",
+          "unit": "mg/dL",
+          "range_text": "3.5-7.2",
+          "truth": "high"
+        },
+        {
+          "test": "Base Excess",
+          "line": "Base Excess                       -1         mmol/L     -2 to 3",
+          "value": "-1",
+          "unit": "mmol/L",
+          "range_text": "-2 to 3",
+          "truth": "inside"
+        },
+        {
+          "test": "HDL Cholesterol (High-density)",
+          "line": "HDL Cholesterol (High-density)    35         mg/dL      >40           L",
+          "value": "35",
+          "unit": "mg/dL",
+          "range_text": ">40",
+          "truth": "low"
+        }
+      ]
+    }
+  ]
+}

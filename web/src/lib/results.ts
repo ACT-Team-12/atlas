@@ -37,66 +37,201 @@ export type ResultRow = {
   test: string; value: string; unit: string; range_text: string; quote: string; plain_name: string; ask: string;
   status: ResultStatus; direction: "high" | "low" | null; reason: string;
 };
+export type DropReason = "not_in_report" | "not_one_line" | "test_not_in_line" | "value_not_in_quote";
+/** Which result lines of the report our code found, and how many of them a kept row covers. */
+export type Coverage = { candidates: number; checked: number; unchecked: string[] };
 export type ResultsResponse = {
   rows: ResultRow[];
-  dropped: { test: string; reason: "not_in_report" | "value_not_in_quote" }[];
+  dropped: { test: string; reason: DropReason }[];
   counts: { outside: number; inside: number; unknown: number };
+  coverage: Coverage;
   model: string; ms: number;
 };
 
-const NUM = /-?\d+(?:\.\d+)?/;
-const num = (s: string) => { const m = s.replace(/,/g, "").match(NUM); return m ? Number(m[0]) : null; };
-const tokens = (s: string): string[] => s.replace(/,/g, "").match(/\d+(?:\.\d+)?/g) ?? [];
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** A range as printed: "70-99", "70 - 99", "<200", "< 5.7", ">=60", "> 40". null when it isn't one of these. */
-export function parseRange(r: string): { lo: number | null; hi: number | null } | null {
+/** One side of a range or of a measured value: a number, and whether the number itself is included. */
+export type Bound = { at: number; incl: boolean };
+/** An interval. A missing side is open-ended. A plain measured value is a single point (both sides included). */
+export type Interval = { lo: Bound | null; hi: Bound | null };
+
+const N = String.raw`-?\d+(?:\.\d+)?`;
+const DASH = String.raw`\s*(?:-|–|to)\s*`;
+
+/** A range as printed: "70-99", "70 - 99", "<200", "<= 5.7", ">=60", "≥ 60", "> 40". "<" and ">" exclude the limit. */
+export function parseRange(r: string): Interval | null {
   const t = r.replace(/,/g, "").trim();
-  let m = t.match(/^(-?\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(-?\d+(?:\.\d+)?)$/);
-  if (m) return { lo: Number(m[1]), hi: Number(m[2]) };
-  m = t.match(/^(<=?|less than|under)\s*(-?\d+(?:\.\d+)?)$/i);
-  if (m) return { lo: null, hi: Number(m[2]) };
-  m = t.match(/^(>=?|greater than|over)\s*(-?\d+(?:\.\d+)?)$/i);
-  if (m) return { lo: Number(m[2]), hi: null };
+  let m = t.match(new RegExp(`^(${N})${DASH}(${N})$`));
+  if (m) return { lo: { at: Number(m[1]), incl: true }, hi: { at: Number(m[2]), incl: true } };
+  m = t.match(new RegExp(`^(<=|≤|<|less than|under)\\s*(${N})$`, "i"));
+  if (m) return { lo: null, hi: { at: Number(m[2]), incl: /=|≤/.test(m[1]) } };
+  m = t.match(new RegExp(`^(>=|≥|>|greater than|over)\\s*(${N})$`, "i"));
+  if (m) return { lo: { at: Number(m[2]), incl: /=|≥/.test(m[1]) }, hi: null };
   return null;
 }
 
-/** A High/Low flag printed in the report's own line ("H", "L", "High", "Low", "Abnormal", "Critical"). */
-export function printedFlag(quote: string): "high" | "low" | "abnormal" | null {
-  if (/\b(high|hh)\b|(?:^|\s)\(?H\)?(?=\s|$)/i.test(quote) && !/\bhigh[- ]?density\b/i.test(quote)) return "high";
-  if (/\b(low|ll)\b|(?:^|\s)\(?L\)?(?=\s|$)/i.test(quote) && !/\blow[- ]?density\b/i.test(quote)) return "low";
-  if (/\b(abnormal|critical|out of range)\b/i.test(quote)) return "abnormal";
+/** A measured value as printed: "126" is a point, "<0.5" is everything below 0.5, ">=200" is 200 and up. */
+export function parseValue(v: string): Interval | null {
+  const m = v.replace(/,/g, "").trim().match(new RegExp(`^(<=|>=|≤|≥|<|>)?\\s*(${N})$`));
+  if (!m) return null;
+  const at = Number(m[2]), op = m[1] ?? "";
+  if (!op) return { lo: { at, incl: true }, hi: { at, incl: true } };
+  if (op === "<" || op === "<=" || op === "≤") return { lo: null, hi: { at, incl: op !== "<" } };
+  return { lo: { at, incl: op !== ">" }, hi: null };
+}
+
+/** Where a measured value falls against a range. "unknown" unless the whole value is on one side. */
+export function classify(v: Interval, r: Interval): "inside" | "high" | "low" | "unknown" {
+  if (r.hi && v.lo && (v.lo.at > r.hi.at || (v.lo.at === r.hi.at && (!r.hi.incl || !v.lo.incl)))) return "high";
+  if (r.lo && v.hi && (v.hi.at < r.lo.at || (v.hi.at === r.lo.at && (!r.lo.incl || !v.hi.incl)))) return "low";
+  const underTop = !r.hi || (!!v.hi && (v.hi.at < r.hi.at || (v.hi.at === r.hi.at && (r.hi.incl || !v.hi.incl))));
+  const overBottom = !r.lo || (!!v.lo && (v.lo.at > r.lo.at || (v.lo.at === r.lo.at && (r.lo.incl || !v.lo.incl))));
+  return underTop && overBottom ? "inside" : "unknown";
+}
+
+/**
+ * A High/Low flag in a piece of a printed line: H, L, HH, LL, (H), (L), H*, High, Low, Abnormal, Critical.
+ * judgeRow only passes the part of the line after the value with the range and unit taken out, so a test name
+ * ("High Sensitivity CRP", "High-density lipoprotein") or a unit ("mg/L") is never read as a flag.
+ */
+export function printedFlag(text: string): "high" | "low" | "abnormal" | null {
+  const t = text.replace(/\b(high|low)[- ]?(density|sensitivity)\b/gi, " ");
+  const letter = (c: string) => new RegExp(`(?:^|[\\s(\\[*])(?:${c}${c}|${c})(?=$|[\\s)\\]*!])`).test(t);
+  if (letter("H") || /\bhigh\b/i.test(t)) return "high";
+  if (letter("L") || /\blow\b/i.test(t)) return "low";
+  if (/\b(abnormal|critical|out of range)\b/i.test(t)) return "abnormal";
   return null;
 }
 
-/** The deterministic part: decide inside / outside / unknown from the quote, the value and the printed range. */
+const NUMC = String.raw`(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?`;
+// A number standing on its own (not part of "T4", "B12", "25-Hydroxy", "x10^3" or "1.73m2"), maybe with < > <= >= or a minus.
+const ATOM = new RegExp(String.raw`(?<=^|[\s(\[:=])(?:<=|>=|≤|≥|<|>)?\s?-?${NUMC}(?=$|[\s)\]%;*]|,(?!\d)|[a-zA-Zµμ/])`, "g");
+// A range printed on a line: "70-99", "4.0 - 11.0", "150,000-400,000", "-2 to 3", "<200", ">=60". Never part of a date.
+const RANGE = new RegExp(String.raw`(?<![\w.^/-])(?:(?:<=|>=|≤|≥|<|>)\s*-?${NUMC}|-?${NUMC}\s*(?:-|–|to)\s*-?${NUMC})(?![\w.]|-\d)`, "g");
+
+type Span = { text: string; start: number; end: number };
+const spans = (re: RegExp, s: string): Span[] => [...s.matchAll(re)].map((m) => ({ text: m[0], start: m.index ?? 0, end: (m.index ?? 0) + m[0].length }));
+const inside = (a: Span, b: Span) => a.start >= b.start && a.end <= b.end;
+
+/** Finds the test name on the line, ignoring case and punctuation ("Glucose Fasting" finds "Glucose, Fasting"). */
+function findName(line: string, test: string): Span | null {
+  const words = test.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  if (!words.length) return null;
+  const m = new RegExp(`(?<![\\p{L}\\p{N}])${words.map(escapeRe).join("[^\\p{L}\\p{N}]+")}(?![\\p{L}\\p{N}])`, "iu").exec(line);
+  return m ? { text: m[0], start: m.index, end: m.index + m[0].length } : null;
+}
+
+type LineRead = {
+  value: Span; valueRange: Interval; range: Interval | null; rangeText: string;
+  flag: "high" | "low" | "abnormal" | null; loneL: boolean; unitSeen: boolean;
+};
+
+/**
+ * Reads one printed line the way our code (not the AI) sees it. The value is the first number standing on its own
+ * after the test name that is not part of a range. The range is one the line itself prints (the AI's range only picks
+ * between several). The flag is looked for only after the value, with the range and the unit taken out.
+ */
+function readLine(line: string, r: Pick<ModelRow, "test" | "unit" | "range_text">): LineRead | null {
+  const name = findName(line, r.test);
+  if (!name) return null;
+  const ranges = spans(RANGE, line).filter((s) => s.start >= name.end && parseRange(s.text));
+  const dashRanges = ranges.filter((s) => !/^[<>≤≥]/.test(s.text));
+  const value = spans(ATOM, line).find((a) => a.start >= name.end && !dashRanges.some((d) => inside(a, d)));
+  if (!value) return null;
+  const valueRange = parseValue(value.text);
+  if (!valueRange) return null;
+  const others = ranges.filter((s) => !(s.start <= value.start && s.end >= value.end));
+  const want = r.range_text.replace(/[\s,]/g, "");
+  const pick = others.find((s) => want && s.text.replace(/[\s,]/g, "") === want.replace(/≤/g, "<=").replace(/≥/g, ">=")) ??
+    others.find((s) => want && (s.text.match(/\d[\d.]*/g) ?? []).join(" ") === (r.range_text.replace(/,/g, "").match(/\d[\d.]*/g) ?? []).join(" ")) ??
+    (others.length === 1 ? others[0] : undefined);
+  // The part of the line after the value, with every range blanked out.
+  let tail = line.slice(value.end);
+  for (const s of ranges) if (s.start >= value.end) tail = tail.slice(0, s.start - value.end) + " ".repeat(s.text.length) + tail.slice(s.end - value.end);
+  // Take out the unit once, so a liter "L" or "mg/L" is never read as Low.
+  const unit = r.unit.trim();
+  const at = unit ? new RegExp(`(?<=^|\\s)${escapeRe(unit)}(?=$|\\s)`).exec(tail) : null;
+  if (at) tail = tail.slice(0, at.index) + " ".repeat(unit.length) + tail.slice(at.index + unit.length);
+  const words = tail.trim().split(/\s+/).filter(Boolean);
+  return {
+    value, valueRange, range: pick ? parseRange(pick.text) : null, rangeText: pick ? pick.text.trim() : "",
+    flag: printedFlag(tail), loneL: !at && words.length === 1 && words[0] === "L", unitSeen: !!at,
+  };
+}
+
+/**
+ * The deterministic part: decide inside / outside / unknown from the line itself. `quote` must be the report's own
+ * line (checkRows passes the full line it found, never the AI's copy), so a flag or range the AI adds, drops or
+ * moves from another line changes nothing.
+ */
 export function judgeRow(r: ModelRow): Omit<ResultRow, keyof ModelRow> {
-  const flag = printedFlag(r.quote.replace(new RegExp(r.test.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "ig"), " "));
-  const range = tokens(r.range_text).every((t) => tokens(r.quote).includes(t)) ? parseRange(r.range_text) : null;
-  const v = num(r.value);
-  if (flag === "high" || flag === "low") return { status: "outside", direction: flag, reason: "Your report marks this line as " + (flag === "high" ? "high" : "low") + "." };
-  if (flag === "abnormal") return { status: "outside", direction: null, reason: "Your report marks this line as abnormal." };
-  if (range && v !== null) {
-    if (range.hi !== null && v > range.hi) return { status: "outside", direction: "high", reason: `${r.value} is above the range printed on your report (${r.range_text}).` };
-    if (range.lo !== null && v < range.lo) return { status: "outside", direction: "low", reason: `${r.value} is below the range printed on your report (${r.range_text}).` };
-    return { status: "inside", direction: null, reason: `Inside the range printed on your report (${r.range_text}).` };
+  const read = readLine(r.quote, r);
+  if (!read) return { status: "unknown", direction: null, reason: "We couldn't find this result on the line." };
+  const { value, valueRange, range, rangeText, flag, loneL } = read;
+  const byRange = range ? classify(valueRange, range) : null;
+  if (loneL) {
+    // "3.0 L 2.0-4.0": the L right after the number may be liters or Low. Only the printed range can settle it.
+    if (byRange === "low") return { status: "outside", direction: "low", reason: `${value.text} is below the range printed on your report (${rangeText}).` };
+    if (byRange === "high") return { status: "outside", direction: "high", reason: `${value.text} is above the range printed on your report (${rangeText}).` };
+    return { status: "unknown", direction: null, reason: "Your report shows an L after the number. It may mean liters, or it may mean low. Ask your clinic." };
   }
+  if (flag === "high" || flag === "low") return { status: "outside", direction: flag, reason: "Your report marks this line as " + flag + "." };
+  if (flag === "abnormal") return { status: "outside", direction: null, reason: "Your report marks this line as abnormal." };
+  if (byRange === "high") return { status: "outside", direction: "high", reason: `${value.text} is above the range printed on your report (${rangeText}).` };
+  if (byRange === "low") return { status: "outside", direction: "low", reason: `${value.text} is below the range printed on your report (${rangeText}).` };
+  if (byRange === "inside") return { status: "inside", direction: null, reason: `Inside the range printed on your report (${rangeText}).` };
+  if (byRange === "unknown") return { status: "unknown", direction: null, reason: `Your report prints this as ${value.text}, so we can't tell where it falls against the range (${rangeText}).` };
   return { status: "unknown", direction: null, reason: "Your report doesn't print a range we can read for this one." };
 }
 
-export function checkRows(source: string, rows: ModelRow[]): Pick<ResultsResponse, "rows" | "dropped" | "counts"> {
+/** The whole printed line the quote sits on, or why it can't be used. */
+function lineOf(source: string, quote: string): { line: string } | { reason: DropReason } {
+  const span = findSpan(source, quote);
+  if (!span) return { reason: "not_in_report" };
+  if (/[\r\n]/.test(source.slice(span.start, span.end))) return { reason: "not_one_line" };
+  const start = source.lastIndexOf("\n", span.start - 1) + 1;
+  const nl = source.indexOf("\n", span.end);
+  return { line: source.slice(start, nl < 0 ? source.length : nl).trim() };
+}
+
+/** Lines that look like a test result: a number standing on its own, plus a printed range or a High/Low flag. */
+export function resultLines(source: string): string[] {
+  const seen = new Set<string>();
+  for (const raw of source.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || seen.has(line) || !spans(ATOM, line).length) continue;
+    if (spans(RANGE, line).some((s) => parseRange(s.text)) || printedFlag(line)) seen.add(line);
+  }
+  return [...seen];
+}
+
+export function checkRows(source: string, rows: ModelRow[]): Pick<ResultsResponse, "rows" | "dropped" | "counts" | "coverage"> {
   const out: ResultRow[] = [];
   const dropped: ResultsResponse["dropped"] = [];
   for (const r of rows) {
-    if (!findSpan(source, r.quote)) { dropped.push({ test: r.test, reason: "not_in_report" }); continue; }
-    if (!tokens(r.value).length || !tokens(r.value).every((t) => tokens(r.quote).includes(t))) { dropped.push({ test: r.test, reason: "value_not_in_quote" }); continue; }
-    out.push({ ...r, ...judgeRow(r) });
+    const at = lineOf(source, r.quote);
+    if ("reason" in at) { dropped.push({ test: r.test, reason: at.reason }); continue; }
+    const { line } = at;
+    // The test name must be printed on that line, so a real line can't be shown under another test's name.
+    if (!findName(line, r.test)) { dropped.push({ test: r.test, reason: "test_not_in_line" }); continue; }
+    // The value must be the line's own result: the first number after the name that is not part of a range,
+    // with the same < or > and the same sign. A range limit or a number from the unit can't pass as the result.
+    const read = readLine(line, r);
+    const mine = parseValue(r.value);
+    const same = (a: Bound | null, b: Bound | null) => (a === null && b === null) || (!!a && !!b && a.at === b.at && a.incl === b.incl);
+    if (!read || !mine || !same(mine.lo, read.valueRange.lo) || !same(mine.hi, read.valueRange.hi)) { dropped.push({ test: r.test, reason: "value_not_in_quote" }); continue; }
+    const row = { ...r, quote: line, value: read.value.text.trim(), range_text: read.rangeText, unit: read.unitSeen ? r.unit.trim() : "" };
+    out.push({ ...row, ...judgeRow(row) });
   }
   const counts = { outside: 0, inside: 0, unknown: 0 };
   for (const r of out) counts[r.status]++;
   // Outside first, then unknown, then inside.
   const order: Record<ResultStatus, number> = { outside: 0, unknown: 1, inside: 2 };
   out.sort((a, b) => order[a.status] - order[b.status]);
-  return { rows: out, dropped, counts };
+  const candidates = resultLines(source);
+  const covered = new Set(out.map((r) => r.quote));
+  const unchecked = candidates.filter((l) => !covered.has(l));
+  return { rows: out, dropped, counts, coverage: { candidates: candidates.length, checked: candidates.length - unchecked.length, unchecked: unchecked.slice(0, 40) } };
 }
 
 const SYSTEM = `You read a person's lab report and list every test result on it.
@@ -119,4 +254,52 @@ export async function explainResults(req: ResultsRequest): Promise<ResultsRespon
   const parsed = ModelRows.safeParse(msg.parsed_output);
   if (!parsed.success) throw new ExtractError("The AI returned a malformed answer. Try again.", 502);
   return { ...checkRows(req.text, parsed.data.rows), model: MODEL, ms: Date.now() - t0 };
+}
+
+/**
+ * Lab results from a photo or screenshot. The AI only copies the report into text lines here; nothing is judged.
+ * The person checks that text against their screen and fixes it, and only then does the text path above run, so every
+ * row still quotes a line from text the person confirmed.
+ */
+export const ResultsReadRequestSchema = z.object({
+  image_base64: z.string().min(100, "Add a photo or screenshot of your lab results.").max(8_000_000, "That photo is too large. Try a smaller one."),
+  image_media_type: z.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]),
+});
+export type ResultsReadRequest = z.infer<typeof ResultsReadRequestSchema>;
+export type ResultsReadResponse = { text: string; model: string; ms: number };
+
+const ReadOutput = z.object({ readable: z.boolean(), text: z.string() });
+
+const READ_SYSTEM = `You copy a photo or screenshot of a lab report into plain text. You do not explain or judge anything.
+Write one line per test result, keeping what is printed on that row in order: test name, result, units, reference range, and any flag (such as H, L, High, Low).
+Copy every number exactly as printed, including <, >, = signs, commas and decimal points. Do not round, convert, fix or guess a number. If part of a number can't be read, write [unreadable] in its place.
+Keep section headings (like LIPID PANEL) on their own lines. Leave out names, dates of birth, addresses, phone numbers, account or record numbers and barcodes.
+If the image is not a lab report, set readable to false and leave text empty.`;
+
+export async function readLabPhoto(req: ResultsReadRequest): Promise<ResultsReadResponse> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
+  const t0 = Date.now();
+  const client = new Anthropic({ apiKey });
+  const msg = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 6000,
+    system: READ_SYSTEM,
+    output_config: { effort: "low", format: zodOutputFormat(ReadOutput) },
+    messages: [{
+      role: "user",
+      content: [
+        { type: "image", source: { type: "base64", media_type: req.image_media_type, data: req.image_base64 } },
+        { type: "text", text: "Copy the lab results in this image into text lines." },
+      ],
+    }],
+  });
+  if (msg.stop_reason === "refusal") throw new ExtractError("The AI declined to read this photo.", 422);
+  const parsed = ReadOutput.safeParse(msg.parsed_output);
+  if (!parsed.success) throw new ExtractError("The AI returned a malformed answer. Try again.", 502);
+  const text = parsed.data.text.trim();
+  if (!parsed.data.readable || text.length < 20) {
+    throw new ExtractError("We couldn't find lab results in that photo. Try a clearer photo, or paste the text.", 422);
+  }
+  return { text, model: MODEL, ms: Date.now() - t0 };
 }

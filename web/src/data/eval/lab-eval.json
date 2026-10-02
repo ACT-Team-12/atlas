@@ -1,0 +1,933 @@
+{
+  "measured_at": "2026-10-02T20:31:23.775Z",
+  "base_url": "local dev server",
+  "commit": "d108b9a",
+  "model": "claude-opus-5-5",
+  "command": "node scripts/lab-eval.mjs",
+  "reports": 7,
+  "text": {
+    "totals": {
+      "rows": 45,
+      "found": 45,
+      "right": 45,
+      "flags_truth": 22,
+      "flags_right": 22,
+      "false_flags": 0,
+      "missed_flags": 0,
+      "dropped": 0,
+      "extra": 0,
+      "lines_checked": 44,
+      "lines_found": 44,
+      "median_ms": 8282
+    },
+    "rows": [
+      {
+        "id": "cbc",
+        "title": "Complete blood count",
+        "rows_total": 8,
+        "wall_ms": 9319,
+        "rows": [
+          {
+            "test": "WBC",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "RBC",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Hemoglobin",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "Hematocrit",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "MCV",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Platelets",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Neutrophils",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Lymphocytes",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          }
+        ],
+        "found": 8,
+        "right": 8,
+        "flags_truth": 3,
+        "flags_right": 3,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 8,
+          "checked": 8,
+          "unchecked": []
+        },
+        "ms": 9254
+      },
+      {
+        "id": "lipid",
+        "title": "Lipid panel",
+        "rows_total": 6,
+        "wall_ms": 6742,
+        "rows": [
+          {
+            "test": "Cholesterol, Total",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Triglycerides",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "High-density lipoprotein (HDL)",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "Low-density lipoprotein (LDL)",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "VLDL Cholesterol",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Cholesterol/HDL Ratio",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          }
+        ],
+        "found": 6,
+        "right": 6,
+        "flags_truth": 5,
+        "flags_right": 5,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 6,
+          "checked": 6,
+          "unchecked": []
+        },
+        "ms": 6728
+      },
+      {
+        "id": "thyroid",
+        "title": "Thyroid panel",
+        "rows_total": 4,
+        "wall_ms": 6512,
+        "rows": [
+          {
+            "test": "TSH",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Free T4",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "T3, Total",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Thyroid Peroxidase (TPO) Ab",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          }
+        ],
+        "found": 4,
+        "right": 4,
+        "flags_truth": 2,
+        "flags_right": 2,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 4,
+          "checked": 4,
+          "unchecked": []
+        },
+        "ms": 6504
+      },
+      {
+        "id": "diabetes-kidney",
+        "title": "Diabetes and kidney check",
+        "rows_total": 6,
+        "wall_ms": 8282,
+        "rows": [
+          {
+            "test": "Hemoglobin A1c",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Glucose, Fasting",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "eGFR",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "Urine Albumin/Creatinine",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Vitamin D, 25-Hydroxy",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "C-Reactive Protein",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          }
+        ],
+        "found": 6,
+        "right": 6,
+        "flags_truth": 2,
+        "flags_right": 2,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 6,
+          "checked": 6,
+          "unchecked": []
+        },
+        "ms": 8269
+      },
+      {
+        "id": "annual",
+        "title": "Annual physical panel",
+        "rows_total": 7,
+        "wall_ms": 9290,
+        "rows": [
+          {
+            "test": "Platelet Count",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "White Blood Cell Count",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "HDL Cholesterol (High-density lipoprotein)",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "LDL Cholesterol (Low-density lipoprotein)",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Sodium",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "Potassium",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Ferritin",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          }
+        ],
+        "found": 7,
+        "right": 7,
+        "flags_truth": 3,
+        "flags_right": 3,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 7,
+          "checked": 7,
+          "unchecked": []
+        },
+        "ms": 9275
+      },
+      {
+        "id": "bmp-colon",
+        "title": "Basic metabolic panel, one line per test",
+        "rows_total": 6,
+        "wall_ms": 7872,
+        "rows": [
+          {
+            "test": "Glucose",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "BUN",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Creatinine",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Calcium",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Vitamin B12",
+            "truth": "unknown",
+            "got": "unknown",
+            "right": true
+          },
+          {
+            "test": "Magnesium",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          }
+        ],
+        "found": 6,
+        "right": 6,
+        "flags_truth": 3,
+        "flags_right": 3,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 5,
+          "checked": 5,
+          "unchecked": []
+        },
+        "ms": 7859
+      },
+      {
+        "id": "edge-cases",
+        "title": "Extra tests with tricky lines",
+        "rows_total": 8,
+        "wall_ms": 10387,
+        "rows": [
+          {
+            "test": "Urine Volume, 24 hour",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "High Sensitivity CRP",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "LDL Cholesterol, Direct",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "eGFR (CKD-EPI)",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "Bilirubin, Direct",
+            "truth": "unknown",
+            "got": "unknown",
+            "right": true
+          },
+          {
+            "test": "Uric Acid",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Base Excess",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "HDL Cholesterol (High-density)",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          }
+        ],
+        "found": 8,
+        "right": 8,
+        "flags_truth": 4,
+        "flags_right": 4,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 8,
+          "checked": 8,
+          "unchecked": []
+        },
+        "ms": 10370
+      }
+    ]
+  },
+  "photo": {
+    "note": "Screenshots drawn from the sample text, not camera photos. Statuses are from the read text used unedited.",
+    "totals": {
+      "rows": 45,
+      "lines_numbers_right": 45,
+      "lines_exact": 34,
+      "unreadable_marks": 0,
+      "found": 45,
+      "right": 45,
+      "false_flags": 0,
+      "missed_flags": 0,
+      "dropped": 0,
+      "median_read_ms": 3558
+    },
+    "rows": [
+      {
+        "id": "cbc",
+        "rows_total": 8,
+        "read_ms": 4399,
+        "lines_numbers_right": 8,
+        "lines_exact": 8,
+        "lines_wrong": [],
+        "unreadable_marks": 0,
+        "explain_wall_ms": 9273,
+        "rows": [
+          {
+            "test": "WBC",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "RBC",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Hemoglobin",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "Hematocrit",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "MCV",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Platelets",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Neutrophils",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Lymphocytes",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          }
+        ],
+        "found": 8,
+        "right": 8,
+        "flags_truth": 3,
+        "flags_right": 3,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 8,
+          "checked": 8,
+          "unchecked": []
+        },
+        "ms": 9260
+      },
+      {
+        "id": "lipid",
+        "rows_total": 6,
+        "read_ms": 3630,
+        "lines_numbers_right": 6,
+        "lines_exact": 6,
+        "lines_wrong": [],
+        "unreadable_marks": 0,
+        "explain_wall_ms": 10044,
+        "rows": [
+          {
+            "test": "Cholesterol, Total",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Triglycerides",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "High-density lipoprotein (HDL)",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "Low-density lipoprotein (LDL)",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "VLDL Cholesterol",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Cholesterol/HDL Ratio",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          }
+        ],
+        "found": 6,
+        "right": 6,
+        "flags_truth": 5,
+        "flags_right": 5,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 6,
+          "checked": 6,
+          "unchecked": []
+        },
+        "ms": 10028
+      },
+      {
+        "id": "thyroid",
+        "rows_total": 4,
+        "read_ms": 2620,
+        "lines_numbers_right": 4,
+        "lines_exact": 4,
+        "lines_wrong": [],
+        "unreadable_marks": 0,
+        "explain_wall_ms": 8767,
+        "rows": [
+          {
+            "test": "TSH",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Free T4",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "T3, Total",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Thyroid Peroxidase (TPO) Ab",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          }
+        ],
+        "found": 4,
+        "right": 4,
+        "flags_truth": 2,
+        "flags_right": 2,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 4,
+          "checked": 4,
+          "unchecked": []
+        },
+        "ms": 8750
+      },
+      {
+        "id": "diabetes-kidney",
+        "rows_total": 6,
+        "read_ms": 3203,
+        "lines_numbers_right": 6,
+        "lines_exact": 0,
+        "lines_wrong": [],
+        "unreadable_marks": 0,
+        "explain_wall_ms": 8449,
+        "rows": [
+          {
+            "test": "Hemoglobin A1c",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Glucose, Fasting",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "eGFR",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "Urine Albumin/Creatinine",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Vitamin D, 25-Hydroxy",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "C-Reactive Protein",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          }
+        ],
+        "found": 6,
+        "right": 6,
+        "flags_truth": 2,
+        "flags_right": 2,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 6,
+          "checked": 6,
+          "unchecked": []
+        },
+        "ms": 8442
+      },
+      {
+        "id": "annual",
+        "rows_total": 7,
+        "read_ms": 3735,
+        "lines_numbers_right": 7,
+        "lines_exact": 7,
+        "lines_wrong": [],
+        "unreadable_marks": 0,
+        "explain_wall_ms": 17385,
+        "rows": [
+          {
+            "test": "Platelet Count",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "White Blood Cell Count",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "HDL Cholesterol (High-density lipoprotein)",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "LDL Cholesterol (Low-density lipoprotein)",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Sodium",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "Potassium",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Ferritin",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          }
+        ],
+        "found": 7,
+        "right": 7,
+        "flags_truth": 3,
+        "flags_right": 3,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 7,
+          "checked": 7,
+          "unchecked": []
+        },
+        "ms": 17373
+      },
+      {
+        "id": "bmp-colon",
+        "rows_total": 6,
+        "read_ms": 3558,
+        "lines_numbers_right": 6,
+        "lines_exact": 1,
+        "lines_wrong": [],
+        "unreadable_marks": 0,
+        "explain_wall_ms": 7408,
+        "rows": [
+          {
+            "test": "Glucose",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "BUN",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Creatinine",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Calcium",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "Vitamin B12",
+            "truth": "unknown",
+            "got": "unknown",
+            "right": true
+          },
+          {
+            "test": "Magnesium",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          }
+        ],
+        "found": 6,
+        "right": 6,
+        "flags_truth": 3,
+        "flags_right": 3,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 5,
+          "checked": 5,
+          "unchecked": []
+        },
+        "ms": 7395
+      },
+      {
+        "id": "edge-cases",
+        "rows_total": 8,
+        "read_ms": 3265,
+        "lines_numbers_right": 8,
+        "lines_exact": 8,
+        "lines_wrong": [],
+        "unreadable_marks": 0,
+        "explain_wall_ms": 9367,
+        "rows": [
+          {
+            "test": "Urine Volume, 24 hour",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "High Sensitivity CRP",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "LDL Cholesterol, Direct",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "eGFR (CKD-EPI)",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          },
+          {
+            "test": "Bilirubin, Direct",
+            "truth": "unknown",
+            "got": "unknown",
+            "right": true
+          },
+          {
+            "test": "Uric Acid",
+            "truth": "high",
+            "got": "high",
+            "right": true
+          },
+          {
+            "test": "Base Excess",
+            "truth": "inside",
+            "got": "inside",
+            "right": true
+          },
+          {
+            "test": "HDL Cholesterol (High-density)",
+            "truth": "low",
+            "got": "low",
+            "right": true
+          }
+        ],
+        "found": 8,
+        "right": 8,
+        "flags_truth": 4,
+        "flags_right": 4,
+        "false_flags": 0,
+        "missed_flags": 0,
+        "dropped": 0,
+        "dropped_reasons": [],
+        "extra": [],
+        "coverage": {
+          "candidates": 8,
+          "checked": 8,
+          "unchecked": []
+        },
+        "ms": 9360
+      }
+    ]
+  }
+}

@@ -64,6 +64,16 @@ export function unexpectedNumbers(item: { plain_language: string; when?: string;
   return [...new Set(digitsInPlain.filter((n) => !allowed.has(n)))];
 }
 
+/**
+ * Stricter form for prep mode: digits AND English number words ("two", "twice") in the explanation must be in the
+ * quote (as digits or words). "Take four tablets" against "Take 2 tablets" is caught; "two" against "2" is fine.
+ * Number words in other languages are not read, so the second-model check still has to certify the explanation.
+ */
+export function unexpectedNumbersAnyForm(item: { plain_language: string; when?: string; source_quote: string }): string[] {
+  const allowed = new Set([...numbersIn(item.source_quote), ...numbersIn(item.when ?? "")]);
+  return numbersIn(item.plain_language).filter((n) => !allowed.has(n));
+}
+
 const ModelOutput = z.object({
   results: z.array(z.object({ id: z.string(), verdict: z.enum(["same", "different", "unclear"]), what_differs: z.string() })),
 });

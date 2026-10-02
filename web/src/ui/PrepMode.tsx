@@ -8,6 +8,7 @@ import { ASK_LABEL, PREP_KIND_LABEL, WHEN_REASON_TEXT } from "@/lib/prepTime";
 import { prepSpeechLines } from "@/lib/prepSpeech";
 import { SPEECH_LANG } from "@/lib/speechLang";
 import { SAMPLE_PREP, SAMPLE_PREP_LABEL } from "@/lib/samplePrep";
+import { EXPLAIN_NOTE, explainState, meaningItems, NO_MEANING, type MeaningState } from "@/lib/prepView";
 
 type Lang = (typeof LANGUAGES)[number];
 const noop = () => () => {};
@@ -16,6 +17,9 @@ const noop = () => () => {};
  * "Get ready for your procedure": a timeline of the prep steps in a clinic's paper. Every step quotes the paper,
  * and every day or time on the timeline comes from that step's own quote (our code, not the AI). Steps whose quote
  * says no time are listed under "Ask your clinic when". Read aloud uses the phone's own voice only.
+ *
+ * Fails closed: each step's headline is the paper's own quote. The AI's plain-words explanation appears only after
+ * the second-model meaning check (POST /api/meaning, the same one the care plan uses) certifies it.
  */
 export function PrepMode() {
   const [text, setText] = useState("");
@@ -25,6 +29,8 @@ export function PrepMode() {
   const [res, setRes] = useState<(PrepResponse & { language: Lang }) | null>(null);
   const [speaking, setSpeaking] = useState(false);
   const [voiceNote, setVoiceNote] = useState("");
+  const [meaning, setMeaning] = useState<MeaningState>(NO_MEANING);
+  const meaningFor = useRef<PrepResponse | null>(null);
   const run = useRef(0);
 
   function silence() {
@@ -38,16 +44,35 @@ export function PrepMode() {
 
   async function build() {
     silence(); setSpeaking(false); setVoiceNote("");
-    setBusy(true); setError(""); setRes(null);
+    setBusy(true); setError(""); setRes(null); setMeaning(NO_MEANING); meaningFor.current = null;
     try {
       const r = await fetch("/api/prep", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, language }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Something went wrong.");
       setRes({ ...j, language });
+      void check(j);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Second-model meaning check on every explanation. Until it answers, or if it flags, is unsure or fails, only the
+  // paper's words are shown (prepView.ts).
+  async function check(r: PrepResponse) {
+    const items = meaningItems(r);
+    meaningFor.current = r;
+    if (items.length === 0) { setMeaning({ status: "done", byId: {} }); return; }
+    setMeaning({ status: "loading", byId: {} });
+    try {
+      const resp = await fetch("/api/meaning", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items }) });
+      const j = await resp.json();
+      if (meaningFor.current !== r) return; // a newer paper was read meanwhile
+      if (!resp.ok || !Array.isArray(j.results)) throw new Error("check failed");
+      setMeaning({ status: "done", byId: Object.fromEntries((j.results as MeaningState["byId"][string][]).map((x) => [x.id, x])) });
+    } catch {
+      if (meaningFor.current === r) setMeaning({ status: "error", byId: {} });
     }
   }
 
@@ -58,7 +83,7 @@ export function PrepMode() {
     if (!("speechSynthesis" in window)) { setVoiceNote("This device can't read aloud. Try Print instead."); return; }
     silence();
     const me = run.current;
-    const lines = prepSpeechLines(res, res.language);
+    const lines = prepSpeechLines(res, res.language, meaning);
     let started = false;
     setSpeaking(true);
     setVoiceNote("Reading with your phone's voice.");
@@ -107,10 +132,10 @@ export function PrepMode() {
             <div className="min-w-0">
               <textarea data-lenis-prevent aria-label="Prep paper text"
                 className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 font-mono text-xs focus:border-teal"
-                placeholder="Paste your prep instructions here..." value={text} onChange={(e) => { setText(e.target.value); setRes(null); }} />
+                placeholder="Paste your prep instructions here..." value={text} onChange={(e) => { setText(e.target.value); setRes(null); setMeaning(NO_MEANING); meaningFor.current = null; }} />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint"
-                  onClick={() => { setText(SAMPLE_PREP); setRes(null); setError(""); }}>Use the sample prep paper</button>
+                  onClick={() => { setText(SAMPLE_PREP); setRes(null); setError(""); setMeaning(NO_MEANING); meaningFor.current = null; }}>Use the sample prep paper</button>
               </div>
               <p className="mt-2 text-xs text-ink/70">{SAMPLE_PREP_LABEL}. Nothing you paste here is stored.</p>
             </div>
@@ -157,7 +182,7 @@ export function PrepMode() {
                   {res.timeline.map((g) => (
                     <li key={g.slot}>
                       <h3 className="text-xl font-extrabold">{g.label}</h3>
-                      <ul className="mt-2 space-y-3">{g.steps.map((s) => <Step key={s.id} s={s} />)}</ul>
+                      <ul className="mt-2 space-y-3">{g.steps.map((s) => <Step key={s.id} s={s} meaning={meaning} />)}</ul>
                     </li>
                   ))}
                 </ol>
@@ -166,7 +191,7 @@ export function PrepMode() {
                   <div className="mt-8 rounded-2xl border-2 border-sun bg-paper p-4">
                     <h3 className="text-xl font-extrabold">{ASK_LABEL}</h3>
                     <p className="text-sm font-semibold text-ink/70">Your paper does not say a day and time for these. Ask your clinic before your procedure.</p>
-                    <ul className="mt-3 space-y-3">{res.ask.map((s) => <Step key={s.id} s={s} />)}</ul>
+                    <ul className="mt-3 space-y-3">{res.ask.map((s) => <Step key={s.id} s={s} meaning={meaning} />)}</ul>
                   </div>
                 )}
                 <p className="mt-4 text-xs text-ink/70">
@@ -177,47 +202,50 @@ export function PrepMode() {
           </div>
         </div>
       </div>
-      {res && <PrepSheet res={res} />}
+      {res && <PrepSheet res={res} meaning={meaning} />}
     </section>
   );
 }
 
-function Step({ s }: { s: PrepStep }) {
+function Step({ s, meaning }: { s: PrepStep; meaning: MeaningState }) {
+  const state = explainState(s, meaning);
   return (
     <li className="min-w-0 rounded-2xl border-2 border-ink/30 bg-paper p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="min-w-0 font-extrabold [overflow-wrap:anywhere]">{s.title}</p>
+        <span className="text-xs font-bold uppercase tracking-wide text-ink/70">Your paper says</span>
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-paper">{PREP_KIND_LABEL[s.kind]}</span>
       </div>
-      {s.explanation_hidden
-        ? <p className="mt-1 text-sm font-semibold">We hid the AI&apos;s explanation because it had a number your paper doesn&apos;t say. Read your paper&apos;s own words below.</p>
-        : <p className="mt-1 text-sm [overflow-wrap:anywhere]">{s.plain_language}</p>}
+      <p className="mt-1 border-l-4 border-sun pl-2 font-extrabold [overflow-wrap:anywhere]">{s.source_quote}</p>
       {s.slot && s.when_words.length > 0 && (
-        <p className="mt-1 text-sm font-semibold">When, in your paper&apos;s words: {s.when_words.map((w) => `"${w}"`).join(", ")}</p>
+        <p className="mt-2 text-sm font-semibold">When, in your paper&apos;s words: {s.when_words.map((w) => `"${w}"`).join(", ")}</p>
       )}
       {!s.slot && s.reason !== "placed" && (
-        <p className="mt-1 text-sm font-semibold">
+        <p className="mt-2 text-sm font-semibold">
           {WHEN_REASON_TEXT[s.reason]}{s.when_words.length > 0 ? ` It says: ${s.when_words.map((w) => `"${w}"`).join(", ")}.` : ""}
         </p>
       )}
-      <p className="mt-2 border-l-4 border-sun pl-2 font-mono text-xs [overflow-wrap:anywhere]">
-        <span className="sr-only">From your paper: </span>{s.source_quote}
-      </p>
+      {state === "certified" && (
+        <p className="mt-2 text-sm [overflow-wrap:anywhere]">
+          <span className="font-bold">In plain words (double-checked against your paper):</span> {s.plain_language}
+        </p>
+      )}
+      {state !== "certified" && state !== "none" && (
+        <p className="mt-2 text-xs font-semibold text-ink/70">{EXPLAIN_NOTE[state]}</p>
+      )}
     </li>
   );
 }
 
 /** Large-type print copy of the timeline, rendered into <body> and shown only while printing it (globals.css). */
-function PrepSheet({ res }: { res: PrepResponse & { language: Lang } }) {
+function PrepSheet({ res, meaning }: { res: PrepResponse & { language: Lang }; meaning: MeaningState }) {
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   if (!mounted) return null;
   const line = (s: PrepStep) => (
     <li key={s.id}>
       <span className="box" />
       <div>
-        <p><b>{s.title}</b></p>
-        {s.plain_language && <p>{s.plain_language}</p>}
-        <p className="quote">{s.source_quote}</p>
+        <p><b>{s.source_quote}</b></p>
+        {explainState(s, meaning) === "certified" && <p>In plain words: {s.plain_language}</p>}
       </div>
     </li>
   );

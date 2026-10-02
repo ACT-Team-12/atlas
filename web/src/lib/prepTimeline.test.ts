@@ -3,9 +3,11 @@ import { buildPrepTimeline, PrepRequestSchema, withinOneLine, type PrepModelItem
 import { prepSpeechLines } from "./prepSpeech";
 import { SAMPLE_PREP, SAMPLE_PREP_LABEL } from "./samplePrep";
 import { PREP_PLANT_KINDS, PREP_TRUTH, prepPlants, runPrepPlantedTest } from "./prepPlanted";
+import { explainState, meaningItems, shownExplanation, type MeaningState } from "./prepView";
+import { combine } from "./meaning";
 
 const item = (over: Partial<PrepModelItem>): PrepModelItem => ({
-  kind: "medicine", title: "Iron", plain_language: "Stop iron 7 days before.", source_quote: "Stop taking iron pills and fish oil 7 days before your procedure.", ai_slot: "days_before", ...over,
+  kind: "medicine", plain_language: "Stop iron 7 days before.", source_quote: "Stop taking iron pills and fish oil 7 days before your procedure.", ai_slot: "days_before", ...over,
 });
 
 describe("buildPrepTimeline", () => {
@@ -13,7 +15,7 @@ describe("buildPrepTimeline", () => {
     const r = buildPrepTimeline(SAMPLE_PREP, [item({})]);
     expect(r.timeline).toHaveLength(1);
     expect(r.timeline[0].slot).toBe("days_before");
-    expect(r.timeline[0].steps[0]).toMatchObject({ when_words: ["7 days before your procedure"], reason: "placed", explanation_hidden: false });
+    expect(r.timeline[0].steps[0]).toMatchObject({ when_words: ["7 days before your procedure"], reason: "placed", numbers_blocked: false });
     expect(r.stats).toMatchObject({ extracted: 1, verified: 1, held_back: 0, placed: 1, ask: 0, ai_slot_overridden: 0 });
   });
 
@@ -46,22 +48,25 @@ describe("buildPrepTimeline", () => {
     expect(r.ask[0]).toMatchObject({ slot: null, reason: "multi_line" });
   });
 
-  it("hides the AI's explanation when it has a number the quote doesn't", () => {
+  it("blocks the AI's explanation when it has a number the quote doesn't", () => {
     const r = buildPrepTimeline(SAMPLE_PREP, [item({ plain_language: "Stop iron 5 days before." })]);
     const s = r.timeline[0].steps[0];
-    expect(s.explanation_hidden).toBe(true);
+    expect(s.numbers_blocked).toBe(true);
     expect(s.plain_language).toBe("");
-    expect(s.title).toBe("Medicine");
     expect(s.source_quote).toContain("7 days before"); // the paper's own words are still shown
-    expect(r.stats.explanations_hidden).toBe(1);
+    expect(r.stats.numbers_blocked).toBe(1);
   });
 
-  it("a number in the title counts too", () => {
-    expect(buildPrepTimeline(SAMPLE_PREP, [item({ title: "Stop iron 3 days early" })]).timeline[0].steps[0].explanation_hidden).toBe(true);
+  it("Codex review: number WORDS count too", () => {
+    const blocked = (plain: string) => buildPrepTimeline(SAMPLE_PREP, [item({ plain_language: plain })]).timeline[0].steps[0].numbers_blocked;
+    expect(blocked("Stop iron three days before.")).toBe(true);
+    expect(blocked("Stop iron twice.")).toBe(true);
+    expect(blocked("Stop iron seven days before.")).toBe(false); // "seven" is the paper's 7
+    expect(blocked("Stop iron 7 days before.")).toBe(false);
   });
 
   it("orders groups by time and steps by their place in the paper", () => {
-    const r = buildPrepTimeline(SAMPLE_PREP, [...PREP_TRUTH].reverse().map((t) => item({ kind: t.kind, plain_language: t.plain, source_quote: t.quote, title: t.kind })));
+    const r = buildPrepTimeline(SAMPLE_PREP, [...PREP_TRUTH].reverse().map((t) => item({ kind: t.kind, plain_language: t.plain, source_quote: t.quote })));
     expect(r.timeline.map((g) => g.slot)).toEqual(["days_before", "day_before", "evening_before", "hours_before", "morning_of", "arrival", "after"]);
     const firstGroup = r.timeline[0].steps.map((s) => s.source_quote);
     expect(firstGroup[0]).toMatch(/^Stop taking iron/);
@@ -75,7 +80,7 @@ describe("buildPrepTimeline", () => {
 });
 
 describe("prepSpeechLines (phone voice)", () => {
-  const r = buildPrepTimeline(SAMPLE_PREP, PREP_TRUTH.map((t) => item({ kind: t.kind, plain_language: t.plain, source_quote: t.quote, title: t.kind })));
+  const r = buildPrepTimeline(SAMPLE_PREP, PREP_TRUTH.map((t) => item({ kind: t.kind, plain_language: t.plain, source_quote: t.quote })));
   it("English: each group starts with its label, steps numbered in order", () => {
     const lines = prepSpeechLines(r, "English");
     expect(lines[0]).toBe("Days before.");
@@ -157,5 +162,49 @@ describe("Codex review: Unicode line separators", () => {
   it("refuses a span outside the paper", () => {
     expect(withinOneLine("abc", { start: 0, end: 9 })).toBe(false);
     expect(withinOneLine("abc", { start: 2, end: 1 })).toBe(false);
+  });
+});
+
+describe("Codex review: the explanation fails closed (negation reversal)", () => {
+  const insulin = "If you take insulin, do not take it the morning of your procedure unless your doctor told you to.";
+  const r = buildPrepTimeline(SAMPLE_PREP, [item({ source_quote: insulin, plain_language: "Take insulin that morning.", ai_slot: "morning_of" })]);
+  const s = r.timeline[0].steps[0];
+
+  it("the headline is the paper's own quote, never the AI's words", () => {
+    expect(s.source_quote).toBe(insulin);
+    expect(Object.keys(s)).not.toContain("title");
+  });
+
+  it("the reversed explanation passes the number check (no numbers), so only the meaning check can stop it", () => {
+    expect(s.numbers_blocked).toBe(false);
+  });
+
+  it("is not shown while checking, after a failed check, when flagged, unclear, or not returned", () => {
+    const states: MeaningState[] = [
+      { status: "idle", byId: {} },
+      { status: "loading", byId: {} },
+      { status: "error", byId: {} },
+      { status: "done", byId: {} },
+      { status: "done", byId: { [s.id]: combine(s.id, { id: s.id, plain_language: s.plain_language, when: "", source_quote: insulin }, "different", 'paper says "do not take it" but explanation says "take insulin"') } },
+      { status: "done", byId: { [s.id]: combine(s.id, { id: s.id, plain_language: s.plain_language, when: "", source_quote: insulin }, "unclear", "") } },
+    ];
+    expect(states.map((m) => explainState(s, m))).toEqual(["checking", "checking", "check_failed", "unclear", "flagged", "unclear"]);
+    for (const m of states) expect(shownExplanation(s, m)).toBeNull();
+  });
+
+  it("is shown only when the meaning check certified it", () => {
+    const ok: MeaningState = { status: "done", byId: { [s.id]: combine(s.id, { id: s.id, plain_language: s.plain_language, when: "", source_quote: insulin }, "same", "") } };
+    expect(explainState(s, ok)).toBe("certified");
+    expect(shownExplanation(s, ok)).toBe("Take insulin that morning.");
+  });
+
+  it("a blocked explanation is never sent to the meaning check and never shown", () => {
+    const b = buildPrepTimeline(SAMPLE_PREP, [item({ plain_language: "Stop iron 5 days before." })]);
+    expect(meaningItems(b)).toEqual([]);
+    expect(explainState(b.timeline[0].steps[0], { status: "done", byId: {} })).toBe("numbers");
+  });
+
+  it("sends every unblocked explanation with its quote and time words", () => {
+    expect(meaningItems(r)).toEqual([{ id: s.id, plain_language: "Take insulin that morning.", when: "the morning of your procedure", source_quote: insulin }]);
   });
 });

@@ -278,6 +278,7 @@ export default async function TestsPage() {
             )}
             <ul className="mt-6 max-w-[46em] space-y-2 text-sm font-semibold list-disc pl-5">
               <li>This tests our code, not the AI. How well the AI finds every step on a real prep paper has not been measured yet.</li>
+              <li>For a reversed explanation (&quot;do not take insulin&quot; explained as &quot;take insulin&quot;), this checks that the explanation stays hidden until the second-model check certifies it, and that the step&apos;s headline is the paper&apos;s own words. Whether that second model notices the reversal needs the AI and is not counted here.</li>
               <li>One sample paper, written by our team, in English. Our time reader knows English time words only, so on a paper in another language every step goes under &quot;ask your clinic&quot;.</li>
             </ul>
           </div>

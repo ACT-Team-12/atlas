@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { LANGUAGES } from "./schema";
 import { findSpan } from "./verify";
-import { unexpectedNumbers } from "./meaning";
-import { LINE_BREAK, PREP_KINDS, PREP_KIND_LABEL, readWhen, SLOTS, SLOT_LABEL, type PrepKind, type Slot, type WhenReason } from "./prepTime";
+import { unexpectedNumbersAnyForm } from "./meaning";
+import { LINE_BREAK, PREP_KINDS, readWhen, SLOTS, SLOT_LABEL, type PrepKind, type Slot, type WhenReason } from "./prepTime";
 
 /**
  * "Get ready for your procedure" (prep mode). Asked for by a Registered Nurse at a specialist practice on Oct 2:
@@ -12,7 +12,9 @@ import { LINE_BREAK, PREP_KINDS, PREP_KIND_LABEL, readWhen, SLOTS, SLOT_LABEL, t
  * The AI reads the prep paper and lists each instruction with a word-for-word quote. Our code then:
  * 1. checks every quote is in the paper (findSpan); anything it can't find is held back and counted, never shown;
  * 2. places each kept step on the timeline from the time words in its own quote (prepTime.ts), never from the AI;
- * 3. hides the AI's explanation when it has a number the quote doesn't (the paper's words are still shown).
+ * 3. makes the paper's own quote the step's headline. The AI's plain-words explanation is never the headline. It is
+ *    blocked here when it has a number (digits or English number words) the quote doesn't, and otherwise the page
+ *    shows it only after the second-model meaning check (meaning.ts, /api/meaning) certifies it (prepView.ts).
  *
  * Nothing here calls the network, so it is unit tested and used by the planted-mistake test on /tests.
  */
@@ -26,10 +28,9 @@ export type PrepRequest = z.infer<typeof PrepRequestSchema>;
 /** What the AI returns for each instruction. `ai_slot` is its guess of when; our code records it and never uses it to place a step. */
 export const PrepModelItem = z.object({
   kind: z.enum(PREP_KINDS),
-  title: z.string(),
   plain_language: z.string(),
   source_quote: z.string(),
-  ai_slot: z.enum([...SLOTS, "not_stated"]),
+  ai_slot: z.enum([...SLOTS, "not_stated"] as const),
 });
 export const PrepModelOutput = z.object({ items: z.array(PrepModelItem) });
 export type PrepModelItem = z.infer<typeof PrepModelItem>;
@@ -37,11 +38,15 @@ export type PrepModelItem = z.infer<typeof PrepModelItem>;
 export type PrepStep = {
   id: string;
   kind: PrepKind;
-  title: string;
-  /** Empty when the explanation was hidden (it had a number the quote doesn't). */
-  plain_language: string;
-  explanation_hidden: boolean;
+  /** The paper's own words: the step's headline. */
   source_quote: string;
+  /**
+   * The AI's plain-words explanation, NOT yet checked. Empty when blocked for numbers. The page must not show it
+   * until the meaning check certifies it (see explainState in prepView.ts).
+   */
+  plain_language: string;
+  /** True when the explanation had a number the quote doesn't, so it was dropped here and never sent on. */
+  numbers_blocked: boolean;
   /** The time words from the quote that placed it, as written in the paper. */
   when_words: string[];
   slot: Slot | null;
@@ -56,7 +61,8 @@ export type PrepResponse = {
     extracted: number; verified: number; held_back: number; placed: number; ask: number;
     /** Kept steps where the AI's guess of when differs from what the quote says. Our code used the quote. */
     ai_slot_overridden: number;
-    explanations_hidden: number;
+    /** Explanations dropped here because of a number the quote doesn't have. */
+    numbers_blocked: number;
   };
   model: string;
   ms: number;
@@ -90,15 +96,14 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[]): Omit<
     const multiLine = !withinOneLine(source, span);
     const when = readWhen(quote, multiLine);
     if ((it.ai_slot === "not_stated" ? null : it.ai_slot) !== when.slot) overridden++;
-    const title = clip(it.title, 160);
     const plain = clip(it.plain_language, 600);
-    // A number in the AI's words that the paper's line doesn't have (a changed time, dose or count) hides the explanation.
-    const hide = unexpectedNumbers({ plain_language: `${title} ${plain}`, source_quote: quote }).length > 0;
+    // A number in the AI's words (digits or "two", "twice") that the paper's line doesn't have blocks the explanation.
+    const blocked = plain !== "" && unexpectedNumbersAnyForm({ plain_language: plain, source_quote: quote }).length > 0;
     kept.push({
       at: span.start,
       step: {
-        id: `prep-${i}`, kind: it.kind, title: hide ? PREP_KIND_LABEL[it.kind] : title, plain_language: hide ? "" : plain,
-        explanation_hidden: hide, source_quote: quote, when_words: when.words, slot: when.slot, reason: when.reason,
+        id: `prep-${i}`, kind: it.kind, source_quote: quote, plain_language: blocked ? "" : plain, numbers_blocked: blocked,
+        when_words: when.words, slot: when.slot, reason: when.reason,
       },
     });
   });
@@ -114,7 +119,7 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[]): Omit<
     stats: {
       extracted: Math.min(items.length, MAX_ITEMS), verified: steps.length, held_back: heldKinds.length,
       placed: steps.length - ask.length, ask: ask.length, ai_slot_overridden: overridden,
-      explanations_hidden: steps.filter((s) => s.explanation_hidden).length,
+      numbers_blocked: steps.filter((s) => s.numbers_blocked).length,
     },
   };
 }

@@ -1,6 +1,8 @@
 import { SAMPLE_PREP } from "./samplePrep";
 import { buildPrepTimeline, type PrepModelItem } from "./prepTimeline";
 import { SLOTS, SLOT_LABEL, type PrepKind, type Slot } from "./prepTime";
+import { shownExplanation, type MeaningState } from "./prepView";
+import type { MeaningResult } from "./meaning";
 
 /**
  * Planted-mistake test for prep mode (no AI involved, recomputed on every load of /tests).
@@ -9,7 +11,11 @@ import { SLOTS, SLOT_LABEL, type PrepKind, type Slot } from "./prepTime";
  * would give: each instruction, its exact line, and the slot a person reading that line would put it in (or "ask"
  * when the line itself doesn't say when). Then we plant the mistakes a wrong AI could make: claiming a wrong time,
  * changing or adding time words in the quote, inventing a step, borrowing the time from the next line, cutting the
- * time words off the quote, and changing a number in the explanation. Our code must catch each one.
+ * time words off the quote, changing a number (digits or words) in the explanation, and reversing what the explanation
+ * says ("do not take insulin" explained as "take insulin"). Our code must catch each one.
+ *
+ * What this does NOT test: whether the second model (the meaning check) notices a reversal. That needs the AI. It
+ * tests our gate: an explanation is never shown unless that check certified it, and the headline is the paper's words.
  */
 
 export type PrepTruth = { kind: PrepKind; quote: string; plain: string; truth: Slot | "ask" };
@@ -34,7 +40,7 @@ export const PREP_TRUTH: PrepTruth[] = [
 ];
 
 const asModel = (t: PrepTruth, over: Partial<PrepModelItem> = {}): PrepModelItem => ({
-  kind: t.kind, title: t.kind, plain_language: t.plain, source_quote: t.quote, ai_slot: t.truth === "ask" ? "not_stated" : t.truth, ...over,
+  kind: t.kind, plain_language: t.plain, source_quote: t.quote, ai_slot: t.truth === "ask" ? "not_stated" : t.truth, ...over,
 });
 
 /** Swaps the first time phrase for a different one, so the quote no longer matches the paper. */
@@ -48,11 +54,37 @@ const TIME_SWAPS: [RegExp, string][] = [
 export const PREP_PLANT_KINDS = [
   "wrong time claimed", "untimed step given a time", "time words changed in the quote", "time words added to the quote",
   "invented step", "time borrowed from the next line", "time words cut off the quote", "number changed in the explanation",
+  "number word changed in the explanation", "meaning reversed in the explanation",
 ] as const;
+
+/** Explanations that say the opposite of their line. Digits match, so only the meaning check could catch these. */
+const REVERSALS: [string, string][] = [
+  ["do not take it the morning of", "Take your insulin that morning."],
+  ["Do not eat or drink anything after midnight", "After midnight, you can eat and drink."],
+  ["do not eat nuts", "From 3 days before, eat nuts, seeds, popcorn and raw vegetables."],
+  ["Do not drive, work", "For the rest of that day, you can drive and work."],
+  ["Stop drinking all liquids", "Keep drinking liquids in the last 2 hours."],
+  ["An adult must drive you home", "You can drive yourself home."],
+];
+const WORDS = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+
+/** Every state of the meaning check except "certified". In each one the explanation must stay hidden. */
+function uncertifiedStates(id: string): MeaningState[] {
+  const r = (over: Partial<MeaningResult>): MeaningResult => ({ id, flagged: false, numbers_ok: true, unexpected_numbers: [], model_verdict: "unclear", what_differs: "", certified: false, ...over });
+  return [
+    { status: "idle", byId: {} },
+    { status: "loading", byId: {} },
+    { status: "error", byId: {} },
+    { status: "done", byId: {} },
+    { status: "done", byId: { [id]: r({ model_verdict: "different", flagged: true, what_differs: "reversed" }) } },
+    { status: "done", byId: { [id]: r({}) } },
+  ];
+}
+const certifiedState = (id: string): MeaningState => ({ status: "done", byId: { [id]: { id, flagged: false, numbers_ok: true, unexpected_numbers: [], model_verdict: "same", what_differs: "", certified: true } } });
 type PlantKind = (typeof PREP_PLANT_KINDS)[number];
 
 /** "held back": the step must not be shown. "not placed": shown, but under Ask your clinic when (or held back). "placed right": in its true slot. "explanation hidden". */
-type Expect = "held back" | "not placed" | "placed right" | "explanation hidden";
+type Expect = "held back" | "not placed" | "placed right" | "explanation hidden" | "shown only if certified";
 type Plant = { kind: PlantKind; expect: Expect; item: PrepModelItem; truth: Slot | "ask"; what: string };
 
 export function prepPlants(paper = SAMPLE_PREP, truth = PREP_TRUTH): Plant[] {
@@ -95,13 +127,22 @@ export function prepPlants(paper = SAMPLE_PREP, truth = PREP_TRUTH): Plant[] {
     // The quote is right, but the AI's explanation says a different number than the line.
     const num = t.plain.match(/\d+/);
     if (num) p("number changed in the explanation", "explanation hidden", { plain_language: t.plain.replace(num[0], String(Number(num[0]) + 4)) }, `${num[0]} changed to ${Number(num[0]) + 4} in the explanation`);
+
+    // The same, written as a word ("one" in place of 7). Words are read too.
+    const quoteNums = new Set(t.quote.match(/\d+/g) ?? []);
+    const word = WORDS.find((_w, k) => !quoteNums.has(String(k + 1)));
+    if (num && word) p("number word changed in the explanation", "explanation hidden", { plain_language: t.plain.replace(num[0], word) }, `${num[0]} changed to "${word}" in the explanation`);
+
+    // The explanation says the opposite of the line. Its numbers still match, so our number check can't see it.
+    const rev = REVERSALS.find(([q]) => t.quote.includes(q));
+    if (rev) p("meaning reversed in the explanation", "shown only if certified", { plain_language: rev[1] }, `"${short}" explained as "${rev[1]}"`);
   });
   for (const [quote, slot] of [
     ["Take 2 aspirin the morning of your procedure.", "morning_of"],
     ["Stop all of your medicines 3 days before your procedure.", "days_before"],
     ["Arrive at 5:30 AM at the main hospital entrance.", "arrival"],
   ] as const) {
-    out.push({ kind: "invented step", expect: "held back", truth: slot, what: `"${quote}" is not in the paper`, item: { kind: "medicine", title: "Invented", plain_language: quote, source_quote: quote, ai_slot: slot } });
+    out.push({ kind: "invented step", expect: "held back", truth: slot, what: `"${quote}" is not in the paper`, item: { kind: "medicine", plain_language: quote, source_quote: quote, ai_slot: slot } });
   }
   return out;
 }
@@ -119,13 +160,13 @@ export type PrepPlantedReport = {
 export function runPrepPlantedTest(paper = SAMPLE_PREP, truth = PREP_TRUTH): PrepPlantedReport {
   const rep: PrepPlantedReport = { real: { total: 0, right: 0, wrong: [] }, planted: { total: 0, caught: 0, byKind: {}, slipped: [], examples: {} } };
 
-  // The correct answer, all at once: every step kept, in its true slot, with its explanation shown.
+  // The correct answer, all at once: every step kept, in its true slot, its explanation shown once certified.
   const real = buildPrepTimeline(paper, truth.map((t) => asModel(t)));
   const all = [...real.timeline.flatMap((g) => g.steps), ...real.ask];
   truth.forEach((t) => {
     rep.real.total++;
     const s = all.find((x) => x.source_quote === t.quote);
-    const got = !s ? "held back" : s.explanation_hidden ? "explanation hidden" : (s.slot ?? "ask");
+    const got = !s ? "held back" : shownExplanation(s, certifiedState(s.id)) !== t.plain ? "explanation not shown when certified" : (s.slot ?? "ask");
     if (got === t.truth) rep.real.right++;
     else rep.real.wrong.push({ quote: t.quote, truth: t.truth, got });
   });
@@ -134,12 +175,15 @@ export function runPrepPlantedTest(paper = SAMPLE_PREP, truth = PREP_TRUTH): Pre
   for (const pl of prepPlants(paper, truth)) {
     const res = buildPrepTimeline(paper, [pl.item]);
     const s = res.timeline[0]?.steps[0] ?? res.ask[0];
-    const got = !s ? "held back" : s.explanation_hidden ? `explanation hidden, ${s.slot ?? "ask"}` : (s.slot ?? "ask");
+    const neverShownUncertified = !!s && uncertifiedStates(s.id).every((m) => shownExplanation(s, m) === null);
+    const got = !s ? "held back" : s.numbers_blocked ? `explanation blocked, ${s.slot ?? "ask"}` : neverShownUncertified ? (s.slot ?? "ask") : "explanation shown without certification";
     const ok =
       pl.expect === "held back" ? !s :
       pl.expect === "not placed" ? !s || s.slot === null :
       pl.expect === "placed right" ? !!s && s.slot === pl.truth :
-      !!s && s.explanation_hidden && s.plain_language === "";
+      pl.expect === "explanation hidden" ? !!s && s.numbers_blocked && s.plain_language === "" && shownExplanation(s, certifiedState(s.id)) === null :
+      // The headline is the paper's own words, and the explanation never shows until certified.
+      !!s && s.source_quote === pl.item.source_quote.trim() && neverShownUncertified;
     const k = (rep.planted.byKind[pl.kind] ??= { total: 0, caught: 0 });
     rep.planted.total++; k.total++;
     rep.planted.examples[pl.kind] ??= pl.what;

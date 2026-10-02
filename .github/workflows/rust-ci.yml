@@ -1,0 +1,54 @@
+name: rust-ci
+on:
+  push:
+    paths:
+      - "core/**"
+      - "web/src/lib/verify.ts"
+      - "web/src/lib/checkerTest.ts"
+      - "web/src/lib/sample.ts"
+      - "web/src/lib/sampleLabs.ts"
+      - "web/src/data/eval/**"
+      - ".github/workflows/rust-ci.yml"
+  pull_request:
+    paths:
+      - "core/**"
+      - "web/src/lib/verify.ts"
+      - "web/src/lib/checkerTest.ts"
+      - "web/src/lib/sample.ts"
+      - "web/src/lib/sampleLabs.ts"
+      - "web/src/data/eval/**"
+      - ".github/workflows/rust-ci.yml"
+concurrency:
+  group: rust-ci-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+  cancel-in-progress: true
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core/atlas-verify
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core/atlas-verify
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo clippy --lib --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo test
+      # The committed package must agree with the TS checker, not just a fresh build.
+      - name: Parity (committed pkg)
+        run: ./parity.sh --wasm pkg/atlas_verify.wasm --out "$RUNNER_TEMP/parity-committed.json"
+      - run: ./build-wasm.sh
+      - name: Parity (fresh build)
+        run: ./parity.sh
+      - run: node js/demo.mjs
+      # parity.json is deterministic, so a stale committed result fails here.
+      - run: git diff --exit-code -- parity.json

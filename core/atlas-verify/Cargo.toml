@@ -1,0 +1,23 @@
+[package]
+name = "atlas-verify"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "ATLAS quote checker: proves every quoted step is really in the patient's paper. Rust port of web/src/lib/verify.ts and the pure part of web/src/lib/checkerTest.ts."
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# None on purpose: the WebAssembly build has no imports and no generated glue.
+
+[dev-dependencies]
+serde_json = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

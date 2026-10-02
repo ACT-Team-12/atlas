@@ -17,7 +17,7 @@ import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
 import { restoredTab, shownTab, type Tab } from "@/lib/phoneTabs";
-import { canMakeSimpler } from "@/lib/simpler";
+import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
 
 const KIND: Record<string, { label: string; cls: string }> = {
@@ -428,7 +428,9 @@ export function CarePlanTool() {
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
   const flow = { hasCare: !!care, hasPlan: !!plan };
-  const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0 });
+  // The person changed our reading of their photo. Accepting or re-reading the old text would silently drop their fix.
+  const transcriptEdited = !!care && isTranscriptEdited(transcript, care.source_text);
+  const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0, transcriptEdited });
   const shown = shownTab(tab, flow);
   // Phones: one step card at a time. Hidden cards stay mounted (state, timers and requests carry on).
   const panel = (t: Tab) => ({
@@ -509,8 +511,16 @@ export function CarePlanTool() {
                 <button type="button" className="rounded-full bg-ink text-paper px-4 py-2 disabled:opacity-40"
                   disabled={reading || (transcript ?? care.source_text).trim().length < 20 || transcript === care.source_text}
                   onClick={() => readPaper(transcript ?? care.source_text)}>Use my corrected text</button>
-                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>It matches my paper</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint disabled:opacity-40"
+                  disabled={transcriptEdited} aria-describedby={transcriptEdited ? "photo-edited" : undefined}
+                  onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>It matches my paper</button>
+                {transcriptEdited && (
+                  <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => setTranscript(care.source_text)}>Undo my changes</button>
+                )}
               </div>
+              {transcriptEdited && (
+                <p id="photo-edited" className="mt-2 text-sm font-bold text-ink/70">You changed the text, so use your corrected text, or undo your changes.</p>
+              )}
             </div>
           )}
 

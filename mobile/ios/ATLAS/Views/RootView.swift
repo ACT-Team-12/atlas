@@ -15,6 +15,7 @@ struct RootView: View {
                     case .barriers: BarriersView()
                     case .plan: PlanView()
                     case .reminders: RemindersListView()
+                    case .labs: LabResultsView()
                     }
                 }
                 .toolbar {
@@ -46,7 +47,7 @@ struct BusyOverlay: View {
         switch model.busy {
         case .recognizing: ("Reading your photo on this phone...", "The photo stays on your phone.")
         case .reading: ("Reading your paper...", "Finding each step and checking it against your paper. This takes 10 to 25 seconds.")
-        case .planning: ("Building your plan...", "Matching your steps with verified Atlanta clinics and programs. This takes 10 to 25 seconds.")
+        case .planning: ("Building your plan...", "Matching your steps with verified clinics and programs near you. This takes 10 to 25 seconds.")
         case nil: ("", "")
         }
     }

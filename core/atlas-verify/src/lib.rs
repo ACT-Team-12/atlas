@@ -91,11 +91,21 @@ const SPACE: u16 = 0x20;
 
 /// `normalizeWithMap` from verify.ts: the normalized source as UTF-16 units, plus for each unit the original
 /// [start, end) in UTF-16 units. Walked one code point at a time, so a letter outside the BMP is lower-cased, and a
-/// letter that lower-cases to two units (U+0130 becomes `i` + U+0307) gets an entry for each.
-fn normalize_with_map(src: &str) -> (Vec<u16>, Vec<usize>, Vec<usize>) {
+/// letter that lower-cases to two units (U+0130 becomes `i` + U+0307) gets an entry for each. `boundary[k]` is true
+/// when normalized position k is where one source character's output begins (or the end), so a match can be required
+/// to start and end between source characters, never inside one character's expansion.
+struct Mapped {
+    norm: Vec<u16>,
+    starts: Vec<usize>,
+    ends: Vec<usize>,
+    boundary: Vec<bool>,
+}
+
+fn normalize_with_map(src: &str) -> Mapped {
     let mut norm: Vec<u16> = Vec::with_capacity(src.len());
     let mut starts: Vec<usize> = Vec::with_capacity(src.len());
     let mut ends: Vec<usize> = Vec::with_capacity(src.len());
+    let mut boundary: Vec<bool> = Vec::with_capacity(src.len() + 1);
     let mut last_space = true;
     let mut buf = [0u8; 4];
     let mut i = 0;
@@ -118,12 +128,14 @@ fn normalize_with_map(src: &str) -> (Vec<u16>, Vec<usize>, Vec<usize>) {
         };
         if c == [SPACE] {
             if !last_space {
+                mark(&mut boundary, norm.len());
                 norm.push(SPACE);
                 starts.push(i);
                 ends.push(next);
                 last_space = true;
             }
         } else {
+            mark(&mut boundary, norm.len());
             for &u in &c {
                 norm.push(u);
                 starts.push(i);
@@ -137,7 +149,20 @@ fn normalize_with_map(src: &str) -> (Vec<u16>, Vec<usize>, Vec<usize>) {
     while norm.last() == Some(&SPACE) {
         norm.pop();
     }
-    (norm, starts, ends)
+    mark(&mut boundary, norm.len());
+    Mapped {
+        norm,
+        starts,
+        ends,
+        boundary,
+    }
+}
+
+fn mark(boundary: &mut Vec<bool>, at: usize) {
+    if boundary.len() <= at {
+        boundary.resize(at + 1, false);
+    }
+    boundary[at] = true;
 }
 
 fn trim_quote_marks(f: &str) -> &str {
@@ -205,12 +230,23 @@ pub fn find_span(source: &str, quote: &str) -> Option<Span> {
     if frags.is_empty() {
         return None;
     }
-    let (norm, starts, ends) = normalize_with_map(source);
+    let Mapped {
+        norm,
+        starts,
+        ends,
+        boundary,
+    } = normalize_with_map(source);
+    let on_boundary = |k: usize| boundary.get(k).copied().unwrap_or(false);
     let mut cursor = 0;
     let mut first: Option<usize> = None;
     let mut last_end = 0;
     for f in &frags {
-        let at = index_of(&norm, f, cursor)?;
+        // The first occurrence that starts AND ends between source characters; one inside a case expansion is
+        // skipped and the search goes on past it.
+        let mut at = index_of(&norm, f, cursor)?;
+        while !(on_boundary(at) && on_boundary(at + f.len())) {
+            at = index_of(&norm, f, at + 1)?;
+        }
         if first.is_none() {
             first = Some(at);
         }

@@ -26,11 +26,14 @@ export function normalize(s: string): string {
  * Builds a normalized copy plus, for every normalized UTF-16 unit, the original [start, end) it came from.
  * The source is walked one CODE POINT at a time, so a letter outside the BMP is lower-cased like any other, and a
  * letter that lower-cases to two units ("İ" becomes "i" + U+0307) gets an entry for each, keeping later offsets right.
+ * `boundary[k]` is true when normalized position k is where one source character's output begins (or the end), so a
+ * match can be required to start and end between source characters, never inside one character's expansion.
  */
-function normalizeWithMap(src: string): { norm: string; starts: number[]; ends: number[] } {
+function normalizeWithMap(src: string): { norm: string; starts: number[]; ends: number[]; boundary: boolean[] } {
   let norm = "";
   const starts: number[] = [];
   const ends: number[] = [];
+  const boundary: boolean[] = [];
   let lastSpace = true;
   let i = 0;
   for (const ch of src) {
@@ -38,12 +41,14 @@ function normalizeWithMap(src: string): { norm: string; starts: number[]; ends: 
     const next = i + ch.length;
     if (c === " ") {
       if (!lastSpace) {
+        boundary[norm.length] = true;
         norm += " ";
         starts.push(i);
         ends.push(next);
         lastSpace = true;
       }
     } else {
+      boundary[norm.length] = true;
       norm += c;
       for (let k = 0; k < c.length; k++) {
         starts.push(i);
@@ -53,7 +58,9 @@ function normalizeWithMap(src: string): { norm: string; starts: number[]; ends: 
     }
     i = next;
   }
-  return { norm: norm.trimEnd(), starts, ends };
+  const trimmed = norm.trimEnd();
+  boundary[trimmed.length] = true;
+  return { norm: trimmed, starts, ends, boundary };
 }
 
 /**
@@ -73,12 +80,15 @@ function fragments(quote: string): string[] {
 export function findSpan(source: string, quote: string): { start: number; end: number } | null {
   const frags = fragments(quote);
   if (frags.length === 0) return null;
-  const { norm, starts, ends } = normalizeWithMap(source);
+  const { norm, starts, ends, boundary } = normalizeWithMap(source);
   let cursor = 0;
   let first = -1;
   let lastEnd = -1;
   for (const f of frags) {
-    const at = norm.indexOf(f, cursor);
+    // The first occurrence that starts AND ends between source characters; an occurrence inside a case expansion
+    // (e.g. starting at the U+0307 that "İ" lower-cases into) is skipped, and the search goes on past it.
+    let at = norm.indexOf(f, cursor);
+    while (at >= 0 && !(boundary[at] && boundary[at + f.length])) at = norm.indexOf(f, at + 1);
     if (at < 0) return null;
     if (first < 0) first = at;
     lastEnd = at + f.length;

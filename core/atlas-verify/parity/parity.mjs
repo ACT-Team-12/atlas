@@ -135,6 +135,11 @@ A("\u039f\u0394\u039f\u03a3 \u039a\u0391\u0399", "\u03bf\u03b4\u03bf\u03c3", "Gr
 A("\u03bf\u03b4\u03bf\u03c2 \u03ba\u03b1\u03b9", "\u039f\u0394\u039f\u03a3", "Greek lowercase final sigma in source, capitals in quote");
 A("\u03a3\u03a3 \u03b4\u03cc\u03c3\u03b7", "\u03c3\u03c2 \u03b4\u03cc\u03c3\u03b7", "Greek sigma pair");
 A("\u{1D400}\u{10400} x", "\u{1D400}\u{10428} x", "math bold A (no case) next to a Deseret capital");
+A("Dose İ 5 mg", "̇ 5 mg", "match starting inside the U+0130 expansion (must refuse)");
+A("Dose İ 5 mg", "Dose i", "match ending inside the U+0130 expansion (must refuse)");
+A("İlaç", "̇laç", "word starting inside the U+0130 expansion (must refuse)");
+A("İ 5 mg, then ̇ 5 mg", "̇ 5 mg", "unaligned occurrence first, aligned one later");
+A("Dose İ 5 mg", "İ 5 MG", "whole U+0130 on both sides");
 A("\u{10400}\u{10401} dose", "\u{10428}\u{10429} dose", "Deseret capitals in source, small letters in quote");
 A("\u{10400}\u{10401} dose", "\u{10400}\u{10401} dose", "Deseret capitals on both sides");
 A("take 1 tablet. take 1 tablet. take 1 tablet.", "take 1 tablet", "repeated substring");
@@ -266,12 +271,15 @@ const MUST = [
   ["Take 1 tablet by mouth daily.", "Take 1 tablet ... daily", true],
   ["\u039f\u0394\u039f\u03a3 \u039a\u0391\u0399", "\u039f\u0394\u039f\u03a3", true],
   ["\u{10400}\u{10401} dose", "\u{10400}\u{10401} dose", true],
+  ["Dose İ 5 mg", "̇ 5 mg", false],
+  ["Dose İ 5 mg", "Dose i", false],
 ];
 // Exact spans that must hold in both (the U+0130 map shift used to break these).
 const MUST_SPAN = [
   ["\u0130la\u00e7 g\u00fcnde iki kez", "g\u00fcnde iki kez", 5, 18],
   ["\u0130\u0130\u0130 abc", "abc", 4, 7],
   ["\u0130 take 1 tablet daily with food", "take 1 tablet", 2, 15],
+  ["\u0130 5 mg, then \u0307 5 mg", "\u0307 5 mg", 13, 19],
 ];
 for (const [src, q, s0, e0] of MUST_SPAN) {
   for (const [name, impl] of [["ts", ts], ["rust", rust]]) {

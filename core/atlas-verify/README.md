@@ -54,6 +54,13 @@ The port copies JS behaviour, including the parts that look odd:
 None of these could make the checker accept a quote that is not in the paper. They refused or mis-highlighted
 quotes that are.
 
+4. **Matches could begin or end inside one character's case expansion** (found by review after fix 1). Every unit
+   of `"İ"`'s two-unit expansion maps to the same source character, so `"Dose İ 5 mg"` accepted the quote
+   `"̇ 5 mg"` (a quote that is not in the paper) and highlighted `"İ 5 mg"`, and `"Dose i"` was accepted as
+   `"Dose İ"`. The mapper now records where each source character's output begins, and a fragment is accepted only
+   when it starts and ends on such a boundary; the search continues past unaligned occurrences. An oracle test
+   (TS and Rust) checks that every highlighted slice normalizes to exactly the fragment it matched.
+
 Known input class the two cannot be compared on: a JS string with a lone surrogate. Rust `&str` cannot hold one and
 `TextEncoder` turns it into U+FFFD at the WebAssembly boundary. The parity corpus does not include them.
 
@@ -66,7 +73,7 @@ No `pnpm install` is needed: the parity script imports the web app's TypeScript 
 
 ```sh
 cd core/atlas-verify
-cargo test                 # unit tests (19), reading the web app's own fixtures
+cargo test                 # unit tests (22), reading the web app's own fixtures
 ./build-wasm.sh            # builds pkg/atlas_verify.wasm
 ./parity.sh                # TS vs WebAssembly on the full corpus, writes parity.json, exits 1 on any mismatch
 node js/demo.mjs           # loads the package in Node and checks one real quote and one planted fake
@@ -78,10 +85,10 @@ From `parity.json`, produced by `./parity.sh` on Node 22.23.2 and Rust 1.99.0:
 
 | | |
 |---|---|
-| `findSpan` cases compared | 1,204 (853 found, 351 refused) |
-| Corpus | the 10 quotes in `verify.test.ts`, every line of both sample papers (against itself and the other), the 6 eval papers' answer keys on the original and on two harder copies (a prefix of `İ`, an emoji and Amharic; every space as a no-break space), distractors, all 77 TS-generated planted fakes, 4 invented instructions, cross-paper quotes, 179 lab-report quotes, 71 hand-written adversarial cases, 600 seeded fuzz cases (seed 20261002) |
-| `normalize` compared | 1,083 distinct strings |
-| `fakesFor` compared | 1,083 distinct strings, plus 3,012 seeded high-precision decimals as `take <x> mg` |
+| `findSpan` cases compared | 1,209 (855 found, 354 refused) |
+| Corpus | the 10 quotes in `verify.test.ts`, every line of both sample papers (against itself and the other), the 6 eval papers' answer keys on the original and on two harder copies (a prefix of `İ`, an emoji and Amharic; every space as a no-break space), distractors, all 77 TS-generated planted fakes, 4 invented instructions, cross-paper quotes, 179 lab-report quotes, 76 hand-written adversarial cases, 600 seeded fuzz cases (seed 20261002) |
+| `normalize` compared | 1,090 distinct strings |
+| `fakesFor` compared | 1,090 distinct strings, plus 3,012 seeded high-precision decimals as `take <x> mg` |
 | Mismatches | **0** |
 | Full checker report (`runCheckerTest`) | identical: 6 papers, 38 of 38 real instructions accepted, 101 of 101 planted fakes caught, 0 slipped |
 | Cases with a non-numeric offset | 0 (was 2 before the U+0130 fix) |

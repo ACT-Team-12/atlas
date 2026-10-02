@@ -1,0 +1,1813 @@
+{
+  "generated_at": "2026-10-01",
+  "area": "DeKalb and Fulton counties, Georgia",
+  "sliding_fee_fact": {
+    "statement": "Every HRSA-funded health center must adjust fees based on income and family size and serve everyone, even if they cannot pay.",
+    "evidence": [
+      {
+        "quote": "Adjust their fees based on income and family size",
+        "url": "https://bphc.hrsa.gov/about-health-center-program/what-health-center",
+        "quote_verified_live": null
+      },
+      {
+        "quote": "Serve everyone, even if they cannot pay",
+        "url": "https://bphc.hrsa.gov/about-health-center-program/what-health-center",
+        "quote_verified_live": null
+      },
+      {
+        "quote": "A health center's sliding fee discount program consists of the schedule of discounts that is applied to the fee schedule and adjusts fees based on the patient's ability to pay.",
+        "url": "https://bphc.hrsa.gov/compliance/compliance-manual/chapter9",
+        "quote_verified_live": null
+      }
+    ],
+    "scope_note": "Stated by HRSA for Health Center Program health centers; not a per-site claim. Look-alike sites are flagged in health_center_type."
+  },
+  "sources": [
+    {
+      "id": "hrsa-sites",
+      "name": "HRSA Health Center Service Delivery and Look-Alike Sites (CSV)",
+      "url": "https://data.hrsa.gov/DataDownload/DD_Files/Health_Center_Service_Delivery_and_LookAlike_Sites.csv",
+      "retrieved": "2026-10-01",
+      "notes": "Listed on https://data.hrsa.gov/data/download. Snapshot date(s) in file: ['10/01/2026']. Filter: GA, county in DeKalb/Fulton, Active, Permanent or Seasonal, not Administrative-only. Counts: {\"ga_dekalb_fulton_rows\": 53, \"active\": 53, \"dropped_mobile_van\": 9, \"dropped_admin_only\": 1, \"dropped_duplicate_site_listings\": 2}."
+    },
+    {
+      "id": "hrsa-sliding-fee",
+      "name": "HRSA: What is a Health Center? / Compliance Manual Ch. 9 Sliding Fee Discount Program",
+      "url": "https://bphc.hrsa.gov/about-health-center-program/what-health-center",
+      "retrieved": "2026-10-01",
+      "notes": "Dataset-level fact backing the cost/insurance barrier tags on every clinic. See sliding_fee_fact."
+    },
+    {
+      "id": "marta-gtfs",
+      "name": "MARTA GTFS static feed (google_transit.zip)",
+      "url": "https://itsmarta.com/google_transit_feed/google_transit.zip",
+      "retrieved": "2026-10-01",
+      "notes": "Linked from https://itsmarta.com/app-developer-resources.aspx (page states Effective Date 8/22/2026). calendar.txt service 20260822 to 20261211. Rail = stops served by route_type 1 (81 platform stops); bus = route_type 3 (6918). Distances are straight-line haversine metres, not walking distance."
+    },
+    {
+      "id": "united-way-211",
+      "name": "United Way of Greater Atlanta 211",
+      "url": "https://unitedwayatlanta.org/about-211/",
+      "retrieved": "2026-10-01",
+      "notes": "Official page; verbatim quote in programs[]."
+    },
+    {
+      "id": "marta-mobility",
+      "name": "MARTA Mobility (ADA paratransit)",
+      "url": "https://itsmarta.com/MARTA-Mobility.aspx",
+      "retrieved": "2026-10-01",
+      "notes": "Official page; verbatim quote in programs[]."
+    },
+    {
+      "id": "marta-language-line",
+      "name": "MARTA information in another language or accessible format",
+      "url": "https://itsmarta.com/MARTA-Mobility.aspx",
+      "retrieved": "2026-10-01",
+      "notes": "Official page; verbatim quote in programs[]."
+    },
+    {
+      "id": "marta-reduced-fare",
+      "name": "MARTA Reduced Fare Program",
+      "url": "https://itsmarta.com/reduced-fare-program.aspx",
+      "retrieved": "2026-10-01",
+      "notes": "Official page; verbatim quote in programs[]."
+    },
+    {
+      "id": "georgia-gateway",
+      "name": "Georgia Gateway (apply for Medicaid, SNAP, WIC, TANF)",
+      "url": "https://gateway.ga.gov/access/",
+      "retrieved": "2026-10-01",
+      "notes": "Official page; verbatim quote in programs[]."
+    },
+    {
+      "id": "georgia-medicaid-apply",
+      "name": "Georgia Medicaid: how to apply",
+      "url": "https://medicaid.georgia.gov/how-apply",
+      "retrieved": "2026-10-01",
+      "notes": "Official page; verbatim quote in programs[]."
+    },
+    {
+      "id": "grady-financial-assistance",
+      "name": "Grady Health System Financial Assistance Program",
+      "url": "https://www.gradyhealth.org/financial-assistance-program/",
+      "retrieved": "2026-10-01",
+      "notes": "Official page; verbatim quote in programs[]."
+    },
+    {
+      "id": "acfb-food-map",
+      "name": "Atlanta Community Food Bank food pantry map and Text for Help",
+      "url": "https://www.acfb.org/get-help/",
+      "retrieved": "2026-10-01",
+      "notes": "Official page; verbatim quote in programs[]."
+    },
+    {
+      "id": "acfb-benefits-help",
+      "name": "Atlanta Community Food Bank help applying for SNAP and Medicaid",
+      "url": "https://www.acfb.org/get-help/",
+      "retrieved": "2026-10-01",
+      "notes": "Official page; verbatim quote in programs[]."
+    },
+    {
+      "id": "lifeline",
+      "name": "Lifeline phone and internet discount (federal, USAC/FCC)",
+      "url": "https://www.lifelinesupport.org/",
+      "retrieved": "2026-10-01",
+      "notes": "Official page; verbatim quote in programs[]."
+    }
+  ],
+  "clinics": [
+    {
+      "id": "hrsa-ethne-health-dental-30021",
+      "name": "Ethne Health - Dental",
+      "org": "ETHNE HEALTH, INC",
+      "address": "4122 E Ponce de Leon Ave, Ste 5",
+      "city": "Clarkston",
+      "zip": "30021",
+      "county": "DeKalb",
+      "phone": "470-799-0044",
+      "website": "https://www.ethnehealth.org",
+      "lat": 33.807574,
+      "lng": -84.241264,
+      "hours_per_week": 28.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-042327",
+      "nearest_rail": {
+        "name": "Kensington Station",
+        "stop_id": "908709",
+        "meters": 3999
+      },
+      "nearest_bus": {
+        "name": "E Ponce De Leon Ave @ N Indian Creek Dr",
+        "stop_id": "904168",
+        "meters": 36
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-ethne-health-main-30021",
+      "name": "Ethne Health - Main",
+      "org": "ETHNE HEALTH, INC",
+      "address": "980 Rowland St, Ste 4190",
+      "city": "Clarkston",
+      "zip": "30021",
+      "county": "DeKalb",
+      "phone": "470-799-0044",
+      "website": "https://www.ethnehealth.org",
+      "lat": 33.807298,
+      "lng": -84.239945,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-042265",
+      "nearest_rail": {
+        "name": "Kensington Station",
+        "stop_id": "908634",
+        "meters": 4001
+      },
+      "nearest_bus": {
+        "name": "E Ponce De Leon Ave @ N Indian Creek Dr",
+        "stop_id": "904168",
+        "meters": 130
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-candler-30032",
+      "name": "MedCura Candler",
+      "org": "MEDCURA HEALTH INC",
+      "address": "1760 Candler Rd",
+      "city": "Decatur",
+      "zip": "30032",
+      "county": "DeKalb",
+      "phone": "404-298-8998",
+      "website": "https://www.medcura.org",
+      "lat": 33.739766,
+      "lng": -84.287791,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-004332",
+      "nearest_rail": {
+        "name": "East Lake Station",
+        "stop_id": "908566",
+        "meters": 3665
+      },
+      "nearest_bus": {
+        "name": "Candler Rd @ Glenwood Rd",
+        "stop_id": "106118",
+        "meters": 58
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-clarkston-30021",
+      "name": "MedCura Clarkston",
+      "org": "MEDCURA HEALTH INC",
+      "address": "4112 E Ponce de Leon Ave",
+      "city": "Clarkston",
+      "zip": "30021",
+      "county": "DeKalb",
+      "phone": "404-296-7133",
+      "website": "https://medcura.org",
+      "lat": 33.807425,
+      "lng": -84.241906,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-036387",
+      "nearest_rail": {
+        "name": "Kensington Station",
+        "stop_id": "908709",
+        "meters": 3969
+      },
+      "nearest_bus": {
+        "name": "E Ponce De Leon Ave @ N Indian Creek Dr",
+        "stop_id": "905613",
+        "meters": 51
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-decatur-30032",
+      "name": "MedCura Decatur",
+      "org": "MEDCURA HEALTH INC",
+      "address": "1706 Candler Rd",
+      "city": "Decatur",
+      "zip": "30032",
+      "county": "DeKalb",
+      "phone": "404-298-8998",
+      "website": "https://www.medcura.org",
+      "lat": 33.741285,
+      "lng": -84.2886,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-031462",
+      "nearest_rail": {
+        "name": "East Lake Station",
+        "stop_id": "908566",
+        "meters": 3487
+      },
+      "nearest_bus": {
+        "name": "Candler Rd @ Eastwood Dr",
+        "stop_id": "106120",
+        "meters": 70
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-doraville-30340",
+      "name": "MedCura Doraville",
+      "org": "MEDCURA HEALTH INC",
+      "address": "3630 Shallowford Rd NE",
+      "city": "Atlanta",
+      "zip": "30340",
+      "county": "DeKalb",
+      "phone": "404-298-8998",
+      "website": "https://medcura.org/",
+      "lat": 33.89595,
+      "lng": -84.286652,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "School",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-033536",
+      "nearest_rail": {
+        "name": "Doraville Station",
+        "stop_id": "908862",
+        "meters": 879
+      },
+      "nearest_bus": {
+        "name": "Buford Hwy Ne @ 5200",
+        "stop_id": "905876",
+        "meters": 332
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-health-inc-30083",
+      "name": "MedCura Health, Inc.",
+      "org": "MEDCURA HEALTH INC",
+      "address": "5582 Memorial Dr",
+      "city": "Stone Mountain",
+      "zip": "30083",
+      "county": "DeKalb",
+      "phone": "404-298-8998",
+      "website": "https://www.medcura.org",
+      "lat": 33.801605,
+      "lng": -84.209696,
+      "hours_per_week": 64.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-011386",
+      "nearest_rail": {
+        "name": "Indian Creek Station",
+        "stop_id": "908515",
+        "meters": 3952
+      },
+      "nearest_bus": {
+        "name": "Memorial Dr @ 5582",
+        "stop_id": "212839",
+        "meters": 71
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-hillandale-30058",
+      "name": "MedCura Hillandale",
+      "org": "MEDCURA HEALTH INC",
+      "address": "5910 Hillandale Dr",
+      "city": "Lithonia",
+      "zip": "30058",
+      "county": "DeKalb",
+      "phone": "404-298-3250",
+      "website": "https://www.medcura.org",
+      "lat": 33.705551,
+      "lng": -84.148474,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-021830",
+      "nearest_rail": {
+        "name": "Indian Creek Station",
+        "stop_id": "908515",
+        "meters": 10317
+      },
+      "nearest_bus": {
+        "name": "Emory Hillandale Hospital (5910)",
+        "stop_id": "133136",
+        "meters": 58
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-lithonia-30058",
+      "name": "MedCura Lithonia",
+      "org": "MEDCURA HEALTH INC",
+      "address": "5424 Hillandale Park Ct, Suite A",
+      "city": "Lithonia",
+      "zip": "30058",
+      "county": "DeKalb",
+      "phone": "404-296-7133",
+      "website": "https://medcura.org",
+      "lat": 33.705481,
+      "lng": -84.167831,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-036409",
+      "nearest_rail": {
+        "name": "Indian Creek Station",
+        "stop_id": "908515",
+        "meters": 9118
+      },
+      "nearest_bus": {
+        "name": "Panola Rd @ Hillandale Park Ct",
+        "stop_id": "133038",
+        "meters": 175
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-mcnair-30032",
+      "name": "MedCura McNair",
+      "org": "MEDCURA HEALTH INC",
+      "address": "2162 Second Ave",
+      "city": "Decatur",
+      "zip": "30032",
+      "county": "DeKalb",
+      "phone": "404-298-8998",
+      "website": "https://www.medcura.org",
+      "lat": 33.727232,
+      "lng": -84.306801,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "School",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-037404",
+      "nearest_rail": {
+        "name": "East Lake Station",
+        "stop_id": "908566",
+        "meters": 4264
+      },
+      "nearest_bus": {
+        "name": "2Nd Ave @ Longdale Dr",
+        "stop_id": "129182",
+        "meters": 170
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-northlake-30345",
+      "name": "MedCura Northlake",
+      "org": "MEDCURA HEALTH INC",
+      "address": "2295 Parklake Dr NE, Suite 500",
+      "city": "Atlanta",
+      "zip": "30345",
+      "county": "DeKalb",
+      "phone": "404-298-8998",
+      "website": "https://www.medcura.org",
+      "lat": 33.852088,
+      "lng": -84.248161,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-019025",
+      "nearest_rail": {
+        "name": "Doraville Station",
+        "stop_id": "908862",
+        "meters": 6371
+      },
+      "nearest_bus": {
+        "name": "Northlake Pkwy @ 3421",
+        "stop_id": "900295",
+        "meters": 123
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-whitefoord-30317",
+      "name": "MedCura Whitefoord",
+      "org": "MEDCURA HEALTH INC",
+      "address": "1401 Hosea L Williams Dr SE",
+      "city": "Atlanta",
+      "zip": "30317",
+      "county": "DeKalb",
+      "phone": "404-298-8998",
+      "website": "",
+      "lat": 33.753082,
+      "lng": -84.341861,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-041338",
+      "nearest_rail": {
+        "name": "Edgewood-Candler Park Station",
+        "stop_id": "908476",
+        "meters": 974
+      },
+      "nearest_bus": {
+        "name": "Moreland Ave Se @ Hosea L Williams Dr Ne",
+        "stop_id": "117129",
+        "meters": 678
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-whitefoord-dental-30317",
+      "name": "MedCura Whitefoord (Dental)",
+      "org": "MEDCURA HEALTH INC",
+      "address": "35 Whitefoord Ave SE",
+      "city": "Atlanta",
+      "zip": "30317",
+      "county": "DeKalb",
+      "phone": "404-298-8998",
+      "website": "",
+      "lat": 33.75297,
+      "lng": -84.342423,
+      "hours_per_week": 32.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-041337",
+      "nearest_rail": {
+        "name": "Edgewood-Candler Park Station",
+        "stop_id": "908476",
+        "meters": 993
+      },
+      "nearest_bus": {
+        "name": "Moreland Ave Se @ Hosea L Williams Dr Ne",
+        "stop_id": "117129",
+        "meters": 627
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-mercy-care-chamblee-30341",
+      "name": "Mercy Care Chamblee",
+      "org": "SAINT JOSEPH'S MERCY CARE SERVICES, INC.",
+      "address": "5134 Peachtree Rd",
+      "city": "Atlanta",
+      "zip": "30341",
+      "county": "DeKalb",
+      "phone": "678-872-7100",
+      "website": "https://www.mercyatlanta.org",
+      "lat": 33.887065,
+      "lng": -84.30969,
+      "hours_per_week": 52.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-018825",
+      "nearest_rail": {
+        "name": "Chamblee Station",
+        "stop_id": "908604",
+        "meters": 311
+      },
+      "nearest_bus": {
+        "name": "Chamblee Tucker @ Peachtree Rd",
+        "stop_id": "905709",
+        "meters": 146
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-mercy-care-at-chris-180-30316",
+      "name": "Mercy Care at CHRIS 180",
+      "org": "SAINT JOSEPH'S MERCY CARE SERVICES, INC.",
+      "address": "1030 Fayetteville Rd SE",
+      "city": "Atlanta",
+      "zip": "30316",
+      "county": "DeKalb",
+      "phone": "404-486-9034",
+      "website": "https://www.mercyatlanta.org",
+      "lat": 33.726819,
+      "lng": -84.320293,
+      "hours_per_week": 17.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-030225",
+      "nearest_rail": {
+        "name": "East Lake Station",
+        "stop_id": "908567",
+        "meters": 4314
+      },
+      "nearest_bus": {
+        "name": "Flat Shoals Rd @ 2051",
+        "stop_id": "128130",
+        "meters": 215
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-recovery-consultants-of-atlanta-medical-30035",
+      "name": "Recovery Consultants of Atlanta Medical",
+      "org": "RECOVERY CONSULTANTS OF ATLANTA, INCORPORATED",
+      "address": "4229 Snapfinger Woods Dr",
+      "city": "Decatur",
+      "zip": "30035",
+      "county": "DeKalb",
+      "phone": "404-286-9252",
+      "website": "https://www.recoveryconsultants.org",
+      "lat": 33.71442,
+      "lng": -84.21768,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-017655",
+      "nearest_rail": {
+        "name": "Indian Creek Station",
+        "stop_id": "908515",
+        "meters": 6251
+      },
+      "nearest_bus": {
+        "name": "Snapfinger Woods Dr @ Wesley Chapel Rd",
+        "stop_id": "131144",
+        "meters": 90
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-recovery-consultants-tucker-30084",
+      "name": "Recovery Consultants: Tucker",
+      "org": "RECOVERY CONSULTANTS OF ATLANTA, INCORPORATED",
+      "address": "1957 Lakeside Pkwy, Suite 510",
+      "city": "Tucker",
+      "zip": "30084",
+      "county": "DeKalb",
+      "phone": "404-289-0313",
+      "website": "https://www.recoveryconsultants.org",
+      "lat": 33.840581,
+      "lng": -84.238683,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-036484",
+      "nearest_rail": {
+        "name": "Kensington Station",
+        "stop_id": "908709",
+        "meters": 7643
+      },
+      "nearest_bus": {
+        "name": "Northlake Pkwy @ Lawrenceville Hwy",
+        "stop_id": "212919",
+        "meters": 230
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-southside-medical-center-gresham-clinic-30316",
+      "name": "SOUTHSIDE MEDICAL CENTER - Gresham Clinic",
+      "org": "SOUTHSIDE MEDICAL CENTER, INC.",
+      "address": "2578 Gresham Rd SE",
+      "city": "Atlanta",
+      "zip": "30316",
+      "county": "DeKalb",
+      "phone": "404-241-2336",
+      "website": "https://www.smcmed.com",
+      "lat": 33.712702,
+      "lng": -84.309981,
+      "hours_per_week": 42.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-003794",
+      "nearest_rail": {
+        "name": "East Lake Station",
+        "stop_id": "908567",
+        "meters": 5846
+      },
+      "nearest_bus": {
+        "name": "Gresham Rd Se @ Welland Ave Se",
+        "stop_id": "212896",
+        "meters": 97
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-care-center-at-dobbs-elementary-30315",
+      "name": "Care Center at Dobbs Elementary",
+      "org": "SOUTHSIDE MEDICAL CENTER, INC.",
+      "address": "2025 Jonesboro Rd SE",
+      "city": "Atlanta",
+      "zip": "30315",
+      "county": "Fulton",
+      "phone": "404-564-7030",
+      "website": "",
+      "lat": 33.69829,
+      "lng": -84.372486,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "School",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-027590",
+      "nearest_rail": {
+        "name": "Lakewood-Ft Mcpherson Station",
+        "stop_id": "908629",
+        "meters": 5215
+      },
+      "nearest_bus": {
+        "name": "Jonesboro Rd @ Merrilyn Dr Se",
+        "stop_id": "214124",
+        "meters": 122
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-heal-hollis-innovation-academy-30314",
+      "name": "HEAL @ Hollis Innovation Academy",
+      "org": "HEALTH EDUCATION, ASSESSMENT AND LEADERSHIP, INC. (\"H.E.A.L.,INC.\")",
+      "address": "225 Griffin St NW",
+      "city": "Atlanta",
+      "zip": "30314",
+      "county": "Fulton",
+      "phone": "404-481-3794",
+      "website": "",
+      "lat": 33.760842,
+      "lng": -84.410939,
+      "hours_per_week": 8.0,
+      "location_type": "Seasonal",
+      "site_type": "Service Delivery Site",
+      "setting": "School",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-022141",
+      "nearest_rail": {
+        "name": "Ashby Station",
+        "stop_id": "908963",
+        "meters": 757
+      },
+      "nearest_bus": {
+        "name": "Joseph E Boone Blvd Nw @ Griffin St Nw",
+        "stop_id": "901355",
+        "meters": 269
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-healing-community-center-30331",
+      "name": "HEALing Community Center",
+      "org": "HEALTH EDUCATION, ASSESSMENT AND LEADERSHIP, INC. (\"H.E.A.L.,INC.\")",
+      "address": "3915 Cascade Rd SW, Suite T-90",
+      "city": "Atlanta",
+      "zip": "30331",
+      "county": "Fulton",
+      "phone": "404-564-7749",
+      "website": "https://healatlanta.org",
+      "lat": 33.726632,
+      "lng": -84.516246,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Administrative/Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-034073",
+      "nearest_rail": {
+        "name": "Hamilton E Holmes Station",
+        "stop_id": "907907",
+        "meters": 5295
+      },
+      "nearest_bus": {
+        "name": "Cascade Rd Sw @ Beracah Walk",
+        "stop_id": "903347",
+        "meters": 84
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-healing-community-center-abernathy-30310",
+      "name": "Healing Community Center - Abernathy",
+      "org": "HEALTH EDUCATION, ASSESSMENT AND LEADERSHIP, INC. (\"H.E.A.L.,INC.\")",
+      "address": "1188 Ralph David Abernathy Blvd SW",
+      "city": "Atlanta",
+      "zip": "30310",
+      "county": "Fulton",
+      "phone": "404-564-7749",
+      "website": "",
+      "lat": 33.738513,
+      "lng": -84.426917,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-035113",
+      "nearest_rail": {
+        "name": "West End Station",
+        "stop_id": "908704",
+        "meters": 1246
+      },
+      "nearest_bus": {
+        "name": "Ralph D Abernathy Blvd Sw @ Holderness St",
+        "stop_id": "113076",
+        "meters": 12
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-buckhead-30309",
+      "name": "MedCura Buckhead",
+      "org": "MEDCURA HEALTH INC",
+      "address": "2140 Peachtree Rd NW, Suite 232",
+      "city": "Atlanta",
+      "zip": "30309",
+      "county": "Fulton",
+      "phone": "404-298-8998",
+      "website": "https://www.medcura.org",
+      "lat": 33.813015,
+      "lng": -84.393808,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-034177",
+      "nearest_rail": {
+        "name": "Lindbergh Center Station",
+        "stop_id": "908054",
+        "meters": 2536
+      },
+      "nearest_bus": {
+        "name": "Peachtree Rd Nw @ Bennett St Nw",
+        "stop_id": "902451",
+        "meters": 128
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-midtown-30308",
+      "name": "MedCura Midtown",
+      "org": "MEDCURA HEALTH INC",
+      "address": "550 Peachtree St NE",
+      "city": "Atlanta",
+      "zip": "30308",
+      "county": "Fulton",
+      "phone": "404-888-7575",
+      "website": "https://www.medcura.org",
+      "lat": 33.769292,
+      "lng": -84.385541,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-017462",
+      "nearest_rail": {
+        "name": "North Avenue Station",
+        "stop_id": "907913",
+        "meters": 290
+      },
+      "nearest_bus": {
+        "name": "Peachtree St @ Renaissance Pkwy Ne",
+        "stop_id": "600055",
+        "meters": 94
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-medcura-whitefoord-kipp-woodson-park-30318",
+      "name": "MedCura Whitefoord (Kipp Woodson Park)",
+      "org": "MEDCURA HEALTH INC",
+      "address": "1571 Donald Lee Hollowell Pkwy NW",
+      "city": "Atlanta",
+      "zip": "30318",
+      "county": "Fulton",
+      "phone": "404-298-8998",
+      "website": "",
+      "lat": 33.77213,
+      "lng": -84.439437,
+      "hours_per_week": 35.0,
+      "location_type": "Seasonal",
+      "site_type": "Service Delivery Site",
+      "setting": "School",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-041339",
+      "nearest_rail": {
+        "name": "Bankhead Station",
+        "stop_id": "907961",
+        "meters": 974
+      },
+      "nearest_bus": {
+        "name": "Donald L Hollowell Pkwy @ Elmwood Rd Nw",
+        "stop_id": "904506",
+        "meters": 58
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-mercy-care-decatur-street-30312",
+      "name": "Mercy Care Decatur Street",
+      "org": "SAINT JOSEPH'S MERCY CARE SERVICES, INC.",
+      "address": "424 Decatur St SE",
+      "city": "Atlanta",
+      "zip": "30312",
+      "county": "Fulton",
+      "phone": "678-843-8600",
+      "website": "https://www.mercyatlanta.org",
+      "lat": 33.751072,
+      "lng": -84.374484,
+      "hours_per_week": 50.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-000834",
+      "nearest_rail": {
+        "name": "King Memorial Station",
+        "stop_id": "908436",
+        "meters": 166
+      },
+      "nearest_bus": {
+        "name": "Jackson St Se @ Todd St Se",
+        "stop_id": "103190",
+        "meters": 88
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-mercy-care-at-city-of-refuge-30314",
+      "name": "Mercy Care at City of Refuge",
+      "org": "SAINT JOSEPH'S MERCY CARE SERVICES, INC.",
+      "address": "1300 Joseph E Boone Blvd NW",
+      "city": "Atlanta",
+      "zip": "30314",
+      "county": "Fulton",
+      "phone": "678-843-8500",
+      "website": "https://www.mercyatlanta.org",
+      "lat": 33.762046,
+      "lng": -84.430668,
+      "hours_per_week": 45.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-011547",
+      "nearest_rail": {
+        "name": "Bankhead Station",
+        "stop_id": "907960",
+        "meters": 1137
+      },
+      "nearest_bus": {
+        "name": "Joseph E Boone Blvd Nw @ Burbank Dr Nw",
+        "stop_id": "905154",
+        "meters": 176
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-mercy-care-at-gateway-center-30303",
+      "name": "Mercy Care at Gateway Center",
+      "org": "SAINT JOSEPH'S MERCY CARE SERVICES, INC.",
+      "address": "275 Pryor St SW",
+      "city": "Atlanta",
+      "zip": "30303",
+      "county": "Fulton",
+      "phone": "404-880-3719",
+      "website": "https://www.mercyatlanta.org",
+      "lat": 33.747631,
+      "lng": -84.394516,
+      "hours_per_week": 42.5,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-004277",
+      "nearest_rail": {
+        "name": "Garnett Station",
+        "stop_id": "907843",
+        "meters": 164
+      },
+      "nearest_bus": {
+        "name": "Pryor St Sw @ Memorial Dr Sw",
+        "stop_id": "102026",
+        "meters": 50
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-mercy-care-at-salvation-army-30318",
+      "name": "Mercy Care at Salvation Army",
+      "org": "SAINT JOSEPH'S MERCY CARE SERVICES, INC.",
+      "address": "740 Marietta St NW",
+      "city": "Atlanta",
+      "zip": "30318",
+      "county": "Fulton",
+      "phone": "678-843-8600",
+      "website": "https://www.mercyatlanta.org",
+      "lat": 33.772867,
+      "lng": -84.40257,
+      "hours_per_week": 7.5,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-032758",
+      "nearest_rail": {
+        "name": "North Avenue Station",
+        "stop_id": "907913",
+        "meters": 1424
+      },
+      "nearest_bus": {
+        "name": "North Ave Nw @ Strong St Nw",
+        "stop_id": "904345",
+        "meters": 308
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-miles-elementary-school-30331",
+      "name": "Miles Elementary School",
+      "org": "HEALTH EDUCATION, ASSESSMENT AND LEADERSHIP, INC. (\"H.E.A.L.,INC.\")",
+      "address": "4215 Bakers Ferry Rd SW",
+      "city": "Atlanta",
+      "zip": "30331",
+      "county": "Fulton",
+      "phone": "404-564-7749",
+      "website": "",
+      "lat": 33.755667,
+      "lng": -84.525871,
+      "hours_per_week": 8.0,
+      "location_type": "Seasonal",
+      "site_type": "Service Delivery Site",
+      "setting": "School",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-018529",
+      "nearest_rail": {
+        "name": "Hamilton E Holmes Station",
+        "stop_id": "907907",
+        "meters": 5183
+      },
+      "nearest_bus": {
+        "name": "Bakers Ferry Rd Sw @ Cornia Ln",
+        "stop_id": "213891",
+        "meters": 243
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-southside-medical-center-east-point-clinic-30344",
+      "name": "SOUTHSIDE MEDICAL CENTER - East Point Clinic",
+      "org": "SOUTHSIDE MEDICAL CENTER, INC.",
+      "address": "1100 Cleveland Ave",
+      "city": "Atlanta",
+      "zip": "30344",
+      "county": "Fulton",
+      "phone": "404-627-1385",
+      "website": "https://www.smcmed.com",
+      "lat": 33.681097,
+      "lng": -84.42486,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-011209",
+      "nearest_rail": {
+        "name": "East Point Station",
+        "stop_id": "908628",
+        "meters": 1507
+      },
+      "nearest_bus": {
+        "name": "Cleveland Ave @ Blount St",
+        "stop_id": "158372",
+        "meters": 109
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-southside-medical-center-main-center-corporate-hq-30315",
+      "name": "SOUTHSIDE MEDICAL CENTER - Main Center / Corporate HQ",
+      "org": "SOUTHSIDE MEDICAL CENTER, INC.",
+      "address": "1046 Ridge Ave SW",
+      "city": "Atlanta",
+      "zip": "30315",
+      "county": "Fulton",
+      "phone": "404-688-1350",
+      "website": "https://www.smcmed.com",
+      "lat": 33.726319,
+      "lng": -84.391898,
+      "hours_per_week": 64.0,
+      "location_type": "Permanent",
+      "site_type": "Administrative/Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-003601",
+      "nearest_rail": {
+        "name": "West End Station",
+        "stop_id": "908705",
+        "meters": 2267
+      },
+      "nearest_bus": {
+        "name": "Ridge Ave Sw @ Pulliam St",
+        "stop_id": "125030",
+        "meters": 26
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-southside-medical-center-school-based-health-center-at-kipp-vision-30315",
+      "name": "Southside Medical Center School Based Health Center at Kipp Vision",
+      "org": "SOUTHSIDE MEDICAL CENTER, INC.",
+      "address": "660 McWilliams Rd SE",
+      "city": "Atlanta",
+      "zip": "30315",
+      "county": "Fulton",
+      "phone": "404-688-1350",
+      "website": "",
+      "lat": 33.689521,
+      "lng": -84.366354,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "School",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-032651",
+      "nearest_rail": {
+        "name": "Lakewood-Ft Mcpherson Station",
+        "stop_id": "908706",
+        "meters": 5906
+      },
+      "nearest_bus": {
+        "name": "Mcwilliams Rd Se @ 660",
+        "stop_id": "150024",
+        "meters": 93
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-the-family-health-center-at-west-end-30310",
+      "name": "THE FAMILY HEALTH CENTER AT WEST END",
+      "org": "FAMILY HEALTH CENTERS OF GEORGIA, INC., THE",
+      "address": "868 York Ave SW",
+      "city": "Atlanta",
+      "zip": "30310",
+      "county": "Fulton",
+      "phone": "404-752-1400",
+      "website": "https://fhcga.org",
+      "lat": 33.736723,
+      "lng": -84.416247,
+      "hours_per_week": 44.0,
+      "location_type": "Permanent",
+      "site_type": "Administrative/Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-005006",
+      "nearest_rail": {
+        "name": "West End Station",
+        "stop_id": "908704",
+        "meters": 241
+      },
+      "nearest_bus": {
+        "name": "Oglethorpe Ave @ Joseph E Lowery Blvd",
+        "stop_id": "113086",
+        "meters": 140
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-the-family-health-center-at-banneker-school-based-health-center-30349",
+      "name": "The Family Health Center at Banneker School-Based Health Center",
+      "org": "FAMILY HEALTH CENTERS OF GEORGIA, INC., THE",
+      "address": "6015 Feldwood Rd",
+      "city": "Atlanta",
+      "zip": "30349",
+      "county": "Fulton",
+      "phone": "470-254-3410",
+      "website": "https://fhcga.org",
+      "lat": 33.59293,
+      "lng": -84.51764,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "School",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-037337",
+      "nearest_rail": {
+        "name": "Airport Station",
+        "stop_id": "906837",
+        "meters": 8456
+      },
+      "nearest_bus": {
+        "name": "Flat Shoals Rd @ Shenfield Ln",
+        "stop_id": "210995",
+        "meters": 676
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-the-family-health-center-at-college-park-school-based-30337",
+      "name": "The Family Health Center at College Park School-Based",
+      "org": "FAMILY HEALTH CENTERS OF GEORGIA, INC., THE",
+      "address": "2075 Princeton Dr",
+      "city": "Atlanta",
+      "zip": "30337",
+      "county": "Fulton",
+      "phone": "678-568-3049",
+      "website": "https://fhcga.org",
+      "lat": 33.656598,
+      "lng": -84.45639,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "School",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-022251",
+      "nearest_rail": {
+        "name": "College Park Station",
+        "stop_id": "908599",
+        "meters": 980
+      },
+      "nearest_bus": {
+        "name": "Atlanta St @ Princeton Dr",
+        "stop_id": "166160",
+        "meters": 16
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-the-family-health-center-at-lake-forest-30328",
+      "name": "The Family Health Center at Lake Forest",
+      "org": "FAMILY HEALTH CENTERS OF GEORGIA, INC., THE",
+      "address": "5920 Sandy Springs Cir",
+      "city": "Atlanta",
+      "zip": "30328",
+      "county": "Fulton",
+      "phone": "470-254-0001",
+      "website": "https://fhcga.org",
+      "lat": 33.916716,
+      "lng": -84.385847,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "School",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-019456",
+      "nearest_rail": {
+        "name": "Medical Center Station",
+        "stop_id": "908872",
+        "meters": 3203
+      },
+      "nearest_bus": {
+        "name": "Roswell Rd Ne @ Cliftwood Dr Ne",
+        "stop_id": "906361",
+        "meters": 612
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-the-family-health-center-of-ga-dba-georgia-center-for-women-at-peachtree-30308",
+      "name": "The Family Health Center of GA dba Georgia Center for Women at Peachtree",
+      "org": "FAMILY HEALTH CENTERS OF GEORGIA, INC., THE",
+      "address": "550 Peachtree St NE",
+      "city": "Atlanta",
+      "zip": "30308",
+      "county": "Fulton",
+      "phone": "404-581-0307",
+      "website": "https://gacfw.com",
+      "lat": 33.769292,
+      "lng": -84.385541,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-036256",
+      "nearest_rail": {
+        "name": "North Avenue Station",
+        "stop_id": "907913",
+        "meters": 290
+      },
+      "nearest_bus": {
+        "name": "Peachtree St @ Renaissance Pkwy Ne",
+        "stop_id": "600055",
+        "meters": 94
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-the-family-health-centers-at-love-t-nolan-school-base-30349",
+      "name": "The Family Health Centers at Love T. Nolan School Base",
+      "org": "FAMILY HEALTH CENTERS OF GEORGIA, INC., THE",
+      "address": "2725 Creel Rd",
+      "city": "Atlanta",
+      "zip": "30349",
+      "county": "Fulton",
+      "phone": "470-254-7950",
+      "website": "https://fhcga.org",
+      "lat": 33.57237,
+      "lng": -84.48062,
+      "hours_per_week": 40.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "School",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-040731",
+      "nearest_rail": {
+        "name": "Airport Station",
+        "stop_id": "906837",
+        "meters": 8198
+      },
+      "nearest_bus": {
+        "name": "Creel Rd @ Greenbower Ln",
+        "stop_id": "214014",
+        "meters": 117
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-yourtown-health-30268",
+      "name": "YourTown Health",
+      "org": "PALMETTO HEALTH COUNCIL INC",
+      "address": "643 Main St",
+      "city": "Palmetto",
+      "zip": "30268",
+      "county": "Fulton",
+      "phone": "770-463-4644",
+      "website": "https://www.yourtownhealth.com",
+      "lat": 33.526279,
+      "lng": -84.663247,
+      "hours_per_week": 50.0,
+      "location_type": "Permanent",
+      "site_type": "Administrative/Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-009268",
+      "nearest_rail": {
+        "name": "Airport Station",
+        "stop_id": "906837",
+        "meters": 23770
+      },
+      "nearest_bus": {
+        "name": "Main St @ Griffith Dr",
+        "stop_id": "906397",
+        "meters": 35
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    },
+    {
+      "id": "hrsa-yourtown-health-quickcare-30268",
+      "name": "YourTown Health QuickCare",
+      "org": "PALMETTO HEALTH COUNCIL INC",
+      "address": "507 Park St",
+      "city": "Palmetto",
+      "zip": "30268",
+      "county": "Fulton",
+      "phone": "770-463-4644",
+      "website": "https://www.yourtownhealth.com",
+      "lat": 33.525388,
+      "lng": -84.665782,
+      "hours_per_week": 50.0,
+      "location_type": "Permanent",
+      "site_type": "Service Delivery Site",
+      "setting": "All Other Clinic Types",
+      "health_center_type": "Federally Qualified Health Center (FQHC)",
+      "bphc_site_id": "BPS-H80-027700",
+      "nearest_rail": {
+        "name": "Airport Station",
+        "stop_id": "906837",
+        "meters": 24021
+      },
+      "nearest_bus": {
+        "name": "Main St @ Park St",
+        "stop_id": "902719",
+        "meters": 109
+      },
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "source_id": "hrsa-sites"
+    }
+  ],
+  "programs": [
+    {
+      "id": "united-way-211",
+      "name": "United Way of Greater Atlanta 211",
+      "barriers": [
+        "housing",
+        "food"
+      ],
+      "access": {
+        "phone": "211",
+        "text": "Text your ZIP Code and need to 898211",
+        "url": "https://unitedwayatlanta.org/about-211/"
+      },
+      "languages": [],
+      "language_note": "Page says specialists are bilingual but does not name the languages.",
+      "hours_note": "Dial 211 Monday–Friday from 8:00 a.m. to 5:00 p.m. to speak with our team.",
+      "evidence_quote": "Connect to 211 through your text, chat, email, online or via phone and you will reach trained, bilingual Community Connection Specialists who provide information on services and referrals to programs that meet your specific needs.",
+      "source_url": "https://unitedwayatlanta.org/about-211/",
+      "extra_evidence": [
+        {
+          "quote": "Needs vary widely, ranging from rental assistance and housing resources, utilities help, food pantries, holiday gifts, or even asking about ways to volunteer and give back.",
+          "url": "https://unitedwayatlanta.org/211-since-1997-help-is-just-three-digits-away/",
+          "quote_verified_live": true
+        }
+      ],
+      "quote_verified_live": true,
+      "source_id": "united-way-211",
+      "retrieved": "2026-10-01"
+    },
+    {
+      "id": "marta-mobility",
+      "name": "MARTA Mobility (ADA paratransit)",
+      "barriers": [
+        "transport"
+      ],
+      "access": {
+        "phone": "404-848-5389",
+        "url": "https://itsmarta.com/MARTA-Mobility.aspx"
+      },
+      "languages": [],
+      "evidence_quote": "MARTA Mobility is our service that provides ADA Complementary Paratransit service to anyone unable to ride or disembark from our regular MARTA transit services.",
+      "source_url": "https://itsmarta.com/MARTA-Mobility.aspx",
+      "extra_evidence": [
+        {
+          "quote": "To become eligible to ride MARTA Mobility, you must complete an application and an in-person interview and assessment.",
+          "url": "https://itsmarta.com/MARTA-Mobility.aspx",
+          "quote_verified_live": true
+        },
+        {
+          "quote": "Download the application (click on the link below), or contact the Mobility Eligibility office at 404-848-5389 to request an application for Mobility Services.",
+          "url": "https://itsmarta.com/MARTA-Mobility.aspx",
+          "quote_verified_live": true
+        }
+      ],
+      "quote_verified_live": true,
+      "source_id": "marta-mobility",
+      "retrieved": "2026-10-01"
+    },
+    {
+      "id": "marta-language-line",
+      "name": "MARTA information in another language or accessible format",
+      "barriers": [
+        "language",
+        "transport"
+      ],
+      "access": {
+        "phone": "404-848-4037",
+        "url": "https://itsmarta.com/MARTA-Mobility.aspx"
+      },
+      "languages": [],
+      "language_note": "Page offers 'another language' without naming which.",
+      "evidence_quote": "To request information in another language or an accessible format, please call 404-848-4037.",
+      "source_url": "https://itsmarta.com/MARTA-Mobility.aspx",
+      "extra_evidence": [],
+      "quote_verified_live": true,
+      "source_id": "marta-language-line",
+      "retrieved": "2026-10-01"
+    },
+    {
+      "id": "marta-reduced-fare",
+      "name": "MARTA Reduced Fare Program",
+      "barriers": [
+        "transport",
+        "cost"
+      ],
+      "access": {
+        "phone": "",
+        "url": "https://itsmarta.com/reduced-fare-program.aspx"
+      },
+      "languages": [],
+      "evidence_quote": "We offer Reduced Fare Breeze Cards to eligible senior citizens, people with disabilities and Medicare cardholders.",
+      "source_url": "https://itsmarta.com/reduced-fare-program.aspx",
+      "extra_evidence": [
+        {
+          "quote": "Fare is unchanged; Reduced Fare rides are still $1.00.",
+          "url": "https://itsmarta.com/reduced-fare-program.aspx",
+          "quote_verified_live": true
+        },
+        {
+          "quote": "The initial card is free, and your first replacement is only $2.",
+          "url": "https://itsmarta.com/reduced-fare-program.aspx",
+          "quote_verified_live": true
+        }
+      ],
+      "quote_verified_live": true,
+      "source_id": "marta-reduced-fare",
+      "retrieved": "2026-10-01"
+    },
+    {
+      "id": "georgia-gateway",
+      "name": "Georgia Gateway (apply for Medicaid, SNAP, WIC, TANF)",
+      "barriers": [
+        "insurance",
+        "cost",
+        "food",
+        "language"
+      ],
+      "access": {
+        "phone": "",
+        "url": "https://gateway.ga.gov/access/"
+      },
+      "languages": [
+        "Arabic",
+        "Bosnian",
+        "Burmese",
+        "Gujarati",
+        "Hindi",
+        "Japanese",
+        "Chinese (Simplified)",
+        "Farsi",
+        "French",
+        "Korean",
+        "Nepali",
+        "Portuguese",
+        "Russian",
+        "Spanish",
+        "Vietnamese"
+      ],
+      "language_note": "Languages listed on the page for SNAP, TANF, MA, Refugee Cash Assistance, or WIC applications.",
+      "evidence_quote": "To apply for Food Stamps (SNAP), Temporary Assistance For Needy Families (TANF), Medical Assistance (MA), Child Care and Parent Services (CAPS), or Women, Infants and Children (WIC), please select the 'Apply for Benefits' button.",
+      "source_url": "https://gateway.ga.gov/access/",
+      "extra_evidence": [
+        {
+          "quote": "To access a SNAP, TANF, MA, Refugee Cash Assistance, or WIC application in another language, please select the appropriate language.",
+          "url": "https://gateway.ga.gov/access/",
+          "quote_verified_live": true
+        },
+        {
+          "quote": "Further information on PeachCare for Kids® can be found at https://dch.georgia.gov/peachcare-kids .",
+          "url": "https://gateway.ga.gov/access/",
+          "quote_verified_live": true
+        }
+      ],
+      "quote_verified_live": true,
+      "source_id": "georgia-gateway",
+      "retrieved": "2026-10-01"
+    },
+    {
+      "id": "georgia-medicaid-apply",
+      "name": "Georgia Medicaid: how to apply",
+      "barriers": [
+        "insurance",
+        "cost"
+      ],
+      "access": {
+        "phone": "",
+        "url": "https://medicaid.georgia.gov/how-apply"
+      },
+      "languages": [],
+      "evidence_quote": "If you or someone in your family needs health care, you should apply for Medicaid even if you are not sure whether you qualify or if you have been turned down in the past.",
+      "source_url": "https://medicaid.georgia.gov/how-apply",
+      "extra_evidence": [
+        {
+          "quote": "To apply for Medicaid please visit the Georgia Gateway Customer Portal .",
+          "url": "https://medicaid.georgia.gov/how-apply",
+          "quote_verified_live": true
+        }
+      ],
+      "quote_verified_live": true,
+      "source_id": "georgia-medicaid-apply",
+      "retrieved": "2026-10-01"
+    },
+    {
+      "id": "grady-financial-assistance",
+      "name": "Grady Health System Financial Assistance Program",
+      "barriers": [
+        "cost",
+        "insurance"
+      ],
+      "access": {
+        "phone": "404-616-6920",
+        "url": "https://www.gradyhealth.org/financial-assistance-program/"
+      },
+      "languages": [
+        "English",
+        "Spanish"
+      ],
+      "language_note": "Page content is published in English and Spanish.",
+      "evidence_quote": "Grady offers discounted care under a Financial Assistance Program to qualified individuals for emergency and medically necessary services.",
+      "source_url": "https://www.gradyhealth.org/financial-assistance-program/",
+      "extra_evidence": [
+        {
+          "quote": "If you live in Fulton or DeKalb County Your information can be evaluated for financial assistance through our Financial Assistance Program.",
+          "url": "https://www.gradyhealth.org/financial-assistance-program/",
+          "quote_verified_live": true
+        },
+        {
+          "quote": "Call us at (404) 616-6920 to schedule a time to meet with a Financial Counselor at Grady.",
+          "url": "https://www.gradyhealth.org/financial-assistance-program/",
+          "quote_verified_live": true
+        },
+        {
+          "quote": "Si necesita información sobre ayuda financiera o un formulario de solicitud",
+          "url": "https://www.gradyhealth.org/financial-assistance-program/",
+          "quote_verified_live": true
+        }
+      ],
+      "quote_verified_live": true,
+      "source_id": "grady-financial-assistance",
+      "retrieved": "2026-10-01"
+    },
+    {
+      "id": "acfb-food-map",
+      "name": "Atlanta Community Food Bank food pantry map and Text for Help",
+      "barriers": [
+        "food"
+      ],
+      "access": {
+        "phone": "888-976-2232",
+        "text": "Text FINDFOOD (or COMIDA) to 888-976-2232",
+        "url": "https://www.acfb.org/get-help/food-map/"
+      },
+      "languages": [
+        "English",
+        "Spanish"
+      ],
+      "evidence_quote": "Text \" FINDFOOD \" or \" COMIDA \" to 888-976-2232",
+      "source_url": "https://www.acfb.org/get-help/",
+      "extra_evidence": [
+        {
+          "quote": "Simply enter your address for a list of pantries and their operating days and times.",
+          "url": "https://www.acfb.org/get-help/food-map/",
+          "quote_verified_live": true
+        },
+        {
+          "quote": "Please visit our Food Map page OR text 'FINDFOOD' (COMIDA for Spanish) to 888-976-2232 to find a food pantry near you.",
+          "url": "https://www.acfb.org/community-food-center/",
+          "quote_verified_live": true
+        }
+      ],
+      "quote_verified_live": true,
+      "source_id": "acfb-food-map",
+      "retrieved": "2026-10-01"
+    },
+    {
+      "id": "acfb-benefits-help",
+      "name": "Atlanta Community Food Bank help applying for SNAP and Medicaid",
+      "barriers": [
+        "food",
+        "insurance"
+      ],
+      "access": {
+        "phone": "",
+        "url": "https://www.acfb.org/get-help/"
+      },
+      "languages": [],
+      "evidence_quote": "Atlanta Community Food Bank staff are available to help you apply for government assistance programs.",
+      "source_url": "https://www.acfb.org/get-help/",
+      "extra_evidence": [],
+      "quote_verified_live": true,
+      "source_id": "acfb-benefits-help",
+      "retrieved": "2026-10-01"
+    },
+    {
+      "id": "lifeline",
+      "name": "Lifeline phone and internet discount (federal, USAC/FCC)",
+      "barriers": [
+        "tech",
+        "cost"
+      ],
+      "access": {
+        "phone": "800-234-9473",
+        "url": "https://www.lifelinesupport.org/"
+      },
+      "languages": [],
+      "evidence_quote": "If you qualify, you can get a monthly discount of up to $9.25 on phone, internet, or bundled service.",
+      "source_url": "https://www.lifelinesupport.org/",
+      "extra_evidence": [
+        {
+          "quote": "If you, or your child or dependent participate in programs like the Supplemental Nutrition Assistance Program (SNAP), Medicaid, certain other programs, or earn a certain income, you qualify for Lifeline.",
+          "url": "https://www.lifelinesupport.org/",
+          "quote_verified_live": true
+        }
+      ],
+      "quote_verified_live": true,
+      "source_id": "lifeline",
+      "retrieved": "2026-10-01"
+    }
+  ]
+}

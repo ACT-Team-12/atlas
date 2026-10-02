@@ -10,11 +10,15 @@ Ideas, customer evidence, and team decisions live in [research/](research/).
 |---|---------|----------|--------|--------|--------|
 | 1 | Team Formation & Build Readiness | Sep 30, 2026 · 11:00 pm | 125 | Submitted, awaiting staff review | [01-team-formation](missions/01-team-formation/) |
 | 2 | Problem & Product Concept | Oct 1, 2026 · 11:59 pm | 125 | Submitted by Lilian 9:28 pm (+100 early bonus window), awaiting staff review | [02-problem-product-concept](missions/02-problem-product-concept/) |
-| 3 | Customer profiles (from evidence) | TBD | — | Not released | — |
-| 4 | TBD | TBD | — | Not released | — |
-| 5 | Working coded MVP with AI inside | TBD | — | Not released | — |
+| 3 | Customer Research & User Personas | Oct 2 · 11:59 pm (packet drops 12:05 am) | 150 | Not released | — |
+| 4 | Business Model & Adoption | TBD | 150 | Not released | — |
+| 5 | Build & Ship a Code-Based MVP | TBD | 175 | Not released | — |
+| 6 | Brand Identity & Product Experience | TBD | 175 | Not released | — |
+| 7 | Product Demo & Pitch | TBD | 200 | Not released | — |
 
-**How to submit:** ATL Cup 2026 submission page. Upload one completed packet file with team name + mission title.
+**How to submit:** ATL Cup 2026 submission page (Airtable form). Upload one completed packet file with team name + mission title. **+100 points if Airtable receives it at least 2 hours before the deadline; -30 if late.**
+
+**Plan for the rest of the challenge:** [PLAN.md](PLAN.md) (judging criteria, owners, build tiers).
 
 ## Team
 

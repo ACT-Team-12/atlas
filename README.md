@@ -9,7 +9,7 @@ Ideas, customer evidence, and team decisions live in [research/](research/).
 | # | Mission | Due (ET) | Points | Status | Folder |
 |---|---------|----------|--------|--------|--------|
 | 1 | Team Formation & Build Readiness | Sep 30, 2026 · 11:00 pm | 125 | Submitted, awaiting staff review | [01-team-formation](missions/01-team-formation/) |
-| 2 | Problem & Product Concept | Oct 1, 2026 · 11:59 pm | 125 | **In progress, due tonight** | [02-problem-product-concept](missions/02-problem-product-concept/) |
+| 2 | Problem & Product Concept | Oct 1, 2026 · 11:59 pm | 125 | Submitted by Lilian 9:28 pm (+100 early bonus window), awaiting staff review | [02-problem-product-concept](missions/02-problem-product-concept/) |
 | 3 | Customer profiles (from evidence) | TBD | — | Not released | — |
 | 4 | TBD | TBD | — | Not released | — |
 | 5 | Working coded MVP with AI inside | TBD | — | Not released | — |
@@ -36,9 +36,11 @@ Ideas, customer evidence, and team decisions live in [research/](research/).
 | Testing & release | Stephen | Akhil |
 | Team communication | Lilian | Anusmita |
 
-## Current hypothesis (from Mission 1)
+## Current hypothesis (from Mission 2)
 
-> We think **patients who struggle to understand or manage their healthcare** need to **easily understand and prepare for their care** when **they receive medications, lab results, after-visit information, or have an upcoming appointment.**
+> When **a patient leaves a clinic visit with new instructions**, **the community health worker or patient navigator helping them** tries to **turn that paperwork into steps the patient can actually finish**, but **the paper is clinical and the real blockers (transportation, cost, scheduling, language, tech access, not knowing how referrals work or what help exists) are not on it**. We still need to check which barriers matter most to CHWs and nonprofits in our Atlanta area (Mission 3).
+
+_Mission 1 version: patients who struggle to understand or manage their healthcare need to easily understand and prepare for their care._
 
 ## Standing rules from the program
 

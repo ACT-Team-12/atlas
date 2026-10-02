@@ -43,14 +43,14 @@ When **a patient leaves a clinic visit with new instructions (a new medicine, a 
 ## 4. AI function, customer controls, non-AI baseline
 
 - **AI function:** the AI receives the after-visit paper (photo or text), the chosen language and reading level, and the barrier answers. It extracts structured care steps (medicine, lab, referral, follow-up, daily care, warning sign), each with an exact quote, a plain-language explanation and the question to ask if the paper is unclear. Next, it matches each barrier to entries in our verified local resource list. A deterministic check we wrote ourselves rejects any step whose quote is not in the paper (and, next, any resource not in the verified list).
-- **What the customer controls:** language and reading level; which barriers apply; checking off, editing or removing every step; whether anything is saved (default: nothing leaves the device; no account).
+- **What the customer controls:** language and reading level; which barriers apply; checking off, editing or removing every step; whether the plan is kept (it is saved only in their own browser, and they can clear it). No account. Nothing is stored on our side; the paper is sent to our server and the AI provider only to be read.
 - **Non-AI baseline:** the paper summary plus a fixed checklist template and a manual 211 search. In Mission 3 we will compare both on time to a complete plan and missed steps, using sample papers.
 
 ## 5. First executable code slice
 
 - **Live:** https://atlas-team12.vercel.app (try "Use the sample summary", then "Make my plan")
 - **Code:** https://github.com/ACT-Team-12/atlas, pull request #1. CI runs lint, typecheck, unit tests and a production build.
-- **What works today:** paste or photo, AI extraction with 7 language options (English, Spanish, Vietnamese, Korean, Chinese, Amharic, French; Spanish and Vietnamese tested so far), the source-quote check, highlighted source view, questions for the doctor, "what your paper does not say", warning-sign banner, check off and remove.
+- **What works today:** paste or photo, AI extraction with 7 language options (English, Spanish, Vietnamese, Korean, Chinese, Amharic, French; Spanish and Vietnamese tested so far), the source-quote check, highlighted source view, questions for the doctor, "what your paper does not say", warning-sign banner, check off, remove (with undo), and the plan saved in the browser so people can come back to it.
 - **What we measured (on our labeled sample paper, not a real patient):** 12 of 12 extracted steps passed the source-quote check in both Spanish and Vietnamese, 0 held back, about 22 to 27 seconds per run on the live site.
 - **Also working now (added tonight):** the barrier check and a verified resource list for Fulton and DeKalb (41 HRSA community health centers with their nearest MARTA rail and bus stop, and 10 official programs such as Georgia Gateway, Medicaid, Grady financial assistance, MARTA Mobility and Reduced Fare, 211, the food bank and Lifeline). The plan can only cite resources from that list; anything else is dropped.
 - **Next code task:** reminders by text or call, a CHW view of several patients, and real-user testing.
@@ -58,7 +58,7 @@ When **a patient leaves a clinic visit with new instructions (a new medicine, a 
 
 ## 6. FACTS check
 
-- **Feed:** real evidence (the four cited sources above) and the real build state (live URL, PR #1). The sample summary is written by us and labeled as not a real patient.
+- **Feed:** real evidence (the cited sources in section 1) and the real build state (live URL, PR #1). The sample summary is written by us and labeled as not a real patient.
 - **Assess:** the AI pulled every step from the sample correctly and wrote plain Spanish and Vietnamese. Timing is slow (over 20 seconds) and needs work.
 - **Challenge:** Akhil asked, "what does our app do that ChatGPT can't?" Our answer: it never shows a step it cannot point to in the patient's own paper, it plans around barriers with verified local help, and it is built for the CHWs and nonprofits who already help people. We also removed claims we could not source (for example a popular "patients forget 40 to 80%" figure, whose source we could not confirm).
 - **Test:** a simpler path is the fixed checklist plus a 211 search. Mission 3 compares it to ATLAS with CHWs.

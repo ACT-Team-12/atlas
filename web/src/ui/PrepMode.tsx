@@ -9,6 +9,9 @@ import { prepSpeechLines } from "@/lib/prepSpeech";
 import { SPEECH_LANG } from "@/lib/speechLang";
 import { SAMPLE_PREP, SAMPLE_PREP_LABEL } from "@/lib/samplePrep";
 import { EXPLAIN_NOTE, explainState, meaningItems, NO_MEANING, type MeaningState } from "@/lib/prepView";
+import { createRequestGate, type Ticket } from "@/lib/requestGate";
+
+type Inputs = { text: string; language: string };
 
 type Lang = (typeof LANGUAGES)[number];
 const noop = () => () => {};
@@ -30,49 +33,66 @@ export function PrepMode() {
   const [speaking, setSpeaking] = useState(false);
   const [voiceNote, setVoiceNote] = useState("");
   const [meaning, setMeaning] = useState<MeaningState>(NO_MEANING);
-  const meaningFor = useRef<PrepResponse | null>(null);
+  // Every edit invalidates the request in flight (and its meaning check), so a slow answer never lands on new inputs.
+  const gate = useRef(createRequestGate<Inputs>());
+  const onScreen = useRef<Inputs>({ text: "", language: "English" });
   const run = useRef(0);
+
+  function inputsChanged(next: Partial<Inputs>) {
+    gate.current.invalidate();
+    onScreen.current = { ...onScreen.current, ...next };
+    silence(); setSpeaking(false); setVoiceNote("");
+    setRes(null); setMeaning(NO_MEANING); setBusy(false); setError("");
+  }
 
   function silence() {
     run.current++;
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
   }
   // Stop reading if the section unmounts.
-  useEffect(() => () => {
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  useEffect(() => {
+    const g = gate.current;
+    return () => {
+      g.invalidate();
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    };
   }, []);
 
   async function build() {
     silence(); setSpeaking(false); setVoiceNote("");
-    setBusy(true); setError(""); setRes(null); setMeaning(NO_MEANING); meaningFor.current = null;
+    setBusy(true); setError(""); setRes(null); setMeaning(NO_MEANING);
+    const ticket = gate.current.start(onScreen.current);
+    const current = () => gate.current.isCurrent(ticket, onScreen.current);
     try {
-      const r = await fetch("/api/prep", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, language }) });
+      const r = await fetch("/api/prep", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(ticket.inputs), signal: ticket.signal });
       const j = await r.json();
+      if (!current()) return; // the paper or language changed while we waited: drop this answer
       if (!r.ok) throw new Error(j.error ?? "Something went wrong.");
-      setRes({ ...j, language });
-      void check(j);
+      setRes({ ...j, language: ticket.inputs.language as Lang });
+      void check(j, ticket);
     } catch (e) {
+      if (!current()) return;
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
-      setBusy(false);
+      if (current()) setBusy(false);
     }
   }
 
   // Second-model meaning check on every explanation. Until it answers, or if it flags, is unsure or fails, only the
   // paper's words are shown (prepView.ts).
-  async function check(r: PrepResponse) {
+  async function check(r: PrepResponse, ticket: Ticket<Inputs>) {
+    const current = () => gate.current.isCurrent(ticket, onScreen.current);
     const items = meaningItems(r);
-    meaningFor.current = r;
     if (items.length === 0) { setMeaning({ status: "done", byId: {} }); return; }
     setMeaning({ status: "loading", byId: {} });
     try {
-      const resp = await fetch("/api/meaning", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items }) });
+      const resp = await fetch("/api/meaning", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items }), signal: ticket.signal });
       const j = await resp.json();
-      if (meaningFor.current !== r) return; // a newer paper was read meanwhile
+      if (!current()) return; // a newer paper or language meanwhile
       if (!resp.ok || !Array.isArray(j.results)) throw new Error("check failed");
       setMeaning({ status: "done", byId: Object.fromEntries((j.results as MeaningState["byId"][string][]).map((x) => [x.id, x])) });
     } catch {
-      if (meaningFor.current === r) setMeaning({ status: "error", byId: {} });
+      if (current()) setMeaning({ status: "error", byId: {} });
     }
   }
 
@@ -132,16 +152,16 @@ export function PrepMode() {
             <div className="min-w-0">
               <textarea data-lenis-prevent aria-label="Prep paper text"
                 className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 font-mono text-xs focus:border-teal"
-                placeholder="Paste your prep instructions here..." value={text} onChange={(e) => { setText(e.target.value); setRes(null); setMeaning(NO_MEANING); meaningFor.current = null; }} />
+                placeholder="Paste your prep instructions here..." value={text} onChange={(e) => { inputsChanged({ text: e.target.value }); setText(e.target.value); }} />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint"
-                  onClick={() => { setText(SAMPLE_PREP); setRes(null); setError(""); setMeaning(NO_MEANING); meaningFor.current = null; }}>Use the sample prep paper</button>
+                  onClick={() => { inputsChanged({ text: SAMPLE_PREP }); setText(SAMPLE_PREP); }}>Use the sample prep paper</button>
               </div>
               <p className="mt-2 text-xs text-ink/70">{SAMPLE_PREP_LABEL}. Nothing you paste here is stored.</p>
             </div>
             <div className="flex flex-col gap-3">
               <label className="text-sm font-bold">Explain it in
-                <select className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" value={language} onChange={(e) => setLanguage(e.target.value as Lang)}>
+                <select className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" value={language} onChange={(e) => { inputsChanged({ language: e.target.value }); setLanguage(e.target.value as Lang); }}>
                   {LANGUAGES.map((l) => <option key={l}>{l}</option>)}
                 </select>
               </label>

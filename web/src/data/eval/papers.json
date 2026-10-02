@@ -1,0 +1,97 @@
+{
+  "note": "Sample after-visit papers written by Team ATLAS for testing. They describe no real patient. Each lists the instructions a correct reading must find (expected) and lines that are NOT instructions for the patient (distractors).",
+  "papers": [
+    {
+      "id": "diabetes-hypertension",
+      "title": "Primary care follow-up: diabetes and blood pressure",
+      "text": "AFTER VISIT SUMMARY\nSample Patient   Visit: 10/01/2026   Midtown Family Medicine (sample clinic)\n\nMedication changes\nSTART metformin 500 mg tablet. Take 1 tablet by mouth 2 times a day with meals.\nCHANGE lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily.\nSTOP ibuprofen 200 mg tablet. Avoid NSAIDs due to kidney function.\n\nOrders placed today\nHemoglobin A1c - due in 3 months\nBasic metabolic panel - fasting, complete within 2 weeks\nReferral to Ophthalmology for diabetic eye exam. Their office will call you to schedule.\n\nProvider note (not for patient action): consider statin at next visit if LDL remains high.\nBilling code: 99214\n\nWhen to seek care\nCall the office if your blood sugar is above 300 two times in a row.\nCall 911 if you have chest pain or trouble breathing.",
+      "expected": [
+        "Take 1 tablet by mouth 2 times a day with meals",
+        "Take 2 tablets (20 mg total) by mouth once daily",
+        "Avoid NSAIDs due to kidney function",
+        "Hemoglobin A1c - due in 3 months",
+        "Basic metabolic panel - fasting, complete within 2 weeks",
+        "Referral to Ophthalmology for diabetic eye exam",
+        "blood sugar is above 300 two times in a row",
+        "Call 911 if you have chest pain or trouble breathing"
+      ],
+      "distractors": ["consider statin at next visit if LDL remains high", "Billing code: 99214"],
+      "has_warning": true
+    },
+    {
+      "id": "pediatric-asthma",
+      "title": "Emergency department discharge: child with asthma",
+      "text": "EMERGENCY DEPARTMENT DISCHARGE INSTRUCTIONS\nSample Child   Age 7   Discharged 10/01/2026\nDiagnosis: Asthma exacerbation\n\nMedicines\nAlbuterol inhaler: 2 puffs with spacer every 4 hours as needed for wheezing or cough.\nPrednisolone 15 mg by mouth once daily for 5 days. Start tomorrow morning.\n\nFollow-up\nSee your pediatrician in 2 to 3 days.\n\nHome care\nKeep your child away from cigarette smoke.\n\nReturn to the emergency department right away if your child's lips turn blue or they are struggling to breathe.\n\nED attending reviewed chest x-ray: no pneumonia.",
+      "expected": [
+        "2 puffs with spacer every 4 hours as needed",
+        "Prednisolone 15 mg by mouth once daily for 5 days",
+        "See your pediatrician in 2 to 3 days",
+        "Keep your child away from cigarette smoke",
+        "lips turn blue or they are struggling to breathe"
+      ],
+      "distractors": ["chest x-ray: no pneumonia"],
+      "has_warning": true
+    },
+    {
+      "id": "hypertension-new-med",
+      "title": "Blood pressure visit with a new medicine",
+      "text": "VISIT SUMMARY - Sample Health Center\nReason: High blood pressure\n\nNew medicine: amlodipine 5 mg, take 1 tablet every morning.\nCheck your blood pressure at home once a day and write it down. Bring the log to your next visit.\nLab: basic metabolic panel in 1 week at any lab location.\nReferral: cardiology. Please call 404-555-0177 to schedule.\nNext visit: 4 weeks.\nCut back on salt.\n\nGo to the emergency room if your blood pressure is over 180/120 and you have a severe headache, chest pain, or vision changes.",
+      "expected": [
+        "amlodipine 5 mg, take 1 tablet every morning",
+        "Check your blood pressure at home once a day",
+        "basic metabolic panel in 1 week",
+        "Referral: cardiology",
+        "Next visit: 4 weeks",
+        "Cut back on salt",
+        "blood pressure is over 180/120"
+      ],
+      "distractors": [],
+      "has_warning": true
+    },
+    {
+      "id": "uti-urgent-care",
+      "title": "Urgent care: urinary tract infection",
+      "text": "URGENT CARE VISIT - SAMPLE\nDiagnosis: urinary tract infection\n\nTake nitrofurantoin 100 mg by mouth 2 times a day for 5 days. Finish all of it even if you feel better.\nDrink plenty of water.\nWe sent a urine culture. We will call you if the results mean your medicine needs to change.\n\nCome back or go to the ER if you get a fever over 101 F, back or side pain, or vomiting.",
+      "expected": [
+        "nitrofurantoin 100 mg by mouth 2 times a day for 5 days",
+        "Drink plenty of water",
+        "We will call you if the results mean your medicine needs to change",
+        "fever over 101 F, back or side pain, or vomiting"
+      ],
+      "distractors": [],
+      "has_warning": true
+    },
+    {
+      "id": "prenatal-28-weeks",
+      "title": "Prenatal visit at 28 weeks",
+      "text": "PRENATAL VISIT SUMMARY (SAMPLE)\nWeeks pregnant: 28\n\nToday you received the Tdap vaccine.\nStart iron (ferrous sulfate) 325 mg by mouth once daily.\nGlucose tolerance test at your next visit. Do not eat or drink anything but water for 8 hours before.\nCount your baby's kicks every evening.\nNext visit in 2 weeks.\n\nCall us right away or go to Labor and Delivery if you have bleeding, leaking fluid, or fewer than 10 movements in 2 hours.",
+      "expected": [
+        "Start iron (ferrous sulfate) 325 mg by mouth once daily",
+        "Glucose tolerance test at your next visit",
+        "Do not eat or drink anything but water for 8 hours before",
+        "Count your baby's kicks every evening",
+        "Next visit in 2 weeks",
+        "bleeding, leaking fluid, or fewer than 10 movements in 2 hours"
+      ],
+      "distractors": ["Today you received the Tdap vaccine"],
+      "has_warning": true
+    },
+    {
+      "id": "heart-failure-discharge",
+      "title": "Hospital discharge: heart failure",
+      "text": "HOSPITAL DISCHARGE SUMMARY - FOR PATIENT (SAMPLE)\nYou were treated for heart failure.\n\nMedicines\nFurosemide 40 mg: take 1 tablet every morning.\nSTOP taking ibuprofen and naproxen.\n\nEvery day\nWeigh yourself every morning after using the bathroom and write it down.\nLimit salt to 2,000 mg a day.\n\nAppointments\nCardiology follow-up in 7 days. The clinic will call you with the time.\nBlood work (kidney function) in 1 week.\n\nCall your doctor if you gain more than 3 pounds in a day or 5 pounds in a week, or your legs swell more.\nCall 911 if you cannot catch your breath.",
+      "expected": [
+        "Furosemide 40 mg: take 1 tablet every morning",
+        "STOP taking ibuprofen and naproxen",
+        "Weigh yourself every morning",
+        "Limit salt to 2,000 mg a day",
+        "Cardiology follow-up in 7 days",
+        "Blood work (kidney function) in 1 week",
+        "gain more than 3 pounds in a day or 5 pounds in a week",
+        "Call 911 if you cannot catch your breath"
+      ],
+      "distractors": ["You were treated for heart failure"],
+      "has_warning": true
+    }
+  ]
+}

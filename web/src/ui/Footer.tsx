@@ -27,7 +27,8 @@ export function Footer() {
           <div>
             <h2 className="display text-[clamp(2.4rem,5.6vw,5.6rem)]">Leave the visit with a plan, not a pile of paper.</h2>
             <div className="mt-8 flex flex-wrap gap-3">
-              <SquashButton href="#try" bg="var(--paper)" fg="var(--ink)" accent="var(--mint)">Try it now</SquashButton>
+              <SquashButton href="/#try" bg="var(--paper)" fg="var(--ink)" accent="var(--mint)">Try it now</SquashButton>
+              <SquashButton href="/tests" bg="var(--teal)" accent="var(--sun)">See our tests</SquashButton>
               <SquashButton href="https://github.com/ACT-Team-12/atlas" bg="var(--ink-soft)" accent="var(--sky)">Read the code</SquashButton>
             </div>
           </div>

@@ -22,7 +22,8 @@ export function Trust() {
           </div>
         </div>
         <div className="mt-10 card p-6 bg-paper">
-          <p className="display text-2xl">Data sources (retrieved {DATASET.generatedAt})</p>
+          <p className="font-semibold">Want proof? <a className="underline decoration-2 underline-offset-4 hover:text-teal" href="/tests">See our tests</a>: a live check that our quote checker catches planted fakes, and a measured run on labeled sample papers.</p>
+          <p className="display text-2xl mt-6">Data sources (retrieved {DATASET.generatedAt})</p>
           <ul className="mt-4 space-y-2 text-sm font-semibold">
             {DATASET.sources.map((s) => (
               <li key={s.id}>

@@ -7,6 +7,7 @@ import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
 import { BARRIERS, BARRIER_LABEL, type Barrier } from "@/lib/resources";
 import type { PlanResponse, ResourceCard } from "@/lib/plan";
 import { SquashButton } from "./SquashButton";
+import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
 
 const KIND: Record<string, { label: string; cls: string }> = {
@@ -471,6 +472,7 @@ export function CarePlanTool() {
                 <ul className="mt-2 list-disc pl-5 space-y-1">{care.questions_for_doctor.map((q, i) => <li key={i}>{q}</li>)}</ul>
               </div>
             )}
+            <Feedback key={plan.summary} language={language} />
             <p className="mt-6 text-xs text-ink/55">ATLAS explains your own paperwork and points to verified public resources. It is not medical advice. Model: {plan.model}.</p>
           </div>
         )}

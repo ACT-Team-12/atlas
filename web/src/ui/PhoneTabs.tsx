@@ -40,7 +40,7 @@ export function scrollToPanel(t: Tab, onlyIfHidden = false) {
 }
 
 /** Sticky tab bar for phones. Hidden from md up, where all three steps show at once. */
-export function PhoneTabBar({ shown, state, onPick }: { shown: Tab; state: FlowState; onPick: (t: Tab) => void }) {
+export function PhoneTabBar({ shown, state, onPick, notice }: { shown: Tab; state: FlowState; onPick: (t: Tab) => void; notice?: string | null }) {
   const info = tabInfo(state);
   const refs = useRef<Record<number, HTMLButtonElement | null>>({});
   const closed = TABS.filter((t) => !info[t].available);
@@ -78,6 +78,10 @@ export function PhoneTabBar({ shown, state, onPick }: { shown: Tab; state: FlowS
           );
         })}
       </div>
+      <p className="sr-only" role="status" aria-live="polite">{notice ?? ""}</p>
+      {notice && (
+        <p className="mx-auto mt-1.5 w-fit rounded-full bg-sun px-3 py-0.5 text-center text-xs font-bold" aria-hidden="true">{notice}</p>
+      )}
       {closed.length > 0 && (
         <p id="tabs-why" className="mx-auto mt-1.5 w-fit rounded-full bg-mint-soft px-3 py-0.5 text-center text-xs font-bold text-ink/75">
           {closed.map((t) => `${t} · ${LABEL[t]}: ${info[t].why}`).join(". ")}.

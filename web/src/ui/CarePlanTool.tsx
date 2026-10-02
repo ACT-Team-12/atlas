@@ -15,6 +15,7 @@ import { HandoffSheet } from "./HandoffSheet";
 import { ShareFamily } from "./ShareFamily";
 import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
+import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -42,6 +43,64 @@ async function fileToBase64(file: File) {
   canvas.height = Math.round(bitmap.height * scale);
   canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+}
+
+async function postExtract(body: Record<string, unknown>): Promise<CarePlanResponse> {
+  const res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
+  return json;
+}
+
+/**
+ * Reads a pasted paper over the streaming route. Throws StreamBroken when the caller should retry
+ * with the plain route (connection cut, route missing, server error), or a plain Error to show.
+ */
+async function streamExtract(body: Record<string, unknown>, onItem: (it: VerifiedItem) => void): Promise<CarePlanResponse> {
+  let res: Response;
+  try {
+    res = await fetch("/api/extract/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch {
+    throw new StreamBroken("Network error");
+  }
+  if (!res.ok || !res.body) {
+    // 404: an older deploy without this route. 5xx: worth one try on the plain route. 503 means no AI key, so retrying won't help.
+    if (!res.body || res.status === 404 || (res.status >= 500 && res.status !== 503)) throw new StreamBroken(`HTTP ${res.status}`);
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.error ?? "Something went wrong.");
+  }
+  try {
+    return await readExtractEvents(res.body, onItem);
+  } catch (e) {
+    if (e instanceof StreamFailed && (e.status < 500 || e.status === 503)) throw new Error(e.message);
+    if (e instanceof StreamFailed) throw new StreamBroken(e.message);
+    throw e;
+  }
+}
+
+/** Steps shown while the paper is still being read. Not final: no checkboxes, nothing saved, nothing built on them. */
+function StreamingSteps({ items }: { items: VerifiedItem[] }) {
+  return (
+    <div className="mt-8" aria-busy="true">
+      <p className="display text-2xl">Still reading your paper<span className="working-dots" aria-hidden="true" /></p>
+      <p className="text-sm font-bold text-ink/70 mt-1">
+        {items.length} {items.length === 1 ? "step" : "steps"} found so far. We found each one&apos;s words in your paper. More may come.
+      </p>
+      <ul className="mt-4 space-y-3">
+        {items.map((it) => (
+          <li key={it.id} className={`step-in rounded-2xl border-2 p-4 ${it.kind === "warning_sign" ? "border-red bg-red-soft/50" : "border-ink/70 bg-paper"}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`chip ${KIND[it.kind]?.cls}`}>{KIND[it.kind]?.label}</span>
+              <span className="font-extrabold">{it.title}</span>
+              {it.when && <span className="text-xs font-bold text-ink/70">· {it.when}</span>}
+            </div>
+            <p className="mt-1">{it.plain_language}</p>
+            <p className="mt-2 border-l-4 border-sun pl-2 text-xs italic text-ink/70">From your paper: &ldquo;{it.source_quote}&rdquo;</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function Highlighted({ text, items, active }: { text: string; items: VerifiedItem[]; active: string | null }) {
@@ -138,6 +197,9 @@ export function CarePlanTool() {
   const [language, setLanguage] = useState<(typeof LANGUAGES)[number]>("English");
   const [level, setLevel] = useState<(typeof READING_LEVELS)[number]>("simple");
   const [reading, setReading] = useState(false);
+  // Verified steps that arrived while the paper is still being read. Shown, never final.
+  const [partial, setPartial] = useState<VerifiedItem[]>([]);
+  const readRun = useRef(0);
   const [care, setCare] = useState<CarePlanResponse | null>(null);
   const [barriers, setBarriers] = useState<Barrier[]>([]);
   const [zip, setZip] = useState("");
@@ -215,20 +277,32 @@ export function CarePlanTool() {
   async function readPaper(corrected?: string) {
     meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
     setReading(true); setError(null); setCare(null); setPlan(null); setDone({}); setRemoved({}); setRestoredAt(null);
-    setTranscript(null); setPhotoChecked(false);
+    setTranscript(null); setPhotoChecked(false); setPartial([]);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }
+    const run = ++readRun.current;
     try {
       const body: Record<string, unknown> = { language, reading_level: level };
       if (corrected !== undefined) body.text = corrected;
       else if (photo) { body.image_base64 = await fileToBase64(photo); body.image_media_type = "image/jpeg"; } else body.text = text;
-      const res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
+      let json: CarePlanResponse;
+      if (typeof body.text === "string") {
+        // Pasted text: show each verified step as it arrives. Photos keep the plain route (the person checks our reading first).
+        try {
+          json = await streamExtract(body, (it) => { if (readRun.current === run) setPartial((p) => [...p, it]); });
+        } catch (e) {
+          if (!(e instanceof StreamBroken)) throw e;
+          // The stream broke part way: drop what we showed and read it again the plain way.
+          if (readRun.current === run) setPartial([]);
+          json = await postExtract(body);
+        }
+      } else json = await postExtract(body);
+      if (readRun.current !== run) return;
+      setPartial([]);
       setCare(json);
       if (json.source_kind === "image") { setTranscript(json.source_text); return; }
       void checkMeaningFor(json);
       document.getElementById("step-2")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong."); }
+    } catch (e) { setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong."); }
     finally { setReading(false); }
   }
 
@@ -362,7 +436,12 @@ export function CarePlanTool() {
             </div>
           </div>
 
-          {reading && <WorkingCard kind="read" />}
+          {/* Always mounted so screen readers hear each count change; one update per verified step, never per word. */}
+          <p className="sr-only" role="status" aria-live="polite">
+            {reading && partial.length > 0 ? `${partial.length} ${partial.length === 1 ? "step" : "steps"} found so far` : ""}
+          </p>
+          {reading && partial.length === 0 && <WorkingCard kind="read" />}
+          {reading && partial.length > 0 && <StreamingSteps items={partial} />}
 
           {care && needsPhotoCheck && (
             <div className="mt-8 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4 sm:p-5">

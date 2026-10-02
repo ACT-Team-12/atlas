@@ -45,7 +45,8 @@ export default function PrivacyPage() {
             </Block>
             <Block title="What our server keeps">
               <p>To stop abuse, the server counts requests per network address for 10 minutes, in memory only. Our host (Vercel) keeps standard request logs such as time, page and network address. If a request fails we log the kind of error, not your paper.</p>
-              <p>We do not sell data, run ads, or use tracking or analytics tools.</p>
+              <p>We do not sell data, run ads, or add tracking or analytics tools of our own.</p>
+              <p>One exception to know about: the Android app reads your paper with Google&apos;s ML Kit, which runs on your phone. Google says ML Kit sends it diagnostics that cannot be turned off: device model and system version, the app version, an installation identifier, how long reading took, and the image size. Google&apos;s list does not include the photo or the words on it (<a className="underline decoration-2 underline-offset-4" href="https://developers.google.com/ml-kit/android-data-disclosure" target="_blank" rel="noreferrer">ML Kit data disclosure</a>). The iPhone app uses Apple&apos;s built-in reading and sends nothing extra.</p>
             </Block>
             <Block title="It is not medical advice">
               <p>ATLAS explains your paper and helps you plan around what gets in the way. It does not diagnose or change your care. Check with your doctor or clinic before changing anything, and if you have a warning sign from your paper, call your clinic or 911.</p>

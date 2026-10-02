@@ -16,13 +16,12 @@
 - Each plan covered the barriers the persona picked, and flagged "this needs a person too" when housing or several barriers stacked up.
 
 ## What broke (product findings)
-1. **Wrong kind of clinic.**
+1. **Wrong kind of clinic: dental-only sites.**
    - The Clarkston asthma parent got "Ethne Health - Dental".
-   - The grandparent after heart failure got "Recovery Consultants: Tucker".
    - We match health centers by distance only. Our HRSA extract has no services field, so a dental-only site looks like any other.
    - Fix: exclude sites whose HRSA name says Dental from medical follow-up.
-   - Recovery Consultants sites: check what each one actually offers on their own site before changing anything (NOT VERIFIED yet).
    - Longer term: service lines from HRSA Find a Health Center.
+   - *Checked and not a defect:* "Recovery Consultants: Tucker" (suggested to the heart failure persona). The organization's own site says it provides "comprehensive Primary Care Services through its Community Health Center" in Decatur and Tucker (recoveryconsultants.org, read 2026-10-02). My first flag was wrong and is corrected here.
 2. **"I work nights" can't be answered.**
    - We hold HRSA hours per week, not opening times, so the plan can't say which clinic is open in the evening.
    - Fix: add verified opening hours per site, or tell the person to call and ask about evening hours. Never guess.

@@ -41,7 +41,12 @@ for (const p of papers) {
   for (const it of base) for (const f of flipsFor(it)) planted.push({ ...it, id: `${it.id}~${planted.length}`, plain_language: f.text, kind: f.kind });
   const flipped = planted.length ? await post("/api/meaning", { items: planted.map(({ id, plain_language, when, source_quote }) => ({ id, plain_language, when, source_quote })) }) : { results: [] };
   const byId = new Map(flipped.results.map((r) => [r.id, r]));
-  const caught = planted.map((f) => ({ kind: f.kind, flagged: byId.get(f.id)?.flagged ?? false, by_numbers: !(byId.get(f.id)?.numbers_ok ?? true), by_model: byId.get(f.id)?.model_verdict === "different" }));
+  const caught = planted.map((f) => {
+    const r = byId.get(f.id);
+    const flagged = r?.flagged ?? false;
+    // Keep the exact text of anything missed, so a miss can be read and explained, not just counted.
+    return { kind: f.kind, flagged, by_numbers: !(r?.numbers_ok ?? true), by_model: r?.model_verdict === "different", ...(flagged ? {} : { quote: f.source_quote, planted_text: f.plain_language }) };
+  });
   rows.push({
     id: p.id,
     originals: base.length,

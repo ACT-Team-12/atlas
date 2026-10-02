@@ -3,7 +3,15 @@ import { Nav } from "@/ui/Nav";
 import { Footer } from "@/ui/Footer";
 import { PAPERS, runCheckerTest } from "@/lib/checkerTest";
 import results from "@/data/eval/results.json";
-import meaning from "@/data/eval/meaning.json";
+import meaningRaw from "@/data/eval/meaning.json";
+
+// Typed explicitly: inferring from the JSON breaks when a run has no flags or no misses.
+type MeaningEval = {
+  checker_model: string; commit: string; base_url: string; command: string;
+  totals: { originals: number; false_alarms: number; planted: number; caught: number; caught_by_numbers: number; caught_by_model: number; by_kind: Record<string, { planted: number; caught: number }> };
+  rows: { id: string; false_alarms: { id: string; numbers: string[]; why: string }[]; by_kind: { kind: string; flagged: boolean; quote?: string; planted_text?: string }[] }[];
+};
+const meaning = meaningRaw as unknown as MeaningEval;
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -128,6 +136,16 @@ export default function TestsPage() {
               Run with <code className="font-mono">{meaning.command}</code> on a {meaning.base_url} of commit {meaning.commit}. We read every flag on a real explanation:
               {" "}{meaning.rows.flatMap((r) => r.false_alarms).map((f) => f.why).join(" ") || "none."}
             </p>
+            {meaning.rows.flatMap((r) => r.by_kind.filter((c) => !c.flagged)).length > 0 && (
+              <div className="mt-6 card p-6 bg-paper">
+                <p className="font-bold">What it missed</p>
+                <ul className="mt-2 text-sm font-semibold list-disc pl-5 space-y-1">
+                  {meaning.rows.flatMap((r) => r.by_kind.filter((c) => !c.flagged).map((c, i) => (
+                    <li key={`${r.id}-${i}`}>{r.id}, {c.kind}: the paper says &ldquo;{c.quote ?? ""}&rdquo;; the planted explanation said &ldquo;{c.planted_text ?? ""}&rdquo;.</li>
+                  )))}
+                </ul>
+              </div>
+            )}
           </div>
         </section>
 

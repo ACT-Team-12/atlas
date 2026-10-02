@@ -6,12 +6,12 @@ import { useEffect, useRef, useState } from "react";
  * What the person sees during the 15 to 30 seconds the AI takes.
  * Honest by design: it lists what is actually happening and counts real seconds.
  * It never shows a fake progress bar or ticks off stages it can't observe.
- * Typical times are from live runs on 2026-10-02 (paper read about 25 s, plan about 20 s).
+ * Typical times: eval medians (read 11.9 s, plan 15.6 s, web/src/data/eval/results.json) and live runs on 2026-10-02 (about 20 s each).
  */
 const COPY = {
   read: {
     title: "Reading your paper",
-    typical: "Usually about 25 seconds.",
+    typical: "Usually 10 to 25 seconds.",
     steps: [
       "The AI reads every line of your paper.",
       "Our own code looks for each step's exact words in your paper. A step it can't find is held back, not shown.",
@@ -20,7 +20,7 @@ const COPY = {
   },
   plan: {
     title: "Building your plan",
-    typical: "Usually about 20 seconds.",
+    typical: "Usually 15 to 25 seconds.",
     steps: [
       "We pick verified clinics and programs near you that match what you told us.",
       "The AI builds steps around your barriers, using only those.",

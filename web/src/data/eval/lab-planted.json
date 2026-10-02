@@ -1,0 +1,71 @@
+{
+  "measured_at": "2026-10-02T20:11:07.436Z",
+  "command": "node scripts/lab-planted.mjs",
+  "reports": 6,
+  "real": {
+    "total": 37,
+    "right": 37,
+    "wrong": []
+  },
+  "planted": {
+    "total": 374,
+    "caught": 374,
+    "dropped": 227,
+    "judged_right": 147,
+    "byKind": {
+      "changed value": {
+        "total": 37,
+        "caught": 37
+      },
+      "value copied from the range": {
+        "total": 36,
+        "caught": 36
+      },
+      "changed range": {
+        "total": 37,
+        "caught": 37
+      },
+      "range left out": {
+        "total": 36,
+        "caught": 36
+      },
+      "quote not in report": {
+        "total": 37,
+        "caught": 37
+      },
+      "test name from another line": {
+        "total": 37,
+        "caught": 37
+      },
+      "flag added to the quote": {
+        "total": 74,
+        "caught": 74
+      },
+      "flag moved from another line": {
+        "total": 37,
+        "caught": 37
+      },
+      "quote cut short": {
+        "total": 37,
+        "caught": 37
+      },
+      "invented test": {
+        "total": 6,
+        "caught": 6
+      }
+    },
+    "slipped": [],
+    "examples": {
+      "changed value": "Complete blood count, WBC: value 11.8 changed to 38.4",
+      "value copied from the range": "Complete blood count, WBC: value 11.8 replaced by the range limit 11.0",
+      "changed range": "Complete blood count, WBC: range 4.0 - 11.0 changed to 1-2",
+      "range left out": "Complete blood count, WBC: range 4.0 - 11.0 left out",
+      "quote not in report": "Complete blood count, WBC: quote rewritten with 38.4 in place of 11.8",
+      "test name from another line": "Complete blood count, WBC: WBC line labeled as RBC",
+      "flag added to the quote": "Complete blood count, WBC: \"L\" added after the line",
+      "flag moved from another line": "Complete blood count, WBC: quote runs into the RBC line (inside)",
+      "quote cut short": "Complete blood count, WBC: quote stops right after the value, before the range and flag",
+      "invented test": "Complete blood count, Vitamin K2: a test the report does not have"
+    }
+  }
+}

@@ -21,7 +21,7 @@ const SAVE_KEY = "atlas-session-v1";
 type Saved = {
   text: string; language: (typeof LANGUAGES)[number]; level: (typeof READING_LEVELS)[number];
   care: CarePlanResponse | null; barriers: Barrier[]; zip: string; note: string; plan: PlanResponse | null;
-  done: Record<string, boolean>; removed: Record<string, boolean>; savedAt: string;
+  done: Record<string, boolean>; removed: Record<string, boolean>; photoChecked?: boolean; savedAt: string;
 };
 
 const SPEECH_LANG: Record<string, string> = { English: "en-US", Spanish: "es-US", Vietnamese: "vi-VN", Korean: "ko-KR", Chinese: "zh-CN", Amharic: "am-ET", French: "fr-FR" };
@@ -141,7 +141,7 @@ export function CarePlanTool() {
         const v = JSON.parse(raw) as Saved;
         setText(v.text ?? ""); setLanguage(v.language ?? "English"); setLevel(v.level ?? "simple");
         setCare(v.care ?? null); setBarriers(v.barriers ?? []); setZip(v.zip ?? ""); setNote(v.note ?? "");
-        setPlan(v.plan ?? null); setDone(v.done ?? {}); setRemoved(v.removed ?? {});
+        setPlan(v.plan ?? null); setDone(v.done ?? {}); setRemoved(v.removed ?? {}); setPhotoChecked(v.photoChecked ?? false);
         if (v.care || v.plan) setRestoredAt(v.savedAt);
       }
     } catch {}
@@ -153,10 +153,10 @@ export function CarePlanTool() {
     if (!loaded.current) return;
     if (!care && !plan) return;
     try {
-      const v: Saved = { text, language, level, care, barriers, zip, note, plan, done, removed, savedAt: new Date().toISOString() };
+      const v: Saved = { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, savedAt: new Date().toISOString() };
       localStorage.setItem(SAVE_KEY, JSON.stringify(v));
     } catch {}
-  }, [text, language, level, care, barriers, zip, note, plan, done, removed]);
+  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked]);
 
   function clearSaved() {
     try { localStorage.removeItem(SAVE_KEY); } catch {}
@@ -182,6 +182,7 @@ export function CarePlanTool() {
   }
 
   async function makePlan() {
+    if (needsPhotoCheck) return;
     setPlanning(true); setError(null); setPlan(null);
     try {
       const body = {
@@ -219,6 +220,8 @@ export function CarePlanTool() {
 
   const careById = Object.fromEntries((care?.items ?? []).map((i) => [i.id, i]));
   const items = (care?.items ?? []).filter((i) => !removed[i.id]);
+  // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
+  const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
 
   return (
@@ -272,7 +275,7 @@ export function CarePlanTool() {
             </div>
           </div>
 
-          {care && care.source_kind === "image" && !photoChecked && (
+          {care && needsPhotoCheck && (
             <div className="mt-8 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4 sm:p-5">
               <p className="font-extrabold">Check how we read your photo</p>
               <p className="text-sm font-semibold text-ink/70">
@@ -289,7 +292,7 @@ export function CarePlanTool() {
             </div>
           )}
 
-          {care && (
+          {care && !needsPhotoCheck && (
             <div className="mt-8">
               {care.has_warning_signs && (
                 <div className="mb-5 rounded-2xl border-2 border-red bg-red-soft p-4 text-red">
@@ -389,9 +392,10 @@ export function CarePlanTool() {
             </label>
           </div>
           <div className="mt-6">
-            <SquashButton onClick={makePlan} disabled={planning || (barriers.length === 0 && items.length === 0)} bg="var(--ink)" accent="var(--mint)">
+            <SquashButton onClick={makePlan} disabled={planning || needsPhotoCheck || (barriers.length === 0 && items.length === 0)} bg="var(--ink)" accent="var(--mint)">
               {planning ? "Building your plan..." : "Make my plan"}
             </SquashButton>
+            {needsPhotoCheck && <p className="mt-3 text-sm font-bold text-ink/70">First check how we read your photo in step 1.</p>}
           </div>
         </div>
 

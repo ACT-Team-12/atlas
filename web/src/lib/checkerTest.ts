@@ -20,10 +20,18 @@ const INVENTED = [
   "Take 2 aspirin every 4 hours",
 ];
 
-function fakesFor(real: string): { kind: string; text: string }[] {
+// A dose, count or interval ("500 mg", "2 times", "3 months"); else any standalone number. Never a digit inside a
+// word, so "A1c" stays "A1c" and the number a patient acts on is the one that changes.
+const DOSE_OR_INTERVAL = /\b\d+(?:\.\d+)?(?=\s*(?:mg|mcg|ml|units?|tablets?|capsules?|puffs?|drops?|times?|hours?|days?|weeks?|months?|years?)\b)/i;
+const STANDALONE_NUMBER = /\b\d+(?:\.\d+)?\b/;
+
+export function fakesFor(real: string): { kind: string; text: string }[] {
   const out: { kind: string; text: string }[] = [];
-  const num = real.match(/\d+/);
-  if (num) out.push({ kind: "changed number", text: real.replace(num[0], String(Number(num[0]) * 10)) });
+  const num = DOSE_OR_INTERVAL.exec(real) ?? STANDALONE_NUMBER.exec(real);
+  if (num) {
+    const changed = String(Number(num[0]) * 10);
+    out.push({ kind: "changed number", text: real.slice(0, num.index) + changed + real.slice(num.index + num[0].length) });
+  }
   for (const [a, b] of SWAPS) {
     const re = new RegExp(`\\b${a}\\b`, "i");
     if (re.test(real)) { out.push({ kind: "swapped word", text: real.replace(re, b) }); break; }

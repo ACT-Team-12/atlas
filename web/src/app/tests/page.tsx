@@ -3,6 +3,7 @@ import { Nav } from "@/ui/Nav";
 import { Footer } from "@/ui/Footer";
 import { PAPERS, runCheckerTest } from "@/lib/checkerTest";
 import results from "@/data/eval/results.json";
+import { liveStats } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -24,8 +25,9 @@ function Stat({ big, label, note, tone = "bg-paper" }: { big: string; label: str
   );
 }
 
-export default function TestsPage() {
+export default async function TestsPage() {
   const c = runCheckerTest();
+  const live = await liveStats();
   const promoted = results.rows.flatMap((r) => r.distractors_promoted.map((d) => ({ id: r.id, d })));
   const missed = results.rows.flatMap((r) => r.missed.map((m) => ({ id: r.id, m })));
   return (
@@ -102,6 +104,33 @@ export default function TestsPage() {
                   ))}
                 </ul>
               </div>
+            )}
+          </div>
+        </section>
+
+        <section className="relative px-3 mt-3" aria-labelledby="live-title">
+          <div className="section-card bg-mint px-6 sm:px-12 py-20">
+            <span className="chip bg-paper text-teal-deep">Live · real use on this site · our own tests excluded</span>
+            <h2 id="live-title" className="display text-[clamp(2rem,4vw,3.6rem)] mt-4 max-w-[18em]">What happens when people use it</h2>
+            <p className="mt-4 max-w-[42em] font-semibold text-ink-soft">
+              Counted anonymously from the live site and apps: no paper, no name, no location. Feedback is three taps after a plan.
+            </p>
+            {live ? (
+              <>
+                <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  <Stat big={`${live.reads}`} label="papers read" note={live.median_read_ms ? `median ${sec(live.median_read_ms)}` : undefined} />
+                  <Stat big={`${live.plans}`} label="plans built" note={live.median_plan_ms ? `median ${sec(live.median_plan_ms)}` : undefined} />
+                  <Stat big={`${live.feedback}`} label="people told us how it went" note={live.avg_rating ? `average ${live.avg_rating.toFixed(1)} of 5` : "no ratings yet"} />
+                  <Stat big={live.feedback ? `${live.would_use.yes ?? 0}/${live.feedback}` : "0"} label="would use it again" note={live.feedback ? `${live.would_use.maybe ?? 0} maybe, ${live.would_use.no ?? 0} no` : undefined} />
+                </div>
+                <p className="mt-6 text-sm font-semibold">
+                  {live.feedback ? `Who answered: ${Object.entries(live.roles).map(([k, v]) => `${v} ${k}`).join(", ")}. ` : ""}
+                  {live.since ? `Counting since ${new Date(live.since).toLocaleDateString("en-US", { month: "long", day: "numeric" })}. ` : "Nothing counted yet. "}
+                  Raw numbers: <a className="underline decoration-2 underline-offset-4" href="/api/stats">/api/stats</a>.
+                </p>
+              </>
+            ) : (
+              <p className="mt-8 card p-6 bg-paper font-semibold">Live numbers are not reachable right now. The tests above still run.</p>
             )}
           </div>
         </section>

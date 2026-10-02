@@ -16,7 +16,7 @@ const overlaps = (a, span) => span && span.start < a[1] && a[0] < span.end;
 
 async function post(path, body) {
   const t = Date.now();
-  const res = await fetch(BASE + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const res = await fetch(BASE + path, { method: "POST", headers: { "content-type": "application/json", "x-atlas-test": "1" }, body: JSON.stringify(body) });
   const json = await res.json();
   if (!res.ok) throw new Error(`${path} ${res.status}: ${json.error}`);
   return { json, ms: Date.now() - t };

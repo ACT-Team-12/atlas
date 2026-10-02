@@ -45,6 +45,7 @@ export default function PrivacyPage() {
             </Block>
             <Block title="What our server keeps">
               <p>To stop abuse, the server counts requests per network address for 10 minutes, in memory only. Our host (Vercel) keeps standard request logs such as time, page and network address. If a request fails we log the kind of error, not your paper.</p>
+              <p>To show how ATLAS is used, we count each read, plan and feedback answer without anything about you: the language, how many steps, how long it took, which kinds of barriers were picked, and your three feedback taps. No paper text, no name, no ZIP or location, no network address, no free text. The totals are public on our tests page.</p>
               <p>We do not sell data, run ads, or use tracking or analytics tools.</p>
             </Block>
             <Block title="It is not medical advice">

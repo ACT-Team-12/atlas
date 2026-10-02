@@ -38,4 +38,10 @@ describe("meaning check: combining the two signals", () => {
     expect(combine("item-0", item, "same", "").flagged).toBe(false);
     expect(combine("item-0", item, "unclear", "x").flagged).toBe(false);
   });
+  it("certifies only an explicit 'same' with matching numbers; unclear or skipped is never shown as checked (Codex 2026-10-02)", () => {
+    expect(combine("item-0", item, "same", "").certified).toBe(true);
+    expect(combine("item-0", item, "unclear", "The checker did not return this step.").certified).toBe(false);
+    expect(combine("item-0", item, "different", "x").certified).toBe(false);
+    expect(combine("item-0", { ...item, plain_language: "Take 3 pills once a day." }, "same", "").certified).toBe(false);
+  });
 });

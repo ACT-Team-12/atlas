@@ -414,8 +414,11 @@ export function CarePlanTool() {
                               {meaning.byId[it.id].unexpected_numbers.length > 0 ? ` (Number not in your paper: ${meaning.byId[it.id].unexpected_numbers.join(", ")}.)` : ""}
                             </p>
                           )}
-                          {meaning.status === "done" && meaning.byId[it.id] && !meaning.byId[it.id].flagged && (
+                          {meaning.status === "done" && meaning.byId[it.id]?.certified && (
                             <p className="mt-1 text-[11px] font-bold text-teal-deep">✓ Double-checked: the explanation matches this line</p>
+                          )}
+                          {meaning.status === "done" && meaning.byId[it.id] && !meaning.byId[it.id].flagged && !meaning.byId[it.id].certified && (
+                            <p className="mt-1 text-[11px] font-semibold text-ink/70">Not double-checked: our second check couldn&apos;t confirm this one. Read the line from your paper above.</p>
                           )}
                         </div>
                         <button type="button" aria-label={`Remove ${it.title}`} className="text-xs font-bold text-ink/70 hover:text-red"

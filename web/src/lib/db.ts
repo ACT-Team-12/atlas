@@ -8,7 +8,8 @@ import { Pool } from "pg";
  */
 
 let pool: Pool | null = null;
-function getPool(): Pool | null {
+/** The shared pool (null without DATABASE_URL). The phone-call tables use it too (lib/call/store.ts). */
+export function getPool(): Pool | null {
   const url = process.env.DATABASE_URL;
   if (!url) return null;
   if (!pool) {

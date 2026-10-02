@@ -11,6 +11,7 @@ import type { MeaningResponse, MeaningResult } from "@/lib/meaning";
 import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
+import { HandoffSheet } from "./HandoffSheet";
 import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
 
@@ -277,6 +278,15 @@ export function CarePlanTool() {
     setSpeaking(false);
   }, [plan]);
 
+  // The handoff sheet is the only thing printed while html.print-sheet is set; afterprint clears it.
+  function printSheet() {
+    const root = document.documentElement;
+    const done = () => { root.classList.remove("print-sheet"); window.removeEventListener("afterprint", done); };
+    root.classList.add("print-sheet");
+    window.addEventListener("afterprint", done);
+    window.print();
+  }
+
   const careById = Object.fromEntries((care?.items ?? []).map((i) => [i.id, i]));
   // Show "Book it now" once per thing to book: on the first plan step that serves it.
   const bookAt = new Map<string, number>();
@@ -479,6 +489,8 @@ export function CarePlanTool() {
           </div>
         </div>
 
+        {plan && care && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} />}
+
         {/* Step 3 */}
         {plan && (
           <div id="step-3" className="card mt-6 p-5 sm:p-8 scroll-mt-24">
@@ -489,6 +501,7 @@ export function CarePlanTool() {
                 {speaking ? "⏹ Stop reading" : "🔊 Read it out loud"}
               </button>
               <button type="button" onClick={() => window.print()} className="rounded-full border-2 border-ink px-4 py-2">🖨️ Print for the next visit</button>
+              <button type="button" onClick={printSheet} className="rounded-full border-2 border-ink px-4 py-2">📄 Print a handoff sheet</button>
               <span className="self-center text-ink/55">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
             </div>
             {plan.ask_a_person && (

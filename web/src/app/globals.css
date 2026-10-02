@@ -193,6 +193,26 @@ html.js-motion [data-reveal] {
   .marquee-track { animation: none; }
 }
 
+/* Handoff sheet: hidden on screen; when printing it, it is the only thing on the page. */
+.atlas-sheet { display: none; }
+@media print {
+  html.print-sheet body > *:not(#atlas-sheet) { display: none !important; }
+  html.print-sheet, html.print-sheet body { background: #fff !important; }
+  html.print-sheet .atlas-sheet { display: block; color: #000; font-size: 14pt; line-height: 1.4; }
+  .atlas-sheet h1 { font-size: 22pt; margin: 0 0 2pt; }
+  .atlas-sheet h2 { font-size: 15pt; margin: 14pt 0 4pt; border-bottom: 1.5pt solid #000; padding-bottom: 2pt; break-after: avoid; }
+  .atlas-sheet .meta, .atlas-sheet .foot { font-size: 10pt; color: #333; }
+  .atlas-sheet .foot { margin-top: 14pt; }
+  .atlas-sheet ol, .atlas-sheet ul { padding-left: 18pt; margin: 0; }
+  .atlas-sheet .steps { list-style: none; padding: 0; }
+  .atlas-sheet .steps li { display: flex; gap: 10pt; padding: 6pt 0; border-bottom: 0.5pt solid #999; break-inside: avoid; }
+  .atlas-sheet .box { flex: none; width: 16pt; height: 16pt; border: 2pt solid #000; margin-top: 3pt; }
+  .atlas-sheet p { margin: 0 0 2pt; }
+  .atlas-sheet .quote { font-style: italic; font-size: 12pt; border-left: 3pt solid #000; padding-left: 6pt; }
+  .atlas-sheet .plan li, .atlas-sheet .help li { margin: 3pt 0; break-inside: avoid; }
+  .atlas-sheet .lines span { display: block; border-bottom: 0.75pt solid #000; height: 24pt; }
+}
+
 /* Print: only the plan and the patient's own steps, plain and readable. */
 @media print {
   header, footer, #how, #why, #trust, .hero-bg, #try > div > .flex:first-child, #try button, #try input, #try select, #try textarea, #try label { display: none !important; }

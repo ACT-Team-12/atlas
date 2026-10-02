@@ -32,6 +32,13 @@ describe("findSpan", () => {
     expect(findSpan(SAMPLE_AVS, "due in 3 months ... Hemoglobin A1c")).toBeNull();
   });
 
+  it("refuses a quote whose ellipsis fragments are too short to check (an invented dose cannot hide in them)", () => {
+    expect(findSpan("Take a seat.", "Take ... 5 ... mg")).toBeNull();
+    expect(findSpan("Take 1 tablet by mouth daily.", "Take 1 tablet ... daily")).not.toBeNull();
+    // A leading or trailing ellipsis is only an empty fragment, which is dropped.
+    expect(findSpan("Take 1 tablet by mouth daily.", "... Take 1 tablet ...")).not.toBeNull();
+  });
+
   it("refuses a quote that is not in the document (a hallucinated instruction)", () => {
     expect(findSpan(SAMPLE_AVS, "Take aspirin 81 mg daily")).toBeNull();
     expect(findSpan(SAMPLE_AVS, "")).toBeNull();

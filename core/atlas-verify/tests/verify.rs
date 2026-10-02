@@ -38,6 +38,14 @@ fn accepts_ellipsis_fragments_only_when_they_appear_in_order() {
 }
 
 #[test]
+fn refuses_a_quote_whose_ellipsis_fragments_are_too_short_to_check() {
+    assert!(find_span("Take a seat.", "Take ... 5 ... mg").is_none());
+    assert!(find_span("Take 1 tablet by mouth daily.", "Take 1 tablet ... daily").is_some());
+    // A leading or trailing ellipsis is only an empty fragment, which is dropped.
+    assert!(find_span("Take 1 tablet by mouth daily.", "... Take 1 tablet ...").is_some());
+}
+
+#[test]
 fn refuses_a_quote_that_is_not_in_the_document() {
     let avs = common::sample_avs();
     assert!(find_span(&avs, "Take aspirin 81 mg daily").is_none());

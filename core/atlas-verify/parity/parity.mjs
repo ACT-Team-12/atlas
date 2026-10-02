@@ -147,6 +147,10 @@ A("take 1 tablet then rest", "take...1 tablet", "ellipsis splits short fragment"
 A("take 1 tablet then rest", "take 1 tablet\u2026then rest", "unicode ellipsis between fragments");
 A("take 1 tablet then rest", "a...b...c", "only short fragments");
 A("take 1 tablet then rest", "tak...ablet", "3-unit fragments");
+A("Take a seat.", "Take ... 5 ... mg", "invented dose in short ellipsis fragments (must refuse)");
+A("Take 1 tablet by mouth daily.", "Take 1 tablet ... daily", "legit ellipsis quote (must pass)");
+A("Take 1 tablet by mouth daily.", "... Take 1 tablet ...", "leading and trailing ellipsis");
+A("Take 1 tablet by mouth daily.", "Take 1 tablet ...... daily", "double ellipsis leaves an empty middle fragment");
 A("take 1 tablet\r\nthen rest", "tablet then", "CRLF");
 A("take 1 tablet\u0085then rest", "tablet then", "NEL is not JS whitespace");
 A("take 1 tablet\u0085then rest", "tablet\u0085then", "NEL on both sides");
@@ -240,6 +244,17 @@ for (const [i, c] of cases.entries()) {
     if (typeof a[0] !== "number" || typeof a[1] !== "number") oddOffsets++;
   }
   out.push({ i, origin: c.origin, source: c.source, quote: c.quote, span: a, same });
+}
+
+// Outcomes that must hold in BOTH implementations, not just agree.
+const MUST = [
+  ["Take a seat.", "Take ... 5 ... mg", false],
+  ["Take 1 tablet by mouth daily.", "Take 1 tablet ... daily", true],
+];
+for (const [src, q, found] of MUST) {
+  for (const [name, impl] of [["ts", ts], ["rust", rust]]) {
+    if ((impl.findSpan(src, q) !== null) !== found) mismatches.push({ what: "must", impl: name, source: src, quote: q, expected_found: found });
+  }
 }
 
 const strings = new Set();

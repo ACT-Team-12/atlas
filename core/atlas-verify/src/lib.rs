@@ -154,8 +154,10 @@ fn trim_quote_marks(f: &str) -> &str {
     f.trim_matches(|c: char| c == '"' || c == '\'' || is_js_whitespace(c))
 }
 
-/// `fragments` from verify.ts: split the normalized quote on "..." or "…", trim quote marks, keep fragments of
-/// at least 3 UTF-16 units. Returned as UTF-16 so lengths and searches are in JS units.
+/// `fragments` from verify.ts: split the normalized quote on "..." or "…", trim quote marks, drop only EMPTY
+/// fragments (a leading or trailing ellipsis). If any remaining fragment is shorter than 3 UTF-16 units the quote is
+/// refused (empty result), so "Take ... 5 ... mg" cannot ground on "Take a seat." with the dose never checked.
+/// Returned as UTF-16 so lengths and searches are in JS units.
 fn fragments(quote: &str) -> Vec<Vec<u16>> {
     let n = normalize(quote);
     let mut parts: Vec<&str> = Vec::new();
@@ -177,11 +179,16 @@ fn fragments(quote: &str) -> Vec<Vec<u16>> {
         }
     }
     parts.push(&n[start..]);
-    parts
+    let frags: Vec<Vec<u16>> = parts
         .into_iter()
         .map(|p| trim_quote_marks(p).encode_utf16().collect::<Vec<u16>>())
-        .filter(|f| f.len() >= 3)
-        .collect()
+        .filter(|f| !f.is_empty())
+        .collect();
+    if frags.iter().any(|f| f.len() < 3) {
+        Vec::new()
+    } else {
+        frags
+    }
 }
 
 fn utf8_len(first: u8) -> usize {

@@ -50,9 +50,7 @@ function wrap(x) {
           const r = x.atlas_find_span(sp, sl, qp, ql);
           if (r < 0) throw new Error("atlas_verify: input was not valid UTF-8");
           if (r === 0) return null;
-          // NaN marks the TS checker's own undefined / NaN offsets (see Span in src/lib.rs).
-          const start = x.atlas_span_start();
-          return { start: Number.isNaN(start) ? undefined : start, end: x.atlas_span_end() };
+          return { start: x.atlas_span_start(), end: x.atlas_span_end() };
         }),
       );
     },

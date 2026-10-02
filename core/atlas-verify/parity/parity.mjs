@@ -3,7 +3,7 @@
 //   node --experimental-strip-types --import ./parity/register.mjs parity/parity.mjs [--wasm pkg/atlas_verify.wasm]
 //        [--out parity.json] [--no-native]
 //
-// For every case it compares findSpan (same span or same null, including the TS's own undefined/NaN offsets), and for
+// For every case it compares findSpan (same span or same null; a non-numeric offset is recorded and counted), and for
 // every distinct string normalize and fakesFor. It also runs the Rust checker report natively (cargo example) and
 // deep-compares it with the TS runCheckerTest(). Exits 1 on any mismatch. The output file is deterministic.
 import { execFileSync } from "node:child_process";
@@ -126,13 +126,16 @@ A("\u6bcf\u5929\u65e9\u4e0a\u670d\u7528\u4e00\u7247\u836f", "\u670d\u7528\u4e00\
 A("\u6bcf\u5929\u65e9\u4e0a\u670d\u7528\u4e00\u7247\u836f", "\u670d\u7528\u4e8c\u7247", "Chinese changed number");
 A("STRASSE \u1e9e", "strasse \u00df", "capital sharp s");
 A("\u0130la\u00e7 g\u00fcnde iki kez", "ila\u00e7 g\u00fcnde", "Turkish dotted capital I vs plain i");
-A("\u0130la\u00e7 g\u00fcnde iki kez", "g\u00fcnde iki kez", "Turkish dotted capital I shifts the TS map");
-A("\u0130\u0130\u0130 abc", "abc", "three dotted capital I, match reads past the TS map");
+A("\u0130la\u00e7 g\u00fcnde iki kez", "g\u00fcnde iki kez", "Turkish dotted capital I, offsets after it");
+A("\u0130\u0130\u0130 abc", "abc", "three dotted capital I, match at the very end");
 A("\u0130 take 1 tablet daily with food", "take 1 tablet", "dotted capital I early, match mid-text");
 A("\u039f\u0394\u039f\u03a3 \u039a\u0391\u0399", "\u03bf\u03b4\u03bf\u03c2", "Greek final sigma in quote only");
 A("\u039f\u0394\u039f\u03a3 \u039a\u0391\u0399", "\u039f\u0394\u039f\u03a3", "Greek uppercase on both sides");
 A("\u039f\u0394\u039f\u03a3 \u039a\u0391\u0399", "\u03bf\u03b4\u03bf\u03c3", "Greek medial sigma");
-A("\u{10400}\u{10401} dose", "\u{10428}\u{10429} dose", "Deseret capitals in source (surrogate pairs not lower-cased per unit)");
+A("\u03bf\u03b4\u03bf\u03c2 \u03ba\u03b1\u03b9", "\u039f\u0394\u039f\u03a3", "Greek lowercase final sigma in source, capitals in quote");
+A("\u03a3\u03a3 \u03b4\u03cc\u03c3\u03b7", "\u03c3\u03c2 \u03b4\u03cc\u03c3\u03b7", "Greek sigma pair");
+A("\u{1D400}\u{10400} x", "\u{1D400}\u{10428} x", "math bold A (no case) next to a Deseret capital");
+A("\u{10400}\u{10401} dose", "\u{10428}\u{10429} dose", "Deseret capitals in source, small letters in quote");
 A("\u{10400}\u{10401} dose", "\u{10400}\u{10401} dose", "Deseret capitals on both sides");
 A("take 1 tablet. take 1 tablet. take 1 tablet.", "take 1 tablet", "repeated substring");
 A("take 1 tablet. take 1 tablet. take 1 tablet.", "take 1 tablet ... take 1 tablet ... take 1 tablet", "repeated with ellipses");
@@ -261,7 +264,21 @@ for (const [i, c] of cases.entries()) {
 const MUST = [
   ["Take a seat.", "Take ... 5 ... mg", false],
   ["Take 1 tablet by mouth daily.", "Take 1 tablet ... daily", true],
+  ["\u039f\u0394\u039f\u03a3 \u039a\u0391\u0399", "\u039f\u0394\u039f\u03a3", true],
+  ["\u{10400}\u{10401} dose", "\u{10400}\u{10401} dose", true],
 ];
+// Exact spans that must hold in both (the U+0130 map shift used to break these).
+const MUST_SPAN = [
+  ["\u0130la\u00e7 g\u00fcnde iki kez", "g\u00fcnde iki kez", 5, 18],
+  ["\u0130\u0130\u0130 abc", "abc", 4, 7],
+  ["\u0130 take 1 tablet daily with food", "take 1 tablet", 2, 15],
+];
+for (const [src, q, s0, e0] of MUST_SPAN) {
+  for (const [name, impl] of [["ts", ts], ["rust", rust]]) {
+    const r = impl.findSpan(src, q);
+    if (!r || r.start !== s0 || r.end !== e0) mismatches.push({ what: "must span", impl: name, source: src, quote: q, got: r, expected: [s0, e0] });
+  }
+}
 for (const [src, q, found] of MUST) {
   for (const [name, impl] of [["ts", ts], ["rust", rust]]) {
     if ((impl.findSpan(src, q) !== null) !== found) mismatches.push({ what: "must", impl: name, source: src, quote: q, expected_found: found });
@@ -332,7 +349,7 @@ for (const c of out) {
   byOrigin[key] = (byOrigin[key] ?? 0) + 1;
 }
 const report = {
-  about: "TS checker (web/src/lib/verify.ts, checkerTest.ts) vs Rust checker (core/atlas-verify, WebAssembly). Spans are [start, end] in UTF-16 units; \"undefined\"/\"NaN\" are the TS checker's own offsets after U+0130 (see README).",
+  about: "TS checker (web/src/lib/verify.ts, checkerTest.ts) vs Rust checker (core/atlas-verify, WebAssembly). Spans are [start, end] in UTF-16 units; \"undefined\"/\"NaN\" would mark a non-numeric offset (none expected since the U+0130 fix).",
   fuzz_seed: SEED,
   unicode_version: UNICODE.node,
   totals: {

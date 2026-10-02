@@ -7,9 +7,9 @@
 //! Behaviour is matched to JavaScript, not to "what a Rust programmer would expect":
 //! - every offset is a UTF-16 code unit index (a JS string index), never a byte or `char` index;
 //! - "whitespace" is the JS `\s` set (it includes U+FEFF and excludes U+0085, unlike `char::is_whitespace`);
-//! - the source is normalized one UTF-16 code unit at a time, exactly as `normalizeWithMap` does, so a surrogate
-//!   pair is two separate units and is never lower-cased, while the quote is lower-cased as a whole string;
-//! - `findSpan` can, like the TS, return a span whose offsets are not usable numbers (see [`Span`]).
+//! - the source is normalized one code point at a time, as `normalizeWithMap` does, with a [start, end) entry per
+//!   normalized UTF-16 unit, while the quote is lower-cased as a whole string; final sigma is folded to plain sigma
+//!   on both sides so the two agree.
 //!
 //! Inputs are `&str`, so a string containing a lone surrogate cannot be passed in. JS strings can hold one; across
 //! the WebAssembly boundary `TextEncoder` turns it into U+FFFD. That is the one known input class where the two
@@ -21,26 +21,17 @@ mod wasm;
 
 pub use fakes::{fakes_for, run_checker_test, CheckerReport, Fake, KindCount, Paper, Slipped};
 
-/// Result of a successful [`find_span`]: where the quote sits in the ORIGINAL source, in UTF-16 code units.
-///
-/// Both fields are `Some` for every input we have seen in practice. They mirror JS exactly: `normalizeWithMap`
-/// pushes one map entry per source unit even when lower-casing that unit produces two units (U+0130, capital I with
-/// dot above, becomes `i` + U+0307). After such a character the TS map is shorter than the normalized text, so a
-/// late match reads past the end of the map: JS then returns `{ start: undefined, end: NaN }`, which is still a
-/// truthy "found". `start: None` stands for that `undefined`, `end: None` for that `NaN`.
+/// Result of a successful [`find_span`]: where the quote sits in the ORIGINAL source, in UTF-16 code units
+/// (`source.slice(start, end)` in JS).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Span {
-    pub start: Option<usize>,
-    pub end: Option<usize>,
+    pub start: usize,
+    pub end: usize,
 }
 
 impl Span {
-    /// The span as a range, when both ends are real offsets.
-    pub fn range(&self) -> Option<std::ops::Range<usize>> {
-        match (self.start, self.end) {
-            (Some(s), Some(e)) => Some(s..e),
-            _ => None,
-        }
+    pub fn range(&self) -> std::ops::Range<usize> {
+        self.start..self.end
     }
 }
 
@@ -61,9 +52,11 @@ pub fn is_js_whitespace(c: char) -> bool {
     )
 }
 
-/// The character folds `normalize` applies after lower-casing: quote marks, dashes, bullets.
+/// The character folds `normalize` applies after lower-casing: final sigma, quote marks, dashes, bullets.
 fn fold(c: char) -> char {
     match c {
+        // "ΟΔΟΣ" lower-cases to "οδος" as a word but "οδοσ" letter by letter (how the source is mapped).
+        '\u{03C2}' => '\u{03C3}',
         '\u{2018}' | '\u{2019}' | '\u{201B}' | '\u{2032}' => '\'',
         '\u{201C}' | '\u{201D}' | '\u{2033}' => '"',
         '\u{2010}'..='\u{2015}' | '\u{2212}' => '-',
@@ -96,57 +89,55 @@ pub fn normalize(s: &str) -> String {
 
 const SPACE: u16 = 0x20;
 
-fn is_surrogate(u: u16) -> bool {
-    (0xD800..=0xDFFF).contains(&u)
-}
-
-/// `normalizeWithMap` from verify.ts: the normalized source as UTF-16 units, plus one map entry per kept source unit.
-fn normalize_with_map(src: &str) -> (Vec<u16>, Vec<usize>) {
-    let units: Vec<u16> = src.encode_utf16().collect();
-    let mut norm: Vec<u16> = Vec::with_capacity(units.len());
-    let mut map: Vec<usize> = Vec::with_capacity(units.len());
+/// `normalizeWithMap` from verify.ts: the normalized source as UTF-16 units, plus for each unit the original
+/// [start, end) in UTF-16 units. Walked one code point at a time, so a letter outside the BMP is lower-cased, and a
+/// letter that lower-cases to two units (U+0130 becomes `i` + U+0307) gets an entry for each.
+fn normalize_with_map(src: &str) -> (Vec<u16>, Vec<usize>, Vec<usize>) {
+    let mut norm: Vec<u16> = Vec::with_capacity(src.len());
+    let mut starts: Vec<usize> = Vec::with_capacity(src.len());
+    let mut ends: Vec<usize> = Vec::with_capacity(src.len());
     let mut last_space = true;
     let mut buf = [0u8; 4];
-    for (i, &u) in units.iter().enumerate() {
-        // `normalize(src[i]) || " "`, where src[i] is ONE code unit.
-        let c: Vec<u16> = if is_surrogate(u) {
-            // A lone surrogate is untouched by toLowerCase, the folds and \s.
-            vec![u]
-        } else {
-            let ch = char::from_u32(u32::from(u)).expect("non-surrogate BMP unit is a char");
-            if ch.is_ascii() {
-                if is_js_whitespace(ch) {
-                    vec![SPACE]
-                } else {
-                    vec![u16::from(ch.to_ascii_lowercase() as u8)]
-                }
+    let mut i = 0;
+    for ch in src.chars() {
+        let next = i + ch.len_utf16();
+        // `normalize(ch) || " "`, where ch is ONE code point.
+        let c: Vec<u16> = if ch.is_ascii() {
+            if is_js_whitespace(ch) {
+                vec![SPACE]
             } else {
-                let n = normalize(ch.encode_utf8(&mut buf));
-                if n.is_empty() {
-                    vec![SPACE]
-                } else {
-                    n.encode_utf16().collect()
-                }
+                vec![u16::from(ch.to_ascii_lowercase() as u8)]
+            }
+        } else {
+            let n = normalize(ch.encode_utf8(&mut buf));
+            if n.is_empty() {
+                vec![SPACE]
+            } else {
+                n.encode_utf16().collect()
             }
         };
         if c == [SPACE] {
-            if last_space {
-                continue;
+            if !last_space {
+                norm.push(SPACE);
+                starts.push(i);
+                ends.push(next);
+                last_space = true;
             }
-            norm.push(SPACE);
-            map.push(i);
-            last_space = true;
         } else {
-            norm.extend_from_slice(&c);
-            map.push(i);
+            for &u in &c {
+                norm.push(u);
+                starts.push(i);
+                ends.push(next);
+            }
             last_space = false;
         }
+        i = next;
     }
     // `trimEnd()`: the only whitespace unit that can be in `norm` is a plain space.
     while norm.last() == Some(&SPACE) {
         norm.pop();
     }
-    (norm, map)
+    (norm, starts, ends)
 }
 
 fn trim_quote_marks(f: &str) -> &str {
@@ -214,7 +205,7 @@ pub fn find_span(source: &str, quote: &str) -> Option<Span> {
     if frags.is_empty() {
         return None;
     }
-    let (norm, map) = normalize_with_map(source);
+    let (norm, starts, ends) = normalize_with_map(source);
     let mut cursor = 0;
     let mut first: Option<usize> = None;
     let mut last_end = 0;
@@ -228,8 +219,8 @@ pub fn find_span(source: &str, quote: &str) -> Option<Span> {
     }
     let first = first.expect("at least one fragment matched");
     Some(Span {
-        start: map.get(first).copied(),
-        end: map.get(last_end - 1).map(|v| v + 1),
+        start: starts[first],
+        end: ends[last_end - 1],
     })
 }
 

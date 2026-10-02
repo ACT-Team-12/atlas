@@ -57,9 +57,8 @@ pub unsafe extern "C" fn atlas_find_span(src: *const u8, src_len: usize, quote: 
     match find_span(s, q) {
         None => 0,
         Some(span) => {
-            // NaN stands for JS `undefined` / `NaN`, see `Span`.
-            START.with(|c| c.set(span.start.map_or(f64::NAN, |v| v as f64)));
-            END.with(|c| c.set(span.end.map_or(f64::NAN, |v| v as f64)));
+            START.with(|c| c.set(span.start as f64));
+            END.with(|c| c.set(span.end as f64));
             1
         }
     }

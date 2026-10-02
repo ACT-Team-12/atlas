@@ -44,6 +44,29 @@ describe("findSpan", () => {
     expect(findSpan(SAMPLE_AVS, "")).toBeNull();
     expect(findSpan(SAMPLE_AVS, "..")).toBeNull();
   });
+
+  it("keeps offsets right after a letter that lower-cases to two units (Turkish İ)", () => {
+    const src = "İlaç günde iki kez";
+    expect(findSpan(src, "günde iki kez")).toEqual({ start: 5, end: 18 });
+    const early = "İ take 1 tablet daily with food";
+    const span = findSpan(early, "take 1 tablet")!;
+    expect(early.slice(span.start, span.end)).toBe("take 1 tablet");
+    // Used to come back as { start: undefined, end: NaN }.
+    expect(findSpan("İİİ abc", "abc")).toEqual({ start: 4, end: 7 });
+    expect(findSpan("İlaç günde", "İLAÇ")).toEqual({ start: 0, end: 4 });
+  });
+
+  it("matches a Greek word ending in capital sigma on both sides", () => {
+    const src = "ΟΔΟΣ ΚΑΙ";
+    expect(findSpan(src, "ΟΔΟΣ")).toEqual({ start: 0, end: 4 });
+    expect(findSpan(src, "οδος")).toEqual({ start: 0, end: 4 });
+  });
+
+  it("lower-cases capital letters outside the BMP in the source too", () => {
+    // Deseret capitals (surrogate pairs) used to be lower-cased only in the quote.
+    expect(findSpan("\u{10400}\u{10401} dose", "\u{10400}\u{10401} dose")).toEqual({ start: 0, end: 9 });
+    expect(findSpan("\u{10400}\u{10401} dose", "\u{10428}\u{10429} dose")).toEqual({ start: 0, end: 9 });
+  });
 });
 
 describe("verifyItems", () => {

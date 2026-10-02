@@ -3,6 +3,7 @@ import { Nav } from "@/ui/Nav";
 import { Footer } from "@/ui/Footer";
 import { PAPERS, runCheckerTest } from "@/lib/checkerTest";
 import results from "@/data/eval/results.json";
+import meaning from "@/data/eval/meaning.json";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -103,6 +104,30 @@ export default function TestsPage() {
                 </ul>
               </div>
             )}
+          </div>
+        </section>
+
+        <section className="relative px-3 mt-3" aria-labelledby="meaning-title">
+          <div className="section-card bg-lilac px-6 sm:px-12 py-20">
+            <span className="chip bg-paper text-ink">Measured run · a second AI checks the first</span>
+            <h2 id="meaning-title" className="display text-[clamp(2rem,4vw,3.6rem)] mt-4 max-w-[18em]">Does the explanation say what the paper says?</h2>
+            <p className="mt-4 max-w-[44em] font-semibold text-ink-soft">
+              The quote checker proves a line is in your paper. It cannot prove the plain-language explanation next to it means the same thing.
+              So a different model ({meaning.checker_model}) compares them, and our own code checks that every number in the explanation is in the line.
+              To test it, we planted mistakes into real explanations: a changed number, a swapped time word, start and stop reversed.
+            </p>
+            <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <Stat big={`${meaning.totals.caught}/${meaning.totals.planted}`} label="planted mistakes caught" tone="bg-mint" />
+              {Object.entries(meaning.totals.by_kind).map(([k, v]) => (
+                <Stat key={k} big={`${v.caught}/${v.planted}`} label={k} />
+              ))}
+              <Stat big={`${meaning.totals.false_alarms}/${meaning.totals.originals}`} label="real explanations flagged" note="lower is better; we read each one" />
+              <Stat big={`${meaning.totals.caught_by_numbers}/${meaning.totals.planted}`} label="caught by the number check alone" note="no AI involved" />
+            </div>
+            <p className="mt-6 max-w-[46em] text-sm font-semibold text-ink-soft">
+              Run with <code className="font-mono">{meaning.command}</code> on a {meaning.base_url} of commit {meaning.commit}. We read every flag on a real explanation:
+              {" "}{meaning.rows.flatMap((r) => r.false_alarms).map((f) => f.why).join(" ") || "none."}
+            </p>
           </div>
         </section>
 

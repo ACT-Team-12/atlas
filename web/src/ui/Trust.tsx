@@ -1,0 +1,37 @@
+import { DATASET } from "@/lib/resources";
+
+/** Server component: data provenance straight from the dataset file, so the page can't drift from the data. */
+export function Trust() {
+  return (
+    <section id="trust" className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="trust-title">
+      <div className="section-card bg-lilac px-6 sm:px-12 py-24">
+        <p className="hand text-3xl text-ink-soft -rotate-1 mb-5">how we keep it honest</p>
+        <h2 id="trust-title" className="display text-[clamp(2.4rem,5vw,5rem)] max-w-[14em]">It shows its work, and it holds back when it can&apos;t.</h2>
+        <div className="mt-12 grid lg:grid-cols-3 gap-6">
+          <div className="card p-6">
+            <span className="chip bg-mint text-teal-deep">Grounded</span>
+            <p className="mt-3 font-semibold">Every care step must quote your paper word for word. Our own checker (not the AI) confirms the quote is really there. Anything it can&apos;t find is held back to protect you.</p>
+          </div>
+          <div className="card p-6">
+            <span className="chip bg-sky text-sky-deep">Verified</span>
+            <p className="mt-3 font-semibold">The AI can only recommend places from our verified list: {DATASET.clinicCount} community health centers and {DATASET.programCount} programs in {DATASET.area}. Phone numbers and addresses come from the record, never from the AI.</p>
+          </div>
+          <div className="card p-6">
+            <span className="chip bg-peach text-peach-deep">Private by default</span>
+            <p className="mt-3 font-semibold">No account. Nothing is stored on our side. Please use the sample or your own paper only if you&apos;re comfortable; ATLAS explains paperwork and is not medical advice.</p>
+          </div>
+        </div>
+        <div className="mt-10 card p-6 bg-paper">
+          <p className="display text-2xl">Data sources (retrieved {DATASET.generatedAt})</p>
+          <ul className="mt-4 space-y-2 text-sm font-semibold">
+            {DATASET.sources.map((s) => (
+              <li key={s.id}>
+                <a className="underline decoration-2 underline-offset-4 hover:text-teal" href={s.url} target="_blank" rel="noreferrer">{s.name}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}

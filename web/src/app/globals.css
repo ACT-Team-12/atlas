@@ -1,26 +1,190 @@
 @import "tailwindcss";
 
+/*
+ * ATLAS design system. Adapted from the Lullabuy system (stacked color cards, squash buttons, breathing waves,
+ * handwritten notes, elastic reveals) and tuned calmer for healthcare: lower tilt, softer shadows, teal and mint
+ * for trust, red reserved for warning signs only. Color is never the only signal; every state has a word.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #fbf8f3;
+  --ink: #102a43;
+  --ink-soft: #334e68;
+  --teal: #0b7a75;
+  --teal-deep: #075e5a;
+  --mint: #bfe9dc;
+  --mint-soft: #e6f6f0;
+  --sky: #d6e9f8;
+  --sky-deep: #1d5fa8;
+  --peach: #ffe0c2;
+  --peach-deep: #b85a0e;
+  --sun: #ffc94d;
+  --red: #d64545;
+  --red-soft: #fbe3e3;
+  --lilac: #e6defa;
+
+  --ease-osmo: cubic-bezier(0.625, 0.05, 0, 1);
+  --ease-soft-overshoot: cubic-bezier(0.59, 1, 0.88, 1.01);
+  --button-ease-bounce: cubic-bezier(0.34, 2.27, 0.64, 1);
+
+  --radius-section: 3em;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-teal: var(--teal);
+  --color-teal-deep: var(--teal-deep);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-sky: var(--sky);
+  --color-sky-deep: var(--sky-deep);
+  --color-peach: var(--peach);
+  --color-peach-deep: var(--peach-deep);
+  --color-sun: var(--sun);
+  --color-red: var(--red);
+  --color-red-soft: var(--red-soft);
+  --color-lilac: var(--lilac);
+  --font-display: var(--font-display);
+  --font-sans: var(--font-body);
+  --font-hand: var(--font-hand);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  font-size: clamp(15px, calc(100vw / 92), 20px);
+  background: var(--paper);
+  scroll-behavior: auto;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--mint);
+  color: var(--ink);
+}
+
+.display {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.92;
+}
+
+.hand {
+  font-family: var(--font-hand), cursive;
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.section-card {
+  border-radius: var(--radius-section);
+  position: relative;
+  overflow: hidden;
+}
+
+.card {
+  border: 2px solid var(--ink);
+  border-radius: 1.5rem;
+  background: var(--paper);
+  box-shadow: 4px 5px 0 var(--ink);
+}
+
+/* Squash-and-bounce button: the two scales multiply to exactly 1. */
+.btn {
+  --btn-bg: var(--ink);
+  --btn-fg: var(--paper);
+  --btn-accent: var(--mint);
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0.25em;
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: scale 0.15s var(--ease-soft-overshoot), transform 0.35s var(--button-ease-bounce) 0.15s;
+  user-select: none;
+}
+.btn > .btn-label {
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  padding: 0.95em 1.3em;
+  border-radius: 999px;
+  transition: transform 0.35s var(--button-ease-bounce);
+}
+.btn > .btn-icon {
+  background: var(--btn-accent);
+  color: var(--ink);
+  width: 2.9em;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  transition: transform 0.35s var(--button-ease-bounce);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn:not(:disabled):hover {
+    scale: 0.955 0.925;
+    transform: scale(1.0471204188, 1.0810810811);
+  }
+  .btn:not(:disabled):hover > .btn-label { transform: rotate(-1.5deg); }
+  .btn:not(:disabled):hover > .btn-icon { transform: rotate(-14deg) translateX(0.12em); }
+}
+.btn:not(:disabled):active { scale: 0.955 0.925; }
+.btn:focus-visible {
+  outline: 3px solid var(--sky-deep);
+  outline-offset: 4px;
+  border-radius: 999px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  border-radius: 999px;
+  padding: 0.25em 0.75em;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+:focus-visible {
+  outline: 3px solid var(--sky-deep);
+  outline-offset: 3px;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  animation: marquee 40s linear infinite;
+  width: max-content;
+}
+
+html.js-motion [data-reveal] {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .marquee-track { animation: none; }
+}
+
+/* Print: only the plan and the patient's own steps, plain and readable. */
+@media print {
+  header, footer, #how, #why, #trust, .hero-bg, #try > div > .flex:first-child, #try button, #try input, #try select, #try textarea, #try label { display: none !important; }
+  body, .section-card, .card { background: #fff !important; box-shadow: none !important; }
+  .section-card { border-radius: 0; padding: 0 !important; }
 }

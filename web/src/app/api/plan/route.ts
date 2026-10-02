@@ -1,4 +1,6 @@
+import { after } from "next/server";
 import { guard } from "@/lib/guard";
+import { isTestRequest, recordEvent, surfaceOf } from "@/lib/db";
 import { PlanRequestSchema, buildPlan } from "@/lib/plan";
 import { ExtractError } from "@/lib/extract";
 
@@ -20,7 +22,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "Pick at least one thing that gets in the way, or add your visit paper first." }, { status: 400 });
   }
   try {
-    return Response.json(await buildPlan(parsed.data));
+    const plan = await buildPlan(parsed.data);
+    const test = isTestRequest(request), surface = surfaceOf(request);
+    // Barrier categories, counts and timing only; no ZIP, location or note is recorded.
+    after(() => recordEvent({
+      surface, kind: "plan", language: parsed.data.language, barriers: parsed.data.barriers,
+      steps: plan.stats.steps, dropped_refs: plan.stats.dropped_refs, ms: plan.stats.ms,
+    }, test));
+    return Response.json(plan);
   } catch (e) {
     if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status });
     // Log the kind of error only, never the request or message, so a paper can never land in the host logs.

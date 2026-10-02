@@ -1,4 +1,6 @@
+import { after } from "next/server";
 import { guard } from "@/lib/guard";
+import { isTestRequest, recordEvent, surfaceOf } from "@/lib/db";
 import { RequestSchema } from "@/lib/schema";
 import { extractCarePlan, ExtractError } from "@/lib/extract";
 
@@ -20,6 +22,12 @@ export async function POST(request: Request) {
   }
   try {
     const plan = await extractCarePlan(parsed.data);
+    const test = isTestRequest(request), surface = surfaceOf(request);
+    // Counts and timing only; the paper itself is never recorded.
+    after(() => recordEvent({
+      surface, kind: "read", language: parsed.data.language, reading_level: parsed.data.reading_level,
+      source_kind: plan.source_kind, steps: plan.stats.grounded, held_back: plan.stats.refused, ms: plan.stats.ms,
+    }, test));
     return Response.json(plan);
   } catch (e) {
     if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status });

@@ -14,7 +14,7 @@ export const VOICE_MODEL = "eleven_flash_v2_5";
 export const VOICE_LANG: Partial<Record<(typeof LANGUAGES)[number], string>> = {
   English: "en", Spanish: "es", Vietnamese: "vi", Korean: "ko", Chinese: "zh", French: "fr",
 };
-export const MAX_SPEAK_CHARS = 2500;
+export const MAX_SPEAK_CHARS = 4000; // a Spanish plan built from a paper runs about 2,000 to 3,000 characters
 
 export const SpeakRequestSchema = z.object({
   // Not trimmed: the token signs the exact text the plan produced.

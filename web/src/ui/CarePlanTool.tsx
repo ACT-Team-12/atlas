@@ -20,6 +20,7 @@ import { restoredTab, shownTab, type Tab } from "@/lib/phoneTabs";
 import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
 import { speechLines } from "@/lib/speechText";
+import { SPEECH_LANG } from "@/lib/speechLang";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -37,7 +38,6 @@ type Saved = {
   done: Record<string, boolean>; removed: Record<string, boolean>; photoChecked?: boolean; savedAt: string;
 };
 
-const SPEECH_LANG: Record<string, string> = { English: "en-US", Spanish: "es-US", Vietnamese: "vi-VN", Korean: "ko-KR", Chinese: "zh-CN", Amharic: "am-ET", French: "fr-FR" };
 /** Same limit as /api/speak (lib/voice.ts, server only). A longer plan is read by the phone's voice. */
 const MAX_SPEAK_CHARS = 4000;
 

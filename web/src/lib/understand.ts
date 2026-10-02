@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ExtractError, MODEL } from "./extract";
 import { LANGUAGES } from "./schema";
 import { findSpan } from "./verify";
+import { numbersIn } from "./meaning";
 
 /**
  * "Check I understood": one teach-back question per care step.
@@ -45,7 +46,7 @@ const ModelOutput = z.object({
 export type DraftQuestion = z.infer<typeof ModelOutput>["questions"][number];
 
 export type CheckedQuestion = DraftQuestion & { span: { start: number; end: number } };
-export type DropReason = "unknown_step" | "duplicate_step" | "bad_options" | "quote_not_in_paper" | "quote_outside_step";
+export type DropReason = "unknown_step" | "duplicate_step" | "bad_options" | "quote_not_in_paper" | "quote_outside_step" | "answer_not_in_quote" | "distractor_matches_quote";
 export type UnderstandResponse = {
   questions: CheckedQuestion[];
   dropped: { item_id: string; reason: DropReason }[];
@@ -86,6 +87,18 @@ export function checkQuestions(
     const span = findSpan(source, q.answer_quote);
     if (!span) { dropped.push({ item_id: q.item_id, reason: "quote_not_in_paper" }); continue; }
     if (span.start < step.start || span.end > step.end) { dropped.push({ item_id: q.item_id, reason: "quote_outside_step" }); continue; }
+    // The quote is real, but does it back THIS answer? (Codex review, 2026-10-02: correct="3 times daily" with
+    // quote "2 times a day" passed.) No AI here: every number in the right answer must be in the quote, and no
+    // wrong option may carry exactly the quote's numbers. Answers without numbers keep the quote-in-step rule.
+    const quoteNums = new Set(numbersIn(q.answer_quote));
+    const nums = (o: string) => numbersIn(o);
+    const right = nums(opts[q.correct]);
+    if (right.some((n) => !quoteNums.has(n))) { dropped.push({ item_id: q.item_id, reason: "answer_not_in_quote" }); continue; }
+    const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((n) => b.includes(n));
+    if (opts.some((o, i) => i !== q.correct && nums(o).length > 0 && nums(o).every((n) => quoteNums.has(n)) && !sameSet(nums(o), right))) {
+      dropped.push({ item_id: q.item_id, reason: "distractor_matches_quote" });
+      continue;
+    }
     seen.add(q.item_id);
     questions.push({ ...q, options: opts, span });
   }

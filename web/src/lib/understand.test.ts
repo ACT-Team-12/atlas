@@ -29,6 +29,17 @@ describe("teach-back checker", () => {
     expect(r.dropped).toEqual([{ item_id: "item-0", reason: "quote_not_in_paper" }]);
   });
 
+  it("drops a question whose marked answer contradicts its own quote (Codex 2026-10-02)", () => {
+    const r = checkQuestions(paper.text, items, [{ ...good, options: ["Once daily", "3 times daily", "Only as needed"], correct: 1 }]);
+    expect(r.questions).toEqual([]);
+    expect(r.dropped).toEqual([{ item_id: "item-0", reason: "answer_not_in_quote" }]);
+  });
+
+  it("drops a question where a 'wrong' option carries exactly the quote's numbers", () => {
+    const r = checkQuestions(paper.text, items, [{ ...good, options: ["2 times a day", "With every meal", "Only at bedtime"], correct: 1 }]);
+    expect(r.dropped).toEqual([{ item_id: "item-0", reason: "distractor_matches_quote" }]);
+  });
+
   it("drops a proof that is real but belongs to a different step", () => {
     const r = checkQuestions(paper.text, items, [{ ...good, answer_quote: "Call 911 if you have chest pain" }]);
     expect(r.dropped[0].reason).toBe("quote_outside_step");

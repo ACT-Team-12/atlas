@@ -133,7 +133,7 @@ export default function TestsPage() {
               <Stat big={`${meaning.totals.caught_by_numbers}/${meaning.totals.planted}`} label="caught by the number check alone" note="no AI involved" />
             </div>
             <p className="mt-6 max-w-[46em] text-sm font-semibold text-ink-soft">
-              Run with <code className="font-mono">{meaning.command}</code> on a {meaning.base_url} of commit {meaning.commit}. We read every flag on a real explanation:
+              Run with <code className="font-mono">{meaning.command}</code> on a {meaning.base_url} of commit {meaning.commit}. Each run reads the papers fresh, so counts move a little between runs. We read every flag on a real explanation:
               {" "}{meaning.rows.flatMap((r) => r.false_alarms).map((f) => f.why).join(" ") || "none."}
             </p>
             {meaning.rows.flatMap((r) => r.by_kind.filter((c) => !c.flagged)).length > 0 && (

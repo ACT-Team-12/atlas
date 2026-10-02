@@ -89,6 +89,10 @@ body {
   position: relative;
   overflow: hidden;
 }
+/* Phones: the "Try it" tab bar is sticky. overflow: hidden would stop it sticking; clip still trims the corners. */
+@media not all and (min-width: 48rem) {
+  #try > .section-card { overflow: clip; }
+}
 
 .card {
   border: 2px solid var(--ink);

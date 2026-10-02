@@ -40,7 +40,7 @@ export function Footer() {
         </div>
         <div className="ft-row mt-16 pt-8 border-t border-paper/20 flex flex-wrap items-center justify-between gap-6 text-sm font-semibold text-paper/70">
           <div className="flex items-center gap-3"><Mark size={36} /><span>ATLAS · Team 12 · ATL Innovation Cup 2026</span></div>
-          <p>Akhil · Timothy · Lilian · Anusmita · Stephen</p>
+          <p>Akhil · Timothy · Lilian · Anusmita · Stephen · <a className="underline decoration-2 underline-offset-4 hover:text-paper" href="/privacy">Privacy</a> · <a className="underline decoration-2 underline-offset-4 hover:text-paper" href="/tests">Our tests</a></p>
         </div>
       </div>
     </footer>

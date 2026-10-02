@@ -29,6 +29,19 @@ describe("hours quote check", () => {
     expect(hoursMatchQuote("Monday - Friday 8:00 AM - 5:00 PM", wk("20:00", "17:00")).ok).toBe(false);
   });
 
+  it("handles the cases a second review found (Grok 2026-10-02)", () => {
+    expect([...quoteParts("Saturday - Monday 9am - 5pm")[0].days].sort()).toEqual([0, 5, 6]);
+    expect(hoursMatchQuote("Saturday - Monday 9am - 5pm", wk("09:00", "17:00", [5, 6, 0])).ok).toBe(true);
+    expect(hoursMatchQuote("Monday - Friday 8am - 5pm. Wednesday closed.", wk("08:00", "17:00", [2])).ok).toBe(false);
+    expect(hoursMatchQuote("Monday - Friday 8am - 5pm. Open late on Mondays until 9pm.", wk("08:00", "17:00", [0])).ok).toBe(false);
+    expect(hoursMatchQuote("Monday - Friday 8am - 5pm. Open late on Mondays until 9pm.", [{ day: 0, open: "08:00", close: "21:00" }]).ok).toBe(true);
+    expect(hoursMatchQuote("Open thus: 9am - 5pm", wk("09:00", "17:00", [3])).ok).toBe(false);
+    expect(hoursMatchQuote("Thursdays 9am - 5pm", wk("09:00", "17:00", [3])).ok).toBe(true);
+    expect(hoursMatchQuote("8am - 5pm Monday - Friday", wk("08:00", "17:00")).ok).toBe(true);
+    expect(hoursMatchQuote("Monday - Friday 8-5pm", wk("08:00", "17:00")).ok).toBe(true);
+    expect(hoursMatchQuote("Monday - Friday 5-8pm", wk("05:00", "20:00")).ok).toBe(false);
+  });
+
   it("every clinic shown with hours from its own site passes this check (guards the shipped data)", () => {
     const site = (data.clinics as unknown as Clinic[]).filter((c) => c.hours_source_id === "clinic-site");
     expect(site.length).toBeGreaterThanOrEqual(10);

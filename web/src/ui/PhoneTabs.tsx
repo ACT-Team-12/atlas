@@ -1,0 +1,88 @@
+"use client";
+
+import { useRef, useSyncExternalStore, type KeyboardEvent } from "react";
+import { keyTarget, TABS, tabInfo, type FlowState, type Tab } from "@/lib/phoneTabs";
+
+/** Same edge as Tailwind's `md`: below it the steps are tabs, at it and above they stack as before. */
+const PHONE_QUERY = "not all and (min-width: 48rem)";
+
+function subscribe(onChange: () => void) {
+  const m = window.matchMedia(PHONE_QUERY);
+  m.addEventListener("change", onChange);
+  return () => m.removeEventListener("change", onChange);
+}
+
+/** True on phone widths. The server and the first client render say false, so hydration always matches. */
+export function useIsPhone() {
+  return useSyncExternalStore(subscribe, () => window.matchMedia(PHONE_QUERY).matches, () => false);
+}
+
+export function isPhoneNow() {
+  return typeof window !== "undefined" && window.matchMedia(PHONE_QUERY).matches;
+}
+
+export const tabId = (t: Tab) => `tab-step-${t}`;
+export const panelId = (t: Tab) => `step-${t}`;
+
+const LABEL: Record<Tab, string> = { 1: "Paper", 2: "Your needs", 3: "Plan" };
+
+/**
+ * Scrolls a step card to the top, just under the sticky tab bar. With `onlyIfHidden`, it only moves
+ * when the card's top is already scrolled up under the bar, so a tap near the top does not jump.
+ */
+export function scrollToPanel(t: Tab, onlyIfHidden = false) {
+  const el = document.getElementById(panelId(t));
+  if (!el) return;
+  const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+  if (onlyIfHidden && el.getBoundingClientRect().top >= margin - 1) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+}
+
+/** Sticky tab bar for phones. Hidden from md up, where all three steps show at once. */
+export function PhoneTabBar({ shown, state, onPick }: { shown: Tab; state: FlowState; onPick: (t: Tab) => void }) {
+  const info = tabInfo(state);
+  const refs = useRef<Record<number, HTMLButtonElement | null>>({});
+  const closed = TABS.filter((t) => !info[t].available);
+
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    const next = keyTarget(shown, e.key, state);
+    if (next == null) return;
+    e.preventDefault();
+    onPick(next);
+    refs.current[next]?.focus();
+  }
+
+  return (
+    // The mint strip behind the bar keeps the steps from showing through while it is stuck.
+    <div className="md:hidden sticky top-[4rem] z-30 mt-4 -mx-4 sm:-mx-10 bg-mint-soft px-4 sm:px-10 py-2">
+      <div role="tablist" aria-label="Steps" onKeyDown={onKeyDown}
+        className="grid grid-cols-3 gap-1 rounded-full border-2 border-ink bg-paper p-1 shadow-[0_3px_0_var(--ink)]">
+        {TABS.map((t) => {
+          const { available, done } = info[t];
+          const on = t === shown;
+          return (
+            <button key={t} ref={(el) => { refs.current[t] = el; }} type="button" role="tab" id={tabId(t)}
+              aria-selected={on} aria-controls={available ? panelId(t) : undefined}
+              aria-disabled={available ? undefined : true} aria-describedby={available ? undefined : "tabs-why"}
+              tabIndex={on ? 0 : -1}
+              onClick={() => { if (available) onPick(t); }}
+              className={`relative rounded-full px-1.5 py-2 text-[0.9rem] font-extrabold leading-tight transition-colors focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep ${
+                on ? "bg-teal text-paper" : available ? "hover:bg-mint" : "cursor-not-allowed text-ink/60"}`}>
+              {t} · {LABEL[t]}
+              {done && (
+                <span aria-hidden="true" className={`absolute -top-1.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full border-2 border-ink text-[0.65rem] ${on ? "bg-paper text-teal-deep" : "bg-teal text-paper"}`}>✓</span>
+              )}
+              {done && <span className="sr-only">, done</span>}
+            </button>
+          );
+        })}
+      </div>
+      {closed.length > 0 && (
+        <p id="tabs-why" className="mx-auto mt-1.5 w-fit rounded-full bg-mint-soft px-3 py-0.5 text-center text-xs font-bold text-ink/75">
+          {closed.map((t) => `${t} · ${LABEL[t]}: ${info[t].why}`).join(". ")}.
+        </p>
+      )}
+    </div>
+  );
+}

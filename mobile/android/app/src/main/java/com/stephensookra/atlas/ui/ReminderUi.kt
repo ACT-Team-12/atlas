@@ -1,6 +1,7 @@
 package com.stephensookra.atlas.ui
 
 import android.Manifest
+import android.app.TimePickerDialog
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,10 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimeInput
-import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,11 +68,12 @@ fun ReminderDialog(target: ReminderTarget, onDismiss: () -> Unit) {
             override fun isSelectableYear(year: Int): Boolean = year >= today.year
         },
     )
-    val timeState = rememberTimePickerState(initialHour = start.hour, initialMinute = start.minute)
+    var hour by remember { mutableStateOf(start.hour) }
+    var minute by remember { mutableStateOf(start.minute) }
     var message by remember { mutableStateOf<String?>(null) }
 
     val chosenDay = dateState.selectedDateMillis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() } ?: start.toLocalDate()
-    val draft = ReminderDraft(target.title, target.quote, ReminderDraft.millisFor(chosenDay, timeState.hour, timeState.minute, zone), target.detail)
+    val draft = ReminderDraft(target.title, target.quote, ReminderDraft.millisFor(chosenDay, hour, minute, zone), target.detail)
 
     fun save() {
         val problem = Reminders.schedule(context, draft)
@@ -103,10 +102,12 @@ fun ReminderDialog(target: ReminderTarget, onDismiss: () -> Unit) {
                     DatePicker(state = dateState, colors = colors, title = null, headline = null, showModeToggle = false,
                         modifier = Modifier.semantics { contentDescription = "Reminder date" })
                     Text("Time", style = Type.sub.copy(fontWeight = FontWeight.Bold))
-                    TimeInput(state = timeState, colors = TimePickerDefaults.colors(
-                        timeSelectorSelectedContainerColor = Palette.mint, timeSelectorSelectedContentColor = Palette.ink,
-                        periodSelectorSelectedContainerColor = Palette.mint, periodSelectorSelectedContentColor = Palette.ink,
-                    ))
+                    // The system time dialog: a familiar clock face with a keyboard option, same on every phone.
+                    val timeText = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.atMillis))
+                    OutlinePill("$timeText  \u00B7  Change", onClick = {
+                        TimePickerDialog(context, { _, h, m -> hour = h; minute = m }, hour, minute,
+                            android.text.format.DateFormat.is24HourFormat(context)).show()
+                    }, fill = Palette.mint, contentDescription = "Reminder time $timeText. Change time")
                 }
                 AtlasCard(background = Palette.mintSoft) {
                     Text("Your reminder will say", style = Type.caption.copy(fontWeight = FontWeight.ExtraBold))

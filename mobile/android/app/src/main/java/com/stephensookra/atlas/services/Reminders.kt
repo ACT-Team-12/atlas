@@ -117,16 +117,20 @@ object Reminders {
         return null
     }
 
-    /** Exact alarm where Android allows it; otherwise an inexact alarm that may arrive a few minutes late. */
+    /** Inexact fallback window. Ten minutes is the shortest window Android grants without exact-alarm access;
+     *  a plain inexact alarm can drift by up to an hour, which is too loose for a medicine reminder. */
+    const val INEXACT_WINDOW_MS = 10 * 60 * 1000L
+
+    /** Exact alarm where Android allows it; otherwise a window alarm that goes off within 10 minutes of the time. */
     fun arm(context: Context, r: StoredReminder) {
         val am = context.getSystemService(AlarmManager::class.java)
         val pi = pendingIntent(context, r) ?: return
         val exact = Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()
         try {
             if (exact) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, r.atMillis, pi)
-            else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, r.atMillis, pi)
+            else am.setWindow(AlarmManager.RTC_WAKEUP, r.atMillis, INEXACT_WINDOW_MS, pi)
         } catch (_: SecurityException) {
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, r.atMillis, pi)
+            am.setWindow(AlarmManager.RTC_WAKEUP, r.atMillis, INEXACT_WINDOW_MS, pi)
         }
         Log.i(TAG, "Armed reminder ${r.id} at ${r.atMillis} exact=$exact")
     }

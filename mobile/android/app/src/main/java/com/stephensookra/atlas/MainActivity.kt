@@ -14,6 +14,8 @@ class AtlasApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Reminders.ensureChannel(this)
+        // Android drops alarms when an app is force-stopped; re-arming is idempotent, so do it on every start.
+        Reminders.rearmAll(this)
     }
 }
 

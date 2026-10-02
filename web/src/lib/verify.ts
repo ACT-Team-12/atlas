@@ -11,6 +11,9 @@ import type { CareItem, VerifiedItem } from "./schema";
 export function normalize(s: string): string {
   return s
     .toLowerCase()
+    // Final sigma: "ΟΔΟΣ" lower-cases to "οδος" as a whole word but to "οδοσ" one letter at a time (how the source
+    // is mapped below), so both sides use the plain σ.
+    .replace(/ς/g, "σ")
     .replace(/[‘’‛′]/g, "'")
     .replace(/[“”″]/g, '"')
     .replace(/[‐-―−]/g, "-")
@@ -19,25 +22,38 @@ export function normalize(s: string): string {
     .trim();
 }
 
-/** Builds a normalized copy plus a map from normalized index to original index. */
-function normalizeWithMap(src: string): { norm: string; map: number[] } {
+/**
+ * Builds a normalized copy plus, for every normalized UTF-16 unit, the original [start, end) it came from.
+ * The source is walked one CODE POINT at a time, so a letter outside the BMP is lower-cased like any other, and a
+ * letter that lower-cases to two units ("İ" becomes "i" + U+0307) gets an entry for each, keeping later offsets right.
+ */
+function normalizeWithMap(src: string): { norm: string; starts: number[]; ends: number[] } {
   let norm = "";
-  const map: number[] = [];
+  const starts: number[] = [];
+  const ends: number[] = [];
   let lastSpace = true;
-  for (let i = 0; i < src.length; i++) {
-    const c = normalize(src[i]) || " ";
+  let i = 0;
+  for (const ch of src) {
+    const c = normalize(ch) || " ";
+    const next = i + ch.length;
     if (c === " ") {
-      if (lastSpace) continue;
-      norm += " ";
-      map.push(i);
-      lastSpace = true;
+      if (!lastSpace) {
+        norm += " ";
+        starts.push(i);
+        ends.push(next);
+        lastSpace = true;
+      }
     } else {
       norm += c;
-      map.push(i);
+      for (let k = 0; k < c.length; k++) {
+        starts.push(i);
+        ends.push(next);
+      }
       lastSpace = false;
     }
+    i = next;
   }
-  return { norm: norm.trimEnd(), map };
+  return { norm: norm.trimEnd(), starts, ends };
 }
 
 /**
@@ -57,7 +73,7 @@ function fragments(quote: string): string[] {
 export function findSpan(source: string, quote: string): { start: number; end: number } | null {
   const frags = fragments(quote);
   if (frags.length === 0) return null;
-  const { norm, map } = normalizeWithMap(source);
+  const { norm, starts, ends } = normalizeWithMap(source);
   let cursor = 0;
   let first = -1;
   let lastEnd = -1;
@@ -68,9 +84,7 @@ export function findSpan(source: string, quote: string): { start: number; end: n
     lastEnd = at + f.length;
     cursor = lastEnd;
   }
-  const start = map[first];
-  const end = map[lastEnd - 1] + 1;
-  return { start, end };
+  return { start: starts[first], end: ends[lastEnd - 1] };
 }
 
 /** Checks one item. `index` is its place in the model's full list, which sets its id. */

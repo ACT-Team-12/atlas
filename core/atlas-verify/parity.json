@@ -1,14 +1,14 @@
 {
- "about": "TS checker (web/src/lib/verify.ts, checkerTest.ts) vs Rust checker (core/atlas-verify, WebAssembly). Spans are [start, end] in UTF-16 units; \"undefined\"/\"NaN\" are the TS checker's own offsets after U+0130 (see README).",
+ "about": "TS checker (web/src/lib/verify.ts, checkerTest.ts) vs Rust checker (core/atlas-verify, WebAssembly). Spans are [start, end] in UTF-16 units; \"undefined\"/\"NaN\" would mark a non-numeric offset (none expected since the U+0130 fix).",
  "fuzz_seed": 20261002,
  "unicode_version": "17.0",
  "totals": {
-  "find_span_cases": 1201,
-  "found": 846,
-  "refused": 355,
-  "found_with_unusable_ts_offsets": 2,
-  "normalize_checked": 1078,
-  "fakes_for_checked": 1078,
+  "find_span_cases": 1204,
+  "found": 853,
+  "refused": 351,
+  "found_with_unusable_ts_offsets": 0,
+  "normalize_checked": 1083,
+  "fakes_for_checked": 1083,
   "fakes_for_number_checked": 3012,
   "mismatches": 0
  },
@@ -29,7 +29,7 @@
   "labs test": 45,
   "labs range": 44,
   "labs value+unit": 45,
-  "adversarial": 68,
+  "adversarial": 71,
   "fuzz": 600
  },
  "checker_report": {
@@ -1017,8 +1017,8 @@
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "Take 1 tablet by mouth 2 times a day with meals",
    "span": [
-    158,
-    205
+    157,
+    204
    ],
    "same": true
   },
@@ -1066,8 +1066,8 @@
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "Take 2 tablets (20 mg total) by mouth once daily",
    "span": [
-    239,
-    287
+    238,
+    286
    ],
    "same": true
   },
@@ -1123,8 +1123,8 @@
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "Avoid NSAIDs due to kidney function",
    "span": [
-    319,
-    354
+    318,
+    353
    ],
    "same": true
   },
@@ -1164,8 +1164,8 @@
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "Hemoglobin A1c - due in 3 months",
    "span": [
-    377,
-    409
+    376,
+    408
    ],
    "same": true
   },
@@ -1213,8 +1213,8 @@
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "Basic metabolic panel - fasting, complete within 2 weeks",
    "span": [
-    410,
-    466
+    409,
+    465
    ],
    "same": true
   },
@@ -1262,8 +1262,8 @@
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "Referral to Ophthalmology for diabetic eye exam",
    "span": [
-    467,
-    514
+    466,
+    513
    ],
    "same": true
   },
@@ -1303,8 +1303,8 @@
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "blood sugar is above 300 two times in a row",
    "span": [
-    711,
-    754
+    710,
+    753
    ],
    "same": true
   },
@@ -1352,8 +1352,8 @@
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "Call 911 if you have chest pain or trouble breathing",
    "span": [
-    756,
-    808
+    755,
+    807
    ],
    "same": true
   },
@@ -1495,8 +1495,8 @@
    "source": "paper:pediatric-asthma+prefix",
    "quote": "2 puffs with spacer every 4 hours as needed",
    "span": [
-    160,
-    203
+    159,
+    202
    ],
    "same": true
   },
@@ -1544,8 +1544,8 @@
    "source": "paper:pediatric-asthma+prefix",
    "quote": "Prednisolone 15 mg by mouth once daily for 5 days",
    "span": [
-    227,
-    276
+    226,
+    275
    ],
    "same": true
   },
@@ -1601,8 +1601,8 @@
    "source": "paper:pediatric-asthma+prefix",
    "quote": "See your pediatrician in 2 to 3 days",
    "span": [
-    313,
-    349
+    312,
+    348
    ],
    "same": true
   },
@@ -1658,8 +1658,8 @@
    "source": "paper:pediatric-asthma+prefix",
    "quote": "Keep your child away from cigarette smoke",
    "span": [
-    362,
-    403
+    361,
+    402
    ],
    "same": true
   },
@@ -1699,8 +1699,8 @@
    "source": "paper:pediatric-asthma+prefix",
    "quote": "lips turn blue or they are struggling to breathe",
    "span": [
-    468,
-    516
+    467,
+    515
    ],
    "same": true
   },
@@ -1839,8 +1839,8 @@
    "source": "paper:hypertension-new-med+prefix",
    "quote": "amlodipine 5 mg, take 1 tablet every morning",
    "span": [
-    90,
-    134
+    89,
+    133
    ],
    "same": true
   },
@@ -1896,8 +1896,8 @@
    "source": "paper:hypertension-new-med+prefix",
    "quote": "Check your blood pressure at home once a day",
    "span": [
-    136,
-    180
+    135,
+    179
    ],
    "same": true
   },
@@ -1945,8 +1945,8 @@
    "source": "paper:hypertension-new-med+prefix",
    "quote": "basic metabolic panel in 1 week",
    "span": [
-    239,
-    270
+    238,
+    269
    ],
    "same": true
   },
@@ -2002,8 +2002,8 @@
    "source": "paper:hypertension-new-med+prefix",
    "quote": "Referral: cardiology",
    "span": [
-    292,
-    312
+    291,
+    311
    ],
    "same": true
   },
@@ -2043,8 +2043,8 @@
    "source": "paper:hypertension-new-med+prefix",
    "quote": "Next visit: 4 weeks",
    "span": [
-    352,
-    371
+    351,
+    370
    ],
    "same": true
   },
@@ -2092,8 +2092,8 @@
    "source": "paper:hypertension-new-med+prefix",
    "quote": "Cut back on salt",
    "span": [
-    373,
-    389
+    372,
+    388
    ],
    "same": true
   },
@@ -2133,8 +2133,8 @@
    "source": "paper:hypertension-new-med+prefix",
    "quote": "blood pressure is over 180/120",
    "span": [
-    425,
-    455
+    424,
+    454
    ],
    "same": true
   },
@@ -2246,8 +2246,8 @@
    "source": "paper:uti-urgent-care+prefix",
    "quote": "nitrofurantoin 100 mg by mouth 2 times a day for 5 days",
    "span": [
-    78,
-    133
+    77,
+    132
    ],
    "same": true
   },
@@ -2303,8 +2303,8 @@
    "source": "paper:uti-urgent-care+prefix",
    "quote": "Drink plenty of water",
    "span": [
-    177,
-    198
+    176,
+    197
    ],
    "same": true
   },
@@ -2344,8 +2344,8 @@
    "source": "paper:uti-urgent-care+prefix",
    "quote": "We will call you if the results mean your medicine needs to change",
    "span": [
-    225,
-    291
+    224,
+    290
    ],
    "same": true
   },
@@ -2385,8 +2385,8 @@
    "source": "paper:uti-urgent-care+prefix",
    "quote": "fever over 101 F, back or side pain, or vomiting",
    "span": [
-    333,
-    381
+    332,
+    380
    ],
    "same": true
   },
@@ -2514,8 +2514,8 @@
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "Start iron (ferrous sulfate) 325 mg by mouth once daily",
    "span": [
-    99,
-    154
+    98,
+    153
    ],
    "same": true
   },
@@ -2571,8 +2571,8 @@
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "Glucose tolerance test at your next visit",
    "span": [
-    156,
-    197
+    155,
+    196
    ],
    "same": true
   },
@@ -2612,8 +2612,8 @@
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "Do not eat or drink anything but water for 8 hours before",
    "span": [
-    199,
-    256
+    198,
+    255
    ],
    "same": true
   },
@@ -2669,8 +2669,8 @@
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "Count your baby's kicks every evening",
    "span": [
-    258,
-    295
+    257,
+    294
    ],
    "same": true
   },
@@ -2710,8 +2710,8 @@
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "Next visit in 2 weeks",
    "span": [
-    297,
-    318
+    296,
+    317
    ],
    "same": true
   },
@@ -2759,8 +2759,8 @@
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "bleeding, leaking fluid, or fewer than 10 movements in 2 hours",
    "span": [
-    380,
-    442
+    379,
+    441
    ],
    "same": true
   },
@@ -2915,8 +2915,8 @@
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "Furosemide 40 mg: take 1 tablet every morning",
    "span": [
-    107,
-    152
+    106,
+    151
    ],
    "same": true
   },
@@ -2972,8 +2972,8 @@
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "STOP taking ibuprofen and naproxen",
    "span": [
-    154,
-    188
+    153,
+    187
    ],
    "same": true
   },
@@ -3013,8 +3013,8 @@
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "Weigh yourself every morning",
    "span": [
-    201,
-    229
+    200,
+    228
    ],
    "same": true
   },
@@ -3062,8 +3062,8 @@
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "Limit salt to 2,000 mg a day",
    "span": [
-    274,
-    302
+    273,
+    301
    ],
    "same": true
   },
@@ -3111,8 +3111,8 @@
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "Cardiology follow-up in 7 days",
    "span": [
-    318,
-    348
+    317,
+    347
    ],
    "same": true
   },
@@ -3168,8 +3168,8 @@
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "Blood work (kidney function) in 1 week",
    "span": [
-    390,
-    428
+    389,
+    427
    ],
    "same": true
   },
@@ -3225,8 +3225,8 @@
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "gain more than 3 pounds in a day or 5 pounds in a week",
    "span": [
-    455,
-    509
+    454,
+    508
    ],
    "same": true
   },
@@ -3282,8 +3282,8 @@
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "Call 911 if you cannot catch your breath",
    "span": [
-    536,
-    576
+    535,
+    575
    ],
    "same": true
   },
@@ -5574,27 +5574,27 @@
   },
   {
    "i": 550,
-   "origin": "adversarial: Turkish dotted capital I shifts the TS map",
+   "origin": "adversarial: Turkish dotted capital I, offsets after it",
    "source": {
     "inline": "İlaç günde iki kez"
    },
    "quote": "günde iki kez",
    "span": [
-    6,
-    "NaN"
+    5,
+    18
    ],
    "same": true
   },
   {
    "i": 551,
-   "origin": "adversarial: three dotted capital I, match reads past the TS map",
+   "origin": "adversarial: three dotted capital I, match at the very end",
    "source": {
     "inline": "İİİ abc"
    },
    "quote": "abc",
    "span": [
-    "undefined",
-    "NaN"
+    4,
+    7
    ],
    "same": true
   },
@@ -5606,8 +5606,8 @@
    },
    "quote": "take 1 tablet",
    "span": [
-    3,
-    16
+    2,
+    15
    ],
    "same": true
   },
@@ -5618,7 +5618,10 @@
     "inline": "ΟΔΟΣ ΚΑΙ"
    },
    "quote": "οδος",
-   "span": null,
+   "span": [
+    0,
+    4
+   ],
    "same": true
   },
   {
@@ -5628,7 +5631,10 @@
     "inline": "ΟΔΟΣ ΚΑΙ"
    },
    "quote": "ΟΔΟΣ",
-   "span": null,
+   "span": [
+    0,
+    4
+   ],
    "same": true
   },
   {
@@ -5646,26 +5652,71 @@
   },
   {
    "i": 556,
-   "origin": "adversarial: Deseret capitals in source (surrogate pairs not lower-cased per unit)",
+   "origin": "adversarial: Greek lowercase final sigma in source, capitals in quote",
    "source": {
-    "inline": "𐐀𐐁 dose"
+    "inline": "οδος και"
    },
-   "quote": "𐐨𐐩 dose",
-   "span": null,
+   "quote": "ΟΔΟΣ",
+   "span": [
+    0,
+    4
+   ],
    "same": true
   },
   {
    "i": 557,
+   "origin": "adversarial: Greek sigma pair",
+   "source": {
+    "inline": "ΣΣ δόση"
+   },
+   "quote": "σς δόση",
+   "span": [
+    0,
+    7
+   ],
+   "same": true
+  },
+  {
+   "i": 558,
+   "origin": "adversarial: math bold A (no case) next to a Deseret capital",
+   "source": {
+    "inline": "𝐀𐐀 x"
+   },
+   "quote": "𝐀𐐨 x",
+   "span": [
+    0,
+    6
+   ],
+   "same": true
+  },
+  {
+   "i": 559,
+   "origin": "adversarial: Deseret capitals in source, small letters in quote",
+   "source": {
+    "inline": "𐐀𐐁 dose"
+   },
+   "quote": "𐐨𐐩 dose",
+   "span": [
+    0,
+    9
+   ],
+   "same": true
+  },
+  {
+   "i": 560,
    "origin": "adversarial: Deseret capitals on both sides",
    "source": {
     "inline": "𐐀𐐁 dose"
    },
    "quote": "𐐀𐐁 dose",
-   "span": null,
+   "span": [
+    0,
+    9
+   ],
    "same": true
   },
   {
-   "i": 558,
+   "i": 561,
    "origin": "adversarial: repeated substring",
    "source": {
     "inline": "take 1 tablet. take 1 tablet. take 1 tablet."
@@ -5678,7 +5729,7 @@
    "same": true
   },
   {
-   "i": 559,
+   "i": 562,
    "origin": "adversarial: repeated with ellipses",
    "source": {
     "inline": "take 1 tablet. take 1 tablet. take 1 tablet."
@@ -5691,7 +5742,7 @@
    "same": true
   },
   {
-   "i": 560,
+   "i": 563,
    "origin": "adversarial: more repeats than source",
    "source": {
     "inline": "take 1 tablet. take 1 tablet."
@@ -5701,7 +5752,7 @@
    "same": true
   },
   {
-   "i": 561,
+   "i": 564,
    "origin": "adversarial: empty source",
    "source": {
     "inline": ""
@@ -5711,7 +5762,7 @@
    "same": true
   },
   {
-   "i": 562,
+   "i": 565,
    "origin": "adversarial: both empty",
    "source": {
     "inline": ""
@@ -5721,7 +5772,7 @@
    "same": true
   },
   {
-   "i": 563,
+   "i": 566,
    "origin": "adversarial: empty quote",
    "source": {
     "inline": "take 1 tablet"
@@ -5731,7 +5782,7 @@
    "same": true
   },
   {
-   "i": 564,
+   "i": 567,
    "origin": "adversarial: whitespace-only quote",
    "source": {
     "inline": "take 1 tablet"
@@ -5741,7 +5792,7 @@
    "same": true
   },
   {
-   "i": 565,
+   "i": 568,
    "origin": "adversarial: whitespace-only both",
    "source": {
     "inline": "   \n\t "
@@ -5751,7 +5802,7 @@
    "same": true
   },
   {
-   "i": 566,
+   "i": 569,
    "origin": "adversarial: ellipsis-only quote",
    "source": {
     "inline": "take 1 tablet"
@@ -5761,7 +5812,7 @@
    "same": true
   },
   {
-   "i": 567,
+   "i": 570,
    "origin": "adversarial: unicode ellipsis only",
    "source": {
     "inline": "take 1 tablet"
@@ -5771,7 +5822,7 @@
    "same": true
   },
   {
-   "i": 568,
+   "i": 571,
    "origin": "adversarial: quote longer than source",
    "source": {
     "inline": "take 1 tablet"
@@ -5781,7 +5832,7 @@
    "same": true
   },
   {
-   "i": 569,
+   "i": 572,
    "origin": "adversarial: mid-word",
    "source": {
     "inline": "metformin 500 mg"
@@ -5794,7 +5845,7 @@
    "same": true
   },
   {
-   "i": 570,
+   "i": 573,
    "origin": "adversarial: mid-word both ends",
    "source": {
     "inline": "metformin 500 mg"
@@ -5807,7 +5858,7 @@
    "same": true
   },
   {
-   "i": 571,
+   "i": 574,
    "origin": "adversarial: quote wrapped in quotes",
    "source": {
     "inline": "metformin 500 mg"
@@ -5820,7 +5871,7 @@
    "same": true
   },
   {
-   "i": 572,
+   "i": 575,
    "origin": "adversarial: quote wrapped in curly single quotes",
    "source": {
     "inline": "metformin 500 mg"
@@ -5833,7 +5884,7 @@
    "same": true
   },
   {
-   "i": 573,
+   "i": 576,
    "origin": "adversarial: bullets in source",
    "source": {
     "inline": "• metformin 500 mg ● daily"
@@ -5846,7 +5897,7 @@
    "same": true
   },
   {
-   "i": 574,
+   "i": 577,
    "origin": "adversarial: bullets in quote",
    "source": {
     "inline": "metformin 500 mg daily"
@@ -5859,7 +5910,7 @@
    "same": true
   },
   {
-   "i": 575,
+   "i": 578,
    "origin": "adversarial: four dots",
    "source": {
     "inline": "take 1 tablet then rest"
@@ -5869,7 +5920,7 @@
    "same": true
   },
   {
-   "i": 576,
+   "i": 579,
    "origin": "adversarial: ellipsis splits short fragment",
    "source": {
     "inline": "take 1 tablet then rest"
@@ -5882,7 +5933,7 @@
    "same": true
   },
   {
-   "i": 577,
+   "i": 580,
    "origin": "adversarial: unicode ellipsis between fragments",
    "source": {
     "inline": "take 1 tablet then rest"
@@ -5895,7 +5946,7 @@
    "same": true
   },
   {
-   "i": 578,
+   "i": 581,
    "origin": "adversarial: only short fragments",
    "source": {
     "inline": "take 1 tablet then rest"
@@ -5905,7 +5956,7 @@
    "same": true
   },
   {
-   "i": 579,
+   "i": 582,
    "origin": "adversarial: 3-unit fragments",
    "source": {
     "inline": "take 1 tablet then rest"
@@ -5918,7 +5969,7 @@
    "same": true
   },
   {
-   "i": 580,
+   "i": 583,
    "origin": "adversarial: Unicode 17.0 case pair (U+A7CE/U+A7CF), differs on older Unicode",
    "source": {
     "inline": "Dose ꟎ daily"
@@ -5931,7 +5982,7 @@
    "same": true
   },
   {
-   "i": 581,
+   "i": 584,
    "origin": "adversarial: Latin Extended-D case pairs from Unicode 14.0 and 17.0 in one word",
    "source": {
     "inline": "꟎Ꟑ dose"
@@ -5944,7 +5995,7 @@
    "same": true
   },
   {
-   "i": 582,
+   "i": 585,
    "origin": "adversarial: invented dose in short ellipsis fragments (must refuse)",
    "source": {
     "inline": "Take a seat."
@@ -5954,7 +6005,7 @@
    "same": true
   },
   {
-   "i": 583,
+   "i": 586,
    "origin": "adversarial: legit ellipsis quote (must pass)",
    "source": {
     "inline": "Take 1 tablet by mouth daily."
@@ -5967,7 +6018,7 @@
    "same": true
   },
   {
-   "i": 584,
+   "i": 587,
    "origin": "adversarial: leading and trailing ellipsis",
    "source": {
     "inline": "Take 1 tablet by mouth daily."
@@ -5980,7 +6031,7 @@
    "same": true
   },
   {
-   "i": 585,
+   "i": 588,
    "origin": "adversarial: double ellipsis leaves an empty middle fragment",
    "source": {
     "inline": "Take 1 tablet by mouth daily."
@@ -5993,7 +6044,7 @@
    "same": true
   },
   {
-   "i": 586,
+   "i": 589,
    "origin": "adversarial: CRLF",
    "source": {
     "inline": "take 1 tablet\r\nthen rest"
@@ -6006,7 +6057,7 @@
    "same": true
   },
   {
-   "i": 587,
+   "i": 590,
    "origin": "adversarial: NEL is not JS whitespace",
    "source": {
     "inline": "take 1 tabletthen rest"
@@ -6016,7 +6067,7 @@
    "same": true
   },
   {
-   "i": 588,
+   "i": 591,
    "origin": "adversarial: NEL on both sides",
    "source": {
     "inline": "take 1 tabletthen rest"
@@ -6029,7 +6080,7 @@
    "same": true
   },
   {
-   "i": 589,
+   "i": 592,
    "origin": "adversarial: BOM is JS whitespace",
    "source": {
     "inline": "take 1 tablet﻿then rest"
@@ -6042,7 +6093,7 @@
    "same": true
   },
   {
-   "i": 590,
+   "i": 593,
    "origin": "adversarial: zero-width space is not whitespace",
    "source": {
     "inline": "take 1 tablet​then rest"
@@ -6052,7 +6103,7 @@
    "same": true
   },
   {
-   "i": 591,
+   "i": 594,
    "origin": "adversarial: ideographic space",
    "source": {
     "inline": "take 1 tablet　then rest"
@@ -6065,7 +6116,7 @@
    "same": true
   },
   {
-   "i": 592,
+   "i": 595,
    "origin": "adversarial: line separator",
    "source": {
     "inline": "take 1 tablet then rest"
@@ -6078,7 +6129,7 @@
    "same": true
   },
   {
-   "i": 593,
+   "i": 596,
    "origin": "adversarial: trailing spaces in source",
    "source": {
     "inline": "Dose:   5mg   "
@@ -6091,7 +6142,7 @@
    "same": true
   },
   {
-   "i": 594,
+   "i": 597,
    "origin": "adversarial: leading spaces in source",
    "source": {
     "inline": "  leading spaces then text"
@@ -6104,7 +6155,7 @@
    "same": true
   },
   {
-   "i": 595,
+   "i": 598,
    "origin": "adversarial: trailing space in quote",
    "source": {
     "inline": "Take 1 tablet."
@@ -6117,7 +6168,7 @@
    "same": true
   },
   {
-   "i": 596,
+   "i": 599,
    "origin": "adversarial: double prime",
    "source": {
     "inline": "Take ″two″ drops"
@@ -6130,7 +6181,7 @@
    "same": true
   },
   {
-   "i": 597,
+   "i": 600,
    "origin": "adversarial: prime",
    "source": {
     "inline": "Take ′two′ drops"
@@ -6143,7 +6194,7 @@
    "same": true
   },
   {
-   "i": 598,
+   "i": 601,
    "origin": "adversarial: long source",
    "source": {
     "inline": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx needle yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
@@ -6156,7 +6207,7 @@
    "same": true
   },
   {
-   "i": 599,
+   "i": 602,
    "origin": "adversarial: French accented capital",
    "source": {
     "inline": "ÉTAPE 1 : prendre 1 comprimé"
@@ -6169,7 +6220,7 @@
    "same": true
   },
   {
-   "i": 600,
+   "i": 603,
    "origin": "adversarial: Vietnamese mixed case",
    "source": {
     "inline": "Dùng 2 lần mỗi ngày"
@@ -6182,7 +6233,7 @@
    "same": true
   },
   {
-   "i": 601,
+   "i": 604,
    "origin": "fuzz (1 edits)",
    "source": "sample_labs",
    "quote": "﻿ Result   \nUnits\n\r\n     Refer",
@@ -6193,18 +6244,18 @@
    "same": true
   },
   {
-   "i": 602,
+   "i": 605,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": " weeks.\n\nCall us right away or go to La",
    "span": [
-    313,
-    351
+    312,
+    350
    ],
    "same": true
   },
   {
-   "i": 603,
+   "i": 606,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "r note (not for patient action): consider statin at ",
@@ -6215,7 +6266,7 @@
    "same": true
   },
   {
-   "i": 604,
+   "i": 607,
    "origin": "fuzz (0 edits)",
    "source": "lab:lipid",
    "quote": "    mg/dL    <200\nTriglycerides                     16",
@@ -6226,7 +6277,7 @@
    "same": true
   },
   {
-   "i": 605,
+   "i": 608,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "tract infection\n\nTake ni ... MPLE\nDiagnosis:\nurinary",
@@ -6234,7 +6285,7 @@
    "same": true
   },
   {
-   "i": 606,
+   "i": 609,
    "origin": "fuzz (0 edits)",
    "source": "lab:bmp-colon",
    "quote": ".60-1.35] HIGH\nCalcium: 9.6 mg/dL [Ref 8.6-10.3]\nVitamin B",
@@ -6245,7 +6296,7 @@
    "same": true
   },
   {
-   "i": 607,
+   "i": 610,
    "origin": "fuzz (1 edits)",
    "source": "lab:edge-cases",
    "quote": "     100        ...mg/dL    ",
@@ -6256,7 +6307,7 @@
    "same": true
   },
   {
-   "i": 608,
+   "i": 611,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "(SAMPLE)\nYou were tre\" ... \"OR PATIENT",
@@ -6264,7 +6315,7 @@
    "same": true
   },
   {
-   "i": 609,
+   "i": 612,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "\" clini will call you with the time.\nBlood work\"",
@@ -6272,7 +6323,7 @@
    "same": true
   },
   {
-   "i": 610,
+   "i": 613,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "TOP taking ibuprofen and naproxen.\n\nEvery day\nWe",
@@ -6283,7 +6334,7 @@
    "same": true
   },
   {
-   "i": 611,
+   "i": 614,
    "origin": "fuzz (0 edits)",
    "source": "lab:edge-cases",
    "quote": "Uric Acid                         8.1        mg/dL      3.5-7",
@@ -6294,7 +6345,7 @@
    "same": true
   },
   {
-   "i": 612,
+   "i": 615,
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "H                             6.",
@@ -6305,7 +6356,7 @@
    "same": true
   },
   {
-   "i": 613,
+   "i": 616,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "e\n\nNew medicine: amlodipine 5 mg, take 1 tablet ",
@@ -6316,7 +6367,7 @@
    "same": true
   },
   {
-   "i": 614,
+   "i": 617,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "k anythin but water for 8 ours before.\nCount your b",
@@ -6324,7 +6375,7 @@
    "same": true
   },
   {
-   "i": 615,
+   "i": 618,
    "origin": "fuzz (0 edits)",
    "source": "lab:edge-cases",
    "quote": ")\nEXTRA TESTS\nTest                         ",
@@ -6335,7 +6386,7 @@
    "same": true
   },
   {
-   "i": 616,
+   "i": 619,
    "origin": "fuzz (0 edits)",
    "source": "lab:bmp-colon",
    "quote": "mg/dL [",
@@ -6346,7 +6397,7 @@
    "same": true
   },
   {
-   "i": 617,
+   "i": 620,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "edicine needs to change.\n\nCome back ",
@@ -6357,7 +6408,7 @@
    "same": true
   },
   {
-   "i": 618,
+   "i": 621,
    "origin": "fuzz (2 edits)",
    "source": "lab:thyroid",
    "quote": "\n  ﻿    ",
@@ -6365,7 +6416,7 @@
    "same": true
   },
   {
-   "i": 619,
+   "i": 622,
    "origin": "fuzz (0 edits)",
    "source": "sample_avs",
    "quote": " fasting, complete within 2 weeks a",
@@ -6376,18 +6427,18 @@
    "same": true
   },
   {
-   "i": 620,
+   "i": 623,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "cine﻿needs　to",
    "span": [
-    271,
-    284
+    270,
+    283
    ],
    "same": true
   },
   {
-   "i": 621,
+   "i": 624,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "gnant: 28\n\ntoday you r",
@@ -6398,7 +6449,7 @@
    "same": true
   },
   {
-   "i": 622,
+   "i": 625,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "g.\n\nfollow-up\nsee your pediatric",
@@ -6409,18 +6460,18 @@
    "same": true
   },
   {
-   "i": 623,
+   "i": 626,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "MPLE)\nYou were treated for heart failure.\n",
    "span": [
-    54,
-    95
+    53,
+    94
    ],
    "same": true
   },
   {
-   "i": 624,
+   "i": 627,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "take ... 1 ta ... icines\nFurosemide 40 mg:",
@@ -6428,7 +6479,7 @@
    "same": true
   },
   {
-   "i": 625,
+   "i": 628,
    "origin": "fuzz (1 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "ine .. 12 mg/g            (<30)\nVitamin D, 25-H",
@@ -6439,7 +6490,7 @@
    "same": true
   },
   {
-   "i": 626,
+   "i": 629,
    "origin": "fuzz (2 edits)",
    "source": "lab:lipid",
    "quote": "... ensity lipoprotein (HDL)    38  ...      L   ",
@@ -6447,7 +6498,7 @@
    "same": true
   },
   {
-   "i": 627,
+   "i": 630,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "ver 180/120 and you have a severe he",
@@ -6458,7 +6509,7 @@
    "same": true
   },
   {
-   "i": 628,
+   "i": 631,
    "origin": "fuzz (1 edits)",
    "source": "lab:thyroid",
    "quote": "HYROID PANEL\nTEST NAME ",
@@ -6469,7 +6520,7 @@
    "same": true
   },
   {
-   "i": 629,
+   "i": 632,
    "origin": "fuzz (0 edits)",
    "source": "lab:cbc",
    "quote": "a real patient)\nCOMPLETE BLOOD COUNT (",
@@ -6480,7 +6531,7 @@
    "same": true
   },
   {
-   "i": 630,
+   "i": 633,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "it down.\nLimit sa ... m and write",
@@ -6488,7 +6539,7 @@
    "same": true
   },
   {
-   "i": 631,
+   "i": 634,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": " DAILY.\nGLU",
@@ -6499,7 +6550,7 @@
    "same": true
   },
   {
-   "i": 632,
+   "i": 635,
    "origin": "fuzz (2 edits)",
    "source": "lab:thyroid",
    "quote": "by team atlas,  ... ab report (written",
@@ -6507,29 +6558,29 @@
    "same": true
   },
   {
-   "i": 633,
+   "i": 636,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "t home once a day and wri",
    "span": [
-    163,
-    188
+    162,
+    187
    ],
    "same": true
   },
   {
-   "i": 634,
+   "i": 637,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "ample clinic)\n\nMedication changes",
    "span": [
-    93,
-    126
+    92,
+    125
    ],
    "same": true
   },
   {
-   "i": 635,
+   "i": 638,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "\n\nN",
@@ -6537,7 +6588,7 @@
    "same": true
   },
   {
-   "i": 636,
+   "i": 639,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "er\nReason: High\r\nblood pressure\n\nNew medicine: amlodipine\n5",
@@ -6548,7 +6599,7 @@
    "same": true
   },
   {
-   "i": 637,
+   "i": 640,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "SULTS MEAN YOUR MEDICINE NEEDS TO CHANGE.\n\nCOME BACK O",
@@ -6559,18 +6610,18 @@
    "same": true
   },
   {
-   "i": 638,
+   "i": 641,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": " in 2 weeks.\n\nCal",
    "span": [
-    308,
-    324
+    307,
+    323
    ],
    "same": true
   },
   {
-   "i": 639,
+   "i": 642,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "tablet by mouth 2 times a day with meals.\nCHANGE lis",
@@ -6581,7 +6632,7 @@
    "same": true
   },
   {
-   "i": 640,
+   "i": 643,
    "origin": "fuzz (0 edits)",
    "source": "lab:annual",
    "quote": "sity lipoprotein)     96         mg/dL   ",
@@ -6592,7 +6643,7 @@
    "same": true
   },
   {
-   "i": 641,
+   "i": 644,
    "origin": "fuzz (1 edits)",
    "source": "lab:lipid",
    "quote": "\"LAG   UNITS    REF RANGE\"",
@@ -6603,7 +6654,7 @@
    "same": true
   },
   {
-   "i": 642,
+   "i": 645,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": " after using the bathroom and write it down.\nlimit salt to 2",
@@ -6614,7 +6665,7 @@
    "same": true
   },
   {
-   "i": 643,
+   "i": 646,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "iabetic eye exam. Their ofice will call ",
@@ -6622,7 +6673,7 @@
    "same": true
   },
   {
-   "i": 644,
+   "i": 647,
    "origin": "fuzz (1 edits)",
    "source": "lab:bmp-colon",
    "quote": "25]Creatinine: 1.42 mg/dL [Ref 0.60-1.",
@@ -6630,7 +6681,7 @@
    "same": true
   },
   {
-   "i": 645,
+   "i": 648,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "rning after using the bathroom and write i",
@@ -6641,40 +6692,40 @@
    "same": true
   },
   {
-   "i": 646,
+   "i": 649,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "on (ferrous s",
    "span": [
-    107,
-    120
+    106,
+    119
    ],
    "same": true
   },
   {
-   "i": 647,
+   "i": 650,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "EDICATION CHANGES\nSTART METFORMIN 500 ... MG TABL",
    "span": [
-    109,
-    154
+    108,
+    153
    ],
    "same": true
   },
   {
-   "i": 648,
+   "i": 651,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "oday you received the Tdap vaccine.\nStart iron (",
    "span": [
-    63,
-    111
+    62,
+    110
    ],
    "same": true
   },
   {
-   "i": 649,
+   "i": 652,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "placed today\nHemoİglobin A1c - due in 3 months\nBasic meta",
@@ -6682,7 +6733,7 @@
    "same": true
   },
   {
-   "i": 650,
+   "i": 653,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "idt",
@@ -6693,7 +6744,7 @@
    "same": true
   },
   {
-   "i": 651,
+   "i": 654,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "away from cigarette smoke.\n\nRet\" ... \".\n\nHome care\nKeep your child",
@@ -6701,18 +6752,18 @@
    "same": true
   },
   {
-   "i": 652,
+   "i": 655,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "t at your next visit. Do not eat ",
    "span": [
-    177,
-    209
+    176,
+    208
    ],
    "same": true
   },
   {
-   "i": 653,
+   "i": 656,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "cerbation\n\n",
@@ -6723,18 +6774,18 @@
    "same": true
   },
   {
-   "i": 654,
+   "i": 657,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "unction) in 1 week.\n\nCall yo",
    "span": [
-    410,
-    438
+    409,
+    437
    ],
    "same": true
   },
   {
-   "i": 655,
+   "i": 658,
    "origin": "fuzz (2 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "(<30)\nVitamin D, 25–Hydroxy ... ",
@@ -6745,7 +6796,7 @@
    "same": true
   },
   {
-   "i": 656,
+   "i": 659,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "SPITAL\t \nDISCHARGE SUMMARY - FOR PATIENT(SAMPLE)\nY",
@@ -6753,7 +6804,7 @@
    "same": true
   },
   {
-   "i": 657,
+   "i": 660,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "ere headache, chest pain, or vision ",
@@ -6764,18 +6815,18 @@
    "same": true
   },
   {
-   "i": 658,
+   "i": 661,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "r child away f",
    "span": [
-    370,
-    384
+    369,
+    383
    ],
    "same": true
   },
   {
-   "i": 659,
+   "i": 662,
    "origin": "fuzz (1 edits)",
    "source": "lab:thyroid",
    "quote": "n by Team ATLAΟΣS, ",
@@ -6783,7 +6834,7 @@
    "same": true
   },
   {
-   "i": 660,
+   "i": 663,
    "origin": "fuzz (1 edits)",
    "source": "sample_avs",
    "quote": "trouble breathin, or sudden weakness on one",
@@ -6791,7 +6842,7 @@
    "same": true
   },
   {
-   "i": 661,
+   "i": 664,
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "            102        71-180 ng/dL\nThyroid ",
@@ -6802,18 +6853,18 @@
    "same": true
   },
   {
-   "i": 662,
+   "i": 665,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": " go to the ER if you get a fever ove",
    "span": [
-    307,
-    342
+    306,
+    341
    ],
    "same": true
   },
   {
-   "i": 663,
+   "i": 666,
    "origin": "fuzz (0 edits)",
    "source": "lab:bmp-colon",
    "quote": "Team ATLAS, not a real patient)\nBASIC METABOLIC PANEL + EXTRA",
@@ -6824,18 +6875,18 @@
    "same": true
   },
   {
-   "i": 664,
+   "i": 667,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": " DELIVERY IF ",
    "span": [
-    359,
-    370
+    358,
+    369
    ],
    "same": true
   },
   {
-   "i": 665,
+   "i": 668,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "wheezing or cough.\nPrednisolone 15",
@@ -6846,7 +6897,7 @@
    "same": true
   },
   {
-   "i": 666,
+   "i": 669,
    "origin": "fuzz (2 edits)",
    "source": "sample_avs",
    "quote": "3 months",
@@ -6857,18 +6908,18 @@
    "same": true
   },
   {
-   "i": 667,
+   "i": 670,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "s: urina",
    "span": [
-    45,
-    53
+    44,
+    52
    ],
    "same": true
   },
   {
-   "i": 668,
+   "i": 671,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "ily Medicine (sample clinic)\n\nMedication changes\nSTART metform",
@@ -6879,18 +6930,18 @@
    "same": true
   },
   {
-   "i": 669,
+   "i": 672,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "sit.\nLab: basic me",
    "span": [
-    229,
-    247
+    228,
+    246
    ],
    "same": true
   },
   {
-   "i": 670,
+   "i": 673,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "e culture. We will call you if the results mean y",
@@ -6901,7 +6952,7 @@
    "same": true
   },
   {
-   "i": 671,
+   "i": 674,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "k on salt.\n\n",
@@ -6912,7 +6963,7 @@
    "same": true
   },
   {
-   "i": 672,
+   "i": 675,
    "origin": "fuzz (0 edits)",
    "source": "lab:lipid",
    "quote": " FASTING\nTEST                             ",
@@ -6923,18 +6974,18 @@
    "same": true
   },
   {
-   "i": 673,
+   "i": 676,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "by mouth…once daily.\nSTOP ibuprof",
    "span": [
-    172,
-    301
+    171,
+    300
    ],
    "same": true
   },
   {
-   "i": 674,
+   "i": 677,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "01 F, ...back",
@@ -6945,7 +6996,7 @@
    "same": true
   },
   {
-   "i": 675,
+   "i": 678,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "\nBilling code: 99",
@@ -6956,7 +7007,7 @@
    "same": true
   },
   {
-   "i": 676,
+   "i": 679,
    "origin": "fuzz (2 edits)",
    "source": "lab:annual",
    "quote": "port (written by team atlas, not a real patient)\nannual…phy",
@@ -6967,7 +7018,7 @@
    "same": true
   },
   {
-   "i": 677,
+   "i": 680,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "lab location.\nReferral",
@@ -6978,7 +7029,7 @@
    "same": true
   },
   {
-   "i": 678,
+   "i": 681,
    "origin": "fuzz (1 edits)",
    "source": "lab:bmp-colon",
    "quote": "\"LAS, not a real patient)\nBASIC METABOLIC P\"",
@@ -6989,7 +7040,7 @@
    "same": true
   },
   {
-   "i": 679,
+   "i": 682,
    "origin": "fuzz (2 edits)",
    "source": "lab:annual",
    "quote": " ...    >40\nLDL Cho ...       mg/dL",
@@ -7000,7 +7051,7 @@
    "same": true
   },
   {
-   "i": 680,
+   "i": 683,
    "origin": "fuzz (2 edits)",
    "source": "sample_avs",
    "quote": "ids due﻿to\t \nkidney\r\nfunction.\n\norders\nplaced\r\ntoday\n- hem",
@@ -7011,18 +7062,18 @@
    "same": true
   },
   {
-   "i": 681,
+   "i": 684,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "tion\n\nMedicines\nAlbuterol inhaler: 2 puffs\nw",
    "span": [
-    125,
-    169
+    124,
+    168
    ],
    "same": true
   },
   {
-   "i": 682,
+   "i": 685,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "lood sugar is above 300 two times in a row.\nCall 911 if you h",
@@ -7033,7 +7084,7 @@
    "same": true
   },
   {
-   "i": 683,
+   "i": 686,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "week, or y",
@@ -7044,7 +7095,7 @@
    "same": true
   },
   {
-   "i": 684,
+   "i": 687,
    "origin": "fuzz (0 edits)",
    "source": "lab:edge-cases",
    "quote": "                    60     ",
@@ -7052,7 +7103,7 @@
    "same": true
   },
   {
-   "i": 685,
+   "i": 688,
    "origin": "fuzz (2 edits)",
    "source": "sample_labs",
    "quote": "ider: Sample Provider,...MD\n",
@@ -7060,7 +7111,7 @@
    "same": true
   },
   {
-   "i": 686,
+   "i": 689,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": " smoke.\n\nReturn to",
@@ -7071,7 +7122,7 @@
    "same": true
   },
   {
-   "i": 687,
+   "i": 690,
    "origin": "fuzz (2 edits)",
    "source": "lab:bmp-colon",
    "quote": ")\nbasic metabolic panel + extras\nglucose: 14",
@@ -7082,18 +7133,18 @@
    "same": true
   },
   {
-   "i": 688,
+   "i": 691,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "\"ISI\"",
    "span": [
-    20,
-    23
+    19,
+    22
    ],
    "same": true
   },
   {
-   "i": 689,
+   "i": 692,
    "origin": "fuzz (1 edits)",
    "source": "lab:cbc",
    "quote": "35.1 %         35.0 - 45.0 %\nmcv                  83 fl   ",
@@ -7104,7 +7155,7 @@
    "same": true
   },
   {
-   "i": 690,
+   "i": 693,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "TAL DIΟΣ",
@@ -7112,7 +7163,7 @@
    "same": true
   },
   {
-   "i": 691,
+   "i": 694,
    "origin": "fuzz (2 edits)",
    "source": "sample_avs",
    "quote": "\"Midtown\nFamil\"",
@@ -7123,7 +7174,7 @@
    "same": true
   },
   {
-   "i": 692,
+   "i": 695,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "ER IF YOU GET A FEVER OVER 101 F, BACK OR SIDE PAIN,",
@@ -7134,7 +7185,7 @@
    "same": true
   },
   {
-   "i": 693,
+   "i": 696,
    "origin": "fuzz (2 edits)",
    "source": "lab:bmp-colon",
    "quote": "mg/dL [Ref 65-99] .. \nGlucose: 142",
@@ -7142,7 +7193,7 @@
    "same": true
   },
   {
-   "i": 694,
+   "i": 697,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "﻿legs\nswell\t \nmore.\nCal",
@@ -7153,7 +7204,7 @@
    "same": true
   },
   {
-   "i": 695,
+   "i": 698,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "ys....",
@@ -7161,7 +7212,7 @@
    "same": true
   },
   {
-   "i": 696,
+   "i": 699,
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "nterval\nTSH                             6.84 ",
@@ -7172,7 +7223,7 @@
    "same": true
   },
   {
-   "i": 697,
+   "i": 700,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "\"rning.\n\nFollow-up\nSee y\"",
@@ -7183,7 +7234,7 @@
    "same": true
   },
   {
-   "i": 698,
+   "i": 701,
    "origin": "fuzz (2 edits)",
    "source": "lab:cbc",
    "quote": "ATLAS, not…a real patien",
@@ -7194,7 +7245,7 @@
    "same": true
   },
   {
-   "i": 699,
+   "i": 702,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "\"y of water.\nWe sent a urine culture. We will call you if\"",
@@ -7205,29 +7256,29 @@
    "same": true
   },
   {
-   "i": 700,
+   "i": 703,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "by mouth 2 times a day for 5 days. Finish all of",
    "span": [
-    100,
-    148
+    99,
+    147
    ],
    "same": true
   },
   {
-   "i": 701,
+   "i": 704,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "orning after using the bathroom and write it down.\nLimit sal",
    "span": [
-    223,
-    283
+    222,
+    282
    ],
    "same": true
   },
   {
-   "i": 702,
+   "i": 705,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "pain, or vision ch",
@@ -7238,7 +7289,7 @@
    "same": true
   },
   {
-   "i": 703,
+   "i": 706,
    "origin": "fuzz (2 edits)",
    "source": "lab:lipid",
    "quote": " mg/dL …  <150\nHigh-density lipo",
@@ -7249,7 +7300,7 @@
    "same": true
   },
   {
-   "i": 704,
+   "i": 707,
    "origin": "fuzz (1 edits)",
    "source": "lab:bmp-colon",
    "quote": "g/dL 💊[Ref 1.7-2.2] LOW",
@@ -7257,29 +7308,29 @@
    "same": true
   },
   {
-   "i": 705,
+   "i": 708,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "\"pediatrician in  ...  your\"",
    "span": [
-    322,
-    371
+    321,
+    370
    ],
    "same": true
   },
   {
-   "i": 706,
+   "i": 709,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "pointments\nCardiology follow-up in 7 days. The c",
    "span": [
-    307,
-    355
+    306,
+    354
    ],
    "same": true
   },
   {
-   "i": 707,
+   "i": 710,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": " to kidney function.",
@@ -7290,7 +7341,7 @@
    "same": true
   },
   {
-   "i": 708,
+   "i": 711,
    "origin": "fuzz (1 edits)",
    "source": "sample_labs",
    "quote": "1      ",
@@ -7298,7 +7349,7 @@
    "same": true
   },
   {
-   "i": 709,
+   "i": 712,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "R YOUR LEGS SWELL MORE.\nCALL ",
@@ -7309,7 +7360,7 @@
    "same": true
   },
   {
-   "i": 710,
+   "i": 713,
    "origin": "fuzz (2 edits)",
    "source": "lab:annual",
    "quote": "holesterol (Low‐density lipoprotein)  \t \n  ﻿96  　    \t \n  mg/dL",
@@ -7320,18 +7371,18 @@
    "same": true
   },
   {
-   "i": 711,
+   "i": 714,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "RENATAL VISIT SUMM",
    "span": [
-    11,
-    29
+    10,
+    28
    ],
    "same": true
   },
   {
-   "i": 712,
+   "i": 715,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "6\nDiagnosis: Asthm",
@@ -7342,7 +7393,7 @@
    "same": true
   },
   {
-   "i": 713,
+   "i": 716,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "\"ts (20 mgtotal) by mouth once \"",
@@ -7350,18 +7401,18 @@
    "same": true
   },
   {
-   "i": 714,
+   "i": 717,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": " the office if your blo",
    "span": [
-    692,
-    714
+    691,
+    713
    ],
    "same": true
   },
   {
-   "i": 715,
+   "i": 718,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": " nitro",
@@ -7372,7 +7423,7 @@
    "same": true
   },
   {
-   "i": 716,
+   "i": 719,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": " every morning after using the bathroom and write i",
@@ -7383,7 +7434,7 @@
    "same": true
   },
   {
-   "i": 717,
+   "i": 720,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "\" taking ibuprofen and\"",
@@ -7394,7 +7445,7 @@
    "same": true
   },
   {
-   "i": 718,
+   "i": 721,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "服breat",
@@ -7402,7 +7453,7 @@
    "same": true
   },
   {
-   "i": 719,
+   "i": 722,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "ER.\nWE SENT A URINE CULTURE. WE WILL CALL OU IF THE RESULTS",
@@ -7410,7 +7461,7 @@
    "same": true
   },
   {
-   "i": 720,
+   "i": 723,
    "origin": "fuzz (1 edits)",
    "source": "sample_avs",
    "quote": "rders pl",
@@ -7421,7 +7472,7 @@
    "same": true
   },
   {
-   "i": 721,
+   "i": 724,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma",
    "quote": " spacer﻿every 4 h",
@@ -7432,7 +7483,7 @@
    "same": true
   },
   {
-   "i": 722,
+   "i": 725,
    "origin": "fuzz (0 edits)",
    "source": "sample_labs",
    "quote": "200              H\nLDL Cholesterol        ",
@@ -7443,7 +7494,7 @@
    "same": true
   },
   {
-   "i": 723,
+   "i": 726,
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "       0.82-1.77 ng/dL\nT3, Total      ",
@@ -7454,7 +7505,7 @@
    "same": true
   },
   {
-   "i": 724,
+   "i": 727,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "E...VISIT - AM",
@@ -7462,7 +7513,7 @@
    "same": true
   },
   {
-   "i": 725,
+   "i": 728,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "with meals.\nCHANGE lisinopril 10 mg tablet. Take 2 tablets ",
@@ -7473,7 +7524,7 @@
    "same": true
   },
   {
-   "i": 726,
+   "i": 729,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": " ...A ROW.\nCA",
@@ -7484,7 +7535,7 @@
    "same": true
   },
   {
-   "i": 727,
+   "i": 730,
    "origin": "fuzz (2 edits)",
    "source": "lab:annual",
    "quote": "   /uL       150,000-4 ...           482,000",
@@ -7492,7 +7543,7 @@
    "same": true
   },
   {
-   "i": 728,
+   "i": 731,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "e.\nCall 911 if you cannot catch your b",
@@ -7503,18 +7554,18 @@
    "same": true
   },
   {
-   "i": 729,
+   "i": 732,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "ay or 5 pounds in a week, or your legs s",
    "span": [
-    485,
-    525
+    484,
+    524
    ],
    "same": true
   },
   {
-   "i": 730,
+   "i": 733,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "over...101F,",
@@ -7522,7 +7573,7 @@
    "same": true
   },
   {
-   "i": 731,
+   "i": 734,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "outh 2 times a day with ",
@@ -7533,7 +7584,7 @@
    "same": true
   },
   {
-   "i": 732,
+   "i": 735,
    "origin": "fuzz (0 edits)",
    "source": "sample_avs",
    "quote": "mouth",
@@ -7544,18 +7595,18 @@
    "same": true
   },
   {
-   "i": 733,
+   "i": 736,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "nges\nSTART metformin 500 mg tablet. Take 1 tablet by mouth ",
    "span": [
-    122,
-    180
+    121,
+    179
    ],
    "same": true
   },
   {
-   "i": 734,
+   "i": 737,
    "origin": "fuzz (2 edits)",
    "source": "lab:thyroid",
    "quote": "\"AS, not a\"",
@@ -7566,7 +7617,7 @@
    "same": true
   },
   {
-   "i": 735,
+   "i": 738,
    "origin": "fuzz (1 edits)",
    "source": "lab:bmp-colon",
    "quote": "SAMPLE﻿LAB REPORT (written\t \nby\r\nTeam ATLAS, not a re",
@@ -7577,7 +7628,7 @@
    "same": true
   },
   {
-   "i": 736,
+   "i": 739,
    "origin": "fuzz (2 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "\"(70-99)\nEGFR .....................\"",
@@ -7588,7 +7639,7 @@
    "same": true
   },
   {
-   "i": 737,
+   "i": 740,
    "origin": "fuzz (1 edits)",
    "source": "lab:cbc",
    "quote": "L\nHem",
@@ -7599,7 +7650,7 @@
    "same": true
   },
   {
-   "i": 738,
+   "i": 741,
    "origin": "fuzz (2 edits)",
    "source": "lab:cbc",
    "quote": "L　　\r\n 150,000\t \n―\r\n450,000　/uL\nNeutrophils\r\n\n     　 ",
@@ -7610,7 +7661,7 @@
    "same": true
   },
   {
-   "i": 739,
+   "i": 742,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "visit: 4 weeks.\nCut back on salt.\n\nG",
@@ -7621,7 +7672,7 @@
    "same": true
   },
   {
-   "i": 740,
+   "i": 743,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "to Labor and Delivery if you have ble",
@@ -7632,7 +7683,7 @@
    "same": true
   },
   {
-   "i": 741,
+   "i": 744,
    "origin": "fuzz (2 edits)",
    "source": "lab:lipid",
    "quote": "\" 158      h      mg/dl    <100\nvl\"",
@@ -7643,7 +7694,7 @@
    "same": true
   },
   {
-   "i": 742,
+   "i": 745,
    "origin": "fuzz (1 edits)",
    "source": "lab:lipid",
    "quote": "/dL ...    <150\nHigh-density lipoprotein (HDL) ",
@@ -7654,18 +7705,18 @@
    "same": true
   },
   {
-   "i": 743,
+   "i": 746,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "o to the emergency room if your blood pr",
    "span": [
-    393,
-    433
+    392,
+    432
    ],
    "same": true
   },
   {
-   "i": 744,
+   "i": 747,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "feel better.\nDri",
@@ -7676,7 +7727,7 @@
    "same": true
   },
   {
-   "i": 745,
+   "i": 748,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": " 1 tablet ",
@@ -7687,7 +7738,7 @@
    "same": true
   },
   {
-   "i": 746,
+   "i": 749,
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "   ",
@@ -7695,7 +7746,7 @@
    "same": true
   },
   {
-   "i": 747,
+   "i": 750,
    "origin": "fuzz (2 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "prot",
@@ -7706,7 +7757,7 @@
    "same": true
   },
   {
-   "i": 748,
+   "i": 751,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": " for 5 days. Start tomorrow morninég.\n\nFollow-up\nSee your",
@@ -7714,7 +7765,7 @@
    "same": true
   },
   {
-   "i": 749,
+   "i": 752,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "ab location.\nReferral: cardiology. Please call 404-",
@@ -7725,7 +7776,7 @@
    "same": true
   },
   {
-   "i": 750,
+   "i": 753,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "40 MG: AKE 1 TABLET EVERY MORNING.\nSTOP TAKING IBUPROFEN A",
@@ -7733,7 +7784,7 @@
    "same": true
   },
   {
-   "i": 751,
+   "i": 754,
    "origin": "fuzz (2 edits)",
    "source": "lab:edge-cases",
    "quote": "“g/dL      0.1-0.3\nUric Acid               “",
@@ -7744,7 +7795,7 @@
    "same": true
   },
   {
-   "i": 752,
+   "i": 755,
    "origin": "fuzz (2 edits)",
    "source": "sample_avs",
    "quote": "art taking ... these medic",
@@ -7755,18 +7806,18 @@
    "same": true
   },
   {
-   "i": 753,
+   "i": 756,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "blet every morning.\nSTOP taking ibupr",
    "span": [
-    134,
-    171
+    133,
+    170
    ],
    "same": true
   },
   {
-   "i": 754,
+   "i": 757,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "IONS\nSample Ch",
@@ -7777,7 +7828,7 @@
    "same": true
   },
   {
-   "i": 755,
+   "i": 758,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "AS NEEDED FOR WHEEZING OR  ... PUFFS WITH SPACER EVERY 4 HOURS",
@@ -7785,7 +7836,7 @@
    "same": true
   },
   {
-   "i": 756,
+   "i": 759,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "outh once daily.\nSTOP ibu",
@@ -7796,7 +7847,7 @@
    "same": true
   },
   {
-   "i": 757,
+   "i": 760,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "3 months\nBasic meta ... - due ... in",
@@ -7804,7 +7855,7 @@
    "same": true
   },
   {
-   "i": 758,
+   "i": 761,
    "origin": "fuzz (1 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "         (<5.7)\nGluco ... obin A1c ............ 6.1 %    ",
@@ -7812,7 +7863,7 @@
    "same": true
   },
   {
-   "i": 759,
+   "i": 762,
    "origin": "fuzz (2 edits)",
    "source": "sample_labs",
    "quote": "    … 0-99             H",
@@ -7823,7 +7874,7 @@
    "same": true
   },
   {
-   "i": 760,
+   "i": 763,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "\"is: Asthma exacerbation\n\nMedicines\nAlbuterol inhaler: \"",
@@ -7834,7 +7885,7 @@
    "same": true
   },
   {
-   "i": 761,
+   "i": 764,
    "origin": "fuzz (0 edits)",
    "source": "lab:cbc",
    "quote": "  35.0 - 45.0 %\nMCV                  83 fL          80 -",
@@ -7845,7 +7896,7 @@
    "same": true
   },
   {
-   "i": 762,
+   "i": 765,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": " to…Labor and Delivery if you hav",
@@ -7853,7 +7904,7 @@
    "same": true
   },
   {
-   "i": 763,
+   "i": 766,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "pounds in a week, o",
@@ -7864,7 +7915,7 @@
    "same": true
   },
   {
-   "i": 764,
+   "i": 767,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "at your next visit. Do not eat or drink anything but w•ate",
@@ -7872,7 +7923,7 @@
    "same": true
   },
   {
-   "i": 765,
+   "i": 768,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "n 50",
@@ -7883,7 +7934,7 @@
    "same": true
   },
   {
-   "i": 766,
+   "i": 769,
    "origin": "fuzz (1 edits)",
    "source": "lab:annual",
    "quote": "lood cell count           ",
@@ -7894,7 +7945,7 @@
    "same": true
   },
   {
-   "i": 767,
+   "i": 770,
    "origin": "fuzz (0 edits)",
    "source": "sample_labs",
    "quote": "     <100              H\nHDL Cholester",
@@ -7905,18 +7956,18 @@
    "same": true
   },
   {
-   "i": 768,
+   "i": 771,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "bin A1c - due in 3 months\nBasic metabolic panel - fastin",
    "span": [
-    384,
-    440
+    383,
+    439
    ],
    "same": true
   },
   {
-   "i": 769,
+   "i": 772,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "if you have bleeding, leaking fluid",
@@ -7927,7 +7978,7 @@
    "same": true
   },
   {
-   "i": 770,
+   "i": 773,
    "origin": "fuzz (0 edits)",
    "source": "sample_labs",
    "quote": "2026   Or",
@@ -7938,7 +7989,7 @@
    "same": true
   },
   {
-   "i": 771,
+   "i": 774,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": ".\n\nOrders placed today\nHemog",
@@ -7949,7 +8000,7 @@
    "same": true
   },
   {
-   "i": 772,
+   "i": 775,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "dule.\nNext visit: 4 weeks.",
@@ -7960,7 +8011,7 @@
    "same": true
   },
   {
-   "i": 773,
+   "i": 776,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "a day with meals.\nCHA ...  mouth 2 times",
@@ -7968,7 +8019,7 @@
    "same": true
   },
   {
-   "i": 774,
+   "i": 777,
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "e                       ",
@@ -7976,7 +8027,7 @@
    "same": true
   },
   {
-   "i": 775,
+   "i": 778,
    "origin": "fuzz (2 edits)",
    "source": "sample_avs",
    "quote": "•r blood s...ugar is above 300 two times in a row.",
@@ -7987,7 +8038,7 @@
    "same": true
   },
   {
-   "i": 776,
+   "i": 779,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "severe heada...che, chest pain, o",
@@ -7998,7 +8049,7 @@
    "same": true
   },
   {
-   "i": 777,
+   "i": 780,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "\"t.\n\nGo to the emergency room if your blood pressure is over 18\"",
@@ -8009,7 +8060,7 @@
    "same": true
   },
   {
-   "i": 778,
+   "i": 781,
    "origin": "fuzz (0 edits)",
    "source": "sample_labs",
    "quote": "      mg/dL    ",
@@ -8020,7 +8071,7 @@
    "same": true
   },
   {
-   "i": 779,
+   "i": 782,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "w-up\nSee yo",
@@ -8031,7 +8082,7 @@
    "same": true
   },
   {
-   "i": 780,
+   "i": 783,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "e.\n\n",
@@ -8039,7 +8090,7 @@
    "same": true
   },
   {
-   "i": 781,
+   "i": 784,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "icine needs to change.\n\nCome back or ",
@@ -8050,7 +8101,7 @@
    "same": true
   },
   {
-   "i": 782,
+   "i": 785,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "ivery if you h...ave bleeding, leak",
@@ -8061,7 +8112,7 @@
    "same": true
   },
   {
-   "i": 783,
+   "i": 786,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": " Ag ...💊 ld ",
@@ -8069,7 +8120,7 @@
    "same": true
   },
   {
-   "i": 784,
+   "i": 787,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "n 7 days. The clinic will ca",
@@ -8080,7 +8131,7 @@
    "same": true
   },
   {
-   "i": 785,
+   "i": 788,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "ing.\nSTOP taking ibuprofen and napr",
@@ -8091,7 +8142,7 @@
    "same": true
   },
   {
-   "i": 786,
+   "i": 789,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "\"\nPrednisolone 15 mg \"",
@@ -8102,7 +8153,7 @@
    "same": true
   },
   {
-   "i": 787,
+   "i": 790,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "and you have a severe heada ... ood pressure is over 180/120",
@@ -8110,7 +8161,7 @@
    "same": true
   },
   {
-   "i": 788,
+   "i": 791,
    "origin": "fuzz (2 edits)",
    "source": "lab:lipid",
    "quote": "... /dL   ...  >=40\nLow-density lipoprotein (LDL)",
@@ -8121,7 +8172,7 @@
    "same": true
   },
   {
-   "i": 789,
+   "i": 792,
    "origin": "fuzz (1 edits)",
    "source": "sample_avs",
    "quote": "10 mg once da ... ce daily. Previously",
@@ -8129,18 +8180,18 @@
    "same": true
   },
   {
-   "i": 790,
+   "i": 793,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "back or side pain, or",
    "span": [
-    351,
-    372
+    350,
+    371
    ],
    "same": true
   },
   {
-   "i": 791,
+   "i": 794,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "\"7   Diİscharged 10/01/2026\nDiagno\"",
@@ -8148,7 +8199,7 @@
    "same": true
   },
   {
-   "i": 792,
+   "i": 795,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "w mo",
@@ -8159,7 +8210,7 @@
    "same": true
   },
   {
-   "i": 793,
+   "i": 796,
    "origin": "fuzz (1 edits)",
    "source": "lab:lipid",
    "quote": " 24              mg/dL  ... terol                ",
@@ -8170,7 +8221,7 @@
    "same": true
   },
   {
-   "i": 794,
+   "i": 797,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "\" blood pressure is over 180/120\"",
@@ -8181,7 +8232,7 @@
    "same": true
   },
   {
-   "i": 795,
+   "i": 798,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "OFURANTOIN 100 MG BY MOUTH 2 TIMES é",
@@ -8189,7 +8240,7 @@
    "same": true
   },
   {
-   "i": 796,
+   "i": 799,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "\"e or they are struggling to breathe.\"",
@@ -8200,7 +8251,7 @@
    "same": true
   },
   {
-   "i": 797,
+   "i": 800,
    "origin": "fuzz (0 edits)",
    "source": "lab:lipid",
    "quote": "   H      mg/dL    <150\nHigh-d",
@@ -8211,7 +8262,7 @@
    "same": true
   },
   {
-   "i": 798,
+   "i": 801,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "g: take 1 ta",
@@ -8222,7 +8273,7 @@
    "same": true
   },
   {
-   "i": 799,
+   "i": 802,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "inhaler: 2 pu ... Asthma exacerbation\n\nMedicines\nAlbuterol",
@@ -8230,7 +8281,7 @@
    "same": true
   },
   {
-   "i": 800,
+   "i": 803,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "alt.\n\nGo to the emergency room if your ñblood pressure",
@@ -8238,7 +8289,7 @@
    "same": true
   },
   {
-   "i": 801,
+   "i": 804,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "d th",
@@ -8249,7 +8300,7 @@
    "same": true
   },
   {
-   "i": 802,
+   "i": 805,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "urs befre.\nCoun",
@@ -8257,7 +8308,7 @@
    "same": true
   },
   {
-   "i": 803,
+   "i": 806,
    "origin": "fuzz (0 edits)",
    "source": "sample_labs",
    "quote": "esterol          44        mg/dL      >40",
@@ -8268,7 +8319,7 @@
    "same": true
   },
   {
-   "i": 804,
+   "i": 807,
    "origin": "fuzz (1 edits)",
    "source": "sample_avs",
    "quote": "\"blet. Take 2 tablets (20 mg total) by mouth once \"",
@@ -8279,7 +8330,7 @@
    "same": true
   },
   {
-   "i": 805,
+   "i": 808,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": " sugar is above 300 two times in a row.\nCall服 911 if you have ",
@@ -8287,7 +8338,7 @@
    "same": true
   },
   {
-   "i": 806,
+   "i": 809,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "up in 7 days.The clinic will call you with th",
@@ -8295,7 +8346,7 @@
    "same": true
   },
   {
-   "i": 807,
+   "i": 810,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "inic)\n\nMe",
@@ -8306,7 +8357,7 @@
    "same": true
   },
   {
-   "i": 808,
+   "i": 811,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "oom if yu",
@@ -8314,7 +8365,7 @@
    "same": true
   },
   {
-   "i": 809,
+   "i": 812,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "01/2026\nDiagnosis: Asthma exacerbation\n\nM",
@@ -8325,7 +8376,7 @@
    "same": true
   },
   {
-   "i": 810,
+   "i": 813,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "by mouth 2 times a day fo",
@@ -8336,7 +8387,7 @@
    "same": true
   },
   {
-   "i": 811,
+   "i": 814,
    "origin": "fuzz (2 edits)",
    "source": "lab:cbc",
    "quote": "\"- 100 fl\nplatelets            250,000 /ul    \"",
@@ -8347,7 +8398,7 @@
    "same": true
   },
   {
-   "i": 812,
+   "i": 815,
    "origin": "fuzz (0 edits)",
    "source": "sample_labs",
    "quote": "dium                   139       ",
@@ -8358,7 +8409,7 @@
    "same": true
   },
   {
-   "i": 813,
+   "i": 816,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "ine 5 mg, take 1 table every morning.\nC",
@@ -8366,7 +8417,7 @@
    "same": true
   },
   {
-   "i": 814,
+   "i": 817,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "l call you to İschedule.\n\nProvider note (not for ",
@@ -8374,7 +8425,7 @@
    "same": true
   },
   {
-   "i": 815,
+   "i": 818,
    "origin": "fuzz (1 edits)",
    "source": "lab:bmp-colon",
    "quote": "\"10 pg/mL\nMagnesium: 1.6 mg/dL \"",
@@ -8385,7 +8436,7 @@
    "same": true
   },
   {
-   "i": 816,
+   "i": 819,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "rine\r\nculture. We will c",
@@ -8396,18 +8447,18 @@
    "same": true
   },
   {
-   "i": 817,
+   "i": 820,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": " get a fever over 101 F, back or side pain,",
    "span": [
-    327,
-    369
+    326,
+    368
    ],
    "same": true
   },
   {
-   "i": 818,
+   "i": 821,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "ic eye exam. Their office will call you to schedule.\n\n",
@@ -8418,7 +8469,7 @@
    "same": true
   },
   {
-   "i": 819,
+   "i": 822,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": " pounds in a day or 5pounds in a week, or your ",
@@ -8426,7 +8477,7 @@
    "same": true
   },
   {
-   "i": 820,
+   "i": 823,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "eek,İ or your leg",
@@ -8434,7 +8485,7 @@
    "same": true
   },
   {
-   "i": 821,
+   "i": 824,
    "origin": "fuzz (2 edits)",
    "source": "lab:bmp-colon",
    "quote": "8.6-10.3]\nVitamin B12: 410 pg/mL\nM ... H\nCalcium:ሁ 9.6 mg/dL [Ref",
@@ -8442,7 +8493,7 @@
    "same": true
   },
   {
-   "i": 822,
+   "i": 825,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": " chest…pain",
@@ -8453,7 +8504,7 @@
    "same": true
   },
   {
-   "i": 823,
+   "i": 826,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "isit. Do not eat or drink anything ",
@@ -8464,29 +8515,29 @@
    "same": true
   },
   {
-   "i": 824,
+   "i": 827,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "   Visit: 10/01/2026   Midtown Family Medicine (sample clini",
    "span": [
-    47,
-    104
+    46,
+    103
    ],
    "same": true
   },
   {
-   "i": 825,
+   "i": 828,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "y department discharge instructions\nsample child ",
    "span": [
-    18,
-    66
+    17,
+    65
    ],
    "same": true
   },
   {
-   "i": 826,
+   "i": 829,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "charged 10/01/2026\nDiagnosis: Asthma e",
@@ -8497,7 +8548,7 @@
    "same": true
   },
   {
-   "i": 827,
+   "i": 830,
    "origin": "fuzz (0 edits)",
    "source": "lab:cbc",
    "quote": "5 g/dL       Low\nHematocrit           35.1 ",
@@ -8508,7 +8559,7 @@
    "same": true
   },
   {
-   "i": 828,
+   "i": 831,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "DE 40 MG: TAKE 1 TABLET EVERY MORNI",
@@ -8519,7 +8570,7 @@
    "same": true
   },
   {
-   "i": 829,
+   "i": 832,
    "origin": "fuzz (1 edits)",
    "source": "lab:cbc",
    "quote": "S, NOT A REAL PATIENT)\nCOMPLETE BLOOD COUNT (C",
@@ -8530,29 +8581,29 @@
    "same": true
   },
   {
-   "i": 830,
+   "i": 833,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": ": asthma exacerbation\n\nmed",
    "span": [
-    108,
-    134
+    107,
+    133
    ],
    "same": true
   },
   {
-   "i": 831,
+   "i": 834,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "\" VISIT: 4 WEEKS.\nCU\"",
    "span": [
-    357,
-    375
+    356,
+    374
    ],
    "same": true
   },
   {
-   "i": 832,
+   "i": 835,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "right away if your child's lips turn blue or t",
@@ -8563,7 +8614,7 @@
    "same": true
   },
   {
-   "i": 833,
+   "i": 836,
    "origin": "fuzz (2 edits)",
    "source": "lab:cbc",
    "quote": " 4.0 ― 11.0 X10^3/UL    HIGH\nRBC ",
@@ -8574,7 +8625,7 @@
    "same": true
   },
   {
-   "i": 834,
+   "i": 837,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "or go to L ...  right away",
@@ -8582,18 +8633,18 @@
    "same": true
   },
   {
-   "i": 835,
+   "i": 838,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "than 10 movements in 2 hours",
    "span": [
-    414,
-    442
+    413,
+    441
    ],
    "same": true
   },
   {
-   "i": 836,
+   "i": 839,
    "origin": "fuzz (0 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "D KIDNEY C",
@@ -8604,7 +8655,7 @@
    "same": true
   },
   {
-   "i": 837,
+   "i": 840,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "ng after using the bathroom ",
@@ -8615,7 +8666,7 @@
    "same": true
   },
   {
-   "i": 838,
+   "i": 841,
    "origin": "fuzz (0 edits)",
    "source": "lab:bmp-colon",
    "quote": "alcium: 9.6 mg/dL [Ref 8.6-10.3]\nVitamin B12: 4",
@@ -8626,7 +8677,7 @@
    "same": true
   },
   {
-   "i": 839,
+   "i": 842,
    "origin": "fuzz (2 edits)",
    "source": "lab:cbc",
    "quote": "     LowHem",
@@ -8634,7 +8685,7 @@
    "same": true
   },
   {
-   "i": 840,
+   "i": 843,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "e exam. Their office",
@@ -8645,7 +8696,7 @@
    "same": true
   },
   {
-   "i": 841,
+   "i": 844,
    "origin": "fuzz (0 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "itamin D, 25-Hydroxy ..... 31",
@@ -8656,18 +8707,18 @@
    "same": true
   },
   {
-   "i": 842,
+   "i": 845,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "alth center\nreason: high blood pressure\n\nnew medicine: a",
    "span": [
-    35,
-    91
+    34,
+    90
    ],
    "same": true
   },
   {
-   "i": 843,
+   "i": 846,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "lobin A1c - due in 3 mo",
@@ -8678,7 +8729,7 @@
    "same": true
   },
   {
-   "i": 844,
+   "i": 847,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": " EVENING.\nNEXİT VISIT IN 2 WEEKS.\n",
@@ -8686,7 +8737,7 @@
    "same": true
   },
   {
-   "i": 845,
+   "i": 848,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "eye exam. ",
@@ -8697,7 +8748,7 @@
    "same": true
   },
   {
-   "i": 846,
+   "i": 849,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "\" ANY LAB LOCATION.\nREFERRAL: CARDIOLOGY. PL\"",
@@ -8708,7 +8759,7 @@
    "same": true
   },
   {
-   "i": 847,
+   "i": 850,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "ou get a fever",
@@ -8719,7 +8770,7 @@
    "same": true
   },
   {
-   "i": 848,
+   "i": 851,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "\n\nMedication changes\nSTART metformin 500 mg tablet. Take 1 ",
@@ -8730,7 +8781,7 @@
    "same": true
   },
   {
-   "i": 849,
+   "i": 852,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "Refe…rral: ",
@@ -8741,7 +8792,7 @@
    "same": true
   },
   {
-   "i": 850,
+   "i": 853,
    "origin": "fuzz (0 edits)",
    "source": "lab:edge-cases",
    "quote": "   ",
@@ -8749,7 +8800,7 @@
    "same": true
   },
   {
-   "i": 851,
+   "i": 854,
    "origin": "fuzz (1 edits)",
    "source": "lab:bmp-colon",
    "quote": "ten by Team ATLAS, not a real patien",
@@ -8760,18 +8811,18 @@
    "same": true
   },
   {
-   "i": 852,
+   "i": 855,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "by mouth once daily.\nGlucose tolerance ",
    "span": [
-    135,
-    173
+    134,
+    172
    ],
    "same": true
   },
   {
-   "i": 853,
+   "i": 856,
    "origin": "fuzz (2 edits)",
    "source": "lab:thyroid",
    "quote": "tient)\nthyroid panel\ntest name  ",
@@ -8782,7 +8833,7 @@
    "same": true
   },
   {
-   "i": 854,
+   "i": 857,
    "origin": "fuzz (2 edits)",
    "source": "lab:annual",
    "quote": " >40\nLDL Cholesterol (Low-...densit ... dL   ",
@@ -8790,7 +8841,7 @@
    "same": true
   },
   {
-   "i": 855,
+   "i": 858,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "\nBlood work (kidney function) in 1 week.\n\nC",
@@ -8801,7 +8852,7 @@
    "same": true
   },
   {
-   "i": 856,
+   "i": 859,
    "origin": "fuzz (0 edits)",
    "source": "lab:bmp-colon",
    "quote": "7-25]\nCreatinine: 1.42 mg/dL [Ref 0.60",
@@ -8812,7 +8863,7 @@
    "same": true
   },
   {
-   "i": 857,
+   "i": 860,
    "origin": "fuzz (0 edits)",
    "source": "lab:lipid",
    "quote": " 38       L      mg/dL    >=40\nLow-density lip",
@@ -8823,7 +8874,7 @@
    "same": true
   },
   {
-   "i": 858,
+   "i": 861,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "\"g o cough.\nPrednisolone 15 mg by m\"",
@@ -8831,18 +8882,18 @@
    "same": true
   },
   {
-   "i": 859,
+   "i": 862,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": " SUMMAR",
    "span": [
-    29,
-    35
+    28,
+    34
    ],
    "same": true
   },
   {
-   "i": 860,
+   "i": 863,
    "origin": "fuzz (1 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "     (<5.7)\n",
@@ -8853,18 +8904,18 @@
    "same": true
   },
   {
-   "i": 861,
+   "i": 864,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "function) in 1 week.\n\nCall your doctor if you gain more th",
    "span": [
-    409,
-    467
+    408,
+    466
    ],
    "same": true
   },
   {
-   "i": 862,
+   "i": 865,
    "origin": "fuzz (1 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "c ............ 6.1 %              (<",
@@ -8872,18 +8923,18 @@
    "same": true
   },
   {
-   "i": 863,
+   "i": 866,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "\"abolic panel ― fasting, complete within 2 weeks\nReferral to\"",
    "span": [
-    419,
-    478
+    418,
+    477
    ],
    "same": true
   },
   {
-   "i": 864,
+   "i": 867,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "y morning.\nCheck your blood pressure at ",
@@ -8894,7 +8945,7 @@
    "same": true
   },
   {
-   "i": 865,
+   "i": 868,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": " bl",
@@ -8902,7 +8953,7 @@
    "same": true
   },
   {
-   "i": 866,
+   "i": 869,
    "origin": "fuzz (2 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "        ... \nurine albumin/creatinine .. 12 mg/g  ",
@@ -8913,7 +8964,7 @@
    "same": true
   },
   {
-   "i": 867,
+   "i": 870,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": " hours efore.\nCount your baby’s kicks every evening.",
@@ -8921,18 +8972,18 @@
    "same": true
   },
   {
-   "i": 868,
+   "i": 871,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "all 911 if you ca",
    "span": [
-    537,
-    554
+    536,
+    553
    ],
    "same": true
   },
   {
-   "i": 869,
+   "i": 872,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": " tablet. Avoid NSAIDs due to kidney function",
@@ -8943,7 +8994,7 @@
    "same": true
   },
   {
-   "i": 870,
+   "i": 873,
    "origin": "fuzz (0 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "globin A1c ............ ",
@@ -8954,7 +9005,7 @@
    "same": true
   },
   {
-   "i": 871,
+   "i": 874,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "Reason: Hñigh bloo",
@@ -8962,7 +9013,7 @@
    "same": true
   },
   {
-   "i": 872,
+   "i": 875,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "e will call you if the results ... mean your medicine need",
@@ -8973,7 +9024,7 @@
    "same": true
   },
   {
-   "i": 873,
+   "i": 876,
    "origin": "fuzz (1 edits)",
    "source": "lab:cbc",
    "quote": "                11 ... Value     Standard Range         Flag\nWBC ",
@@ -8981,7 +9032,7 @@
    "same": true
   },
   {
-   "i": 874,
+   "i": 877,
    "origin": "fuzz (2 edits)",
    "source": "lab:edge-cases",
    "quote": "﻿ \t \n 　    MMOL/L  \n  -2 TO 3\nHD",
@@ -8992,7 +9043,7 @@
    "same": true
   },
   {
-   "i": 875,
+   "i": 878,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": " weeks\nRefe",
@@ -9003,7 +9054,7 @@
    "same": true
   },
   {
-   "i": 876,
+   "i": 879,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "t back on salt.\n\nGo to the emergency room if your blood pre",
@@ -9014,7 +9065,7 @@
    "same": true
   },
   {
-   "i": 877,
+   "i": 880,
    "origin": "fuzz (1 edits)",
    "source": "lab:thyroid",
    "quote": "Aéb  ",
@@ -9022,7 +9073,7 @@
    "same": true
   },
   {
-   "i": 878,
+   "i": 881,
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "180 ng/dL\nThyroid Peroxidase (TPO) Ab     12    ",
@@ -9033,7 +9084,7 @@
    "same": true
   },
   {
-   "i": 879,
+   "i": 882,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "\nWe sent a urine culture. We will call you if",
@@ -9044,7 +9095,7 @@
    "same": true
   },
   {
-   "i": 880,
+   "i": 883,
    "origin": "fuzz (2 edits)",
    "source": "lab:annual",
    "quote": "    ... sium  ",
@@ -9055,18 +9106,18 @@
    "same": true
   },
   {
-   "i": 881,
+   "i": 884,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "IT SUMMARY\nSample Patient   Visit: 10/01/20",
    "span": [
-    19,
-    62
+    18,
+    61
    ],
    "same": true
   },
   {
-   "i": 882,
+   "i": 885,
    "origin": "fuzz (0 edits)",
    "source": "sample_avs",
    "quote": "4-555-0134.\n\nFollow-up\nReturn to clinic in 3 months, or sooner",
@@ -9077,7 +9128,7 @@
    "same": true
   },
   {
-   "i": 883,
+   "i": 886,
    "origin": "fuzz (1 edits)",
    "source": "sample_avs",
    "quote": "ou hav",
@@ -9088,7 +9139,7 @@
    "same": true
   },
   {
-   "i": 884,
+   "i": 887,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "lts mean your medicine needs to c",
@@ -9099,7 +9150,7 @@
    "same": true
   },
   {
-   "i": 885,
+   "i": 888,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "ARY\nSample Patient   Visit: 10/01/2026   Midtown Fam",
@@ -9110,7 +9161,7 @@
    "same": true
   },
   {
-   "i": 886,
+   "i": 889,
    "origin": "fuzz (2 edits)",
    "source": "sample_labs",
    "quote": "   Reference Range   Flag\nG...lucose, fasting         126      ",
@@ -9121,7 +9172,7 @@
    "same": true
   },
   {
-   "i": 887,
+   "i": 890,
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "                    Result     Reference Interval\nTSH ",
@@ -9132,7 +9183,7 @@
    "same": true
   },
   {
-   "i": 888,
+   "i": 891,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": " and aproxen.\n\nEve",
@@ -9140,7 +9191,7 @@
    "same": true
   },
   {
-   "i": 889,
+   "i": 892,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": " 3 months\nBasic metabolic panel ",
@@ -9151,7 +9202,7 @@
    "same": true
   },
   {
-   "i": 890,
+   "i": 893,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "urs before.\nCount your baby's kick",
@@ -9162,18 +9213,18 @@
    "same": true
   },
   {
-   "i": 891,
+   "i": 894,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "TAKE 2 TABLETS (20 MG TOTAL) BY MOUTH ONCE DAILY.",
    "span": [
-    239,
-    288
+    238,
+    287
    ],
    "same": true
   },
   {
-   "i": 892,
+   "i": 895,
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "uIU/mL\nFree",
@@ -9184,18 +9235,18 @@
    "same": true
   },
   {
-   "i": 893,
+   "i": 896,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "as needed for wheezing or cough.\nPredni",
    "span": [
-    194,
-    233
+    193,
+    232
    ],
    "same": true
   },
   {
-   "i": 894,
+   "i": 897,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "IN 2 WEEKS.\n\nCALL US RIGHT AWA",
@@ -9206,7 +9257,7 @@
    "same": true
   },
   {
-   "i": 895,
+   "i": 898,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "h ... once daily.\nST",
@@ -9214,18 +9265,18 @@
    "same": true
   },
   {
-   "i": 896,
+   "i": 899,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "ng to breathe.\n\nED attending reviewed chest ",
    "span": [
-    503,
-    546
+    502,
+    545
    ],
    "same": true
   },
   {
-   "i": 897,
+   "i": 900,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "ARGE INSTRUCTIONS\n",
@@ -9236,7 +9287,7 @@
    "same": true
   },
   {
-   "i": 898,
+   "i": 901,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "26\nDiagnosis: Asthma exacerbation\n\nMedicines\nA",
@@ -9247,7 +9298,7 @@
    "same": true
   },
   {
-   "i": 899,
+   "i": 902,
    "origin": "fuzz (1 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "\" AND KIDNEY CHECK\nHemoglobin A1c ...........\"",
@@ -9255,7 +9306,7 @@
    "same": true
   },
   {
-   "i": 900,
+   "i": 903,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "\"or cough.\nPrednis ... r wheezing\"",
@@ -9263,18 +9314,18 @@
    "same": true
   },
   {
-   "i": 901,
+   "i": 904,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "555-0177 to schedule.\nNext　visit: 4 weeks.\nCut back　on s",
    "span": [
-    330,
-    386
+    329,
+    385
    ],
    "same": true
   },
   {
-   "i": 902,
+   "i": 905,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "ple\r\nHealth  Center\nReason: High blood ",
@@ -9285,7 +9336,7 @@
    "same": true
   },
   {
-   "i": 903,
+   "i": 906,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": " 5 DAYS. FINISH ALL OF IT EVEN IF YOU FEEL BETTER.\nD",
@@ -9296,7 +9347,7 @@
    "same": true
   },
   {
-   "i": 904,
+   "i": 907,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "\"eding, leaking fluid, or fewer \"",
@@ -9307,18 +9358,18 @@
    "same": true
   },
   {
-   "i": 905,
+   "i": 908,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "gh.\nprednisolone 15 mg by mouth o",
    "span": [
-    223,
-    256
+    222,
+    255
    ],
    "same": true
   },
   {
-   "i": 906,
+   "i": 909,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": " to seek care\nCall the office if your blood sugar ",
@@ -9329,18 +9380,18 @@
    "same": true
   },
   {
-   "i": 907,
+   "i": 910,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "y for diabetic eye exa",
    "span": [
-    491,
-    513
+    490,
+    512
    ],
    "same": true
   },
   {
-   "i": 908,
+   "i": 911,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "\"son:...High blood\"",
@@ -9351,7 +9402,7 @@
    "same": true
   },
   {
-   "i": 909,
+   "i": 912,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "t.\n\nGo to t服he emerg",
@@ -9359,7 +9410,7 @@
    "same": true
   },
   {
-   "i": 910,
+   "i": 913,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "abletሁ. Take 2 tablets (20 mg ",
@@ -9367,7 +9418,7 @@
    "same": true
   },
   {
-   "i": 911,
+   "i": 914,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "\"abolic pan\"",
@@ -9378,7 +9429,7 @@
    "same": true
   },
   {
-   "i": 912,
+   "i": 915,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "ceived the Tdap vaccine.\nStart",
@@ -9389,7 +9440,7 @@
    "same": true
   },
   {
-   "i": 913,
+   "i": 916,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "cines\nFurosemide ",
@@ -9400,7 +9451,7 @@
    "same": true
   },
   {
-   "i": 914,
+   "i": 917,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "\"to 2,000 mg ሁa \"",
@@ -9408,7 +9459,7 @@
    "same": true
   },
   {
-   "i": 915,
+   "i": 918,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "ave a severe headache, chest ",
@@ -9419,7 +9470,7 @@
    "same": true
   },
   {
-   "i": 916,
+   "i": 919,
    "origin": "fuzz (1 edits)",
    "source": "sample_avs",
    "quote": "orp location\n Referral to Opht",
@@ -9427,7 +9478,7 @@
    "same": true
   },
   {
-   "i": 917,
+   "i": 920,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": " FOR 8 ",
@@ -9438,7 +9489,7 @@
    "same": true
   },
   {
-   "i": 918,
+   "i": 921,
    "origin": "fuzz (1 edits)",
    "source": "sample_avs",
    "quote": "m them in 10 days, call 404−",
@@ -9449,7 +9500,7 @@
    "same": true
   },
   {
-   "i": 919,
+   "i": 922,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "\"ater.\nWe sent a uine \"",
@@ -9457,7 +9508,7 @@
    "same": true
   },
   {
-   "i": 920,
+   "i": 923,
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "rence Interval\nTSH                    ",
@@ -9468,7 +9519,7 @@
    "same": true
   },
   {
-   "i": 921,
+   "i": 924,
    "origin": "fuzz (1 edits)",
    "source": "lab:edge-cases",
    "quote": "L Cholesterol, Direct        \t \n   \r\n1",
@@ -9479,7 +9530,7 @@
    "same": true
   },
   {
-   "i": 922,
+   "i": 925,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": " ER if you get... a f",
@@ -9490,18 +9541,18 @@
    "same": true
   },
   {
-   "i": 923,
+   "i": 926,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "\nEDICATION CHANGES\nSTART METFORMIN 500 MG TABLET. TAKE 1 ",
    "span": [
-    109,
-    164
+    108,
+    163
    ],
    "same": true
   },
   {
-   "i": 924,
+   "i": 927,
    "origin": "fuzz (1 edits)",
    "source": "lab:bmp-colon",
    "quote": "\"Team A\"",
@@ -9512,7 +9563,7 @@
    "same": true
   },
   {
-   "i": 925,
+   "i": 928,
    "origin": "fuzz (1 edits)",
    "source": "sample_labs",
    "quote": "  H\nLD Cho",
@@ -9520,7 +9571,7 @@
    "same": true
   },
   {
-   "i": 926,
+   "i": 929,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": " to ",
@@ -9528,7 +9579,7 @@
    "same": true
   },
   {
-   "i": 927,
+   "i": 930,
    "origin": "fuzz (0 edits)",
    "source": "lab:edge-cases",
    "quote": "irect                 <0.2 ",
@@ -9539,7 +9590,7 @@
    "same": true
   },
   {
-   "i": 928,
+   "i": 931,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "\nLab: basi metaboli",
@@ -9547,7 +9598,7 @@
    "same": true
   },
   {
-   "i": 929,
+   "i": 932,
    "origin": "fuzz (0 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "moglobin A1c ............ 6.1 %      ",
@@ -9558,7 +9609,7 @@
    "same": true
   },
   {
-   "i": 930,
+   "i": 933,
    "origin": "fuzz (2 edits)",
    "source": "sample_avs",
    "quote": "he office if your blood sugar is ab",
@@ -9569,18 +9620,18 @@
    "same": true
   },
   {
-   "i": 931,
+   "i": 934,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": " your pediatrici",
    "span": [
-    317,
-    332
+    316,
+    331
    ],
    "same": true
   },
   {
-   "i": 932,
+   "i": 935,
    "origin": "fuzz (2 edits)",
    "source": "lab:edge-cases",
    "quote": "     RESULT     UNITS      RANGE     ",
@@ -9591,7 +9642,7 @@
    "same": true
   },
   {
-   "i": 933,
+   "i": 936,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": " heart failure.\n\nMedicines\n",
@@ -9602,7 +9653,7 @@
    "same": true
   },
   {
-   "i": 934,
+   "i": 937,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "ache, ch服est pain, or visio",
@@ -9610,7 +9661,7 @@
    "same": true
   },
   {
-   "i": 935,
+   "i": 938,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "ction\n\nTake nitrofurantoin 100 mg b",
@@ -9621,7 +9672,7 @@
    "same": true
   },
   {
-   "i": 936,
+   "i": 939,
    "origin": "fuzz (2 edits)",
    "source": "lab:thyroid",
    "quote": "\"0 UIU/ML\nFREE T4   \"",
@@ -9632,18 +9683,18 @@
    "same": true
   },
   {
-   "i": 937,
+   "i": 940,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "💊 ሰላም urgent care visit -",
    "span": [
-    3,
-    29
+    2,
+    28
    ],
    "same": true
   },
   {
-   "i": 938,
+   "i": 941,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "\"Glucose tolerance test at your next visit. Do not eat or dri\"",
@@ -9654,7 +9705,7 @@
    "same": true
   },
   {
-   "i": 939,
+   "i": 942,
    "origin": "fuzz (2 edits)",
    "source": "lab:bmp-colon",
    "quote": ".3]\nVitamin",
@@ -9665,7 +9716,7 @@
    "same": true
   },
   {
-   "i": 940,
+   "i": 943,
    "origin": "fuzz (1 edits)",
    "source": "sample_labs",
    "quote": "      mmol/L     136—145\nPotassium                3.2  ",
@@ -9676,18 +9727,18 @@
    "same": true
   },
   {
-   "i": 941,
+   "i": 944,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": " blo",
    "span": [
-    60,
-    63
+    59,
+    62
    ],
    "same": true
   },
   {
-   "i": 942,
+   "i": 945,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "İstatin…at ne",
@@ -9695,7 +9746,7 @@
    "same": true
   },
   {
-   "i": 943,
+   "i": 946,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "pressure is over 80/120 and you h",
@@ -9703,7 +9754,7 @@
    "same": true
   },
   {
-   "i": 944,
+   "i": 947,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "your child's lips turn blue or they are struggling to breathe.",
@@ -9714,7 +9765,7 @@
    "same": true
   },
   {
-   "i": 945,
+   "i": 948,
    "origin": "fuzz (2 edits)",
    "source": "lab:lipid",
    "quote": "              …162ሁ     ",
@@ -9722,7 +9773,7 @@
    "same": true
   },
   {
-   "i": 946,
+   "i": 949,
    "origin": "fuzz (1 edits)",
    "source": "lab:lipid",
    "quote": "am atlas, not a",
@@ -9733,7 +9784,7 @@
    "same": true
   },
   {
-   "i": 947,
+   "i": 950,
    "origin": "fuzz (0 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "am ATLAS, not a real patient)\nDIABETES",
@@ -9744,7 +9795,7 @@
    "same": true
   },
   {
-   "i": 948,
+   "i": 951,
    "origin": "fuzz (0 edits)",
    "source": "sample_labs",
    "quote": "    H\nSodium                   139 ",
@@ -9755,7 +9806,7 @@
    "same": true
   },
   {
-   "i": 949,
+   "i": 952,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": " the time.\nBlood wrk (kidney fu",
@@ -9763,7 +9814,7 @@
    "same": true
   },
   {
-   "i": 950,
+   "i": 953,
    "origin": "fuzz (0 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "RT (written by Team ATLAS, not",
@@ -9774,7 +9825,7 @@
    "same": true
   },
   {
-   "i": 951,
+   "i": 954,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "to ",
@@ -9782,18 +9833,18 @@
    "same": true
   },
   {
-   "i": 952,
+   "i": 955,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "se tolerance test at your next visit. Do n",
    "span": [
-    161,
-    203
+    160,
+    202
    ],
    "same": true
   },
   {
-   "i": 953,
+   "i": 956,
    "origin": "fuzz (2 edits)",
    "source": "lab:cbc",
    "quote": "09/28/2026 08:1 ... TH DIFFERENTIAL\nCollected",
@@ -9801,7 +9852,7 @@
    "same": true
   },
   {
-   "i": 954,
+   "i": 957,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "\"CARE VISIT - SAMPLE\nDiagnosis: urinary tract infection\n\nTake \"",
@@ -9812,7 +9863,7 @@
    "same": true
   },
   {
-   "i": 955,
+   "i": 958,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "y if you have bleeding, leaking fluid, or fewer t",
@@ -9823,7 +9874,7 @@
    "same": true
   },
   {
-   "i": 956,
+   "i": 959,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "semide 40 mg: take 1 tablet",
@@ -9834,7 +9885,7 @@
    "same": true
   },
   {
-   "i": 957,
+   "i": 960,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "they are struggling to breathe.\n\nED att",
@@ -9845,7 +9896,7 @@
    "same": true
   },
   {
-   "i": 958,
+   "i": 961,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "re…than 3 pounds in a day or 5 pound",
@@ -9853,51 +9904,51 @@
    "same": true
   },
   {
-   "i": 959,
+   "i": 962,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "idtown Fa",
    "span": [
-    68,
-    77
-   ],
-   "same": true
-  },
-  {
-   "i": 960,
-   "origin": "fuzz (0 edits)",
-   "source": "paper:prenatal-28-weeks+prefix",
-   "quote": "325 mg b",
-   "span": [
-    128,
-    136
-   ],
-   "same": true
-  },
-  {
-   "i": 961,
-   "origin": "fuzz (0 edits)",
-   "source": "paper:heart-failure-discharge+prefix",
-   "quote": " naproxen.\n\nEvery day\nWeigh yourself ev",
-   "span": [
-    180,
-    218
-   ],
-   "same": true
-  },
-  {
-   "i": 962,
-   "origin": "fuzz (0 edits)",
-   "source": "paper:prenatal-28-weeks+prefix",
-   "quote": "bleeding, leaking fluid, or fewer than 10 movements",
-   "span": [
-    380,
-    431
+    67,
+    76
    ],
    "same": true
   },
   {
    "i": 963,
+   "origin": "fuzz (0 edits)",
+   "source": "paper:prenatal-28-weeks+prefix",
+   "quote": "325 mg b",
+   "span": [
+    127,
+    135
+   ],
+   "same": true
+  },
+  {
+   "i": 964,
+   "origin": "fuzz (0 edits)",
+   "source": "paper:heart-failure-discharge+prefix",
+   "quote": " naproxen.\n\nEvery day\nWeigh yourself ev",
+   "span": [
+    179,
+    217
+   ],
+   "same": true
+  },
+  {
+   "i": 965,
+   "origin": "fuzz (0 edits)",
+   "source": "paper:prenatal-28-weeks+prefix",
+   "quote": "bleeding, leaking fluid, or fewer than 10 movements",
+   "span": [
+    379,
+    430
+   ],
+   "same": true
+  },
+  {
+   "i": 966,
    "origin": "fuzz (0 edits)",
    "source": "lab:lipid",
    "quote": "               231      H      mg/dL    <200\nTriglycerides   ",
@@ -9908,7 +9959,7 @@
    "same": true
   },
   {
-   "i": 964,
+   "i": 967,
    "origin": "fuzz (0 edits)",
    "source": "lab:annual",
    "quote": "        ",
@@ -9916,7 +9967,7 @@
    "same": true
   },
   {
-   "i": 965,
+   "i": 968,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": " your child away from cigarett",
@@ -9927,7 +9978,7 @@
    "same": true
   },
   {
-   "i": 966,
+   "i": 969,
    "origin": "fuzz (1 edits)",
    "source": "lab:bmp-colon",
    "quote": " (writte",
@@ -9938,7 +9989,7 @@
    "same": true
   },
   {
-   "i": 967,
+   "i": 970,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "y day\nWeigh yourself everyሁ morning after",
@@ -9946,7 +9997,7 @@
    "same": true
   },
   {
-   "i": 968,
+   "i": 971,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "SSURE\n\nNEW MEDICINE: AMLODIPINE ",
@@ -9957,7 +10008,7 @@
    "same": true
   },
   {
-   "i": 969,
+   "i": 972,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "needed for wheezing or cough.",
@@ -9968,18 +10019,18 @@
    "same": true
   },
   {
-   "i": 970,
+   "i": 973,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": " drink anything but ",
    "span": [
-    213,
-    231
+    212,
+    230
    ],
    "same": true
   },
   {
-   "i": 971,
+   "i": 974,
    "origin": "fuzz (0 edits)",
    "source": "lab:lipid",
    "quote": "   162      H      mg/dL    <150\nHigh-density l",
@@ -9990,7 +10041,7 @@
    "same": true
   },
   {
-   "i": 972,
+   "i": 975,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "\" every morning.\nSTOP taking ibupro\"",
@@ -10001,7 +10052,7 @@
    "same": true
   },
   {
-   "i": 973,
+   "i": 976,
    "origin": "fuzz (1 edits)",
    "source": "lab:thyroid",
    "quote": "\"AMPLE LAB REPORT (written by T\"",
@@ -10012,7 +10063,7 @@
    "same": true
   },
   {
-   "i": 974,
+   "i": 977,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "n...ds in",
@@ -10020,7 +10071,7 @@
    "same": true
   },
   {
-   "i": 975,
+   "i": 978,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "rk (kİidney function) in 1 week.\n\nCall your doctor if y",
@@ -10028,18 +10079,18 @@
    "same": true
   },
   {
-   "i": 976,
+   "i": 979,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "ll of it even if you feel better.\nDrink plenty of water.\nWe •s",
    "span": [
-    143,
-    204
+    142,
+    203
    ],
    "same": true
   },
   {
-   "i": 977,
+   "i": 980,
    "origin": "fuzz (0 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "/min/1.73m2",
@@ -10050,18 +10101,18 @@
    "same": true
   },
   {
-   "i": 978,
+   "i": 981,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "atrician in 2 to ",
    "span": [
-    326,
-    342
+    325,
+    341
    ],
    "same": true
   },
   {
-   "i": 979,
+   "i": 982,
    "origin": "fuzz (2 edits)",
    "source": "lab:cbc",
    "quote": ".0 - 45.0 %\nMCV     ...            83 fL          80 - 100",
@@ -10072,7 +10123,7 @@
    "same": true
   },
   {
-   "i": 980,
+   "i": 983,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "ANGE LISIOPRIL 10 MG TABLET. TAKE 2 TABLETS (20 ",
@@ -10080,7 +10131,7 @@
    "same": true
   },
   {
-   "i": 981,
+   "i": 984,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "f water.\nWe sent a urine culture. We will call you if th",
@@ -10091,7 +10142,7 @@
    "same": true
   },
   {
-   "i": 982,
+   "i": 985,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "START metformin 500 g tablet. Take 1 tablet by mouth 2 ti",
@@ -10099,40 +10150,40 @@
    "same": true
   },
   {
-   "i": 983,
+   "i": 986,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "ke.\n\nReturn ",
    "span": [
-    401,
-    412
+    400,
+    411
    ],
    "same": true
   },
   {
-   "i": 984,
+   "i": 987,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "ne 5 mg, take 1 tablet every morning.\ncheck yo",
    "span": [
-    98,
-    144
+    97,
+    143
    ],
    "same": true
   },
   {
-   "i": 985,
+   "i": 988,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "doctor if yo",
    "span": [
-    441,
-    453
+    440,
+    452
    ],
    "same": true
   },
   {
-   "i": 986,
+   "i": 989,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "EIGH YOURSELF EVERY MORNING AFTER USING ",
@@ -10143,7 +10194,7 @@
    "same": true
   },
   {
-   "i": 987,
+   "i": 990,
    "origin": "fuzz (1 edits)",
    "source": "lab:thyroid",
    "quote": "lt     Refé",
@@ -10151,18 +10202,18 @@
    "same": true
   },
   {
-   "i": 988,
+   "i": 991,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "\"a day for 5 days. Finish all of \"",
    "span": [
-    117,
-    148
+    116,
+    147
    ],
    "same": true
   },
   {
-   "i": 989,
+   "i": 992,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "﻿you　have a severe headache, chest\npain,﻿or",
@@ -10173,7 +10224,7 @@
    "same": true
   },
   {
-   "i": 990,
+   "i": 993,
    "origin": "fuzz (0 edits)",
    "source": "lab:lipid",
    "quote": "       24              mg/dL    5-40\nChol",
@@ -10184,7 +10235,7 @@
    "same": true
   },
   {
-   "i": 991,
+   "i": 994,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "\"y M\"",
@@ -10195,18 +10246,18 @@
    "same": true
   },
   {
-   "i": 992,
+   "i": 995,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "if you\nfeel",
    "span": [
-    157,
-    168
+    156,
+    167
    ],
    "same": true
   },
   {
-   "i": 993,
+   "i": 996,
    "origin": "fuzz (1 edits)",
    "source": "lab:bmp-colon",
    "quote": "410 pg/mL\nMagnesium: 1.6 mg",
@@ -10217,7 +10268,7 @@
    "same": true
   },
   {
-   "i": 994,
+   "i": 997,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "t down.\nlimit salt to 2,000 mg a day.\n\nappointments\ncar",
@@ -10228,7 +10279,7 @@
    "same": true
   },
   {
-   "i": 995,
+   "i": 998,
    "origin": "fuzz (1 edits)",
    "source": "lab:bmp-colon",
    "quote": "18 mg/dL [Ref 7-25]\nCreati ...  65-99] HIGH\nBUN:",
@@ -10236,7 +10287,7 @@
    "same": true
   },
   {
-   "i": 996,
+   "i": 999,
    "origin": "fuzz (0 edits)",
    "source": "lab:lipid",
    "quote": "100\nVLDL Cholesterol                ",
@@ -10247,18 +10298,18 @@
    "same": true
   },
   {
-   "i": 997,
+   "i": 1000,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "ll us right away or go to Labor and Deliv",
    "span": [
-    323,
-    364
+    322,
+    363
    ],
    "same": true
   },
   {
-   "i": 998,
+   "i": 1001,
    "origin": "fuzz (0 edits)",
    "source": "lab:cbc",
    "quote": "0^6/uL  3.80 - 5.20 x10^6/uL\nHemoglobi",
@@ -10269,7 +10320,7 @@
    "same": true
   },
   {
-   "i": 999,
+   "i": 1002,
    "origin": "fuzz (2 edits)",
    "source": "lab:thyroid",
    "quote": "           RESULT   ... D PANEL\nTEST NAME           ",
@@ -10277,29 +10328,29 @@
    "same": true
   },
   {
-   "i": 1000,
+   "i": 1003,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "NSTRUCTIONS\nSample Child…  Age 7   Discharged 10/01/2026\nDiagn",
    "span": [
-    42,
-    104
+    41,
+    103
    ],
    "same": true
   },
   {
-   "i": 1001,
+   "i": 1004,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "s lips turn\r\nblue or they are﻿s",
    "span": [
-    466,
-    496
+    465,
+    495
    ],
    "same": true
   },
   {
-   "i": 1002,
+   "i": 1005,
    "origin": "fuzz (2 edits)",
    "source": "lab:annual",
    "quote": "\"                    7,400      /uL       4,500–11,000\nHDL C\"",
@@ -10310,18 +10361,18 @@
    "same": true
   },
   {
-   "i": 1003,
+   "i": 1006,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "ime.\nblood wo",
    "span": [
-    385,
-    398
+    384,
+    397
    ],
    "same": true
   },
   {
-   "i": 1004,
+   "i": 1007,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "lture. We will call you if the r",
@@ -10332,18 +10383,18 @@
    "same": true
   },
   {
-   "i": 1005,
+   "i": 1008,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": ", OR\r\nVISION C",
    "span": [
-    498,
-    511
+    497,
+    510
    ],
    "same": true
   },
   {
-   "i": 1006,
+   "i": 1009,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "get afever...over 101 F, back or side pain, ",
@@ -10351,18 +10402,18 @@
    "same": true
   },
   {
-   "i": 1007,
+   "i": 1010,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "re\nCall the ",
    "span": [
-    684,
-    695
+    683,
+    694
    ],
    "same": true
   },
   {
-   "i": 1008,
+   "i": 1011,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "you to schedule.\n\nPr",
@@ -10373,7 +10424,7 @@
    "same": true
   },
   {
-   "i": 1009,
+   "i": 1012,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "\"o to the emergency room if your blood pressure is over 180/12\"",
@@ -10384,7 +10435,7 @@
    "same": true
   },
   {
-   "i": 1010,
+   "i": 1013,
    "origin": "fuzz (0 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "     (<30)\nVitamin D, 25-Hydroxy ..... 3",
@@ -10395,7 +10446,7 @@
    "same": true
   },
   {
-   "i": 1011,
+   "i": 1014,
    "origin": "fuzz (0 edits)",
    "source": "lab:bmp-colon",
    "quote": "eal patient)\nBASIC METAB",
@@ -10406,7 +10457,7 @@
    "same": true
   },
   {
-   "i": 1012,
+   "i": 1015,
    "origin": "fuzz (1 edits)",
    "source": "lab:cbc",
    "quote": "- 450,000 /uL\nNeutrophils          72 %        ",
@@ -10417,7 +10468,7 @@
    "same": true
   },
   {
-   "i": 1013,
+   "i": 1016,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "N TO THE EMERGENCY DEPARTMENT RIGHT AWAY IF ",
@@ -10428,7 +10479,7 @@
    "same": true
   },
   {
-   "i": 1014,
+   "i": 1017,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "ISIT - SAMPLE\nDiag💊nosis: urin",
@@ -10436,7 +10487,7 @@
    "same": true
   },
   {
-   "i": 1015,
+   "i": 1018,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "e.\nBlood work (kidney function) in 1 week.\n\nCall your doct",
@@ -10447,7 +10498,7 @@
    "same": true
   },
   {
-   "i": 1016,
+   "i": 1019,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "et a fever over 101 F, back or si",
@@ -10458,29 +10509,29 @@
    "same": true
   },
   {
-   "i": 1017,
+   "i": 1020,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "MMARY - Sample Health ",
    "span": [
-    18,
-    39
+    17,
+    38
    ],
    "same": true
   },
   {
-   "i": 1018,
+   "i": 1021,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "morrow morning.\n\nFollow-up\nSee",
    "span": [
-    286,
-    316
+    285,
+    315
    ],
    "same": true
   },
   {
-   "i": 1019,
+   "i": 1022,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "evening.\nNext visit in",
@@ -10491,7 +10542,7 @@
    "same": true
   },
   {
-   "i": 1020,
+   "i": 1023,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "mouth once daily.\nGlucose tolerance t ... lfate) 325 mg by",
@@ -10499,7 +10550,7 @@
    "same": true
   },
   {
-   "i": 1021,
+   "i": 1024,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "and you have a severe headache, c",
@@ -10510,7 +10561,7 @@
    "same": true
   },
   {
-   "i": 1022,
+   "i": 1025,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "eive",
@@ -10521,7 +10572,7 @@
    "same": true
   },
   {
-   "i": 1023,
+   "i": 1026,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "HAN 10 MOVEMENT",
@@ -10532,7 +10583,7 @@
    "same": true
   },
   {
-   "i": 1024,
+   "i": 1027,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "nary tract",
@@ -10543,7 +10594,7 @@
    "same": true
   },
   {
-   "i": 1025,
+   "i": 1028,
    "origin": "fuzz (2 edits)",
    "source": "sample_labs",
    "quote": "\"potassium                3.2\"",
@@ -10554,7 +10605,7 @@
    "same": true
   },
   {
-   "i": 1026,
+   "i": 1029,
    "origin": "fuzz (0 edits)",
    "source": "lab:annual",
    "quote": " patient)\nANNUAL PHYSICAL PANEL\nAnalyte                 ",
@@ -10565,7 +10616,7 @@
    "same": true
   },
   {
-   "i": 1027,
+   "i": 1030,
    "origin": "fuzz (2 edits)",
    "source": "lab:annual",
    "quote": "                9   …      ng/ml     15-150     ",
@@ -10573,7 +10624,7 @@
    "same": true
   },
   {
-   "i": 1028,
+   "i": 1031,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "PLE\nDiagnosis: urinary tract infection\n\nTake nitrofuran",
@@ -10584,7 +10635,7 @@
    "same": true
   },
   {
-   "i": 1029,
+   "i": 1032,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "h once daily.\nSTOP ibuprofen 200 mg tablet. Avoid NSAIDs due t",
@@ -10595,7 +10646,7 @@
    "same": true
   },
   {
-   "i": 1030,
+   "i": 1033,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "llow-up in 7 days. Th",
@@ -10606,7 +10657,7 @@
    "same": true
   },
   {
-   "i": 1031,
+   "i": 1034,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "Appointments\nCardiolo",
@@ -10617,7 +10668,7 @@
    "same": true
   },
   {
-   "i": 1032,
+   "i": 1035,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "l call you to sched",
@@ -10628,7 +10679,7 @@
    "same": true
   },
   {
-   "i": 1033,
+   "i": 1036,
    "origin": "fuzz (1 edits)",
    "source": "lab:edge-cases",
    "quote": "High-density)    35         mg/dL      ",
@@ -10639,7 +10690,7 @@
    "same": true
   },
   {
-   "i": 1034,
+   "i": 1037,
    "origin": "fuzz (1 edits)",
    "source": "sample_avs",
    "quote": " on one side of your bo",
@@ -10650,18 +10701,18 @@
    "same": true
   },
   {
-   "i": 1035,
+   "i": 1038,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "follow-up in 7 days. The clinic wil",
    "span": [
-    329,
-    364
+    328,
+    363
    ],
    "same": true
   },
   {
-   "i": 1036,
+   "i": 1039,
    "origin": "fuzz (0 edits)",
    "source": "lab:cbc",
    "quote": "10^6/uL\nHemoglob",
@@ -10672,18 +10723,18 @@
    "same": true
   },
   {
-   "i": 1037,
+   "i": 1040,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "rine cultur",
    "span": [
-    211,
-    222
+    210,
+    221
    ],
    "same": true
   },
   {
-   "i": 1038,
+   "i": 1041,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "ds in a week, or y",
@@ -10694,7 +10745,7 @@
    "same": true
   },
   {
-   "i": 1039,
+   "i": 1042,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": " SALT TO 2,000 MG A DAY",
@@ -10705,18 +10756,18 @@
    "same": true
   },
   {
-   "i": 1040,
+   "i": 1043,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "ven i",
    "span": [
-    153,
-    158
+    152,
+    157
    ],
    "same": true
   },
   {
-   "i": 1041,
+   "i": 1044,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "TRUCTIONS\nSample Child  ",
@@ -10727,7 +10778,7 @@
    "same": true
   },
   {
-   "i": 1042,
+   "i": 1045,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "SAMPLE)\nWeeks pregnant: 28\n\nTo",
@@ -10738,7 +10789,7 @@
    "same": true
   },
   {
-   "i": 1043,
+   "i": 1046,
    "origin": "fuzz (2 edits)",
    "source": "sample_avs",
    "quote": "at any Quest \n...　e\nwithin\n2 weeks",
@@ -10746,7 +10797,7 @@
    "same": true
   },
   {
-   "i": 1044,
+   "i": 1047,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": " a day with meals.\nchange lisinopr",
@@ -10757,7 +10808,7 @@
    "same": true
   },
   {
-   "i": 1045,
+   "i": 1048,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "og to your next visit",
@@ -10768,7 +10819,7 @@
    "same": true
   },
   {
-   "i": 1046,
+   "i": 1049,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "SCHEDULE.\nNEXT VISIT: 4 WEE ... CALL 404-555-0177 TO",
@@ -10776,7 +10827,7 @@
    "same": true
   },
   {
-   "i": 1047,
+   "i": 1050,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "a day for 5 days. Finish all of it even if you feel",
@@ -10787,7 +10838,7 @@
    "same": true
   },
   {
-   "i": 1048,
+   "i": 1051,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "s.\n\nHome care\nKeep your child away from cigarette smoke.\n",
@@ -10798,7 +10849,7 @@
    "same": true
   },
   {
-   "i": 1049,
+   "i": 1052,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "er for 8 hours before.\nCount",
@@ -10809,18 +10860,18 @@
    "same": true
   },
   {
-   "i": 1050,
+   "i": 1053,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "\"e call 404-555-0177 to schedule.\nnext visit: 4 weeks.\ncut\"",
    "span": [
-    319,
-    376
+    318,
+    375
    ],
    "same": true
   },
   {
-   "i": 1051,
+   "i": 1054,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "igh blood pressue\n\nNew medicine: ",
@@ -10828,7 +10879,7 @@
    "same": true
   },
   {
-   "i": 1052,
+   "i": 1055,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med",
    "quote": " down. Bring the log to your nex visit.\nLab: basic ",
@@ -10836,7 +10887,7 @@
    "same": true
   },
   {
-   "i": 1053,
+   "i": 1056,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "xt visit in 2 weeks.\n\nCall us right away or go téo Labor and ",
@@ -10844,7 +10895,7 @@
    "same": true
   },
   {
-   "i": 1054,
+   "i": 1057,
    "origin": "fuzz (2 edits)",
    "source": "lab:edge-cases",
    "quote": "     ...   L          0.8-2.0\nHigh Sensitivity CRP           ",
@@ -10855,7 +10906,7 @@
    "same": true
   },
   {
-   "i": 1055,
+   "i": 1058,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "lood pressure\n\nNew med",
@@ -10866,7 +10917,7 @@
    "same": true
   },
   {
-   "i": 1056,
+   "i": 1059,
    "origin": "fuzz (2 edits)",
    "source": "lab:bmp-colon",
    "quote": "not a real pa ... y Team ATLAS,",
@@ -10874,18 +10925,18 @@
    "same": true
   },
   {
-   "i": 1057,
+   "i": 1060,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "OM IF YOUR BLOOD PRESSURE IS OVER 180/120 AN",
    "span": [
-    414,
-    458
+    413,
+    457
    ],
    "same": true
   },
   {
-   "i": 1058,
+   "i": 1061,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "2 ho",
@@ -10896,7 +10947,7 @@
    "same": true
   },
   {
-   "i": 1059,
+   "i": 1062,
    "origin": "fuzz (2 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "CHECK\nHemoglobin A1c ... ... S ND KIDNEY",
@@ -10904,7 +10955,7 @@
    "same": true
   },
   {
-   "i": 1060,
+   "i": 1063,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "ing, leaking ",
@@ -10915,7 +10966,7 @@
    "same": true
   },
   {
-   "i": 1061,
+   "i": 1064,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care",
    "quote": " YOU  IF THE RESULTS MEAN YOUR  MEDICINE NEED",
@@ -10926,7 +10977,7 @@
    "same": true
   },
   {
-   "i": 1062,
+   "i": 1065,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "\"1 tablet by mouth 2 t\"",
@@ -10937,18 +10988,18 @@
    "same": true
   },
   {
-   "i": 1063,
+   "i": 1066,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "\"d pressure at home\"",
    "span": [
-    151,
-    169
+    150,
+    168
    ],
    "same": true
   },
   {
-   "i": 1064,
+   "i": 1067,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "to the emergency department right away i",
@@ -10959,7 +11010,7 @@
    "same": true
   },
   {
-   "i": 1065,
+   "i": 1068,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "Go to the emerge",
@@ -10970,7 +11021,7 @@
    "same": true
   },
   {
-   "i": 1066,
+   "i": 1069,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "Age 7   Discharged 10/01/2026\nDiagnosis: Astሁhma",
@@ -10978,18 +11029,18 @@
    "same": true
   },
   {
-   "i": 1067,
+   "i": 1070,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": ".\nBLOOD WORK (KIDNEY FUNCTION) IN 1 WEEK.\n\nCALL YOUR DOCTOR IF",
    "span": [
-    388,
-    450
+    387,
+    449
    ],
    "same": true
   },
   {
-   "i": 1068,
+   "i": 1071,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "e clinic 服wil call you ",
@@ -10997,7 +11048,7 @@
    "same": true
   },
   {
-   "i": 1069,
+   "i": 1072,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "re\nCall theé office if your blood sugar is above ",
@@ -11005,18 +11056,18 @@
    "same": true
   },
   {
-   "i": 1070,
+   "i": 1073,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "ours﻿before.\nCount your\r\nbaby's\r\nkicks every eve",
    "span": [
-    245,
-    291
+    244,
+    290
    ],
    "same": true
   },
   {
-   "i": 1071,
+   "i": 1074,
    "origin": "fuzz (0 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "obin A1c ............ 6.1 %              (<5.7)",
@@ -11027,7 +11078,7 @@
    "same": true
   },
   {
-   "i": 1072,
+   "i": 1075,
    "origin": "fuzz (2 edits)",
    "source": "lab:diabetes-kidney",
    "quote": " ..... 31 ng/ml      ",
@@ -11038,7 +11089,7 @@
    "same": true
   },
   {
-   "i": 1073,
+   "i": 1076,
    "origin": "fuzz (0 edits)",
    "source": "lab:cbc",
    "quote": "MPLETE",
@@ -11049,7 +11100,7 @@
    "same": true
   },
   {
-   "i": 1074,
+   "i": 1077,
    "origin": "fuzz (2 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "       ... in/creatinine .. 12 mg/g   ",
@@ -11060,7 +11111,7 @@
    "same": true
   },
   {
-   "i": 1075,
+   "i": 1078,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "f the results mean your m",
@@ -11071,7 +11122,7 @@
    "same": true
   },
   {
-   "i": 1076,
+   "i": 1079,
    "origin": "fuzz (1 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "in ... D, 25-Hydroxy ..... 31 ng/",
@@ -11079,7 +11130,7 @@
    "same": true
   },
   {
-   "i": 1077,
+   "i": 1080,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": " or driሁ",
@@ -11087,7 +11138,7 @@
    "same": true
   },
   {
-   "i": 1078,
+   "i": 1081,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "your child's ips turn blue ",
@@ -11095,7 +11146,7 @@
    "same": true
   },
   {
-   "i": 1079,
+   "i": 1082,
    "origin": "fuzz (0 edits)",
    "source": "sample_avs",
    "quote": "Labcorp location\n- Referral",
@@ -11106,7 +11157,7 @@
    "same": true
   },
   {
-   "i": 1080,
+   "i": 1083,
    "origin": "fuzz (0 edits)",
    "source": "lab:annual",
    "quote": "                                  ",
@@ -11114,7 +11165,7 @@
    "same": true
   },
   {
-   "i": 1081,
+   "i": 1084,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "aby's kicks every evening.\nNext visit in 2 w",
@@ -11125,7 +11176,7 @@
    "same": true
   },
   {
-   "i": 1082,
+   "i": 1085,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": " sulfate) 325 mg by mouth oce dail",
@@ -11133,7 +11184,7 @@
    "same": true
   },
   {
-   "i": 1083,
+   "i": 1086,
    "origin": "fuzz (0 edits)",
    "source": "sample_avs",
    "quote": "uprofen (ADVIL) 200 mg tablet. Avo",
@@ -11144,7 +11195,7 @@
    "same": true
   },
   {
-   "i": 1084,
+   "i": 1087,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "mg by mo ... e 15",
@@ -11152,7 +11203,7 @@
    "same": true
   },
   {
-   "i": 1085,
+   "i": 1088,
    "origin": "fuzz (1 edits)",
    "source": "sample_avs",
    "quote": ".\n\nORDERS PLACED TODAY\n- HEMOGLOBIN",
@@ -11163,7 +11214,7 @@
    "same": true
   },
   {
-   "i": 1086,
+   "i": 1089,
    "origin": "fuzz (1 edits)",
    "source": "lab:lipid",
    "quote": "\"                    162      \"",
@@ -11174,29 +11225,29 @@
    "same": true
   },
   {
-   "i": 1087,
+   "i": 1090,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "note (not for patient action): consider statin at next ... vis",
    "span": [
-    566,
-    624
+    565,
+    623
    ],
    "same": true
   },
   {
-   "i": 1088,
+   "i": 1091,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": "E WILL CALL ",
    "span": [
-    226,
-    237
+    225,
+    236
    ],
    "same": true
   },
   {
-   "i": 1089,
+   "i": 1092,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "f the results mean your medicine needs to change.\n\nCome b",
@@ -11207,7 +11258,7 @@
    "same": true
   },
   {
-   "i": 1090,
+   "i": 1093,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "\nCut back on salt",
@@ -11218,7 +11269,7 @@
    "same": true
   },
   {
-   "i": 1091,
+   "i": 1094,
    "origin": "fuzz (1 edits)",
    "source": "lab:bmp-colon",
    "quote": "ten by Team ATLAS, not a real ptient)\nB",
@@ -11226,7 +11277,7 @@
    "same": true
   },
   {
-   "i": 1092,
+   "i": 1095,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma",
    "quote": " if your child's lips turn blue or they are struggling",
@@ -11237,18 +11288,18 @@
    "same": true
   },
   {
-   "i": 1093,
+   "i": 1096,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "urn blue or they﻿are struggling to breathe.\n\nED atte",
    "span": [
-    474,
-    526
+    473,
+    525
    ],
    "same": true
   },
   {
-   "i": 1094,
+   "i": 1097,
    "origin": "fuzz (0 edits)",
    "source": "lab:cbc",
    "quote": "hils          72 %          ",
@@ -11259,7 +11310,7 @@
    "same": true
   },
   {
-   "i": 1095,
+   "i": 1098,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "n.\n\nevery day\nweigh you",
@@ -11270,7 +11321,7 @@
    "same": true
   },
   {
-   "i": 1096,
+   "i": 1099,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "SIT.\nLAB: BASIC MET",
@@ -11281,7 +11332,7 @@
    "same": true
   },
   {
-   "i": 1097,
+   "i": 1100,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "ice if your blood sugar is above ",
@@ -11292,7 +11343,7 @@
    "same": true
   },
   {
-   "i": 1098,
+   "i": 1101,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "rrow morning.\n\nFollow-up\nSee your pediatrician i",
@@ -11303,7 +11354,7 @@
    "same": true
   },
   {
-   "i": 1099,
+   "i": 1102,
    "origin": "fuzz (1 edits)",
    "source": "lab:cbc",
    "quote": "L    HIGH\nRBC                  4.21 X10^6/UL  3.80 - ",
@@ -11314,7 +11365,7 @@
    "same": true
   },
   {
-   "i": 1100,
+   "i": 1103,
    "origin": "fuzz (0 edits)",
    "source": "lab:cbc",
    "quote": "            83 fL          80 - 100 fL\nPlatelets       ",
@@ -11325,7 +11376,7 @@
    "same": true
   },
   {
-   "i": 1101,
+   "i": 1104,
    "origin": "fuzz (1 edits)",
    "source": "sample_labs",
    "quote": "\nTriglycerides            1…48       mg/dL      <1",
@@ -11336,7 +11387,7 @@
    "same": true
   },
   {
-   "i": 1102,
+   "i": 1105,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "ine.\nStart iron",
@@ -11347,18 +11398,18 @@
    "same": true
   },
   {
-   "i": 1103,
+   "i": 1106,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "TTE SMOKE.\n\nRE",
    "span": [
-    394,
-    408
+    393,
+    407
    ],
    "same": true
   },
   {
-   "i": 1104,
+   "i": 1107,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": " Medicine (sample clinic)\n\nMedication changes\nSTART ",
@@ -11369,7 +11420,7 @@
    "same": true
   },
   {
-   "i": 1105,
+   "i": 1108,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "ains high.ñ\nBilling code: 99214\n\nWhen to seek care\nCall the of",
@@ -11377,7 +11428,7 @@
    "same": true
   },
   {
-   "i": 1106,
+   "i": 1109,
    "origin": "fuzz (2 edits)",
    "source": "lab:lipid",
    "quote": "             ",
@@ -11385,7 +11436,7 @@
    "same": true
   },
   {
-   "i": 1107,
+   "i": 1110,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "atient   Visit: 10/01/2026   Midtown Family Medicine (sampl",
@@ -11396,7 +11447,7 @@
    "same": true
   },
   {
-   "i": 1108,
+   "i": 1111,
    "origin": "fuzz (1 edits)",
    "source": "lab:edge-cases",
    "quote": "\"gh Sensitivity CRP       \"",
@@ -11407,7 +11458,7 @@
    "same": true
   },
   {
-   "i": 1109,
+   "i": 1112,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "a urine culture. We ... ty of water.\nWe sent",
@@ -11415,18 +11466,18 @@
    "same": true
   },
   {
-   "i": 1110,
+   "i": 1113,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "sthma exacerbation\n\nMedicines\nAlbuterol inhaler:",
    "span": [
-    111,
-    159
+    110,
+    158
    ],
    "same": true
   },
   {
-   "i": 1111,
+   "i": 1114,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "Weeks pregnant: 28\n\nToday you received the Tdap vacci",
@@ -11437,7 +11488,7 @@
    "same": true
   },
   {
-   "i": 1112,
+   "i": 1115,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "by mouth once ... e) 325 mg",
@@ -11445,7 +11496,7 @@
    "same": true
   },
   {
-   "i": 1113,
+   "i": 1116,
    "origin": "fuzz (2 edits)",
    "source": "lab:bmp-colon",
    "quote": "5-99] HIGH\nBUN: 18 MG/DL ",
@@ -11456,7 +11507,7 @@
    "same": true
   },
   {
-   "i": 1114,
+   "i": 1117,
    "origin": "fuzz (2 edits)",
    "source": "lab:edge-cases",
    "quote": " mmol/L     -2 to 3\nHDL ... Cholesterol (Highdensity)",
@@ -11464,7 +11515,7 @@
    "same": true
   },
   {
-   "i": 1115,
+   "i": 1118,
    "origin": "fuzz (2 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": " ሰላም EMERGENCY DEPRTMENT DISCHARGE IN",
@@ -11472,7 +11523,7 @@
    "same": true
   },
   {
-   "i": 1116,
+   "i": 1119,
    "origin": "fuzz (0 edits)",
    "source": "sample_labs",
    "quote": "    mmol/L  ",
@@ -11483,7 +11534,7 @@
    "same": true
   },
   {
-   "i": 1117,
+   "i": 1120,
    "origin": "fuzz (0 edits)",
    "source": "sample_avs",
    "quote": " in 3 months\n- Basic metab",
@@ -11494,7 +11545,7 @@
    "same": true
   },
   {
-   "i": 1118,
+   "i": 1121,
    "origin": "fuzz (1 edits)",
    "source": "sample_avs",
    "quote": "od pressure.\n\n",
@@ -11505,7 +11556,7 @@
    "same": true
   },
   {
-   "i": 1119,
+   "i": 1122,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "\"to schedule.\n\nProvider note (not for patient action): \"",
@@ -11516,7 +11567,7 @@
    "same": true
   },
   {
-   "i": 1120,
+   "i": 1123,
    "origin": "fuzz (0 edits)",
    "source": "sample_avs",
    "quote": "Follow-up for high blood suga",
@@ -11527,7 +11578,7 @@
    "same": true
   },
   {
-   "i": 1121,
+   "i": 1124,
    "origin": "fuzz (0 edits)",
    "source": "lab:cbc",
    "quote": "00 /uL  ",
@@ -11538,7 +11589,7 @@
    "same": true
   },
   {
-   "i": 1122,
+   "i": 1125,
    "origin": "fuzz (1 edits)",
    "source": "sample_labs",
    "quote": "A1C\nHemoglobin A1c           7.4     ",
@@ -11549,18 +11600,18 @@
    "same": true
   },
   {
-   "i": 1123,
+   "i": 1126,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "YTHING BUT WATER FOR 8 HOURS BEFORE",
    "span": [
-    221,
-    256
+    220,
+    255
    ],
    "same": true
   },
   {
-   "i": 1124,
+   "i": 1127,
    "origin": "fuzz (1 edits)",
    "source": "sample_labs",
    "quote": "   ",
@@ -11568,18 +11619,18 @@
    "same": true
   },
   {
-   "i": 1125,
+   "i": 1128,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+prefix",
    "quote": " back… or s",
    "span": [
-    299,
-    360
+    298,
+    359
    ],
    "same": true
   },
   {
-   "i": 1126,
+   "i": 1129,
    "origin": "fuzz (0 edits)",
    "source": "sample_labs",
    "quote": "                 Result    Units      Referenc",
@@ -11590,7 +11641,7 @@
    "same": true
   },
   {
-   "i": 1127,
+   "i": 1130,
    "origin": "fuzz (2 edits)",
    "source": "sample_avs",
    "quote": "\"\"ouble breathing, or sudden\"\"",
@@ -11601,7 +11652,7 @@
    "same": true
   },
   {
-   "i": 1128,
+   "i": 1131,
    "origin": "fuzz (1 edits)",
    "source": "lab:diabetes-kidney",
    "quote": "    ",
@@ -11609,7 +11660,7 @@
    "same": true
   },
   {
-   "i": 1129,
+   "i": 1132,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "pressureis over 180/1",
@@ -11617,7 +11668,7 @@
    "same": true
   },
   {
-   "i": 1130,
+   "i": 1133,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "smoke.\n\nReturn to the emergency department",
@@ -11628,7 +11679,7 @@
    "same": true
   },
   {
-   "i": 1131,
+   "i": 1134,
    "origin": "fuzz (0 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "Y (SAMPLE)\nWeeks pregnant: 28\n\nToday you received the Tdap",
@@ -11639,7 +11690,7 @@
    "same": true
   },
   {
-   "i": 1132,
+   "i": 1135,
    "origin": "fuzz (1 edits)",
    "source": "lab:edge-cases",
    "quote": "   ...  ",
@@ -11647,7 +11698,7 @@
    "same": true
   },
   {
-   "i": 1133,
+   "i": 1136,
    "origin": "fuzz (1 edits)",
    "source": "lab:lipid",
    "quote": "  5‐40\nCholesterol/HDL ",
@@ -11658,7 +11709,7 @@
    "same": true
   },
   {
-   "i": 1134,
+   "i": 1137,
    "origin": "fuzz (2 edits)",
    "source": "lab:bmp-colon",
    "quote": "ic metabolic panel + extras\nglucose: 142 ",
@@ -11669,7 +11720,7 @@
    "same": true
   },
   {
-   "i": 1135,
+   "i": 1138,
    "origin": "fuzz (2 edits)",
    "source": "lab:edge-cases",
    "quote": "\".1 ሁ       mg/dL      3.5-7.2       (H)\n\"",
@@ -11677,7 +11728,7 @@
    "same": true
   },
   {
-   "i": 1136,
+   "i": 1139,
    "origin": "fuzz (0 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "ome back or go to the ER if you g",
@@ -11688,7 +11739,7 @@
    "same": true
   },
   {
-   "i": 1137,
+   "i": 1140,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": " and naproxen.\n\nEvery day\nWeigh yours",
@@ -11699,7 +11750,7 @@
    "same": true
   },
   {
-   "i": 1138,
+   "i": 1141,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": " cough.\nPrednisolone 15 mg by mouth once daily for 5 days.",
@@ -11710,7 +11761,7 @@
    "same": true
   },
   {
-   "i": 1139,
+   "i": 1142,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": " SUMMARY - FOR PATIENT (SAMPLE)\nYou were treated for h",
@@ -11721,7 +11772,7 @@
    "same": true
   },
   {
-   "i": 1140,
+   "i": 1143,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "reathe.\n\nED attending reviewed chest x-ray: no pne",
@@ -11732,7 +11783,7 @@
    "same": true
   },
   {
-   "i": 1141,
+   "i": 1144,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": "\"iagnosis: urin\"",
@@ -11743,7 +11794,7 @@
    "same": true
   },
   {
-   "i": 1142,
+   "i": 1145,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "ting, complete within 2 weeks\nReferral to Ophthalmology",
@@ -11754,7 +11805,7 @@
    "same": true
   },
   {
-   "i": 1143,
+   "i": 1146,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "\"RY\nSAMPLE PATIENT   VISIT: 10/0\"",
@@ -11765,29 +11816,29 @@
    "same": true
   },
   {
-   "i": 1144,
+   "i": 1147,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "depar",
    "span": [
-    20,
-    25
+    19,
+    24
    ],
    "same": true
   },
   {
-   "i": 1145,
+   "i": 1148,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+prefix",
    "quote": "dule.\nne",
    "span": [
-    346,
-    354
+    345,
+    353
    ],
    "same": true
   },
   {
-   "i": 1146,
+   "i": 1149,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "\"n 2 weeks.\n\ncall us right away or go to labor and delivery if\"",
@@ -11798,7 +11849,7 @@
    "same": true
   },
   {
-   "i": 1147,
+   "i": 1150,
    "origin": "fuzz (2 edits)",
    "source": "lab:lipid",
    "quote": "ng\ntest        •   ",
@@ -11809,18 +11860,18 @@
    "same": true
   },
   {
-   "i": 1148,
+   "i": 1151,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": " Labor and Delivery if you have bleeding, leaking flui",
    "span": [
-    349,
-    402
+    348,
+    401
    ],
    "same": true
   },
   {
-   "i": 1149,
+   "i": 1152,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "2 weeks.\n\nCall us right a ... s every evening.\nNext visit in",
@@ -11828,7 +11879,7 @@
    "same": true
   },
   {
-   "i": 1150,
+   "i": 1153,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "\n\nOrders placed today\nHemoglobin A1c - due in 3 months\nBasic",
@@ -11839,7 +11890,7 @@
    "same": true
   },
   {
-   "i": 1151,
+   "i": 1154,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks",
    "quote": "GNANT: ... 28\n\nTODAY YOU REC",
@@ -11850,18 +11901,18 @@
    "same": true
   },
   {
-   "i": 1152,
+   "i": 1155,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "acti",
    "span": [
-    588,
-    592
+    587,
+    591
    ],
    "same": true
   },
   {
-   "i": 1153,
+   "i": 1156,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge",
    "quote": "y morning.\nSTOP taking ibuprofen and naproxen.\n\nEvery ",
@@ -11872,7 +11923,7 @@
    "same": true
   },
   {
-   "i": 1154,
+   "i": 1157,
    "origin": "fuzz (0 edits)",
    "source": "lab:annual",
    "quote": "  96         mg/dL     <100\nSodium                        ",
@@ -11883,18 +11934,18 @@
    "same": true
   },
   {
-   "i": 1155,
+   "i": 1158,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+prefix",
    "quote": "AS NEEDED FOR WHEEZING OR COUGH.\nPR",
    "span": [
-    194,
-    229
+    193,
+    228
    ],
    "same": true
   },
   {
-   "i": 1156,
+   "i": 1159,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": " (idney function) in 1",
@@ -11902,7 +11953,7 @@
    "same": true
   },
   {
-   "i": 1157,
+   "i": 1160,
    "origin": "fuzz (2 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "\"OGY. PLEASE CALL 404-555-0177 TO SCHEDULE.\nNEXT VISIT: 4 W\"",
@@ -11913,7 +11964,7 @@
    "same": true
   },
   {
-   "i": 1158,
+   "i": 1161,
    "origin": "fuzz (0 edits)",
    "source": "sample_labs",
    "quote": ".2       mmol/L     3.5-5.1      ",
@@ -11924,18 +11975,18 @@
    "same": true
   },
   {
-   "i": 1159,
+   "i": 1162,
    "origin": "fuzz (2 edits)",
    "source": "paper:prenatal-28-weeks+prefix",
    "quote": "nce daily.\nGlucose tolerance test at your next visit. Do not e",
    "span": [
-    145,
-    207
+    144,
+    206
    ],
    "same": true
   },
   {
-   "i": 1160,
+   "i": 1163,
    "origin": "fuzz (2 edits)",
    "source": "sample_labs",
    "quote": "   Flag",
@@ -11946,7 +11997,7 @@
    "same": true
   },
   {
-   "i": 1161,
+   "i": 1164,
    "origin": "fuzz (1 edits)",
    "source": "lab:edge-cases",
    "quote": "/dL  …   0.1-0",
@@ -11957,7 +12008,7 @@
    "same": true
   },
   {
-   "i": 1162,
+   "i": 1165,
    "origin": "fuzz (1 edits)",
    "source": "lab:cbc",
    "quote": "/uL\nNeutrophils\n\r\n \t \n\r\n     72 %  　   \n ",
@@ -11968,7 +12019,7 @@
    "same": true
   },
   {
-   "i": 1163,
+   "i": 1166,
    "origin": "fuzz (1 edits)",
    "source": "lab:lipid",
    "quote": "E LAB REPORT (written by Team ATLAS, not a re",
@@ -11979,7 +12030,7 @@
    "same": true
   },
   {
-   "i": 1164,
+   "i": 1167,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "eir office",
@@ -11990,18 +12041,18 @@
    "same": true
   },
   {
-   "i": 1165,
+   "i": 1168,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "ON): CONSIDER\r\nSTATIN﻿AT",
    "span": [
-    592,
-    615
+    591,
+    614
    ],
    "same": true
   },
   {
-   "i": 1166,
+   "i": 1169,
    "origin": "fuzz (2 edits)",
    "source": "lab:lipid",
    "quote": "G/DL   ሁ <100\nVLDL C",
@@ -12009,7 +12060,7 @@
    "same": true
   },
   {
-   "i": 1167,
+   "i": 1170,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": "Y\nSample Patient   Visit: 10/01/2026   Midtown Fa",
@@ -12020,7 +12071,7 @@
    "same": true
   },
   {
-   "i": 1168,
+   "i": 1171,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "se call 404-",
@@ -12031,7 +12082,7 @@
    "same": true
   },
   {
-   "i": 1169,
+   "i": 1172,
    "origin": "fuzz (2 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "\"ARDIOLOGY FOLLOW-UP IN 7 DAYS. THE CLINIC WILL CALL \"",
@@ -12042,7 +12093,7 @@
    "same": true
   },
   {
-   "i": 1170,
+   "i": 1173,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma",
    "quote": "PARTMENT DISCHARGE",
@@ -12053,7 +12104,7 @@
    "same": true
   },
   {
-   "i": 1171,
+   "i": 1174,
    "origin": "fuzz (1 edits)",
    "source": "lab:diabetes-kidney",
    "quote": " \n(>=30)\nC-Reactive Prote",
@@ -12064,29 +12115,29 @@
    "same": true
   },
   {
-   "i": 1172,
+   "i": 1175,
    "origin": "fuzz (0 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "ibu",
    "span": [
-    166,
-    169
+    165,
+    168
    ],
    "same": true
   },
   {
-   "i": 1173,
+   "i": 1176,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "\"in 3 months\"",
    "span": [
-    398,
-    409
+    397,
+    408
    ],
    "same": true
   },
   {
-   "i": 1174,
+   "i": 1177,
    "origin": "fuzz (0 edits)",
    "source": "lab:cbc",
    "quote": " real patient)\nCOMPLETE BLOOD COUNT (CBC) W",
@@ -12097,7 +12148,7 @@
    "same": true
   },
   {
-   "i": 1175,
+   "i": 1178,
    "origin": "fuzz (0 edits)",
    "source": "paper:diabetes-hypertension",
    "quote": "ou have chest pain or troubl",
@@ -12108,7 +12159,7 @@
    "same": true
   },
   {
-   "i": 1176,
+   "i": 1179,
    "origin": "fuzz (2 edits)",
    "source": "paper:uti-urgent-care+nbsp",
    "quote": " over 101 F, back or side pain,",
@@ -12119,7 +12170,7 @@
    "same": true
   },
   {
-   "i": 1177,
+   "i": 1180,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": " your blood pressure is over 180/120 and you have a sever",
@@ -12130,7 +12181,7 @@
    "same": true
   },
   {
-   "i": 1178,
+   "i": 1181,
    "origin": "fuzz (1 edits)",
    "source": "lab:edge-cases",
    "quote": "           Result     Units     Range         Flag\nUrine Vol",
@@ -12141,7 +12192,7 @@
    "same": true
   },
   {
-   "i": 1179,
+   "i": 1182,
    "origin": "fuzz (2 edits)",
    "source": "lab:bmp-colon",
    "quote": "\"/dL [Ref…7\"",
@@ -12149,7 +12200,7 @@
    "same": true
   },
   {
-   "i": 1180,
+   "i": 1183,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+nbsp",
    "quote": "D WORK (KIDNEY F",
@@ -12160,7 +12211,7 @@
    "same": true
   },
   {
-   "i": 1181,
+   "i": 1184,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+nbsp",
    "quote": " 99214\n\nWhen to seek careCall the offi",
@@ -12168,7 +12219,7 @@
    "same": true
   },
   {
-   "i": 1182,
+   "i": 1185,
    "origin": "fuzz (1 edits)",
    "source": "lab:lipid",
    "quote": "       231      H    ",
@@ -12179,7 +12230,7 @@
    "same": true
   },
   {
-   "i": 1183,
+   "i": 1186,
    "origin": "fuzz (1 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "for diabetic eye exam ... ks\nReferral to Ophthalmology",
@@ -12187,7 +12238,7 @@
    "same": true
   },
   {
-   "i": 1184,
+   "i": 1187,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": "ract infecti",
@@ -12198,7 +12249,7 @@
    "same": true
   },
   {
-   "i": 1185,
+   "i": 1188,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "n. Bring the log to your n",
@@ -12209,7 +12260,7 @@
    "same": true
   },
   {
-   "i": 1186,
+   "i": 1189,
    "origin": "fuzz (0 edits)",
    "source": "paper:hypertension-new-med+nbsp",
    "quote": "nd you have a severe headache, ch",
@@ -12220,7 +12271,7 @@
    "same": true
   },
   {
-   "i": 1187,
+   "i": 1190,
    "origin": "fuzz (1 edits)",
    "source": "lab:thyroid",
    "quote": "       0.71       0.82-1.77 ng/dl\nt3,",
@@ -12231,7 +12282,7 @@
    "same": true
   },
   {
-   "i": 1188,
+   "i": 1191,
    "origin": "fuzz (1 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "puffs with spacer every 4 hours as eeded for wheezing or c",
@@ -12239,18 +12290,18 @@
    "same": true
   },
   {
-   "i": 1189,
+   "i": 1192,
    "origin": "fuzz (1 edits)",
    "source": "paper:heart-failure-discharge+prefix",
    "quote": "od work (kidney function) in 1 week.\n\nCall your doc",
    "span": [
-    393,
-    444
+    392,
+    443
    ],
    "same": true
   },
   {
-   "i": 1190,
+   "i": 1193,
    "origin": "fuzz (1 edits)",
    "source": "paper:hypertension-new-med",
    "quote": "asic metabolic pan",
@@ -12261,7 +12312,7 @@
    "same": true
   },
   {
-   "i": 1191,
+   "i": 1194,
    "origin": "fuzz (0 edits)",
    "source": "paper:pediatric-asthma+nbsp",
    "quote": "he emergenc",
@@ -12272,7 +12323,7 @@
    "same": true
   },
   {
-   "i": 1192,
+   "i": 1195,
    "origin": "fuzz (0 edits)",
    "source": "lab:cbc",
    "quote": " DIFFERENTIAL\nCollected 09/28/2026 0",
@@ -12283,7 +12334,7 @@
    "same": true
   },
   {
-   "i": 1193,
+   "i": 1196,
    "origin": "fuzz (1 edits)",
    "source": "paper:uti-urgent-care",
    "quote": " VISIT - SAMPLE\nDiagnosis: urinary tr",
@@ -12294,7 +12345,7 @@
    "same": true
   },
   {
-   "i": 1194,
+   "i": 1197,
    "origin": "fuzz (2 edits)",
    "source": "lab:cbc",
    "quote": "  40 - 70  ...   x   ",
@@ -12302,7 +12353,7 @@
    "same": true
   },
   {
-   "i": 1195,
+   "i": 1198,
    "origin": "fuzz (0 edits)",
    "source": "lab:lipid",
    "quote": "dL    5-40\nCholesterol/HDL Rat",
@@ -12313,7 +12364,7 @@
    "same": true
   },
   {
-   "i": 1196,
+   "i": 1199,
    "origin": "fuzz (1 edits)",
    "source": "paper:prenatal-28-weeks+nbsp",
    "quote": "\" kicks every evening.\nNext visit in 2 weeks.\n\nCall us\"",
@@ -12324,7 +12375,7 @@
    "same": true
   },
   {
-   "i": 1197,
+   "i": 1200,
    "origin": "fuzz (0 edits)",
    "source": "lab:edge-cases",
    "quote": "in, Direct                 <0.2       mg/dL      0.1-0.3\n",
@@ -12335,7 +12386,7 @@
    "same": true
   },
   {
-   "i": 1198,
+   "i": 1201,
    "origin": "fuzz (0 edits)",
    "source": "lab:edge-cases",
    "quote": "        1.0        mg/L       0.0-3.0\nLDL Chole",
@@ -12346,7 +12397,7 @@
    "same": true
   },
   {
-   "i": 1199,
+   "i": 1202,
    "origin": "fuzz (2 edits)",
    "source": "paper:diabetes-hypertension+prefix",
    "quote": "total) by m ... ablets (20 mg",
@@ -12354,7 +12405,7 @@
    "same": true
   },
   {
-   "i": 1200,
+   "i": 1203,
    "origin": "fuzz (0 edits)",
    "source": "sample_labs",
    "quote": "A1c           7.4       %          <5.7          ",

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
+import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
 import { BARRIERS, BARRIER_LABEL, type Barrier } from "@/lib/resources";
 import type { PlanResponse, ResourceCard } from "@/lib/plan";
@@ -334,6 +335,8 @@ export function CarePlanTool() {
             </div>
           </div>
 
+          {reading && <WorkingCard kind="read" />}
+
           {care && needsPhotoCheck && (
             <div className="mt-8 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4 sm:p-5">
               <p className="font-extrabold">Check how we read your photo</p>
@@ -467,6 +470,7 @@ export function CarePlanTool() {
               {planning ? "Building your plan..." : "Make my plan"}
             </SquashButton>
             {needsPhotoCheck && <p className="mt-3 text-sm font-bold text-ink/70">First check how we read your photo in step 1.</p>}
+            {planning && <WorkingCard kind="plan" />}
           </div>
         </div>
 

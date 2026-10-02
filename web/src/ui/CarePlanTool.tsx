@@ -102,13 +102,13 @@ function Resource({ r }: { r: ResourceCard }) {
         )}
         {hours && c.hours_source_id !== "clinic-site" && <p className="text-sm mt-1">🕘 Listed hours: {hours} <span className="text-ink/70">(call to confirm)</span></p>}
         <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
-          <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${c.phone.replace(/[^\d]/g, "")}`}>Call {c.phone}</a>
+          {c.phone && <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${c.phone.replace(/[^\d]/g, "")}`}>Call {c.phone}</a>}
           {c.website && <a className="rounded-full border-2 border-ink px-3 py-1" href={c.website} target="_blank" rel="noreferrer">Website ↗</a>}
           <a className="rounded-full border-2 border-ink px-3 py-1" target="_blank" rel="noreferrer"
-            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${c.address}, ${c.city}, GA ${c.zip}`)}&travelmode=transit`}>Transit directions ↗</a>
+            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(c.city.includes(",") ? `${c.address}, ${c.city} ${c.zip}` : `${c.address}, ${c.city}, GA ${c.zip}`)}&travelmode=transit`}>Transit directions ↗</a>
         </div>
         <p className="mt-2 text-[11px] text-ink/70">
-          Source: HRSA health center data
+          Source: HRSA health center data{c.source_id === "hrsa-national" ? " (nationwide list, Oct 2)" : ""}
           {hours && c.hours_source_id === "clinic-site" && c.hours_url
             ? <> · hours quoted from <a className="underline" href={c.hours_url} target="_blank" rel="noreferrer">{new URL(c.hours_url).hostname.replace(/^www\./, "")}</a>, checked Oct 2</>
             : hours ? " · hours from its Google Maps listing, checked Oct 2" : c.hours_per_week ? ` · ${c.hours_per_week} hrs/week listed, times not listed` : " · hours not listed"}
@@ -485,7 +485,7 @@ export function CarePlanTool() {
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-[14rem_1fr]">
             <div>
-              <label className="text-sm font-bold" htmlFor="zip">Your ZIP (metro Atlanta)</label>
+              <label className="text-sm font-bold" htmlFor="zip">Your ZIP</label>
               <input id="zip" inputMode="numeric" maxLength={5} className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5"
                 placeholder="e.g. 30340" value={zip} onChange={(e) => { setZip(e.target.value.replace(/\D/g, "")); setLoc(null); }} />
               <button type="button" onClick={useMyLocation} className="mt-2 text-sm font-bold underline decoration-2 underline-offset-4">

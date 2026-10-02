@@ -1,0 +1,66 @@
+{
+ "retrieved": "2026-10-02",
+ "programs": [
+  {
+   "id": "us-211",
+   "name": "211 (free, confidential help line, nationwide)",
+   "barriers": [
+    "housing"
+   ],
+   "access": {
+    "phone": "211",
+    "url": "https://www.211.org/"
+   },
+   "languages": [],
+   "evidence_quote": "211 connects you to expert, caring help. Every call is completely confidential.",
+   "source_url": "https://www.211.org/",
+   "extra_evidence": [
+    {
+     "quote": "Referrals for assistance with housing, homelessness, and utility bills in 2025.",
+     "url": "https://www.211.org/"
+    }
+   ],
+   "quote_verified_live": "2026-10-02 (page fetched with TinyFish; quote found verbatim)",
+   "source_id": "us-211"
+  },
+  {
+   "id": "us-medicaid-chip",
+   "name": "Medicaid and CHIP (HealthCare.gov, every state)",
+   "barriers": [
+    "insurance",
+    "cost"
+   ],
+   "access": {
+    "url": "https://www.healthcare.gov/medicaid-chip/getting-medicaid-chip/"
+   },
+   "languages": [],
+   "evidence_quote": "Medicaid and the Children’s Health Insurance Program (CHIP) provide free or low-cost health coverage to eligible low-income adults, families and children, pregnant women, the elderly, and people with disabilities.",
+   "source_url": "https://www.healthcare.gov/medicaid-chip/getting-medicaid-chip/",
+   "extra_evidence": [
+    {
+     "quote": "You can apply for Medicaid and CHIP any time of year.",
+     "url": "https://www.healthcare.gov/medicaid-chip/getting-medicaid-chip/"
+    }
+   ],
+   "quote_verified_live": "2026-10-02 (page fetched with TinyFish; quote found verbatim)",
+   "source_id": "us-medicaid-chip"
+  },
+  {
+   "id": "us-find-a-health-center",
+   "name": "HRSA Find a Health Center (federal search, all states)",
+   "barriers": [
+    "cost",
+    "insurance"
+   ],
+   "access": {
+    "url": "https://findahealthcenter.hrsa.gov/"
+   },
+   "languages": [],
+   "evidence_quote": "We fund about 1,400 health centers, which run more than 16,200 service sites. They are in all U.S. states, territories, and the District of Columbia.",
+   "source_url": "https://findahealthcenter.hrsa.gov/",
+   "extra_evidence": [],
+   "quote_verified_live": "2026-10-02 (page fetched with TinyFish; quote found verbatim)",
+   "source_id": "us-find-a-health-center"
+  }
+ ]
+}

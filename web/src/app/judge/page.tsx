@@ -4,6 +4,7 @@ import { Footer } from "@/ui/Footer";
 import results from "@/data/eval/results.json";
 import meaning from "@/data/eval/meaning.json";
 import { DATASET } from "@/lib/resources";
+import { NATIONAL } from "@/lib/national";
 import { liveStats } from "@/lib/db";
 
 export const metadata: Metadata = {
@@ -80,7 +81,7 @@ export default async function JudgePage() {
             </div>
             <div className="card p-6 bg-paper">
               <h2 className="display text-2xl">What the AI does, and what our code does</h2>
-              <p className="mt-2 font-semibold text-ink-soft">The AI reads, explains in 7 languages, writes quiz questions and plans. Our code decides what is shown: quotes must be in the paper, resources must be on our verified list of {DATASET.clinicCount} health centers and {DATASET.programCount} programs.</p>
+              <p className="mt-2 font-semibold text-ink-soft">The AI reads, explains in 7 languages, writes quiz questions and plans. Our code decides what is shown: quotes must be in the paper, resources must be on our verified list of {DATASET.clinicCount} Atlanta health centers and {DATASET.programCount} programs, or outside Atlanta the {NATIONAL.clinicCount.toLocaleString("en-US")} HRSA sites nationwide.</p>
             </div>
             <div className="card p-6 bg-paper">
               <h2 className="display text-2xl">What we don&apos;t claim</h2>

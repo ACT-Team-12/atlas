@@ -97,12 +97,13 @@ class SpeechTest {
 
 class LocationTest {
     @Test fun serviceAreaMatchesServerBounds() {
+        // Server PlanRequestSchema: lat -20 to 72, lng -180 to 180 (the US and its territories), inclusive like zod.
         assertTrue(LatLng(33.749, -84.388).isInServiceArea) // downtown Atlanta
-        assertTrue(LatLng(33.0, -85.0).isInServiceArea) // inclusive corners, like zod min/max
-        assertTrue(LatLng(34.6, -83.6).isInServiceArea)
-        assertFalse(LatLng(37.33, -122.03).isInServiceArea)
-        assertFalse(LatLng(32.99, -84.4).isInServiceArea)
-        assertFalse(LatLng(33.7, -83.59).isInServiceArea)
+        assertTrue(LatLng(37.33, -122.03).isInServiceArea) // Cupertino
+        assertTrue(LatLng(13.44, 144.79).isInServiceArea) // Guam
+        assertTrue(LatLng(-20.0, -180.0).isInServiceArea)
+        assertFalse(LatLng(-33.87, 151.21).isInServiceArea) // Sydney
+        assertFalse(LatLng(80.0, 0.0).isInServiceArea)
     }
 }
 

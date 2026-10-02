@@ -51,6 +51,9 @@ class ApiClient(private val baseUrl: String = BASE_URL) {
     suspend fun plan(request: PlanRequest): PlanResponse =
         post("/api/plan", AtlasJson.encodeToString(PlanRequest.serializer(), request), PlanResponse.serializer())
 
+    suspend fun results(text: String, language: Language): ResultsResponse =
+        post("/api/results", AtlasJson.encodeToString(ResultsRequest.serializer(), ResultsRequest(text, language)), ResultsResponse.serializer())
+
     private suspend fun <T> post(path: String, body: String, out: KSerializer<T>): T = coroutineScope {
         val conn = URL(baseUrl + path).openConnection() as HttpURLConnection
         val call = async(Dispatchers.IO) { send(conn, body, out) }

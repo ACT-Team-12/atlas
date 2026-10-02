@@ -110,8 +110,8 @@ data class PlanCareInput(
 
 @Serializable
 data class LatLng(val lat: Double, val lng: Double) {
-    /** The server accepts only metro Atlanta (PlanRequestSchema: lat 33 to 34.6, lng -85 to -83.6). */
-    val isInServiceArea: Boolean get() = lat in 33.0..34.6 && lng in -85.0..-83.6
+    /** The server accepts the US and its territories (PlanRequestSchema: lat -20 to 72, lng -180 to 180). */
+    val isInServiceArea: Boolean get() = lat in -20.0..72.0 && lng in -180.0..180.0
 }
 
 @Serializable
@@ -209,6 +209,57 @@ data class PlanResponse(
     val stats: PlanStats,
     val model: String = "",
 )
+
+// /api/results (web/src/lib/results.ts)
+
+@Serializable
+data class ResultsRequest(val text: String, val language: Language)
+
+/** One test on the report. status is decided by the server's code from the printed flag or range, never by the AI. */
+@Serializable
+data class ResultRow(
+    val test: String,
+    val value: String,
+    val unit: String = "",
+    val range_text: String = "",
+    val quote: String,
+    val plain_name: String = "",
+    val ask: String = "",
+    val status: String, // "outside" | "inside" | "unknown"
+    val direction: String? = null, // "high" | "low"
+    val reason: String = "",
+)
+
+@Serializable
+data class ResultsCounts(val outside: Int, val inside: Int, val unknown: Int)
+
+@Serializable
+data class ResultsDropped(val test: String, val reason: String)
+
+/** How many result-looking lines the server's code found, and how many a verified row covered. */
+@Serializable
+data class ResultsCoverage(val candidates: Int, val checked: Int, val unchecked: List<String> = emptyList())
+
+@Serializable
+data class ResultsResponse(
+    val rows: List<ResultRow>,
+    val dropped: List<ResultsDropped> = emptyList(),
+    val counts: ResultsCounts,
+    /** Null from an older server; then the app never claims an all-clear. */
+    val coverage: ResultsCoverage? = null,
+    val model: String = "",
+    val ms: Int = 0,
+) {
+    /** Same rules as headline() in web/src/ui/LabResults.tsx: never a report-wide all-clear without full coverage. */
+    val headline: String get() {
+        if (rows.isEmpty()) return "We couldn't read any results from this. Check the text or ask your clinic."
+        if (counts.outside > 0) return "${counts.outside} ${if (counts.outside == 1) "result is" else "results are"} outside the range on your report."
+        val c = coverage ?: return "None of the results we read is outside its range. Check the rest of your report too."
+        if (c.checked < c.candidates) return "We checked ${c.checked} of ${c.candidates} result lines. None of the ones we checked is outside its range."
+        if (counts.unknown > 0) return "Nothing is marked outside its range, but we couldn't tell for ${counts.unknown} ${if (counts.unknown == 1) "result" else "results"}."
+        return "Nothing on this report is marked or printed as outside its range."
+    }
+}
 
 @Serializable
 data class ApiErrorBody(val error: String = "")

@@ -22,12 +22,14 @@ enum ShareText {
                 out.append("\(n + 1). \(kindLabel[i.kind] ?? i.kind): \(i.title)\(when.isEmpty ? "" : " (\(when))")")
                 let plain = i.plain_language.trimmingCharacters(in: .whitespaces)
                 if !plain.isEmpty { out.append("   \(plain)") }
+                // The phone app has no second-model double-check, so every explanation says so.
+                out.append("   (Not double-checked. If this and the paper differ, follow the paper.)")
                 out.append("   Paper says: \"\(i.source_quote)\"")
             }
         }
 
         if !plan.steps.isEmpty {
-            out += ["", "THE PLAN"]
+            out += ["", "THE PLAN (suggestions from ATLAS; if anything differs from the paper, follow the paper)"]
             for (n, s) in plan.steps.enumerated() { out.append("\(n + 1). \(s.title). \(s.action)") }
         }
 

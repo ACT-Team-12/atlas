@@ -103,14 +103,16 @@ export function PrepMode() {
     if (!("speechSynthesis" in window)) { setVoiceNote("This device can't read aloud. Try Print instead."); return; }
     silence();
     const me = run.current;
-    const lines = prepSpeechLines(res, res.language, meaning);
+    // The paper's words and our labels in English (the time reader only reads English papers); a certified
+    // explanation in the language the person chose.
+    const lines = prepSpeechLines(res, meaning);
     let started = false;
     setSpeaking(true);
     setVoiceNote("Reading with your phone's voice.");
     const end = () => { if (run.current === me) { setSpeaking(false); setVoiceNote(""); } };
     lines.forEach((line, i) => {
-      const u = new SpeechSynthesisUtterance(line);
-      u.lang = SPEECH_LANG[res.language] ?? "en-US";
+      const u = new SpeechSynthesisUtterance(line.text);
+      u.lang = line.voice === "explanation" ? (SPEECH_LANG[res.language] ?? "en-US") : "en-US";
       u.rate = 0.9;
       u.onstart = () => { started = true; };
       if (i === lines.length - 1) u.onend = end;

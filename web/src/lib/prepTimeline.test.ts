@@ -79,19 +79,47 @@ describe("buildPrepTimeline", () => {
   });
 });
 
-describe("prepSpeechLines (phone voice)", () => {
+describe("prepSpeechLines (phone voice, Codex review: read the paper, not the paraphrase)", () => {
   const r = buildPrepTimeline(SAMPLE_PREP, PREP_TRUTH.map((t) => item({ kind: t.kind, plain_language: t.plain, source_quote: t.quote })));
-  it("English: each group starts with its label, steps numbered in order", () => {
-    const lines = prepSpeechLines(r, "English");
-    expect(lines[0]).toBe("Days before.");
-    expect(lines[1]).toMatch(/^1\. /);
-    expect(lines.some((l) => l.startsWith("Ask your clinic when."))).toBe(true);
-    expect(lines.filter((l) => /^\d+\. /.test(l))).toHaveLength(PREP_TRUTH.length);
+  const steps = [...r.timeline.flatMap((g) => g.steps), ...r.ask];
+  const texts = (m?: MeaningState) => prepSpeechLines(r, m).map((l) => l.text);
+
+  it("reads every step's exact quote from the paper, in the paper's voice", () => {
+    const lines = prepSpeechLines(r);
+    for (const s of steps) expect(lines).toContainEqual({ text: s.source_quote, voice: "paper" });
+    expect(lines[0]).toEqual({ text: "Days before.", voice: "ours" });
+    expect(lines.filter((l) => /^Step \d+\. Your paper says:$/.test(l.text))).toHaveLength(PREP_TRUTH.length);
   });
-  it("other languages: no English labels, only the numbered steps", () => {
-    const lines = prepSpeechLines(r, "Spanish");
-    expect(lines).toHaveLength(PREP_TRUTH.length);
-    expect(lines.every((l) => /^\d+\. /.test(l))).toBe(true);
+
+  it("reads the time words that placed each step, and why an unplaced step has none", () => {
+    const lines = texts();
+    expect(lines).toContain("7 days before your procedure");
+    expect(lines).toContain("Your paper gives a time but not which day.");
+    expect(lines).toContain("3 PM");
+    expect(lines).toContain("Your paper doesn't say when for this one.");
+  });
+
+  it("never reads an unchecked paraphrase; says it was left out instead", () => {
+    const lines = texts({ status: "loading", byId: {} });
+    expect(prepSpeechLines(r, { status: "loading", byId: {} }).filter((l) => l.voice === "explanation")).toEqual([]);
+    // (one sample explanation is word for word its quote, so that text is still read, as the quote)
+    for (const t of PREP_TRUTH.filter((x) => x.plain !== x.quote)) expect(lines).not.toContain(t.plain);
+    expect(lines.filter((l) => l === "The plain-words explanation is still being checked, so it is left out.")).toHaveLength(PREP_TRUTH.length);
+    expect(texts({ status: "error", byId: {} })).toContain("The plain-words explanation is left out because the double-check isn't available right now.");
+  });
+
+  it("announces a flagged or number-blocked explanation", () => {
+    const s = steps[0];
+    const flagged: MeaningState = { status: "done", byId: { [s.id]: combine(s.id, { id: s.id, plain_language: s.plain_language, when: "", source_quote: s.source_quote }, "different", "x") } };
+    expect(texts(flagged)).toContain("The plain-words explanation is left out because a second check found it may not match your paper.");
+    const b = buildPrepTimeline(SAMPLE_PREP, [item({ plain_language: "Stop iron 5 days before." })]);
+    expect(prepSpeechLines(b, { status: "done", byId: {} }).map((l) => l.text)).toContain("The plain-words explanation is left out because it had a number your paper doesn't say.");
+  });
+
+  it("reads a certified explanation, in the chosen language's voice", () => {
+    const byId = Object.fromEntries(steps.map((s) => [s.id, combine(s.id, { id: s.id, plain_language: s.plain_language, when: s.when_words.join(", "), source_quote: s.source_quote }, "same", "")]));
+    const lines = prepSpeechLines(r, { status: "done", byId });
+    for (const t of PREP_TRUTH) expect(lines).toContainEqual({ text: t.plain, voice: "explanation" });
   });
 });
 

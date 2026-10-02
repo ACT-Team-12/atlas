@@ -17,6 +17,7 @@ import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
 import { restoredTab, shownTab, type Tab } from "@/lib/phoneTabs";
+import { canMakeSimpler } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
 
 const KIND: Record<string, { label: string; cls: string }> = {
@@ -198,6 +199,8 @@ export function CarePlanTool() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [language, setLanguage] = useState<(typeof LANGUAGES)[number]>("English");
   const [level, setLevel] = useState<(typeof READING_LEVELS)[number]>("simple");
+  // The level the steps on screen were read at (the select can change after a read).
+  const [readLevel, setReadLevel] = useState<(typeof READING_LEVELS)[number] | null>(null);
   const [reading, setReading] = useState(false);
   // Verified steps that arrived while the paper is still being read. Shown, never final.
   const [partial, setPartial] = useState<VerifiedItem[]>([]);
@@ -238,7 +241,7 @@ export function CarePlanTool() {
       if (raw) {
         const v = JSON.parse(raw) as Saved;
         setText(v.text ?? ""); setLanguage(v.language ?? "English"); setLevel(v.level ?? "simple");
-        setCare(v.care ?? null); setBarriers(v.barriers ?? []); setZip(v.zip ?? ""); setNote(v.note ?? "");
+        setCare(v.care ?? null); setReadLevel(v.care ? (v.level ?? "simple") : null); setBarriers(v.barriers ?? []); setZip(v.zip ?? ""); setNote(v.note ?? "");
         setPlan(v.plan ?? null); setDone(v.done ?? {}); setRemoved(v.removed ?? {}); setPhotoChecked(v.photoChecked ?? false);
         if (v.care || v.plan) { setRestoredAt(v.savedAt); setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan })); }
       }
@@ -282,14 +285,15 @@ export function CarePlanTool() {
     }
   }
 
-  async function readPaper(corrected?: string) {
+  async function readPaper(corrected?: string, levelOverride?: (typeof READING_LEVELS)[number]) {
+    const usedLevel = levelOverride ?? level;
     meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
     setReading(true); setError(null); setCare(null); setPlan(null); setDone({}); setRemoved({}); setRestoredAt(null);
     setTranscript(null); setPhotoChecked(false); setPartial([]); setTab(1);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }
     const run = ++readRun.current;
     try {
-      const body: Record<string, unknown> = { language, reading_level: level };
+      const body: Record<string, unknown> = { language, reading_level: usedLevel };
       if (corrected !== undefined) body.text = corrected;
       else if (photo) { body.image_base64 = await fileToBase64(photo); body.image_media_type = "image/jpeg"; } else body.text = text;
       let json: CarePlanResponse;
@@ -307,12 +311,21 @@ export function CarePlanTool() {
       if (readRun.current !== run) return;
       setPartial([]);
       setCare(json);
+      setReadLevel(usedLevel);
       if (json.source_kind === "image") { setTranscript(json.source_text); return; }
       void checkMeaningFor(json);
       // Phones stay on step 1 so the person sees their steps; "Next: your needs" moves on.
       if (!isPhoneNow()) document.getElementById("step-2")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) { setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong."); }
     finally { setReading(false); }
+  }
+
+  // "Too much? Make it simpler": the same paper, read again the normal way at the simple level.
+  // It re-reads the text the steps came from (for a photo, the reading the person already checked).
+  function makeSimpler() {
+    if (!care || !simplerOk) return;
+    setLevel("simple");
+    void readPaper(care.source_text, "simple");
   }
 
   async function makePlan() {
@@ -409,6 +422,7 @@ export function CarePlanTool() {
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
   const flow = { hasCare: !!care, hasPlan: !!plan };
+  const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0 });
   const shown = shownTab(tab, flow);
   // Phones: one step card at a time. Hidden cards stay mounted (state, timers and requests carry on).
   const panel = (t: Tab) => ({
@@ -503,6 +517,15 @@ export function CarePlanTool() {
                 </div>
               )}
               <p className="text-sm font-bold text-ink/70">{care.stats.grounded} steps found in your paper · {care.stats.refused} held back because we couldn&apos;t find the words · {(care.stats.ms / 1000).toFixed(1)}s</p>
+              {simplerOk && (
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <button type="button" onClick={makeSimpler} aria-describedby="simpler-why"
+                    className="rounded-full border-2 border-ink bg-sun px-4 py-2 text-sm font-bold shadow-[0_2px_0_var(--ink)] hover:bg-mint focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+                    Too much? Make it simpler
+                  </button>
+                  <span id="simpler-why" className="text-xs font-semibold text-ink/70">Reads your paper again in plainer words, in the same language.</span>
+                </div>
+              )}
               <div className="mt-4 grid gap-5 lg:grid-cols-[1.15fr_1fr]">
                 <ul className="space-y-3">
                   {items.map((it) => (

@@ -40,6 +40,10 @@ describe("hours quote check", () => {
     expect(hoursMatchQuote("8am - 5pm Monday - Friday", wk("08:00", "17:00")).ok).toBe(true);
     expect(hoursMatchQuote("Monday - Friday 8-5pm", wk("08:00", "17:00")).ok).toBe(true);
     expect(hoursMatchQuote("Monday - Friday 5-8pm", wk("05:00", "20:00")).ok).toBe(false);
+    // Codex re-check of those fixes
+    expect(hoursMatchQuote("Monday - Friday 8am - 5pm. Wednesday closed; calls answered until 5pm.", [{ day: 2, open: "08:00", close: "17:00" }]).ok).toBe(false);
+    expect(hoursMatchQuote("Monday - Friday 8am - 5pm. Wednesday 10am - 3pm.", [{ day: 2, open: "08:00", close: "15:00" }]).ok).toBe(false);
+    expect(hoursMatchQuote("Monday - Friday 8am - 5pm. Wednesday 10am - 3pm.", [{ day: 2, open: "10:00", close: "15:00" }]).ok).toBe(true);
   });
 
   it("every clinic shown with hours from its own site passes this check (guards the shipped data)", () => {

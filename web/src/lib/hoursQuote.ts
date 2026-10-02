@@ -60,11 +60,16 @@ export function hoursMatchQuote(quote: string, hours: OpenPeriod[]): { ok: boole
     // "Wednesday closed"): its closing time wins, and with no time at all the day is closed. (Grok review, 2026-10-02)
     const last = covering[covering.length - 1];
     const override = covering.some((x) => x !== last && x.days.size > last.days.size);
-    if (override && !HAS_TIME.test(last.text)) return { ok: false, reason: `day ${p.day} is listed as closed` };
+    // "closed" in the most specific part for this day wins, whatever other times it mentions (Codex re-check).
+    if (/\bclosed\b/.test(last.text) || (override && !HAS_TIME.test(last.text))) return { ok: false, reason: `day ${p.day} is listed as closed` };
     const [oh, ch] = [Number(p.open.slice(0, 2)), Number(p.close.slice(0, 2))];
     // "8-5pm": the open may skip am/pm when it shares the close's, or when it is plainly morning before an afternoon close.
     const bare = (oh < 12) === (ch < 12) || (oh < 12 && ch >= 12 && (oh % 12 || 12) > (ch % 12 || 12));
-    if (!covering.some((x) => timeRe(p.open, bare).test(x.text))) return { ok: false, reason: `opening ${p.open} on day ${p.day} is not in the quote` };
+    // A narrow part with a full range ("Wednesday 10am-3pm") must supply both times; only a close-only modifier
+    // ("open late on Mondays until 9pm") may borrow the opening from the wider part.
+    const fullRange = override && (last.text.match(new RegExp(HAS_TIME.source, "g")) ?? []).length >= 2;
+    const openFrom = fullRange ? [last] : covering;
+    if (!openFrom.some((x) => timeRe(p.open, bare).test(x.text))) return { ok: false, reason: `opening ${p.open} on day ${p.day} is not in the quote` };
     if (!(override ? [last] : covering).some((x) => timeRe(p.close, false).test(x.text))) return { ok: false, reason: `closing ${p.close} on day ${p.day} is not in the quote` };
   }
   return { ok: true };

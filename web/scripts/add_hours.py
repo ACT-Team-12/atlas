@@ -13,6 +13,10 @@ A listing is used only when it is clearly the same clinic:
   4. its hours are real hours (not "Open 24 hours", which no clinic here is).
 Everything else keeps hours = null and the app says "hours not listed".
 Hours are shown as LISTED hours with the source and date, never as verified.
+
+Official hours win: data-raw/official-hours-2026-10-02.json (scripts/official_hours.mjs) holds hours read from
+each health center's own website, kept only when the quoted hours text is on the fetched page. Those clinics
+get hours_source_id "clinic-site" plus hours_quote and hours_url, and the Google listing is not used for them.
 """
 import json
 import re
@@ -21,7 +25,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "src" / "data" / "resources.json"
 RAW = ROOT / "data-raw" / "gmaps-hours-2026-10-02.json"
+OFFICIAL = ROOT / "data-raw" / "official-hours-2026-10-02.json"
 SOURCE_ID = "gmaps-hours"
+SITE_ID = "clinic-site"
 
 IDENTITY = ["medcura", "mercy care", "southside medical", "ethne", "ethnē", "healing community", "recovery consultants",
             "family health center", "georgia center for women", "yourtown", "whitefoord health"]
@@ -72,8 +78,16 @@ def main() -> None:
     data = json.loads(DATA.read_text())
     raw = json.loads(RAW.read_text())
     by_search = {i["searchString"]: i for i in raw["items"]}
-    used = 0
+    official = {i["id"]: i for i in json.loads(OFFICIAL.read_text())["items"] if i["status"] == "verified"}
+    used = site = 0
     for c in data["clinics"]:
+        c.pop("hours_quote", None); c.pop("hours_url", None)
+        if c["id"] in official:
+            o = official[c["id"]]
+            c["hours"] = sorted(o["hours"], key=lambda p: (p["day"], p["open"]))
+            c["hours_source_id"], c["hours_quote"], c["hours_url"] = SITE_ID, o["quote"], o["url"]
+            site += 1
+            continue
         item = by_search.get(f"{c['name']}, {c['address']}, {c['city']}, GA {c['zip']}")
         hours = parse_hours(item.get("openingHours") or []) if item and same_clinic(c, item) else None
         c["hours"] = hours
@@ -88,8 +102,16 @@ def main() -> None:
                  "health-center name match the HRSA site. Shown as listed hours to confirm by phone. Spot check: Southside Main "
                  "matched its own site exactly; Mercy Care Chamblee's site says 7am-5pm Mon-Fri while the listing shows Wednesday to 7pm.",
     }]
+    data["sources"] = [s for s in data["sources"] if s["id"] != SITE_ID] + [{
+        "id": SITE_ID,
+        "name": "Each health center's own website (opening hours)",
+        "url": "https://agent.tinyfish.ai",
+        "retrieved": json.loads(OFFICIAL.read_text())["retrieved"],
+        "notes": f"Pages found and fetched with TinyFish, hours extracted by Claude, kept only when the quoted hours text is on the fetched page "
+                 f"and every time is written in the quote. Used for {site} clinics; each clinic stores its quote and page URL.",
+    }]
     DATA.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
-    print(f"hours added for {used}/{len(data['clinics'])} clinics")
+    print(f"hours: {site} from the clinic's own site, {used} from Google listings, of {len(data['clinics'])} clinics")
 
 
 if __name__ == "__main__":

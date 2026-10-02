@@ -89,14 +89,25 @@ function Resource({ r }: { r: ResourceCard }) {
         <p className="text-sm font-semibold mt-1">Fees adjust to your income and family size (federal health center rule).</p>
         {c.nearest_rail && <p className="text-sm mt-1">🚆 {c.nearest_rail.name}, {(c.nearest_rail.meters / 1000).toFixed(1)} km straight-line</p>}
         {c.nearest_bus && <p className="text-sm">🚌 Bus stop: {c.nearest_bus.name}</p>}
-        {hours && <p className="text-sm mt-1">🕘 Listed hours: {hours} <span className="text-ink/55">(call to confirm)</span></p>}
+        {hours && c.hours_source_id === "clinic-site" && (
+          <>
+            <p className="text-sm mt-1">🕘 Hours: {hours}</p>
+            <p className="text-xs italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{c.hours_quote}&rdquo;</p>
+          </>
+        )}
+        {hours && c.hours_source_id !== "clinic-site" && <p className="text-sm mt-1">🕘 Listed hours: {hours} <span className="text-ink/55">(call to confirm)</span></p>}
         <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
           <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${c.phone.replace(/[^\d]/g, "")}`}>Call {c.phone}</a>
           {c.website && <a className="rounded-full border-2 border-ink px-3 py-1" href={c.website} target="_blank" rel="noreferrer">Website ↗</a>}
           <a className="rounded-full border-2 border-ink px-3 py-1" target="_blank" rel="noreferrer"
             href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${c.address}, ${c.city}, GA ${c.zip}`)}&travelmode=transit`}>Transit directions ↗</a>
         </div>
-        <p className="mt-2 text-[11px] text-ink/50">Source: HRSA health center data{hours ? " · hours from its Google Maps listing, checked Oct 2" : c.hours_per_week ? ` · ${c.hours_per_week} hrs/week listed, times not listed` : " · hours not listed"}</p>
+        <p className="mt-2 text-[11px] text-ink/50">
+          Source: HRSA health center data
+          {hours && c.hours_source_id === "clinic-site" && c.hours_url
+            ? <> · hours quoted from <a className="underline" href={c.hours_url} target="_blank" rel="noreferrer">{new URL(c.hours_url).hostname.replace(/^www\./, "")}</a>, checked Oct 2</>
+            : hours ? " · hours from its Google Maps listing, checked Oct 2" : c.hours_per_week ? ` · ${c.hours_per_week} hrs/week listed, times not listed` : " · hours not listed"}
+        </p>
       </div>
     );
   }

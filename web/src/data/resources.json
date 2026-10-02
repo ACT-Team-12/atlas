@@ -119,7 +119,14 @@
       "name": "Google Maps listings (opening hours), matched to HRSA sites",
       "url": "https://www.google.com/maps",
       "retrieved": "2026-10-02",
-      "notes": "Google Maps listings via Apify compass/crawler-google-places, run wkI5jeYjy0m3fMMBz. Used for 21 of 41 clinics: only when the listing's street number and health-center name match the HRSA site. Shown as listed hours to confirm by phone. Spot check: Southside Main matched its own site exactly; Mercy Care Chamblee's site says 7am-5pm Mon-Fri while the listing shows Wednesday to 7pm."
+      "notes": "Google Maps listings via Apify compass/crawler-google-places, run wkI5jeYjy0m3fMMBz. Used for 9 of 41 clinics: only when the listing's street number and health-center name match the HRSA site. Shown as listed hours to confirm by phone. Spot check: Southside Main matched its own site exactly; Mercy Care Chamblee's site says 7am-5pm Mon-Fri while the listing shows Wednesday to 7pm."
+    },
+    {
+      "id": "clinic-site",
+      "name": "Each health center's own website (opening hours)",
+      "url": "https://agent.tinyfish.ai",
+      "retrieved": "2026-10-02",
+      "notes": "Pages found and fetched with TinyFish, hours extracted by Claude, kept only when the quoted hours text is on the fetched page and every time is written in the quote. Used for 12 clinics; each clinic stores its quote and page URL."
     }
   ],
   "clinics": [
@@ -183,7 +190,9 @@
           "close": "13:00"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "MON 9:00 AM – 5:00 PM\n\nTUE 9:00 AM – 5:00 PM\n\nWED 9:00 AM – 5:00 PM\n\nTHU 9:00 AM - 5:00 PM\n\nFRI 9:00 AM – 1:00 PM\n\nSAT & SUN Closed",
+      "hours_url": "https://www.ethnehealth.org/appointment"
     },
     {
       "id": "hrsa-ethne-health-main-30021",
@@ -245,7 +254,9 @@
           "close": "13:00"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "MON 9:00 AM – 9:00 PM\n\nTUE 9:00 AM – 5:00 PM\n\nWED 9:00 AM – 5:00 PM\n\nTHU 9:00 AM - 5:00 PM\n\nFRI 9:00 AM – 1:00 PM\n\nSAT & SUN Closed",
+      "hours_url": "https://www.ethnehealth.org/patientservices"
     },
     {
       "id": "hrsa-medcura-candler-30032",
@@ -454,27 +465,27 @@
         {
           "day": 0,
           "open": "08:00",
-          "close": "17:00"
+          "close": "20:00"
         },
         {
           "day": 1,
           "open": "08:00",
-          "close": "17:00"
+          "close": "20:00"
         },
         {
           "day": 2,
           "open": "08:00",
-          "close": "17:00"
+          "close": "20:00"
         },
         {
           "day": 3,
           "open": "08:00",
-          "close": "17:00"
+          "close": "20:00"
         },
         {
           "day": 4,
           "open": "08:00",
-          "close": "17:00"
+          "close": "20:00"
         },
         {
           "day": 5,
@@ -482,7 +493,9 @@
           "close": "17:00"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "MedCura Health’s **Stone Mountain location** is open Monday – Friday 8am-8pm and Saturday 8am-5pm.",
+      "hours_url": "https://medcura.org/faq/"
     },
     {
       "id": "hrsa-medcura-hillandale-30058",
@@ -841,7 +854,7 @@
         {
           "day": 2,
           "open": "07:00",
-          "close": "19:00"
+          "close": "17:00"
         },
         {
           "day": 3,
@@ -854,7 +867,9 @@
           "close": "17:00"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "Monday – Friday\n\n**Hours:** 7am – 5pm",
+      "hours_url": "https://mercyatlanta.org/location/mercy-care-chamblee/"
     },
     {
       "id": "hrsa-mercy-care-at-chris-180-30316",
@@ -952,7 +967,9 @@
           "close": "17:00"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "Office Hours:\n\nMonday - Friday  9AM-5PM",
+      "hours_url": "https://www.recoveryconsultants.org/contact-us"
     },
     {
       "id": "hrsa-recovery-consultants-tucker-30084",
@@ -1014,7 +1031,9 @@
           "close": "17:00"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "Office Hours:\n\nMonday - Friday  9AM-5PM",
+      "hours_url": "https://www.recoveryconsultants.org/contact-us"
     },
     {
       "id": "hrsa-southside-medical-center-gresham-clinic-30316",
@@ -1416,7 +1435,9 @@
           "close": "17:00"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "Monday – Friday\n\n**Hours:** 7am – 5pm",
+      "hours_url": "https://mercyatlanta.org/location/mercy-care-decatur-street/"
     },
     {
       "id": "hrsa-mercy-care-at-city-of-refuge-30314",
@@ -1507,9 +1528,16 @@
           "day": 3,
           "open": "08:00",
           "close": "16:30"
+        },
+        {
+          "day": 4,
+          "open": "08:00",
+          "close": "16:30"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "Monday – Friday\n\n**Hours:** 8am -4:30pm",
+      "hours_url": "https://mercyatlanta.org/location/mercy-care-at-gateway-center/"
     },
     {
       "id": "hrsa-mercy-care-at-salvation-army-30318",
@@ -1620,35 +1648,32 @@
         {
           "day": 0,
           "open": "08:00",
-          "close": "19:30"
+          "close": "17:00"
         },
         {
           "day": 1,
           "open": "08:00",
-          "close": "19:30"
+          "close": "17:00"
         },
         {
           "day": 2,
           "open": "08:00",
-          "close": "19:30"
+          "close": "17:00"
         },
         {
           "day": 3,
           "open": "08:00",
-          "close": "19:30"
+          "close": "17:00"
         },
         {
           "day": 4,
           "open": "08:00",
-          "close": "19:30"
-        },
-        {
-          "day": 5,
-          "open": "08:00",
-          "close": "16:30"
+          "close": "17:00"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "MONDAY- FRIDAY 8:00 AM – 5:00 PM",
+      "hours_url": "https://southsidemedical.net/east-point/"
     },
     {
       "id": "hrsa-southside-medical-center-main-center-corporate-hq-30315",
@@ -1813,7 +1838,9 @@
           "close": "17:00"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "**Hours:** Monday - Friday | 8:00 a.m. - 5:00 p.m.  \nOpen late on Mondays until 9:00 p.m.",
+      "hours_url": "https://fhcga.org/locations"
     },
     {
       "id": "hrsa-the-family-health-center-at-banneker-school-based-health-center-30349",
@@ -2081,7 +2108,9 @@
           "close": "12:00"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "**Monday – Thursday:** 8:00 AM – 5:00 PM  \n**Friday:** 8:00 AM – 12:00 PM",
+      "hours_url": "https://www.yourtownhealth.com/locations/"
     },
     {
       "id": "hrsa-yourtown-health-quickcare-30268",
@@ -2143,7 +2172,9 @@
           "close": "18:00"
         }
       ],
-      "hours_source_id": "gmaps-hours"
+      "hours_source_id": "clinic-site",
+      "hours_quote": "**Monday – Friday**  \n8:00 AM – 6:00 PM",
+      "hours_url": "https://www.yourtownhealth.com/quickcare/"
     }
   ],
   "programs": [

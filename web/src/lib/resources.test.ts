@@ -61,6 +61,21 @@ describe("listed clinic hours", () => {
     }
   });
 
+  it("prefers the clinic's own site: quote on record, official domain, and it overrides a wrong listing", () => {
+    const site = clinics.filter((c) => c.hours_source_id === "clinic-site");
+    expect(site.length).toBeGreaterThanOrEqual(10);
+    for (const c of site) {
+      expect(c.hours_quote!.length).toBeGreaterThan(8);
+      expect(c.hours_url).toMatch(/^https:\/\//);
+      expect(c.hours_url!).not.toMatch(/google|yelp|mapquest|findhelp|npin/i);
+    }
+    // Google listed East Point until 7:30pm and on Saturdays; its own page says Monday-Friday 8:00 AM - 5:00 PM.
+    const eastPoint = byName(/East Point Clinic/);
+    expect(eastPoint.hours_source_id).toBe("clinic-site");
+    expect(formatHours(eastPoint.hours)).toBe("Mon-Fri 8am-5pm");
+    expect(opensWeekends(eastPoint)).toBe(false);
+  });
+
   it("never takes hours from another business at the same address (school, shelter)", () => {
     expect(byName(/McNair/).hours ?? null).toBeNull();
     expect(byName(/Salvation Army/).hours ?? null).toBeNull();

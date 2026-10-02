@@ -53,12 +53,14 @@ export class ExtractError extends Error {
   }
 }
 
-export async function extractCarePlan(req: ExtractRequest): Promise<CarePlanResponse> {
+export function makeClient() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
-  const client = new Anthropic({ apiKey });
-  const t0 = Date.now();
+  return new Anthropic({ apiKey });
+}
 
+/** The model request shared by the plain and the streaming routes, so both read a paper the same way. */
+export function buildParams(req: ExtractRequest) {
   const userContent: Anthropic.ContentBlockParam[] = [];
   if (req.image_base64 && req.image_media_type) {
     userContent.push({
@@ -73,16 +75,23 @@ export async function extractCarePlan(req: ExtractRequest): Promise<CarePlanResp
       (req.text ? `After-visit summary text:\n<document>\n${req.text}\n</document>` : "The after-visit summary is the photo above."),
   });
 
-  const msg = await client.messages.parse({
+  return {
     model: MODEL,
     max_tokens: 16000,
     system: SYSTEM,
-    output_config: { effort: "low", format: zodOutputFormat(ModelOutput) },
-    messages: [{ role: "user", content: userContent }],
-  });
+    output_config: { effort: "low" as const, format: zodOutputFormat(ModelOutput) },
+    messages: [{ role: "user" as const, content: userContent }],
+  };
+}
 
-  if (msg.stop_reason === "refusal") throw new ExtractError("The AI declined to read this document.", 422);
-  const parsed = ExtractionSchema.safeParse(msg.parsed_output);
+/**
+ * Turns the model's raw output into the care plan: re-validates it, checks every quote against the
+ * paper, and builds the stats. The streaming route calls this too, so its final payload has the same
+ * shape and the same verdicts as the plain route.
+ */
+export function finishCarePlan(req: ExtractRequest, raw: unknown, stopReason: string | null | undefined, t0: number): CarePlanResponse {
+  if (stopReason === "refusal") throw new ExtractError("The AI declined to read this document.", 422);
+  const parsed = ExtractionSchema.safeParse(raw);
   if (!parsed.success) throw new ExtractError("The AI returned a malformed care plan. Try again.", 502);
 
   const sourceKind = req.text ? "text" : "image";
@@ -104,4 +113,11 @@ export async function extractCarePlan(req: ExtractRequest): Promise<CarePlanResp
     model: MODEL,
     stats: { extracted: parsed.data.items.length, grounded: kept.length, refused: refused.length, ms: Date.now() - t0 },
   };
+}
+
+export async function extractCarePlan(req: ExtractRequest): Promise<CarePlanResponse> {
+  const client = makeClient();
+  const t0 = Date.now();
+  const msg = await client.messages.parse(buildParams(req));
+  return finishCarePlan(req, msg.parsed_output, msg.stop_reason, t0);
 }

@@ -67,13 +67,18 @@ export function findSpan(source: string, quote: string): { start: number; end: n
   return { start, end };
 }
 
+/** Checks one item. `index` is its place in the model's full list, which sets its id. */
+export function verifyItem(source: string, item: CareItem, index: number): VerifiedItem {
+  const span = findSpan(source, item.source_quote);
+  return { ...item, id: `item-${index}`, grounded: span !== null, span };
+}
+
 export function verifyItems(source: string, items: CareItem[]): { kept: VerifiedItem[]; refused: VerifiedItem[] } {
   const kept: VerifiedItem[] = [];
   const refused: VerifiedItem[] = [];
   items.forEach((item, i) => {
-    const span = findSpan(source, item.source_quote);
-    const v: VerifiedItem = { ...item, id: `item-${i}`, grounded: span !== null, span };
-    (span ? kept : refused).push(v);
+    const v = verifyItem(source, item, i);
+    (v.grounded ? kept : refused).push(v);
   });
   return { kept, refused };
 }

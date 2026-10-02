@@ -130,6 +130,8 @@ export function CarePlanTool() {
   const [transcript, setTranscript] = useState<string | null>(null);
   const [photoChecked, setPhotoChecked] = useState(false);
   const loaded = useRef(false);
+  const [speaking, setSpeaking] = useState(false);
+  const speechRun = useRef(0);
 
   // Saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
   // One-time restore after hydration: localStorage does not exist during the server render.
@@ -208,15 +210,36 @@ export function CarePlanTool() {
     );
   }
 
+  function stopSpeaking() {
+    speechRun.current++; // ignore end events from the run being cancelled
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    setSpeaking(false);
+  }
+
+  // One utterance per line: Chrome silently stops a single long utterance after about 15 seconds.
   function speak() {
     if (!plan || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (speaking) return stopSpeaking();
     window.speechSynthesis.cancel();
+    const run = ++speechRun.current;
     const lines = [plan.summary, ...plan.steps.map((s, i) => `${i + 1}. ${s.title}. ${s.action}`)];
-    const u = new SpeechSynthesisUtterance(lines.join(" "));
-    u.lang = SPEECH_LANG[language] ?? "en-US";
-    u.rate = 0.95;
-    window.speechSynthesis.speak(u);
+    lines.forEach((line, i) => {
+      const u = new SpeechSynthesisUtterance(line);
+      u.lang = SPEECH_LANG[language] ?? "en-US";
+      u.rate = 0.95;
+      if (i === lines.length - 1) u.onend = () => { if (speechRun.current === run) setSpeaking(false); };
+      u.onerror = () => { if (speechRun.current === run) setSpeaking(false); };
+      window.speechSynthesis.speak(u);
+    });
+    setSpeaking(true);
   }
+
+  // Stop reading if the plan changes or goes away, or the page unmounts.
+  useEffect(() => () => {
+    speechRun.current++;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    setSpeaking(false);
+  }, [plan]);
 
   const careById = Object.fromEntries((care?.items ?? []).map((i) => [i.id, i]));
   const items = (care?.items ?? []).filter((i) => !removed[i.id]);
@@ -405,7 +428,9 @@ export function CarePlanTool() {
             <StepHeader n={3} title="Your plan" done note={plan.located.label} />
             <p className="mt-4 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
-              <button type="button" onClick={speak} className="rounded-full border-2 border-ink bg-sun px-4 py-2">🔊 Read it out loud</button>
+              <button type="button" onClick={speak} aria-pressed={speaking} className={`rounded-full border-2 border-ink px-4 py-2 ${speaking ? "bg-ink text-paper" : "bg-sun"}`}>
+                {speaking ? "⏹ Stop reading" : "🔊 Read it out loud"}
+              </button>
               <button type="button" onClick={() => window.print()} className="rounded-full border-2 border-ink px-4 py-2">🖨️ Print for the next visit</button>
               <span className="self-center text-ink/55">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
             </div>

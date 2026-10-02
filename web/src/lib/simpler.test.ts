@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canMakeSimpler, isTranscriptEdited, type SimplerState } from "./simpler";
 
-const base: SimplerState = { readLevel: "detailed", hasCare: true, needsPhotoCheck: false, reading: false, sourceLength: 500, transcriptEdited: false };
+const base: SimplerState = { readLevel: "detailed", hasCare: true, needsPhotoCheck: false, reading: false, sourceLength: 500, transcriptEdited: false, hasPlan: false, planning: false };
 
 describe("canMakeSimpler", () => {
   it("offers it after a detailed or standard read", () => {
@@ -14,6 +14,8 @@ describe("canMakeSimpler", () => {
   it("hides while a read is running", () => expect(canMakeSimpler({ ...base, reading: true })).toBe(false));
   it("needs enough text to read, like the read button", () => expect(canMakeSimpler({ ...base, sourceLength: 10 })).toBe(false));
   it("never re-reads a photo reading the person edited but did not accept", () => expect(canMakeSimpler({ ...base, transcriptEdited: true })).toBe(false));
+  it("never wipes an existing plan", () => expect(canMakeSimpler({ ...base, hasPlan: true })).toBe(false));
+  it("hides while a plan is being made", () => expect(canMakeSimpler({ ...base, planning: true })).toBe(false));
 });
 
 describe("isTranscriptEdited", () => {

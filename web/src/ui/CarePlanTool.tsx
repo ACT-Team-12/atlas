@@ -430,7 +430,7 @@ export function CarePlanTool() {
   const flow = { hasCare: !!care, hasPlan: !!plan };
   // The person changed our reading of their photo. Accepting or re-reading the old text would silently drop their fix.
   const transcriptEdited = !!care && isTranscriptEdited(transcript, care.source_text);
-  const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0, transcriptEdited });
+  const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0, transcriptEdited, hasPlan: !!plan, planning });
   const shown = shownTab(tab, flow);
   // Phones: one step card at a time. Hidden cards stay mounted (state, timers and requests carry on).
   const panel = (t: Tab) => ({

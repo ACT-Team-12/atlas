@@ -91,8 +91,9 @@ export function checkQuestions(
     // quote "2 times a day" passed.) No AI here: every number in the right answer must be in the quote, and no
     // wrong option may carry exactly the quote's set of numbers (a quote like "1 tablet 2 times a day" must still allow
     // a wrong "2 tablets"). Answers without numbers keep the quote-in-step rule.
-    // A fraction ("1/2 tablet") is one value, not the numbers 1 and 2 (Grok review, 2026-10-02).
-    const nums = (o: string) => [...(o.match(/\d+\s*\/\s*\d+/g) ?? []).map((f) => f.replace(/\s/g, "")), ...numbersIn(o.replace(/\d+\s*\/\s*\d+/g, " "))];
+    // A fraction is one value, not separate numbers: "1/2" (Grok review) and mixed "1 1/2" or "1-1/2" (Codex re-check).
+    const FRACTION = /\d+(?:\s+|-)\d+\s*\/\s*\d+|\d+\s*\/\s*\d+/g;
+    const nums = (o: string) => [...(o.match(FRACTION) ?? []).map((f) => f.replace(/\s*\/\s*/, "/").replace(/(\d)(?:\s+|-)(\d)/, "$1 $2")), ...numbersIn(o.replace(FRACTION, " "))];
     const quoteNums = new Set(nums(q.answer_quote));
     const right = nums(opts[q.correct]);
     if (right.some((n) => !quoteNums.has(n))) { dropped.push({ item_id: q.item_id, reason: "answer_not_in_quote" }); continue; }

@@ -51,6 +51,13 @@ describe("teach-back checker", () => {
     const base: DraftQuestion = { item_id: "item-0", question: "How much do you take?", options: ["1/2 tablet", "2 tablets", "1 tablet"], correct: 0, answer_quote: "Take 1/2 tablet" };
     expect(checkQuestions(halfPaper, halfItems, [base]).dropped).toEqual([]);
     expect(checkQuestions(halfPaper, halfItems, [{ ...base, correct: 1 }]).dropped).toEqual([{ item_id: "item-0", reason: "answer_not_in_quote" }]);
+    // Codex re-check: a mixed number is one value too
+    const mixedPaper = "Take 1 1/2 tablets by mouth daily.";
+    const mixedItems = [{ id: "item-0", kind: "medication", title: "Dose", source_quote: mixedPaper }];
+    const wrong: DraftQuestion = { item_id: "item-0", question: "How many tablets?", options: ["1 tablet", "2 tablets", "3 tablets"], correct: 0, answer_quote: "Take 1 1/2 tablets by mouth daily" };
+    expect(checkQuestions(mixedPaper, mixedItems, [wrong]).dropped).toEqual([{ item_id: "item-0", reason: "answer_not_in_quote" }]);
+    expect(checkQuestions(mixedPaper, mixedItems, [{ ...wrong, options: ["1 1/2 tablets", "2 tablets", "1 tablet"] }]).dropped).toEqual([]);
+    expect(checkQuestions("Take 1-1/2 tablets daily.", [{ ...mixedItems[0], source_quote: "Take 1-1/2 tablets daily." }], [{ ...wrong, options: ["1-1/2 tablets", "2 tablets", "1 tablet"], answer_quote: "Take 1-1/2 tablets daily" }]).dropped).toEqual([]);
   });
 
   it("drops a proof that is real but belongs to a different step", () => {

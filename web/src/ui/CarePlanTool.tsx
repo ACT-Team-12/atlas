@@ -30,6 +30,7 @@ import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun
 // Static, so erasing never waits on a chunk download; the WebAssembly itself is still fetched only after a read.
 import { forgetDeviceChecker, loadDeviceChecker, sameSpan } from "@/lib/deviceChecker";
 import { streamThenPlain } from "@/lib/readCancel";
+import { persistDeletion } from "@/lib/persistDeletion";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -262,6 +263,7 @@ export function CarePlanTool() {
   const [store, setStore] = useState<Store>(emptyStore);
   const storeRef = useRef<Store>(emptyStore());
   const [saveFailed, setSaveFailed] = useState(false);
+  const [deleteFailed, setDeleteFailed] = useState(false);
 
   function writeStore(next: Store) {
     if (next === storeRef.current) return;
@@ -324,9 +326,20 @@ export function CarePlanTool() {
     forgetDeviceChecker();
   }
 
+  /**
+   * Deletes plan `id` from this device's storage, read back to be sure. When storage still holds it, nothing changes
+   * on screen and the person is told it was not deleted (a reload would bring it back).
+   */
+  function deleteFromDevice(id: string): boolean {
+    const next = deletePlan(storeRef.current, id);
+    if (!persistDeletion(() => localStorage, STORE_KEY, next, id)) { setDeleteFailed(true); return false; }
+    storeRef.current = next; setStore(next); setSaveFailed(false); setDeleteFailed(false);
+    return true;
+  }
+
   /** "Clear it from this device": deletes the open plan. Other saved plans stay. */
   function clearSaved() {
-    if (storeRef.current.active) writeStore(deletePlan(storeRef.current, storeRef.current.active));
+    if (storeRef.current.active && !deleteFromDevice(storeRef.current.active)) return;
     eraseOpenPaper();
   }
 
@@ -338,10 +351,11 @@ export function CarePlanTool() {
     setRestoredAt(p.savedAt);
   }
 
-  function deleteSaved(id: string) {
+  function deleteSaved(id: string): boolean {
     const wasOpen = storeRef.current.active === id;
-    writeStore(deletePlan(storeRef.current, id));
+    if (!deleteFromDevice(id)) return false;
     if (wasOpen) eraseOpenPaper();
+    return true;
   }
 
   function newPlan() {
@@ -641,7 +655,7 @@ export function CarePlanTool() {
           </div>
         )}
 
-        <SavedPlans plans={listPlans(store)} activeId={store.active} busy={reading || planning} saveFailed={saveFailed}
+        <SavedPlans plans={listPlans(store)} activeId={store.active} busy={reading || planning} saveFailed={saveFailed} deleteFailed={deleteFailed}
           onOpen={openSaved} onRename={(id, name) => writeStore(renamePlan(storeRef.current, id, name))} onDelete={deleteSaved} onNew={newPlan} />
 
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}

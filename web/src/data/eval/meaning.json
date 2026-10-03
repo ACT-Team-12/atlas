@@ -1,24 +1,26 @@
 {
-  "measured_at": "2026-10-02T06:28:08.351Z",
+  "measured_at": "2026-10-03T05:37:51.042Z",
   "base_url": "local production build",
-  "commit": "00bbfba",
+  "commit": "1c45e6e",
   "checker_model": "claude-sonnet-5-5",
   "command": "node scripts/meaning-eval.mjs",
   "totals": {
     "originals": 38,
-    "false_alarms": 2,
-    "planted": 52,
-    "caught": 52,
-    "caught_by_numbers": 24,
-    "caught_by_model": 52,
+    "false_alarms": 0,
+    "certified": 35,
+    "planted_certified": 0,
+    "planted": 50,
+    "caught": 50,
+    "caught_by_numbers": 23,
+    "caught_by_model": 50,
     "by_kind": {
       "changed number": {
-        "planted": 25,
-        "caught": 25
+        "planted": 24,
+        "caught": 24
       },
       "swapped time word": {
-        "planted": 18,
-        "caught": 18
+        "planted": 17,
+        "caught": 17
       },
       "start/stop reversed": {
         "planted": 9,
@@ -31,6 +33,8 @@
       "id": "diabetes-hypertension",
       "originals": 8,
       "false_alarms": [],
+      "certified": 6,
+      "planted_certified": 0,
       "planted": 12,
       "caught": 12,
       "by_kind": [
@@ -107,31 +111,21 @@
           "by_model": true
         }
       ],
-      "ms": 2106
+      "ms": 2490
     },
     {
       "id": "pediatric-asthma",
       "originals": 5,
       "false_alarms": [],
-      "planted": 6,
-      "caught": 6,
+      "certified": 5,
+      "planted_certified": 0,
+      "planted": 4,
+      "caught": 4,
       "by_kind": [
         {
           "kind": "changed number",
           "flagged": true,
           "by_numbers": true,
-          "by_model": true
-        },
-        {
-          "kind": "changed number",
-          "flagged": true,
-          "by_numbers": true,
-          "by_model": true
-        },
-        {
-          "kind": "swapped time word",
-          "flagged": true,
-          "by_numbers": false,
           "by_model": true
         },
         {
@@ -153,23 +147,14 @@
           "by_model": true
         }
       ],
-      "ms": 6661
+      "ms": 3205
     },
     {
       "id": "hypertension-new-med",
       "originals": 7,
-      "false_alarms": [
-        {
-          "id": "item-2",
-          "numbers": [],
-          "why": "paper says \"at any lab location\" but explanation says \"any of the clinic's lab locations\" (restricts to the clinic's labs). The 1 week timing is in the \"when\" text."
-        },
-        {
-          "id": "item-6",
-          "numbers": [],
-          "why": "paper says \"severe headache, chest pain, or vision changes\" (any one symptom with BP over 180/120) but explanation says \"AND you have a bad headache, chest pain, or changes in how you see\" - the \"and\" is only before the list, so this is mostly the same; however \"severe\" became \"bad\"."
-        }
-      ],
+      "false_alarms": [],
+      "certified": 7,
+      "planted_certified": 0,
       "planted": 8,
       "caught": 8,
       "by_kind": [
@@ -222,12 +207,14 @@
           "by_model": true
         }
       ],
-      "ms": 3025
+      "ms": 2948
     },
     {
       "id": "uti-urgent-care",
       "originals": 4,
       "false_alarms": [],
+      "certified": 4,
+      "planted_certified": 0,
       "planted": 4,
       "caught": 4,
       "by_kind": [
@@ -256,12 +243,14 @@
           "by_model": true
         }
       ],
-      "ms": 3089
+      "ms": 2727
     },
     {
       "id": "prenatal-28-weeks",
       "originals": 6,
       "false_alarms": [],
+      "certified": 5,
+      "planted_certified": 0,
       "planted": 9,
       "caught": 9,
       "by_kind": [
@@ -320,12 +309,14 @@
           "by_model": true
         }
       ],
-      "ms": 2188
+      "ms": 2230
     },
     {
       "id": "heart-failure-discharge",
       "originals": 8,
       "false_alarms": [],
+      "certified": 8,
+      "planted_certified": 0,
       "planted": 13,
       "caught": 13,
       "by_kind": [
@@ -408,7 +399,7 @@
           "by_model": true
         }
       ],
-      "ms": 2439
+      "ms": 2467
     }
   ]
 }

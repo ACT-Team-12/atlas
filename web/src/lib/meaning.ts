@@ -133,6 +133,7 @@ const UNIT_CLASSES: [string, RegExp][] = [
   ["week", /^(?:weeks?|semanas?|semaines?|tuần)$/u],
   ["month", /^(?:months?|mes|meses|mois|tháng)$/u],
   ["times", /^(?:times?|x|vez|veces|fois|lần)$/u],
+  ["ratio", /^(?:parts?|partes?|parties?|phần)$/u],
   ["clock", /^(?:am|pm|a\.m\.?|p\.m\.?|o'clock|o’clock|h)$/u],
 ];
 const CJK_UNIT_CLASSES: [string, RegExp][] = [
@@ -279,7 +280,9 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
   if (p.pairs.some(([n, c], k) => c !== null && !free.has(c) && values(c).size >= 2 && !aligned(n, c, pCtx[k]))) return true;
   const known = new Set(q.map(([n, c]) => `${n}|${c}`));
   // A number with no unit is fine only where the quote never gives that number a unit either ("100 Sample Street").
-  const unitless = (n: string) => q.some(([m]) => m === n) && q.every(([m, c]) => m !== n || c === null);
+  // ...and only when the quote has a single unitless value, so two unitless numbers can't trade places (round 12).
+  const unitlessValues = new Set(q.filter(([, c]) => c === null).map(([m]) => m));
+  const unitless = (n: string) => unitlessValues.size < 2 && q.some(([m]) => m === n) && q.every(([m, c]) => m !== n || c === null);
   return p.pairs.some(([n, c]) => (c === null ? !unitless(n) : !known.has(`${n}|${c}`)));
 }
 

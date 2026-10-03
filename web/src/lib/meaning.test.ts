@@ -226,3 +226,14 @@ describe("Codex round 11: grouped numbers and unread fractions are never certifi
     expect(any.unexpected.length > 0 || any.uncheckable).toBe(true);
   });
 });
+
+describe("Codex round 12: swapped mixture ratios are never certified", () => {
+  it.each([
+    ["Mix 1 part medicine with 2 parts water.", "Mix 2 parts medicine with 1 part water."],
+    ["Use 1 scoop with 2 cups... then 3 and 4.", "Use 2 scoop with 1 cups."],
+  ])("paper %j, explanation %j", (paper, plain) => {
+    expect(combine("x", { id: "x", when: "", source_quote: paper, plain_language: plain }, "same", "").certified).toBe(false);
+    const any = numberCheckAnyForm({ source_quote: paper, plain_language: plain });
+    expect(any.unexpected.length > 0 || any.uncheckable).toBe(true);
+  });
+});

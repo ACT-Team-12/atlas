@@ -433,6 +433,10 @@ describe("Codex round 6: a step never borrows the time of another part of its se
     ["Take your pill; 2 hours before your procedure, stop drinking.", "Take your pill; 2 hours before your procedure, stop drinking."],
     ["Take your morning medicine and stop drinking 2 hours before your procedure.", "Take your morning medicine and stop drinking 2 hours before your procedure."],
     ["Take your pill then stop drinking 2 hours before your procedure.", "Take your pill then stop drinking 2 hours before your procedure."],
+    ["Take lisinopril and omit metformin 2 days before your procedure.", "Take lisinopril and omit metformin 2 days before your procedure."],
+    ["Take lisinopril and pause metformin 2 days before your procedure.", "Take lisinopril and pause metformin 2 days before your procedure."],
+    ["Take lisinopril and suspend metformin 2 days before your procedure.", "Take lisinopril and suspend metformin 2 days before your procedure."],
+    ["Take lisinopril and withhold metformin 2 days before your procedure.", "Take lisinopril and withhold metformin 2 days before your procedure."],
   ])("%j quoted as %j is not placed", (line, quote) => {
     expect(one(line, quote)).toMatchObject({ slot: null, reason: "other_clause" });
   });

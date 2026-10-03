@@ -30,12 +30,16 @@ export const INSTRUCTION_START = new Set([
   "take", "stop", "hold", "call", "start", "skip", "avoid", "do", "don't", "don’t", "dont", "never", "eat", "drink",
   "arrive", "bring", "use", "apply", "check", "continue", "resume", "wait", "keep", "have", "go", "come", "tell", "ask",
   "begin", "finish", "swallow", "chew", "inject", "remove", "wear", "fast", "nothing", "no", "please", "then",
+  // the do-not verbs of prepCues.ts, so "Take lisinopril and omit metformin 2 days before" is two actions
+  "omit", "omitting", "pause", "pausing", "suspend", "suspending", "withhold", "withholding", "abstain", "refrain",
+  "discontinue", "discontinuing", "quit", "cease", "stopping", "holding", "skipping", "avoiding", "fasting", "exclude",
   // Spanish
   "tome", "deje", "pare", "suspenda", "llame", "empiece", "comience", "evite", "omita", "coma", "beba", "llegue",
-  "traiga", "use", "aplique", "revise", "continúe", "continue", "siga", "espere", "nunca",
+  "traiga", "use", "aplique", "revise", "continúe", "continue", "siga", "espere", "nunca", "omita", "suspenda", "ayune",
   // French
   "prenez", "arrêtez", "cessez", "appelez", "commencez", "évitez", "mangez", "buvez", "arrivez", "apportez",
-  "utilisez", "appliquez", "vérifiez", "continuez", "reprenez", "attendez", "ne", "n'", "jamais",
+  "utilisez", "appliquez", "vérifiez", "continuez", "reprenez", "attendez", "ne", "n'", "jamais", "omettez", "suspendez",
+  "jeûnez",
   // Vietnamese
   "uống", "ngừng", "ngưng", "dừng", "gọi", "bắt", "tránh", "bỏ", "ăn", "đến", "mang", "dùng", "bôi", "kiểm", "tiếp",
   "chờ", "không", "đừng",

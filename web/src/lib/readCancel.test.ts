@@ -88,7 +88,8 @@ describe("the care-plan screen's read", () => {
 
   it("a stale read cannot set an error or end a newer read", () => {
     const read = body("readPaper");
-    expect(read).toMatch(/catch \(e\) \{ if \(readRun\.current === run\) \{/);
+    // Either form: guard the error with `=== run`, or return first when `!== run`.
+    expect(read).toMatch(/catch \(e\) \{\s*(if \(readRun\.current === run\) \{|if \(readRun\.current !== run\) return;)/);
     expect(read).toMatch(/finally \{ if \(readRun\.current === run\) setReading\(false\); \}/);
   });
 

@@ -73,7 +73,7 @@ describe("measuring a recording before any paid call (Codex review, 2026-10-02)"
     const codec = el([0x86], [...new TextEncoder().encode("A_OPUS")]);
     const tracks = el([0x16, 0x54, 0xae, 0x6b], el([0xae], [...el([0xd7], [1]), ...el([0x83], [2]), ...codec])); // track 1, audio
     const block = el([0xa3], [0x81, 0, 0, 0x80, (31 << 3) | 3, 6]);
-    const cluster = el([0x1f, 0x43, 0xb6, 0x75], Array.from({ length: 400 }, () => block).flat());
+    const cluster = el([0x1f, 0x43, 0xb6, 0x75], [...el([0xe7], [0]), ...Array.from({ length: 400 }, () => block).flat()]);
     const file = new Uint8Array([...el([0x1a, 0x45, 0xdf, 0xa3], []), ...el([0x18, 0x53, 0x80, 0x67], [...tracks, ...cluster])]);
     expect(measureAudio(file)?.seconds).toBe(48);
   });
@@ -172,6 +172,47 @@ describe("parsing is bounded (Codex round 2, 2026-10-02)", () => {
     b.set([(at >>> 24) & 255, (at >>> 16) & 255, (at >>> 8) & 255, at & 255], p);
     expect(before).toBeLessThan(35);
     expect(measureAudio(b)!.seconds).toBeGreaterThan(600);
+  });
+
+  describe("WebM timeline (Codex round 5)", () => {
+    const sizeOf = (n: number) => [0x10, (n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+    const el = (id: number[], body: number[]) => [...id, ...sizeOf(body.length), ...body];
+    const tracks = el([0x16, 0x54, 0xae, 0x6b], el([0xae], [...el([0xd7], [1]), ...el([0x83], [2]), ...el([0x86], [...new TextEncoder().encode("A_OPUS")])]));
+    const block = (rel: number) => el([0xa3], [0x81, (rel >> 8) & 0xff, rel & 0xff, 0x80, 0xfc]); // one 20 ms CELT frame
+    const webm = (clusters: number[][]) => new Uint8Array([...el([0x1a, 0x45, 0xdf, 0xa3], []), ...el([0x18, 0x53, 0x80, 0x67], [...tracks, ...clusters.flat()])]);
+    const cluster = (tc: number, rels: number[]) => el([0x1f, 0x43, 0xb6, 0x75], [...el([0xe7], [(tc >> 16) & 0xff, (tc >> 8) & 0xff, tc & 0xff]), ...rels.map(block).flat()]);
+
+    it("packets summing to 1 s on a timeline ending at 47 s measure at least 47 s", () => {
+      // 50 packets of 20 ms (1 s of audio), one every 960 ms: no gap over 2 s, and the timeline ends at 47.06 s.
+      const clusters = Array.from({ length: 5 }, (_, c) => cluster(c * 9_600, Array.from({ length: 10 }, (_, k) => k * 960)));
+      const m = measureAudio(webm(clusters));
+      expect(m!.seconds).toBeGreaterThanOrEqual(47);
+    });
+
+    it("a jump forward on the timeline is refused", () => {
+      const b = fx("short.webm");
+      const crafted = new Uint8Array([...b]);
+      // short.webm has one cluster; append a second one starting at 46 s.
+      const tail = new Uint8Array(cluster(46_000, [0]));
+      const joined = new Uint8Array([...crafted, ...tail]);
+      expect(measureAudio(fx("short.webm"))!.seconds).toBeLessThan(35);
+      // The Segment has a known size in this file, so widen it to cover the appended cluster before measuring.
+      const seg = [...joined].findIndex((_, k) => joined[k] === 0x18 && joined[k + 1] === 0x53 && joined[k + 2] === 0x80 && joined[k + 3] === 0x67);
+      joined[seg + 4] = 0x01; joined.fill(0xff, seg + 5, seg + 12); // unknown size (live Segment)
+      expect(measureAudio(joined)).toBeNull();
+      // Control: the same appended cluster placed right after the audio is accepted, so the refusal is the jump.
+      const ok = new Uint8Array([...crafted, ...cluster(1_040, [0])]);
+      ok[seg + 4] = 0x01; ok.fill(0xff, seg + 5, seg + 12);
+      expect(measureAudio(ok)).not.toBeNull();
+    });
+
+    it("a block in a cluster with no timecode, or a non-default TimecodeScale, is refused", () => {
+      expect(measureAudio(webm([el([0x1f, 0x43, 0xb6, 0x75], block(0))]))).toBeNull();
+      const b = fx("short.webm");
+      expect(measureAudio(b)).not.toBeNull();
+      b.set([0x00, 0x03, 0xe8], 218); // TimecodeScale 1,000,000 ns -> 1,000 ns
+      expect(measureAudio(b)).toBeNull();
+    });
   });
 
   it("a trun before its traf's tfhd is refused", () => {

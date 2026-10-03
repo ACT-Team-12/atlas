@@ -4,7 +4,8 @@
  * The browser's Content-Type and the file's own timestamps are claims the sender controls, so neither is trusted.
  * The container is identified by its magic bytes, and the length is counted the way a decoder would play it:
  *   - WebM (Chrome, Firefox, Android): the Opus codec's own frame header in every block says how much audio it holds
- *     (2.5 to 120 ms), so the total is the sum over every block, whatever the timestamps say.
+ *     (2.5 to 120 ms). The length is the longer of that sum and where the timeline ends (cluster timecode plus
+ *     block offset, TimecodeScale must be the default 1 ms); a jump of over 2 s between blocks is refused.
  *   - MP4 (Safari): AAC frames are 1,024 samples each at the sample rate in the codec config, so the total is the
  *     number of frames the sample tables list (plain or fragmented) times 1,024 over that rate.
  * Anything else, or anything this cannot read, is refused (null): a file we cannot measure is never sent.
@@ -33,6 +34,11 @@ export function measureAudio(b: Uint8Array): Measured | null {
 // ---------- WebM / Matroska with Opus ----------
 const SEGMENT = 0x18538067, CLUSTER = 0x1f43b675, BLOCK_GROUP = 0xa0, TRACKS = 0x1654ae6b, TRACK_ENTRY = 0xae;
 const SIMPLE_BLOCK = 0xa3, BLOCK = 0xa1, CODEC_ID = 0x86, TRACK_NUMBER = 0xd7, TRACK_TYPE = 0x83, VOID = 0xec, ROOT = -1;
+const INFO = 0x1549a966, TIMECODE_SCALE = 0x2ad7b1, CLUSTER_TIMECODE = 0xe7;
+/** Browsers write timecodes in milliseconds (TimecodeScale 1,000,000 ns, the default). Any other scale is refused. */
+const DEFAULT_TIMECODE_SCALE = 1_000_000;
+/** A block may start at most this long after the previous one ended; a bigger gap (silence a decoder would play) is refused. */
+const MAX_GAP_MS = 2_000;
 const MASTERS = new Set([SEGMENT, CLUSTER, BLOCK_GROUP, TRACKS, TRACK_ENTRY]);
 /** Every element we accept, and the one parent it may sit in. Anything else is refused. */
 const WEBM_PARENT = new Map<number, number>([
@@ -76,6 +82,8 @@ const uint = (b: Uint8Array, start: number, end: number) => { let v = 0; for (le
 function webmOpusSeconds(b: Uint8Array): number | null {
   const stack: { id: number; end: number; unknown: boolean }[] = [{ id: ROOT, end: b.length, unknown: false }];
   let pos = 0, ms = 0, tracks = 0, opus = false, audio = false, trackNumber = -1, steps = 0;
+  // The timeline: cluster timecode + signed block offset, in ms. Its end counts, not only the packets' sum.
+  let clusterTc: number | null = null, timelineEnd = 0, lastEnd: number | null = null, scaleSeen = false;
   const blockTracks = new Set<number>();
   while (pos < b.length) {
     if (++steps > MAX_STEPS) return null;
@@ -101,6 +109,7 @@ function webmOpusSeconds(b: Uint8Array): number | null {
       const end = size.unknown ? limit : data + size.value;
       if (end > limit) return null;
       if (id.value === TRACK_ENTRY) tracks++;
+      if (id.value === CLUSTER) clusterTc = null; // each cluster states its own timecode before any block
       stack.push({ id: id.value, end, unknown: size.unknown });
       pos = data;
       continue;
@@ -111,6 +120,16 @@ function webmOpusSeconds(b: Uint8Array): number | null {
     if (id.value === CODEC_ID) opus = new TextDecoder().decode(b.subarray(data, end)) === "A_OPUS";
     if (id.value === TRACK_TYPE) audio = uint(b, data, end) === 2;
     if (id.value === TRACK_NUMBER) trackNumber = uint(b, data, end);
+    if (id.value === INFO) {
+      if (scaleSeen) return null; // one Info
+      scaleSeen = true;
+      const scale = infoTimecodeScale(b, data, end);
+      if (scale !== DEFAULT_TIMECODE_SCALE) return null; // non-default, absurd, or unreadable
+    }
+    if (id.value === CLUSTER_TIMECODE) {
+      if (clusterTc !== null || end - data > 8) return null;
+      clusterTc = uint(b, data, end);
+    }
     if (id.value === SIMPLE_BLOCK || id.value === BLOCK) {
       const track = vint(b, data, false);
       if (!track) return null;
@@ -120,12 +139,39 @@ function webmOpusSeconds(b: Uint8Array): number | null {
       const packet = opusPacketMs(b.subarray(data + track.len + 3, end));
       if (packet === null) return null;
       ms += packet;
+      if (clusterTc === null) return null; // a block with no cluster timecode cannot be placed
+      const rel = (b[data + track.len] << 8) | b[data + track.len + 1];
+      const start = clusterTc + (rel & 0x8000 ? rel - 0x10000 : rel);
+      if (lastEnd !== null && start > lastEnd + MAX_GAP_MS) return null; // a jump forward on the timeline
+      lastEnd = start + packet;
+      timelineEnd = Math.max(timelineEnd, lastEnd);
     }
     pos = end;
   }
   if (pos !== b.length) return null;
   const oneTrack = tracks === 1 && opus && audio && [...blockTracks].every((t) => t === trackNumber);
-  return oneTrack ? ms / 1000 : null;
+  // The longer of what the packets hold and where the timeline ends.
+  return oneTrack ? Math.max(ms, timelineEnd) / 1000 : null;
+}
+
+/** TimecodeScale from the Info element's children (default when absent), or null when Info cannot be read. */
+function infoTimecodeScale(b: Uint8Array, start: number, end: number): number | null {
+  let p = start, scale = DEFAULT_TIMECODE_SCALE, seen = false;
+  while (p < end) { // every child is at least 2 bytes, so this loop is bounded by the element's size
+    const id = vint(b, p, true);
+    if (!id) return null;
+    const size = vint(b, p + id.len, false);
+    if (!size || size.unknown) return null;
+    const data = p + id.len + size.len, stop = data + size.value;
+    if (stop > end) return null;
+    if (id.value === TIMECODE_SCALE) {
+      if (seen || size.value < 1 || size.value > 8) return null;
+      seen = true;
+      scale = uint(b, data, stop);
+    }
+    p = stop;
+  }
+  return p === end ? scale : null;
 }
 
 // ---------- MP4 with AAC ----------

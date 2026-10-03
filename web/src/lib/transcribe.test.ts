@@ -9,6 +9,7 @@ import {
   verifyQuizToken,
 } from "./transcribe";
 import { CLIENT_DAILY_SECONDS, clientKey, localUsageForTests, SITE_HOURLY_SECONDS } from "./sttUsage";
+import { failedBeforeSend } from "./transcribe";
 
 let store = localUsageForTests();
 const resetTranscribeStateForTests = () => { store = localUsageForTests(); };
@@ -263,5 +264,71 @@ describe("caps cannot be slipped (security review lead, 2026-10-02)", () => {
   it("refuses a recording longer than the quiz allows instead of returning its words", async () => {
     fetchMock.mockResolvedValue(dg("a very long speech", MAX_AUDIO_SECONDS + 10));
     await expect(go()).rejects.toMatchObject({ status: 413 });
+  });
+});
+
+describe("a failure after the audio was sent stays inside the site caps (review finding, 2026-10-03)", () => {
+  const fetchMock = vi.fn();
+  const T = Date.UTC(2026, 9, 3, 12);
+  const hour = Math.floor(T / 3_600_000), day = Math.floor(T / 86_400_000);
+  const IP = "192.0.2.44";
+  const go = () => answerAloud({ audio: fixture("short.webm"), type: "audio/webm", language: "English", token: issueQuizToken("English", 5, SECRET, T)!, ip: IP, now: T, store });
+  const siteHour = () => store.used("lgh", hour), siteDay = () => store.used("lgd", day);
+  const mineHour = () => store.used(`lch:${clientKey(IP, SECRET)}`, hour);
+  const refused = Object.assign(new TypeError("fetch failed"), { cause: Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }) });
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("DEEPGRAM_API_KEY", "dg-test");
+    vi.stubEnv("FEEDBACK_SECRET", SECRET);
+    fetchMock.mockReset();
+    resetTranscribeStateForTests();
+    aiMock.transcribe.mockReset();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
+
+  // short.webm reserves 6 s (its byte-rate bound), as the reservation test above shows.
+  it("Deepgram timing out after the upload keeps the site reservation", async () => {
+    fetchMock.mockRejectedValue(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+    await expect(go()).rejects.toMatchObject({ status: 502 });
+    expect([siteHour(), siteDay(), mineHour()]).toEqual([6, 6, 6]);
+  });
+
+  it("a Deepgram error reply or an unusable reply keeps the site reservation", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("nope", { status: 500 }));
+    await expect(go()).rejects.toMatchObject({ status: 502 });
+    expect(siteHour()).toBe(6);
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ metadata: { duration: 3 } }), { status: 200 }));
+    await expect(go()).rejects.toMatchObject({ status: 502 });
+    expect([siteHour(), siteDay()]).toEqual([6 + 3, 6 + 3]); // the second one settled to the 3 s the provider reported
+  });
+
+  it("a connection refused before sending returns the site reservation, and stays on the client", async () => {
+    fetchMock.mockRejectedValue(refused);
+    await expect(go()).rejects.toMatchObject({ status: 502 });
+    expect([siteHour(), siteDay(), mineHour()]).toEqual([0, 0, 6]);
+  });
+
+  it("the gateway: a timeout or error reply keeps it, a refused connection returns it", async () => {
+    vi.stubEnv("DEEPGRAM_API_KEY", "");
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "oidc-test");
+    aiMock.transcribe.mockRejectedValueOnce(new DOMException("timed out", "TimeoutError"));
+    await expect(go()).rejects.toMatchObject({ status: 502 });
+    expect(siteHour()).toBe(6);
+    aiMock.transcribe.mockRejectedValueOnce(Object.assign(new Error("upstream"), { statusCode: 504 }));
+    await expect(go()).rejects.toMatchObject({ status: 502 });
+    expect(siteHour()).toBe(12);
+    aiMock.transcribe.mockRejectedValueOnce(Object.assign(new Error("Cannot connect"), { cause: refused }));
+    await expect(go()).rejects.toMatchObject({ status: 502 });
+    expect(siteHour()).toBe(12);
+    expect(mineHour()).toBe(18);
+  });
+
+  it("only a provable pre-send code counts as not sent", () => {
+    expect(failedBeforeSend(refused)).toBe(true);
+    expect(failedBeforeSend({ cause: { cause: { code: "ENOTFOUND" } } })).toBe(true);
+    expect(failedBeforeSend(new DOMException("t", "TimeoutError"))).toBe(false);
+    expect(failedBeforeSend(Object.assign(new Error("reset"), { code: "ECONNRESET" }))).toBe(false);
+    expect(failedBeforeSend(undefined)).toBe(false);
   });
 });

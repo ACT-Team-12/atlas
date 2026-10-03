@@ -117,8 +117,11 @@ const TOO_LONG = "That recording is too long. Keep it under 20 seconds.";
 
 /**
  * One spoken answer: reserve every limit at once (shared, before any paid call), transcribe, settle.
- * Who pays for a failure: the provider rejecting the audio or timing out costs the site nothing (its reservation is
- * returned), but stays on that client's own count, so bad input from one client cannot drain everyone's budget.
+ * Who pays for a failure: a failure before the audio left this server (the connection was refused, the host was not
+ * found) returns the site's reservation, because nothing could have been billed. Once the audio was sent, a failure
+ * (a timeout, an error reply, an unusable reply) may still be billed, so the site keeps its reservation and those
+ * seconds stay inside the site caps. Either way the failure stays on that client's own count, so bad input from one
+ * client cannot drain everyone's budget.
  */
 export async function answerAloud(req: {
   audio: Uint8Array; type: string; language: (typeof LANGUAGES)[number]; token: string; ip: string; now?: number; store: UsageStore;
@@ -164,16 +167,19 @@ export async function answerAloud(req: {
     throw new TranscribeError(why, 429);
   }
 
-  const settle = { seconds: reserved };
+  // `sent` stays false only while the audio provably has not reached the provider.
+  const settle = { seconds: reserved, sent: false };
   let text: string, failed = true;
   try {
     text = provider === "deepgram" ? await viaDeepgram(req.audio, req.type, code, settle) : await viaGateway(req.audio, settle);
     failed = false;
   } finally {
     const delta = settle.seconds - reserved;
-    const fix = failed
-      ? site.map((b) => ({ ...b, delta: -reserved })) // not billed, or the input was bad: the site gets it back
-      : [...site, ...mine].map((b) => ({ ...b, delta })); // what the provider actually heard, even past a cap
+    const fix = !failed
+      ? [...site, ...mine].map((b) => ({ ...b, delta })) // what the provider actually heard, even past a cap
+      : settle.sent
+        ? site.map((b) => ({ ...b, delta })) // the audio went out and may be billed: the site keeps it (or what was heard)
+        : site.map((b) => ({ ...b, delta: -reserved })); // never left this server, so never billed: the site gets it back
     await req.store.adjust(fix).catch((e) => console.error("stt budget settle failed", e instanceof Error ? e.name : typeof e));
   }
   if (settle.seconds > MAX_AUDIO_SECONDS) {
@@ -189,14 +195,39 @@ export async function answerAloud(req: {
 
 const seconds = (d: unknown) => (typeof d === "number" && Number.isFinite(d) && d >= 0 ? Math.ceil(d) : null);
 
-async function viaDeepgram(audio: Uint8Array, type: string, code: string, settle: { seconds: number }): Promise<string> {
+/** Network error codes that mean the request never reached the provider, so nothing could have been billed. */
+const NOT_SENT_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ERR_INVALID_URL", "UND_ERR_INVALID_ARG"]);
+/**
+ * True only when the error proves the audio never left this server (walks the `cause` chain for a pre-send code).
+ * Anything else, including a timeout, a reset mid-upload or an error reply, counts as sent: it may be billed.
+ */
+export function failedBeforeSend(e: unknown): boolean {
+  for (let cur: unknown = e, depth = 0; cur && typeof cur === "object" && depth < 6; depth++) {
+    const code = (cur as { code?: unknown }).code;
+    if (typeof code === "string" && NOT_SENT_CODES.has(code)) return true;
+    cur = (cur as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+type Settle = { seconds: number; sent: boolean };
+
+async function viaDeepgram(audio: Uint8Array, type: string, code: string, settle: Settle): Promise<string> {
   const params = new URLSearchParams({ model: STT_MODEL, language: code, smart_format: "true", mip_opt_out: "true" });
-  const res = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
-    method: "POST",
-    headers: { Authorization: `Token ${process.env.DEEPGRAM_API_KEY}`, "content-type": type },
-    body: audio as BodyInit,
-    signal: AbortSignal.timeout(20_000),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
+      method: "POST",
+      headers: { Authorization: `Token ${process.env.DEEPGRAM_API_KEY}`, "content-type": type },
+      body: audio as BodyInit,
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (e) {
+    settle.sent = !failedBeforeSend(e);
+    console.error("deepgram unreachable", e instanceof Error ? e.name : typeof e, settle.sent ? "sent" : "not sent");
+    throw new TranscribeError(UNHEARD, 502);
+  }
+  settle.sent = true; // a reply of any kind means the provider received the audio
   // Status only, never the audio or words.
   if (!res.ok) {
     console.error("deepgram failed", res.status);
@@ -209,9 +240,10 @@ async function viaDeepgram(audio: Uint8Array, type: string, code: string, settle
   return transcript.trim();
 }
 
-async function viaGateway(audio: Uint8Array, settle: { seconds: number }): Promise<string> {
+async function viaGateway(audio: Uint8Array, settle: Settle): Promise<string> {
   const { gateway, transcribe: run } = await import("ai");
   let result;
+  settle.sent = true; // from here the audio may reach the provider; only a provable pre-send failure clears this
   try {
     result = await run({
       model: gateway.transcription(GATEWAY_STT_MODEL),
@@ -223,6 +255,7 @@ async function viaGateway(audio: Uint8Array, settle: { seconds: number }): Promi
     });
   } catch (e) {
     const status = (e as { statusCode?: number })?.statusCode;
+    if (status === undefined && failedBeforeSend(e)) settle.sent = false;
     console.error("gateway stt failed", e instanceof Error ? e.name : typeof e, status ?? "");
     throw new TranscribeError(status === 401 || status === 402 || status === 403 || status === 429 ? BUSY : UNHEARD, 502);
   }

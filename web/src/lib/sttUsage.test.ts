@@ -65,19 +65,23 @@ function budgetRules(name: string, makeStore: () => Promise<{ store: UsageStore;
       await expect(ask({ ip: "5.6.7.8", token: issueQuizToken("English", 5, SECRET, T + 99)! })).resolves.toBe("ok");
     });
 
-    it("audio the provider rejects (bad input) does not spend the site budget, only the client's", async () => {
+    it("audio the provider rejects after receiving it stays on the site budget, since it may be billed", async () => {
       fetchMock.mockResolvedValue(new Response("bad audio", { status: 400 }));
       await expect(ask()).rejects.toMatchObject({ status: 502 });
-      expect(await s.used("lgh", hour)).toBe(0);
+      expect(await s.used("lgh", hour)).toBe(6);
       expect(await s.used(`lch:${clientKey("1.2.3.4", SECRET)}`, hour)).toBe(6); // 3,790 bytes could hold up to about 5.05 s at 6 kbps, so 6 s is reserved
     });
 
-    it("a provider outage or timeout leaves no site budget behind (nothing sticks)", async () => {
+    it("a timeout after sending stays on the site budget; a connection refused before sending does not", async () => {
       fetchMock.mockRejectedValue(new DOMException("timed out", "TimeoutError"));
       for (let i = 0; i < 5; i++) await expect(ask({ ip: `9.9.9.${i}` })).rejects.toBeTruthy();
-      expect(await s.used("lgh", hour)).toBe(0);
+      expect(await s.used("lgh", hour)).toBe(30);
+      fetchMock.mockRejectedValue(Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED" } }));
+      const other = issueQuizToken("English", 5, SECRET, T + 1)!; // a quiz token allows 8 uses; this test makes 11 calls
+      for (let i = 0; i < 5; i++) await expect(ask({ ip: `9.9.8.${i}`, token: other })).rejects.toBeTruthy();
+      expect(await s.used("lgh", hour)).toBe(30);
       fetchMock.mockResolvedValue(dg("back", 3));
-      await expect(ask({ ip: "7.7.7.7" })).resolves.toBe("back");
+      await expect(ask({ ip: "7.7.7.7", token: other })).resolves.toBe("back");
     });
 
     it("settles to the real length, even past the cap, so the next call is refused", async () => {

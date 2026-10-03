@@ -143,9 +143,9 @@ export async function liveStats(): Promise<LiveStats | null> {
       p.query(`select would_use as k, count(*)::int as n from atlas_events where ${real} and kind = 'feedback' and would_use is not null group by would_use`),
       p.query(`select surface as k, count(*)::int as n from atlas_events where ${real} and kind = 'read' group by surface`),
       p.query(`select language as k, count(*)::int as n from atlas_events where ${real} and kind = 'read' and language is not null group by language`),
-      // Its own query, so a database without migration 007 still returns every other number.
+      // Its own query: only a database without migration 007 (42703) gives null here; any other failure fails the stats as before.
       p.query(`select count(*)::int as n from atlas_events where ${real} and kind = 'plan' and entry = 'helper-link'`)
-        .then((r) => r.rows[0].n as number, () => null),
+        .then((r) => r.rows[0].n as number, (err) => { if ((err as { code?: string })?.code === "42703") return null; throw err; }),
     ]);
     const t = totals.rows[0];
     const toMap = (r: { rows: { k: string; n: number }[] }) => Object.fromEntries(r.rows.map((x) => [x.k, x.n]));

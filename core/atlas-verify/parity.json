@@ -4,8 +4,8 @@
  "unicode_version": "17.0",
  "totals": {
   "find_span_cases": 1204,
-  "found": 494,
-  "refused": 710,
+  "found": 486,
+  "refused": 718,
   "found_with_unusable_ts_offsets": 0,
   "normalize_checked": 1083,
   "fakes_for_checked": 1083,
@@ -4049,10 +4049,7 @@
    "origin": "labs range",
    "source": "lab:thyroid",
    "quote": "0.45-4.50",
-   "span": [
-    181,
-    190
-   ],
+   "span": null,
    "same": true
   },
   {
@@ -4079,10 +4076,7 @@
    "origin": "labs test",
    "source": "lab:thyroid",
    "quote": "Free T4",
-   "span": [
-    198,
-    205
-   ],
+   "span": null,
    "same": true
   },
   {
@@ -4090,10 +4084,7 @@
    "origin": "labs range",
    "source": "lab:thyroid",
    "quote": "0.82-1.77",
-   "span": [
-    241,
-    250
-   ],
+   "span": null,
    "same": true
   },
   {
@@ -4131,10 +4122,7 @@
    "origin": "labs range",
    "source": "lab:thyroid",
    "quote": "71-180",
-   "span": [
-    300,
-    306
-   ],
+   "span": null,
    "same": true
   },
   {
@@ -4172,10 +4160,7 @@
    "origin": "labs range",
    "source": "lab:thyroid",
    "quote": "0-34",
-   "span": [
-    356,
-    360
-   ],
+   "span": null,
    "same": true
   },
   {
@@ -7261,10 +7246,7 @@
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "       0.82-1.77 ng/dL\nT3, Total      ",
-   "span": [
-    241,
-    266
-   ],
+   "span": null,
    "same": true
   },
   {
@@ -8576,10 +8558,7 @@
    "origin": "fuzz (0 edits)",
    "source": "lab:thyroid",
    "quote": "180 ng/dL\nThyroid Peroxidase (TPO) Ab     12    ",
-   "span": [
-    303,
-    347
-   ],
+   "span": null,
    "same": true
   },
   {
@@ -11222,10 +11201,7 @@
    "origin": "fuzz (1 edits)",
    "source": "lab:thyroid",
    "quote": "       0.71       0.82-1.77 ng/dl\nt3,",
-   "span": [
-    230,
-    260
-   ],
+   "span": null,
    "same": true
   },
   {

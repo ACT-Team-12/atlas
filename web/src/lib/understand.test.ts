@@ -83,3 +83,13 @@ describe("teach-back checker", () => {
     expect(r.dropped[0].reason).toBe("unknown_step");
   });
 });
+
+describe("Codex round 10: a fraction's denominator is never a whole-number proof", () => {
+  it("\"2 tablet daily\" is not proof inside \"Take 1/2 tablet daily\"", () => {
+    const text = "MEDICINES\nTake 1/2 tablet daily.";
+    const its = [{ id: "item-0", kind: "medication", title: "Half tablet", source_quote: "Take 1/2 tablet daily." }];
+    const r = checkQuestions(text, its, [{ item_id: "item-0", question: "How much?", options: ["2 tablets daily", "1/2 tablet daily", "None"], correct: 0, answer_quote: "2 tablet daily" }]);
+    expect(r.questions).toEqual([]);
+    expect(r.dropped).toEqual([{ item_id: "item-0", reason: "quote_not_in_paper" }]);
+  });
+});

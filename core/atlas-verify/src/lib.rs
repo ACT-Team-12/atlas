@@ -251,7 +251,8 @@ fn on_boundary(norm: &[u16], f: &[u16], at: usize) -> bool {
     let after2 = unit(Some(end + 1));
     let word = |u: Option<u16>| u.is_some_and(is_word_unit);
     let digit = |u: Option<u16>| u.is_some_and(is_digit_unit);
-    let sep = |u: Option<u16>| u == Some(u16::from(b'.')) || u == Some(u16::from(b','));
+    // `NUMBER_JOIN` from verify.ts: . , / U+2044 U+2215 ' and a space.
+    let sep = |u: Option<u16>| matches!(u, Some(0x2E | 0x2C | 0x2F | 0x2044 | 0x2215 | 0x27 | 0x20));
     let (first, last) = (f.first().copied(), f.last().copied());
     if word(first) && word(before) {
         return false;

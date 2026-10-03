@@ -48,6 +48,7 @@ export default function PrivacyPage() {
             <Block title="What stays on your device">
               <p>Your last checklist and plan are saved in this browser (or in the app) so you can come back to them. Nothing is uploaded when you do that. Clear it from this device removes it, and so does clearing your browser data or deleting the app.</p>
               <p>Reminders you set in the app are stored on your phone only.</p>
+              <p>Show on my paper uses only what is already on your device: for a photo, the website downloads a text reader from our own site the first time and reads the photo inside your browser, so the photo is not uploaded again.</p>
             </Block>
             <Block title="What our server keeps">
               <p>To stop abuse, the server counts requests per network address for 10 minutes, in memory only (phone calls are counted separately, see Phone calls). Our host (Vercel) keeps standard request logs such as time, page and network address. If a request fails we log the kind of error, not your paper.</p>

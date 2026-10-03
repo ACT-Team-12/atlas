@@ -3,9 +3,42 @@
 //! No wasm-bindgen: the module imports nothing and the JS side (`js/atlas_verify.mjs`) is a short hand-written
 //! loader. Strings cross as UTF-8 bytes the caller writes into memory it got from `atlas_alloc`. Results are kept in
 //! module-level cells the caller reads right after the call (the module is single-threaded).
+//!
+//! The instance is cached for the life of the page, so nothing a check copied (the paper, the quotes, their
+//! normalized forms) may stay readable in linear memory afterwards. Every heap block is zeroed when it is freed
+//! (`ZeroOnFree` below), which covers every intermediate String and Vec and the old block a reallocation leaves; the
+//! JS loaders also zero the input buffers they wrote before freeing them, and clear the output buffer once read.
 
 use crate::{fakes_for, find_span, find_spans, json_string, normalize};
+use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::{Cell, RefCell};
+use std::sync::atomic::{compiler_fence, Ordering};
+
+/// The system allocator, except that a block is overwritten with zeros before it is freed. Volatile writes plus a
+/// fence, so the stores are not removed as dead (nothing reads the block before the allocator takes it back).
+/// `realloc` keeps the trait's default (allocate, copy, `dealloc` the old block), so a moved block is wiped too.
+struct ZeroOnFree;
+
+unsafe impl GlobalAlloc for ZeroOnFree {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        System.alloc(layout)
+    }
+
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        System.alloc_zeroed(layout)
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        for i in 0..layout.size() {
+            std::ptr::write_volatile(ptr.add(i), 0);
+        }
+        compiler_fence(Ordering::SeqCst);
+        System.dealloc(ptr, layout);
+    }
+}
+
+#[global_allocator]
+static ALLOC: ZeroOnFree = ZeroOnFree;
 
 thread_local! {
     static OUT: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
@@ -149,6 +182,13 @@ pub unsafe extern "C" fn atlas_fakes_for(ptr: *const u8, len: usize) -> i32 {
 #[no_mangle]
 pub extern "C" fn atlas_out_ptr() -> *const u8 {
     OUT.with(|o| o.borrow().as_ptr())
+}
+
+/// Drops the output buffer (its block is zeroed on free). The JS loaders call it once they have read a result, so a
+/// normalized string or a result is not left behind in memory.
+#[no_mangle]
+pub extern "C" fn atlas_clear_out() {
+    OUT.with(|o| *o.borrow_mut() = Vec::new());
 }
 
 /// The Unicode version this build lower-cases with, as major * 1_000_000 + minor * 1_000 + update. The JS side

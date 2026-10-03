@@ -71,6 +71,16 @@ quotes that are.
    `cargo run --release --example bench_limits` and `web/scripts/bench-checker.mjs`. Parity checks `findSpans` on
    every case.
 
+### The paper does not stay in WebAssembly memory
+
+The browser keeps one instance for the page, so a freed block that still held the paper (or a quote, or their
+normalized copies) would stay readable after the check and after "Clear it from this device". The wasm build installs
+a global allocator that zeroes every block before freeing it (volatile writes; reallocation frees the old block the
+same way), the JS loaders zero the input buffers they wrote before `atlas_free` and call `atlas_clear_out` once a
+result is read, and Clear drops the cached instance. `web/src/lib/deviceChecker.test.ts` runs the real
+`public/atlas_verify.wasm` on a 10 KB marker and scans linear memory for its raw UTF-8, normalized UTF-8 and UTF-16
+forms after `findSpans`, after `findSpan` and after Clear: none may be found.
+
 Known input class the two cannot be compared on: a JS string with a lone surrogate. Rust `&str` cannot hold one and
 `TextEncoder` turns it into U+FFFD at the WebAssembly boundary. The parity corpus does not include them.
 

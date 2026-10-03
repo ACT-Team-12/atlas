@@ -30,9 +30,17 @@ function wrap(x) {
     new Uint8Array(x.memory.buffer, ptr, bytes.length).set(bytes);
     return [ptr, bytes.length];
   };
+  // The paper and quotes must not stay readable in linear memory (the instance outlives the call): zero what we
+  // wrote before freeing it (Rust also zeroes every block it frees), and clear the output buffer once read.
+  const wipeFree = (p, l) => {
+    new Uint8Array(x.memory.buffer, p, l).fill(0);
+    x.atlas_free(p, l);
+  };
   const out = (len) => {
     if (len < 0) throw new Error("atlas_verify: input was not valid UTF-8");
-    return dec.decode(new Uint8Array(x.memory.buffer, x.atlas_out_ptr(), len));
+    const text = dec.decode(new Uint8Array(x.memory.buffer, x.atlas_out_ptr(), len));
+    x.atlas_clear_out();
+    return text;
   };
   // Quotes cross as frames: a little-endian u32 byte length, then the UTF-8 bytes.
   const putFrames = (strings) => {
@@ -54,7 +62,7 @@ function wrap(x) {
     try {
       return fn(p, l);
     } finally {
-      x.atlas_free(p, l);
+      wipeFree(p, l);
     }
   };
 
@@ -77,7 +85,7 @@ function wrap(x) {
         try {
           return JSON.parse(out(x.atlas_find_spans(sp, sl, qp, ql))).map((r) => (r === null ? null : { start: r[0], end: r[1] }));
         } finally {
-          x.atlas_free(qp, ql);
+          wipeFree(qp, ql);
         }
       });
     },

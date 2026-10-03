@@ -312,6 +312,8 @@ export function CarePlanTool() {
   function clearSaved() {
     if (storeRef.current.active) writeStore(deletePlan(storeRef.current, storeRef.current.active));
     resetTool();
+    // Also drop the on-device checker that re-checked this paper.
+    void import("@/lib/deviceChecker").then((m) => m.forgetDeviceChecker(), () => {});
   }
 
   function openSaved(id: string) {

@@ -25,6 +25,7 @@ type Exports = {
   atlas_span_end(): number;
   atlas_find_spans(sp: number, sl: number, qp: number, ql: number): number;
   atlas_out_ptr(): number;
+  atlas_clear_out(): void;
 };
 
 /** Wraps an instantiated module. Strings cross as UTF-8; offsets come back as UTF-16 units (JS string indices). */
@@ -51,6 +52,12 @@ export function wrap(x: Exports): DeviceChecker {
     }
     return [ptr, total];
   };
+  // The instance is cached for the page, so the paper and quotes must not stay readable in its memory: zero what we
+  // wrote before freeing it (the Rust side also zeroes every block it frees, and its output once read).
+  const wipeFree = (p: number, l: number) => {
+    new Uint8Array(x.memory.buffer, p, l).fill(0);
+    x.atlas_free(p, l);
+  };
   return {
     findSpans(source, quotes) {
       const [sp, sl] = put(source);
@@ -59,10 +66,11 @@ export function wrap(x: Exports): DeviceChecker {
         const len = x.atlas_find_spans(sp, sl, qp, ql);
         if (len < 0) throw new Error("atlas_verify: input was not valid UTF-8");
         const json = new TextDecoder().decode(new Uint8Array(x.memory.buffer, x.atlas_out_ptr(), len));
+        x.atlas_clear_out();
         return (JSON.parse(json) as ([number, number] | null)[]).map((r) => (r === null ? null : { start: r[0], end: r[1] }));
       } finally {
-        x.atlas_free(qp, ql);
-        x.atlas_free(sp, sl);
+        wipeFree(qp, ql);
+        wipeFree(sp, sl);
       }
     },
     findSpan(source, quote) {
@@ -73,8 +81,8 @@ export function wrap(x: Exports): DeviceChecker {
         if (r < 0) throw new Error("atlas_verify: input was not valid UTF-8");
         return r === 0 ? null : { start: x.atlas_span_start(), end: x.atlas_span_end() };
       } finally {
-        x.atlas_free(qp, ql);
-        x.atlas_free(sp, sl);
+        wipeFree(qp, ql);
+        wipeFree(sp, sl);
       }
     },
   };
@@ -106,6 +114,14 @@ export function loadDeviceChecker(): Promise<DeviceChecker> {
     throw e;
   });
   return loading;
+}
+
+/**
+ * Drops the cached checker, for "Clear it from this device": the next read loads a fresh instance. Every check
+ * already leaves no copy of the paper in the instance's memory; this also lets the instance itself be collected.
+ */
+export function forgetDeviceChecker(): void {
+  loading = null;
 }
 
 /** "match" when the device found the same span as the server (or both found nothing). */

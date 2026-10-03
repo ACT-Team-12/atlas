@@ -26,7 +26,7 @@ import {
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
 import { SPEECH_LANG } from "@/lib/speechLang";
-import { entryHeaders } from "@/lib/helperLink";
+import { consumeHelperSession, entryHeaders } from "@/lib/helperLink";
 import { HelperBanner, useHelperArrival } from "./HelperArrival";
 
 const KIND: Record<string, { label: string; cls: string }> = {
@@ -421,6 +421,7 @@ export function CarePlanTool() {
       if (planRun.current !== run) return; // a new read or a clear happened meanwhile
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
+      consumeHelperSession();
       setTab(3);
       // Step 3 only exists after this render, so scroll once it is on the page (desktop and phones).
       const target = scrollTargetAfter("plan", isPhoneNow());

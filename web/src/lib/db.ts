@@ -50,6 +50,7 @@ const COLS = [
 /**
  * The plan came from a tab that was opened through a helper link (see lib/helperLink.ts). Exact match only.
  * The browser says so itself, like the surface header, so this is a count of what clients report, not proof.
+ * The client sends it for the first plan after arriving only (consumeHelperSession), so one link counts at most once per tab.
  */
 export function entryOf(req: Request): AtlasEvent["entry"] {
   return req.headers.get("x-atlas-entry") === "helper-link" ? "helper-link" : undefined;

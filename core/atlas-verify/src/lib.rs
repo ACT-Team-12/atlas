@@ -217,16 +217,19 @@ fn utf8_len(first: u8) -> usize {
 }
 
 /// `indexOfAligned` from verify.ts: the first occurrence of `needle` in `hay` at or after `from` that starts AND ends
-/// on a boundary. Same answer as re-running `indexOf` from each rejected occurrence, but Knuth-Morris-Pratt over
-/// UTF-16 units enumerates every occurrence (overlapping ones included, in start order) in one O(hay + needle) pass,
-/// where re-running a search re-compares the whole needle at every rejected occurrence: O(hay * needle) on a run of
-/// U+0130 against a "U+0307 i" quote. `needle` is never empty here. `steps` counts loop steps, so tests can assert
+/// on a boundary and that `accept` allows. Same answer as re-running `indexOf` from each rejected occurrence, but
+/// Knuth-Morris-Pratt over UTF-16 units enumerates every occurrence (overlapping ones included, in start order) in one
+/// O(hay + needle) pass, where re-running a search re-compares the whole needle at every rejected occurrence:
+/// O(hay * needle) on a run of U+0130 against a "U+0307 i" quote. `needle` is never empty here. `steps` counts loop steps, so tests can assert
 /// linear work without timing anything.
 fn index_of_aligned(
     hay: &[u16],
     needle: &[u16],
     from: usize,
-    on_boundary: impl Fn(usize) -> bool,
+    aligned: impl Fn(usize) -> bool,
+    // Word and number edges (`on_boundary`), checked inside this one pass so the search stays linear: re-running it
+    // after each rejected occurrence would be O(hay * needle) on a paper like "aaaa...".
+    accept: impl Fn(usize) -> bool,
     steps: &mut usize,
 ) -> Option<usize> {
     let m = needle.len();
@@ -259,13 +262,114 @@ fn index_of_aligned(
         }
         if j == m {
             let at = i + 1 - m;
-            if on_boundary(at) && on_boundary(i + 1) {
+            if aligned(at) && aligned(i + 1) && accept(at) {
                 return Some(at);
             }
             j = pi[j - 1];
         }
     }
     None
+}
+
+/// `WORD_CHAR` from verify.ts, on one UTF-16 unit: the same plain ranges (Latin, Greek, Cyrillic, Armenian, Hebrew,
+/// Arabic, Devanagari, Georgian, Ethiopic, fullwidth). Chinese, Japanese, Korean and Thai never count.
+fn is_word_unit(u: u16) -> bool {
+    matches!(
+        u,
+        0x41..=0x5A
+            | 0x61..=0x7A
+            | 0x30..=0x39
+            | 0x00AA
+            | 0x00B2
+            | 0x00B3
+            | 0x00B5
+            | 0x00B9
+            | 0x00BA
+            | 0x00BC..=0x00BE
+            | 0x00C0..=0x00D6
+            | 0x00D8..=0x00F6
+            | 0x00F8..=0x02FF
+            | 0x0300..=0x036F
+            | 0x0370..=0x03FF
+            | 0x0400..=0x052F
+            | 0x0530..=0x058F
+            | 0x0590..=0x05FF
+            | 0x0600..=0x06FF
+            | 0x0900..=0x097F
+            | 0x10A0..=0x10FF
+            | 0x1200..=0x139F
+            | 0x1E00..=0x1FFF
+            | 0x2070..=0x209F
+            | 0x2150..=0x218F
+            | 0xFF10..=0xFF19
+            | 0xFF21..=0xFF3A
+            | 0xFF41..=0xFF5A
+    )
+}
+
+/// `DIGIT` from verify.ts.
+fn is_digit_unit(u: u16) -> bool {
+    matches!(u, 0x30..=0x39 | 0x0660..=0x0669 | 0x06F0..=0x06F9 | 0x0966..=0x096F | 0xFF10..=0xFF19)
+}
+
+/// `onBoundary` from verify.ts: the fragment starts and ends on a word or number boundary, so "take it" is not in
+/// "mistake it", "10 mg" is not in "110 mg", and "5 mg" is not in "2.5 mg".
+fn on_boundary(norm: &[u16], f: &[u16], at: usize) -> bool {
+    let end = at + f.len();
+    let unit = |i: Option<usize>| i.and_then(|i| norm.get(i).copied());
+    let before = unit(at.checked_sub(1));
+    let before2 = unit(at.checked_sub(2));
+    let after = unit(Some(end));
+    let after2 = unit(Some(end + 1));
+    let word = |u: Option<u16>| u.is_some_and(is_word_unit);
+    let digit = |u: Option<u16>| u.is_some_and(is_digit_unit);
+    // `NUMBER_JOIN` from verify.ts: . , / U+2044 U+2215 ' and a space.
+    let sep = |u: Option<u16>| matches!(u, Some(0x2E | 0x2C | 0x2F | 0x2044 | 0x2215 | 0x27 | 0x20));
+    let (first, last) = (f.first().copied(), f.last().copied());
+    if word(first) && word(before) {
+        return false;
+    }
+    if word(last) && word(after) {
+        return false;
+    }
+    if digit(first) && sep(before) && digit(before2) {
+        return false;
+    }
+    if digit(last) && sep(after) && digit(after2) {
+        return false;
+    }
+    // A fraction slash with a space on either side ("1 / 2", "3 \u{2044} 4") still joins the two numbers.
+    if digit(first) && at > 0 && spaced_slash(norm, at as isize - 1, -1) {
+        return false;
+    }
+    if digit(last) && spaced_slash(norm, end as isize, 1) {
+        return false;
+    }
+    true
+}
+
+/// `spacedSlash` from verify.ts: from `i` walking in `step` direction, an optional space, a fraction slash, an
+/// optional space, then a digit.
+fn spaced_slash(norm: &[u16], i: isize, step: isize) -> bool {
+    let at = |j: isize| -> Option<u16> {
+        if j < 0 {
+            None
+        } else {
+            norm.get(j as usize).copied()
+        }
+    };
+    let mut j = i;
+    if at(j) == Some(0x20) {
+        j += step;
+    }
+    if !matches!(at(j), Some(0x2F | 0x2044 | 0x2215)) {
+        return false;
+    }
+    j += step;
+    if at(j) == Some(0x20) {
+        j += step;
+    }
+    at(j).is_some_and(is_digit_unit)
 }
 
 /// `findSpan` from verify.ts. `None` is the TS `null`: the quote is not in the paper and the step is refused.
@@ -292,14 +396,15 @@ fn find_span_in(mapped: &Mapped, quote: &str) -> Option<Span> {
         ends,
         boundary,
     } = mapped;
-    let on_boundary = |k: usize| boundary.get(k).copied().unwrap_or(false);
+    let aligned = |k: usize| boundary.get(k).copied().unwrap_or(false);
     let mut cursor = 0;
     let mut first: Option<usize> = None;
     let mut last_end = 0;
     for f in &frags {
-        // The first occurrence that starts AND ends between source characters; one inside a case expansion is
-        // skipped and the search goes on past it.
-        let at = index_of_aligned(norm, f, cursor, on_boundary, &mut 0)?;
+        // The first occurrence that starts AND ends between source characters (never inside one character's case
+        // expansion) and on a word or number edge ("10 mg" is not in "110 mg"). Rejected occurrences are skipped and
+        // the search goes on past them.
+        let at = index_of_aligned(norm, f, cursor, aligned, |a| on_boundary(norm, f, a), &mut 0)?;
         if first.is_none() {
             first = Some(at);
         }
@@ -370,7 +475,10 @@ mod tests {
         let needle: Vec<u16> = normalize(q).encode_utf16().collect();
         let on_boundary = |k: usize| m.boundary.get(k).copied().unwrap_or(false);
         let mut steps = 0;
-        assert_eq!(index_of_aligned(&m.norm, &needle, 0, on_boundary, &mut steps), None);
+        assert_eq!(
+            index_of_aligned(&m.norm, &needle, 0, on_boundary, |_| true, &mut steps),
+            None
+        );
         (steps, m.norm.len(), needle.len())
     }
 
@@ -381,6 +489,27 @@ mod tests {
         let (steps, hay, needle) = steps_for(&"\u{0130}".repeat(20000), &"\u{0307}i".repeat(300));
         assert_eq!((hay, needle), (40000, 600));
         assert!(steps <= 2 * (hay + needle), "{steps} steps");
+    }
+
+    #[test]
+    fn word_edges_are_checked_in_the_same_linear_pass() {
+        // 20,000 "a" against 300 "a": every position is an aligned occurrence, and only the first sits on a word edge
+        // at its start while none ends on one. Checking the word edge by re-running the search would be quadratic.
+        let src = "a".repeat(20000);
+        let m = normalize_with_map(&src);
+        let needle: Vec<u16> = "a".repeat(300).encode_utf16().collect();
+        let aligned = |k: usize| m.boundary.get(k).copied().unwrap_or(false);
+        let mut steps = 0;
+        let found = index_of_aligned(
+            &m.norm,
+            &needle,
+            0,
+            aligned,
+            |a| on_boundary(&m.norm, &needle, a),
+            &mut steps,
+        );
+        assert_eq!(found, None);
+        assert!(steps <= 2 * (20000 + 300), "{steps} steps");
     }
 
     #[test]

@@ -7,7 +7,6 @@ const SYSTEM = `You read the instructions a clinic gave a person to get ready fo
 List every instruction the person must act on: what to stop eating or drinking and when, medicines to stop, hold or take and when, bowel prep, what to bring, the arrival time and place, a ride requirement, and what to call the clinic about.
 For each one return:
 - kind: food_drink, medicine, bowel_prep, bring, arrival, ride, call, or other.
-- title: a few words in the requested language.
 - plain_language: one or two short sentences in the requested language saying what to do, in plain words. Do not add any number, time, dose or day that is not in the quote.
 - source_quote: the exact words from the paper, copied word for word from ONE line or sentence. Include the words that say when, if that line says when. Never join words from different lines. Never paraphrase. source_quote always stays in the paper's own language.
 - ai_slot: when the quote says to do it: days_before, day_before, evening_before, hours_before, morning_of, arrival, after, or not_stated if the quote itself does not say.
@@ -29,5 +28,5 @@ export async function preparePrep(req: PrepRequest): Promise<PrepResponse> {
   if (msg.stop_reason === "refusal") throw new ExtractError("The AI declined to read this paper.", 422);
   const parsed = PrepModelOutput.safeParse(msg.parsed_output);
   if (!parsed.success) throw new ExtractError("The AI returned a malformed answer. Try again.", 502);
-  return { ...buildPrepTimeline(req.text, parsed.data.items), model: MODEL, ms: Date.now() - t0 };
+  return { ...buildPrepTimeline(req.text, parsed.data.items, req.language), model: MODEL, ms: Date.now() - t0 };
 }

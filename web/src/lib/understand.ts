@@ -3,7 +3,8 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { ExtractError, MODEL } from "./extract";
 import { LANGUAGES } from "./schema";
-import { findSpanIn, mapSource } from "./verify";
+import { enclosingSentence, findSpanIn, mapSource } from "./verify";
+import { cuesDiffer } from "./prepCues";
 import { numbersIn } from "./meaning";
 
 /**
@@ -46,7 +47,7 @@ const ModelOutput = z.object({
 export type DraftQuestion = z.infer<typeof ModelOutput>["questions"][number];
 
 export type CheckedQuestion = DraftQuestion & { span: { start: number; end: number } };
-export type DropReason = "unknown_step" | "duplicate_step" | "bad_options" | "quote_not_in_paper" | "quote_outside_step" | "answer_not_in_quote" | "distractor_matches_quote";
+export type DropReason = "unknown_step" | "duplicate_step" | "bad_options" | "quote_not_in_paper" | "quote_outside_step" | "answer_not_in_quote" | "distractor_matches_quote" | "answer_drops_cue";
 export type UnderstandResponse = {
   questions: CheckedQuestion[];
   dropped: { item_id: string; reason: DropReason }[];
@@ -104,6 +105,13 @@ export function checkQuestions(
     const quoteList = [...quoteNums];
     if (opts.some((o, i) => i !== q.correct && nums(o).length > 0 && sameSet(nums(o), quoteList) && !sameSet(right, quoteList))) {
       dropped.push({ item_id: q.item_id, reason: "distractor_matches_quote" });
+      continue;
+    }
+    // A "do not", "stop", "until" or "only" in the step's sentence that the marked answer drops (or one it adds) can
+    // turn "Do not take aspirin" into a "right" answer "Take aspirin" with no number to catch it (Codex round 12).
+    const sentence = enclosingSentence(source, step);
+    if (cuesDiffer(source.slice(sentence.start, sentence.end), opts[q.correct])) {
+      dropped.push({ item_id: q.item_id, reason: "answer_drops_cue" });
       continue;
     }
     seen.add(q.item_id);

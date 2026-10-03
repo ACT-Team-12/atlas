@@ -110,6 +110,7 @@ export function finishCarePlan(req: ExtractRequest, raw: unknown, stopReason: st
     ]),
     not_in_document: parsed.data.not_in_document,
     has_warning_signs: kept.some((i) => i.kind === "warning_sign"),
+    language: req.language,
     model: MODEL,
     stats: { extracted: parsed.data.items.length, grounded: kept.length, refused: refused.length, ms: Date.now() - t0 },
   };

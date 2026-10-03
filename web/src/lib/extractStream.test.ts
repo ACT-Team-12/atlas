@@ -87,7 +87,7 @@ describe("streamCarePlan", () => {
     const plain = finishCarePlan(req, JSON.parse(RAW), "end_turn", 0);
     expect({ ...plan, stats: { ...plan.stats, ms: 0 } }).toEqual({ ...plain, stats: { ...plain.stats, ms: 0 } });
     expect(Object.keys(plan).sort()).toEqual(
-      ["has_warning_signs", "items", "model", "not_in_document", "questions_for_doctor", "refused", "source_kind", "source_text", "stats"],
+      ["has_warning_signs", "items", "language", "model", "not_in_document", "questions_for_doctor", "refused", "source_kind", "source_text", "stats"],
     );
   });
 

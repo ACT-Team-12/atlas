@@ -1,5 +1,7 @@
 "use client";
 
+import { labRowView } from "@/lib/paperFirst";
+import { PaperFirst } from "./PaperFirst";
 import { useState } from "react";
 import { LANGUAGES } from "@/lib/schema";
 import type { ResultRow, ResultsResponse } from "@/lib/results";
@@ -189,9 +191,10 @@ function Row({ r }: { r: ResultRow }) {
           {r.status === "outside" ? (r.direction === "high" ? "Above range" : r.direction === "low" ? "Below range" : "Flagged") : r.status === "inside" ? "In range" : "Can't tell"}
         </span>
       </div>
-      <p className="mt-1 text-sm">{r.plain_name}</p>
       <p className="mt-1 text-sm font-semibold">{r.reason}</p>
-      <p className="mt-2 text-xs font-mono border-l-4 border-sun pl-2">{r.quote}</p>
+      {/* Paper first (lib/paperFirst.ts): the AI's plain name for the test is never double-checked, so the report's own
+          line leads and the plain name follows it, marked. */}
+      <div className="font-mono text-sm"><PaperFirst v={labRowView(r)} /></div>
       <p className="mt-2 text-sm"><span className="font-bold">Ask your clinic:</span> {r.ask}</p>
     </li>
   );

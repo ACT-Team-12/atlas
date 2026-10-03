@@ -143,6 +143,40 @@ fn lower_cases_capital_letters_outside_the_bmp_in_the_source_too() {
 }
 
 #[test]
+fn a_quote_must_match_whole_words_and_whole_numbers() {
+    // Codex round 9, same cases as verify.test.ts.
+    assert_eq!(find_span("Don't make a mistake it is easy to fix.", "take it"), None);
+    assert_eq!(find_span("Take 110 mg every morning.", "10 mg"), None);
+    assert_eq!(find_span("Take 2.5 mg every morning.", "5 mg every morning"), None);
+    assert_eq!(find_span("Take 10 mgs daily.", "Take 10 mg"), None);
+    let paper = "Don't make a mistake it is easy. Take it with food.";
+    let start = paper.find("Take it").unwrap();
+    assert_eq!(
+        find_span(paper, "take it with food"),
+        Some(Span {
+            start,
+            end: paper.len() - 1
+        })
+    );
+    assert!(find_span("Take 110 mg. Then take 10 mg.", "take 10 mg").is_some());
+    // A fraction slash, a group apostrophe or a space between digits joins one number (Codex round 10).
+    assert_eq!(find_span("Take 1/2 tablet daily.", "2 tablet daily"), None);
+    assert_eq!(find_span("Take 3\u{2044}4 cup.", "4 cup"), None);
+    assert_eq!(find_span("Take 1 500 mg.", "500 mg"), None);
+    assert_eq!(find_span("Take 1\u{2019}500 mg.", "500 mg"), None);
+    assert_eq!(find_span("Take 1 1/2 tablets.", "Take 1"), None);
+    // ...and a fraction slash with spaces around it (Codex round 11).
+    assert_eq!(find_span("Take 1 / 2 tablet daily.", "2 tablet daily"), None);
+    assert_eq!(find_span("Take 3 \u{2044} 4 cup.", "4 cup"), None);
+    assert_eq!(find_span("Take 1 /2 tablet daily.", "Take 1"), None);
+    // Arabic-Indic and fullwidth digits count as digits too.
+    assert_eq!(find_span("Use \u{0663}10 mg.", "10 mg"), None);
+    assert_eq!(find_span("Use \u{FF11}10 mg.", "10 mg"), None);
+    // Chinese has no spaces between words, so a match mid-run still counts.
+    assert!(find_span("请每天服用两片药。", "服用两片").is_some());
+}
+
+#[test]
 fn never_starts_or_ends_a_match_inside_one_characters_case_expansion() {
     // U+0130 lower-cases to "i" + U+0307: no match may begin at the U+0307 half or end at the "i" half.
     assert_eq!(find_span("Dose \u{0130} 5 mg", "\u{0307} 5 mg"), None);

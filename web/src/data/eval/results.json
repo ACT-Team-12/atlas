@@ -1,7 +1,7 @@
 {
-  "measured_at": "2026-10-02T17:22:51.595Z",
-  "base_url": "http://127.0.0.1:3123",
-  "commit": "343989d",
+  "measured_at": "2026-10-03T05:35:52.792Z",
+  "base_url": "local production build",
+  "commit": "1c45e6e",
   "model": "claude-opus-5-5",
   "command": "node scripts/eval.mjs",
   "papers": 6,
@@ -14,13 +14,13 @@
     "distractors": 5,
     "distractors_promoted": 1,
     "warnings_matched": 6,
-    "plan_steps": 35,
+    "plan_steps": 37,
     "plan_dropped_refs": 0,
-    "median_read_ms": 11671,
-    "median_plan_ms": 13734,
+    "median_read_ms": 11742,
+    "median_plan_ms": 15604,
     "quiz_questions": 37,
     "quiz_dropped": 0,
-    "median_quiz_ms": 6123
+    "median_quiz_ms": 6171
   },
   "rows": [
     {
@@ -36,14 +36,14 @@
       "distractors_promoted": [],
       "warning_expected": true,
       "warning_flagged": true,
-      "read_ms": 14996,
+      "read_ms": 14647,
       "plan_steps": 6,
       "plan_dropped_refs": 0,
-      "plan_ms": 16196,
+      "plan_ms": 15832,
       "quiz_questions": 8,
       "quiz_dropped": 0,
       "quiz_dropped_reasons": [],
-      "quiz_ms": 7370
+      "quiz_ms": 7879
     },
     {
       "id": "pediatric-asthma",
@@ -58,14 +58,14 @@
       "distractors_promoted": [],
       "warning_expected": true,
       "warning_flagged": true,
-      "read_ms": 10416,
-      "plan_steps": 5,
+      "read_ms": 10687,
+      "plan_steps": 7,
       "plan_dropped_refs": 0,
-      "plan_ms": 14920,
+      "plan_ms": 15507,
       "quiz_questions": 5,
       "quiz_dropped": 0,
       "quiz_dropped_reasons": [],
-      "quiz_ms": 5690
+      "quiz_ms": 6173
     },
     {
       "id": "hypertension-new-med",
@@ -80,14 +80,14 @@
       "distractors_promoted": [],
       "warning_expected": true,
       "warning_flagged": true,
-      "read_ms": 13917,
-      "plan_steps": 7,
+      "read_ms": 12535,
+      "plan_steps": 6,
       "plan_dropped_refs": 0,
-      "plan_ms": 14233,
-      "quiz_questions": 7,
+      "plan_ms": 14086,
+      "quiz_questions": 6,
       "quiz_dropped": 0,
       "quiz_dropped_reasons": [],
-      "quiz_ms": 6556
+      "quiz_ms": 6168
     },
     {
       "id": "uti-urgent-care",
@@ -102,14 +102,14 @@
       "distractors_promoted": [],
       "warning_expected": true,
       "warning_flagged": true,
-      "read_ms": 9364,
+      "read_ms": 9219,
       "plan_steps": 6,
       "plan_dropped_refs": 0,
-      "plan_ms": 13234,
+      "plan_ms": 15199,
       "quiz_questions": 4,
       "quiz_dropped": 0,
       "quiz_dropped_reasons": [],
-      "quiz_ms": 5135
+      "quiz_ms": 4604
     },
     {
       "id": "prenatal-28-weeks",
@@ -126,14 +126,14 @@
       ],
       "warning_expected": true,
       "warning_flagged": true,
-      "read_ms": 10851,
-      "plan_steps": 5,
+      "read_ms": 11894,
+      "plan_steps": 6,
       "plan_dropped_refs": 0,
-      "plan_ms": 11724,
-      "quiz_questions": 5,
+      "plan_ms": 16620,
+      "quiz_questions": 6,
       "quiz_dropped": 0,
       "quiz_dropped_reasons": [],
-      "quiz_ms": 5010
+      "quiz_ms": 5603
     },
     {
       "id": "heart-failure-discharge",
@@ -148,14 +148,14 @@
       "distractors_promoted": [],
       "warning_expected": true,
       "warning_flagged": true,
-      "read_ms": 12491,
+      "read_ms": 11590,
       "plan_steps": 6,
       "plan_dropped_refs": 0,
-      "plan_ms": 12830,
+      "plan_ms": 15700,
       "quiz_questions": 8,
       "quiz_dropped": 0,
       "quiz_dropped_reasons": [],
-      "quiz_ms": 7280
+      "quiz_ms": 7408
     }
   ]
 }

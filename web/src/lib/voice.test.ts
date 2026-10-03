@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cacheKey, chargeBudget, HOURLY_CHAR_BUDGET, MAX_SPEAK_CHARS, resetVoiceStateForTests, SpeakRequestSchema, synthesize, VOICE_LANG, VoiceError } from "./voice";
 import { issueSpeakToken, verifySpeakToken, SPEAK_TOKEN_TTL_MS } from "./speakToken";
-import { speechText } from "./speechText";
+import { paidSpeechText as speechText } from "./speechText";
 import { LANGUAGES } from "./schema";
 
 const mp3 = (n = 4000) => new Uint8Array(n).fill(7).buffer;
@@ -158,6 +158,6 @@ describe("speak token", () => {
   });
 
   it("signs exactly what the page reads aloud", () => {
-    expect(text).toBe("Get your blood test this week.\n1. Lab. Go Friday");
+    expect(text).toBe("This plan is a suggestion from ATLAS, not your paper. If anything differs, follow your paper.\nGet your blood test this week.\n1. Lab. Go Friday");
   });
 });

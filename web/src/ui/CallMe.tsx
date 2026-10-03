@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { PlanResponse } from "@/lib/plan";
 import type { LANGUAGES } from "@/lib/schema";
-import { speechText } from "@/lib/speechText";
+import { paidSpeechText } from "@/lib/speechText";
 import { nextPoll, pollDelayMs, START_POLL, type PollState } from "@/lib/call/poll";
 
 /**
@@ -69,7 +69,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   const [suffix, setSuffix] = useState(""); // the number's last 4 digits, kept here: the server clears its copy when the call ends
   const panelId = useId();
   const [poll, setPoll] = useState<PollState>(START_POLL);
-  const text = speechText(plan);
+  const text = paidSpeechText(plan);
   // The plan this panel's call belongs to. A response that comes back after the plan changed (or the panel went away)
   // is dropped, so a call session can never carry over to another plan. The state reset itself comes from the parent
   // keying this panel by the plan (lib/call/callKey.ts), which remounts it empty.

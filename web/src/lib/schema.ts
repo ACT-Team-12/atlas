@@ -34,6 +34,11 @@ export type VerifiedItem = CareItem & {
   id: string;
   grounded: boolean;
   span: { start: number; end: number } | null;
+  /**
+   * Set on a held-back item whose words ARE in the paper, but whose whole sentence is too long to carry
+   * ("sentence_too_long"), or whose "..." quote joins words from different lines or sentences ("skips_across").
+   */
+  held_reason?: "sentence_too_long" | "skips_across";
 };
 
 export type CarePlanResponse = {
@@ -44,6 +49,8 @@ export type CarePlanResponse = {
   questions_for_doctor: string[];
   not_in_document: string[];
   has_warning_signs: boolean;
+  /** The language the explanations were written in (the meaning check reads their number words). Older saved plans lack it. */
+  language?: (typeof LANGUAGES)[number];
   model: string;
   stats: { extracted: number; grounded: number; refused: number; ms: number };
 };

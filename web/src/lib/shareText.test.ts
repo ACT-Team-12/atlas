@@ -23,9 +23,14 @@ const plan = (o: Partial<PlanResponse> = {}): PlanResponse => ({
 describe("send to family text", () => {
   it("carries every grounded step with the line from the paper, the plan, and only the numbers the plan uses", () => {
     const t = planShareText({ items: [item({})], plan: plan(), questions: ["Do I need to fast?"] });
-    expect(t).toContain("Lab test: Blood test (within 2 weeks)");
-    expect(t).toContain('Paper says: "Return for basic metabolic panel within 2 weeks."');
+    // Never double-checked, so the paper's words go instead of the explanation and the AI's title (paperFirst.ts).
+    expect(t).toContain("1. Lab test\n");
+    expect(t).not.toContain("Blood test (within 2 weeks)");
+    expect(t).not.toContain("Get your blood drawn.");
+    expect(t).toContain('Your paper says: "Return for basic metabolic panel within 2 weeks."');
     expect(t).toContain("1. Book the lab. Call the clinic.");
+    // ...and the plan step tied to it carries the paper's words too.
+    expect(t).toMatch(/1\. Book the lab\. Call the clinic\.\n {3}Your paper says: "Return for basic metabolic panel within 2 weeks\."/);
     expect(t).toContain("Mercy Care: (678) 843-8500");
     expect(t).not.toContain("Not Used Clinic");
     expect(t).toContain("- Do I need to fast?");
@@ -46,17 +51,20 @@ describe("send to family text", () => {
     expect(planShareText({ items: [], plan: p, questions: [] })).toContain("- Georgia Medicaid: https://gateway.ga.gov");
   });
 
-  it("keeps the double-check: a flagged explanation is replaced by the paper's words, unchecked ones say so", () => {
+  it("paper first: only a certified explanation travels; flagged or unchecked ones are replaced by the paper's words", () => {
     const r = (o: object) => ({ id: "c1", flagged: false, numbers_ok: true, unexpected_numbers: [], model_verdict: "same" as const, what_differs: "", certified: true, ...o });
     const certified = planShareText({ items: [item({})], plan: plan(), questions: [], meaning: { status: "done", byId: { c1: r({}) } } });
+    expect(certified).toContain("Lab test: Blood test (within 2 weeks)");
     expect(certified).toContain("Get your blood drawn.");
-    expect(certified).not.toContain("Not double-checked");
+    expect(certified).toContain('Your paper says: "Return for basic metabolic panel within 2 weeks."');
+    expect(certified).not.toContain("left out");
     const flagged = planShareText({ items: [item({})], plan: plan(), questions: [], meaning: { status: "done", byId: { c1: r({ flagged: true, certified: false, model_verdict: "different" }) } } });
     expect(flagged).not.toContain("Get your blood drawn.");
     expect(flagged).toContain("Double-check this one with your clinic");
-    expect(flagged).toContain('Paper says: "Return for basic metabolic panel within 2 weeks."');
+    expect(flagged).toContain('Your paper says: "Return for basic metabolic panel within 2 weeks."');
     const failed = planShareText({ items: [item({})], plan: plan(), questions: [], meaning: { status: "error", byId: {} } });
-    expect(failed).toContain("(Not double-checked. If this and the paper differ, follow the paper.)");
+    expect(failed).not.toContain("Get your blood drawn.");
+    expect(failed).toContain("(The plain-words explanation is left out here because it was not double-checked.)");
   });
 
   it("says when the plan needs a person", () => {

@@ -94,7 +94,8 @@ describe("the checker the browser runs (public/atlas_verify.wasm)", () => {
     const abc = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     const marker = "Mk" + Array.from({ length: 10240 }, () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return abc[(seed >>> 0) % abc.length]; }).join("");
     const paper = `Take 1 tablet daily. ${marker} Call the office.`;
-    const quotes = [marker.slice(2000, 2590), "Take 1 tablet daily", marker.slice(5000, 5300) + " not in the paper"];
+    // The whole marker: a quote must start and end on a word edge, so a slice from inside it is never found.
+    const quotes = [marker, "Take 1 tablet daily", marker.slice(5000, 5300) + " not in the paper"];
     const { instance } = await WebAssembly.instantiate(wasm, {});
     const memory = instance.exports.memory as WebAssembly.Memory;
     const checker = wrap(instance.exports as unknown as Parameters<typeof wrap>[0]);
@@ -260,7 +261,7 @@ describe("the page's cached checker", () => {
     await releaseAll();
     const checker = await p;
     const { marker, paper, leaks } = marked(0x1b873593);
-    expect(checker.findSpans(paper, [marker.slice(100, 600)])[0]).not.toBeNull();
+    expect(checker.findSpans(paper, [marker])[0]).not.toBeNull();
     const memory = instances[0].exports.memory as WebAssembly.Memory;
     expect(leaks(memory)).toEqual([]);
     forgetDeviceChecker();

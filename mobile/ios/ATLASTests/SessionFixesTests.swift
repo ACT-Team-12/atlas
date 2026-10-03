@@ -105,6 +105,22 @@ struct SessionFixesTests {
         let saved = try #require(store.load())
         #expect(saved.readFingerprint == StaleGuard.readFingerprint(text: model.text, language: .Spanish, level: .simple))
         #expect(saved.care?.language == .Spanish)
+        #expect(saved.savedAt > Self.legacyDate, "a read moves the saved time")
+
+        // And a plan built after it is current, with its own fingerprint, and moves the time too. First let this
+        // model's double-check (answered 503 by the stub) finish, so it does not save over the next one's file.
+        for _ in 0..<400 where model.meaning.status == .loading { try await Task.sleep(for: .milliseconds(25)) }
+        #expect(model.meaning.status == .error)
+        try store.save({ var s = saved; s.savedAt = Self.legacyDate; return s }())
+        let again = AppModel(api: try Self.stubbedAPI(), store: store)
+        #expect(again.canPlan)
+        again.makePlan()
+        for _ in 0..<400 where again.busy != nil { try await Task.sleep(for: .milliseconds(25)) }
+        #expect(again.busy == nil && again.error == nil && again.plan != nil)
+        #expect(!again.planOutdated)
+        let planned = try #require(store.load())
+        #expect(planned.planFingerprint != nil)
+        #expect(planned.savedAt > Self.legacyDate, "a plan moves the saved time")
     }
 
     /// A replaced request applies nothing: here the first read is stopped and a second started, and the first one's
@@ -176,7 +192,16 @@ struct SessionFixesTests {
         let afterRemove = try #require(store.load()).savedAt
         #expect(afterRemove > Self.legacyDate, "removing a step moves it")
         model.removed[id] = nil
-        #expect(try #require(store.load()).savedAt >= afterRemove, "restoring it moves it too")
+        #expect(try #require(store.load()).removed[id] == nil)
+        // Undo on its own, from the saved time (the ISO 8601 file keeps whole seconds, so >= above proves nothing).
+        let undoStore = try Self.legacyStore()
+        var removedFile = try #require(undoStore.load())
+        removedFile.removed = [id: true]
+        try undoStore.save(removedFile)
+        AppModel(store: undoStore).removed[id] = nil
+        let undone = try #require(undoStore.load())
+        #expect(undone.removed[id] == nil)
+        #expect(undone.savedAt > Self.legacyDate, "restoring a step moves it")
         let other = try #require(model.items.last?.id)
         let doneStore = try Self.legacyStore()
         AppModel(store: doneStore).done[other] = true

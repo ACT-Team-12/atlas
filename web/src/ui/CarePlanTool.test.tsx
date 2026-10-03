@@ -601,6 +601,35 @@ describe("reopening a plan built from the device location", () => {
   });
 });
 
+describe("a plan saved before results were checked against answers", () => {
+  function reopenWith(saved: Record<string, unknown>) {
+    localStorage.setItem("atlas-plans-v2", JSON.stringify({ v: 2, active: "p1", plans: [{
+      id: "p1", name: "My plan", createdAt: "2026-10-01T10:00:00.000Z", savedAt: "2026-10-01T10:00:00.000Z",
+      text: PAPER, language: "English", level: "simple", care: careFor(PAPER), barriers: ["cost"], zip: "", note: "",
+      plan: planFor("Plan from older answers"), done: {}, removed: {}, photoChecked: false, ...saved,
+    }] }));
+    act(() => root.unmount());
+    root = createRoot(host);
+    act(() => root.render(<CarePlanTool />));
+    expect(screenText()).toContain("Plan from older answers");
+  }
+
+  it("comes back outdated with every plan action off (its answers may be later edits)", () => {
+    reopenWith({});
+    expect(screenText()).toContain("Read your paper again first");
+    for (const t of ["Read it out loud", "Print for the next visit", "Print a handoff sheet", "Send to family"]) expect(byText(t).disabled).toBe(true);
+    expect(document.getElementById("atlas-sheet")).toBeNull();
+    // and it is not re-saved as if current
+    expect(localStorage.getItem("atlas-plans-v2")).not.toContain("\"matched\":true");
+  });
+
+  it("a plan saved by this version comes back current", () => {
+    reopenWith({ matched: true });
+    expect(screenText()).not.toContain("Read your paper again first");
+    expect(byText("Read it out loud").disabled).toBe(false);
+  });
+});
+
 describe("a size change during the page's own scroll", () => {
   let observers: ResizeObserverCallback[];
   beforeEach(() => {

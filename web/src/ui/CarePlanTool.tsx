@@ -157,6 +157,9 @@ function SourceLink({ href, label, off }: { href: string; label: string; off?: s
   return off ? <span>{label}</span> : <a className="underline" href={href} target="_blank" rel="noreferrer">{label}</a>;
 }
 
+/** The fingerprint of a save from before results were checked against answers: no inputs ever match it. */
+const UNMATCHED_SAVE = "saved-before-results-were-checked";
+
 function ResourceLinksOff({ off }: { off: string }) {
   return <p className="mt-3 text-sm font-bold text-peach-deep">{off}: calls, websites and directions for this plan are off until then.</p>;
 }
@@ -344,9 +347,12 @@ export function CarePlanTool() {
     // Saved plans are only written while their results match their inputs, so what comes back is current,
     // except a plan built from the device location: the position is never saved, so nothing on this page can
     // match it ("device" with no coordinates). It comes back outdated until a fresh position or a ZIP is given.
-    setCareFp(v.care ? readFingerprint({ text: v.text, photo: null, language: v.language, level: v.level }) : null);
+    // A save from before that rule (no `matched`) may hold later edits beside an older result: it comes back
+    // outdated (a fingerprint nothing matches) until the paper is read again and the plan remade.
+    const unmatched = v.matched !== true ? UNMATCHED_SAVE : null;
+    setCareFp(v.care ? unmatched ?? readFingerprint({ text: v.text, photo: null, language: v.language, level: v.level }) : null);
     const fromDevice = v.plan?.located.by === "device";
-    setPlanFp(v.plan ? planFingerprint({
+    setPlanFp(v.plan ? unmatched ?? planFingerprint({
       careIds: (v.care?.items ?? []).filter((i) => !v.removed[i.id]).map((i) => i.id),
       barriers: v.barriers, language: v.language, note: v.note, place: fromDevice ? "device" : planPlace(false, v.zip), location: null,
     }) : null);
@@ -398,7 +404,7 @@ export function CarePlanTool() {
     if (!loaded.current) return;
     if (!care && !plan) return;
     if (!resultsCurrent) return;
-    writeStore(saveSession(storeRef.current, { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked }, new Date().toISOString(), newPlanId()));
+    writeStore(saveSession(storeRef.current, { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, matched: true }, new Date().toISOString(), newPlanId()));
   }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, resultsCurrent]);
   /* eslint-enable react-hooks/set-state-in-effect */
 

@@ -203,9 +203,14 @@ struct ResultRowCard: View {
                 Spacer(minLength: 8)
                 Chip(text: badge, background: Palette.ink, foreground: Palette.paper)
             }
-            Text(row.plain_name).font(.subheadline).wraps()
-            Text(row.reason).font(.subheadline.weight(.semibold)).wraps()
+            if !row.reason.isEmpty { Text(row.reason).font(.subheadline.weight(.semibold)).wraps() }
+            // Paper first (labRowView in paperFirst.ts): the report's own line leads; the AI's plain name for the test is
+            // never double-checked, so it follows, marked.
             Text(row.quote).font(.system(.caption, design: .monospaced)).wraps().sunRule()
+            let v = PaperFirst.labRow(row)
+            if let e = v.explanation {
+                Text("\(v.note ?? "") \(e)".trimmingCharacters(in: .whitespaces)).font(.subheadline).foregroundStyle(Palette.inkSoft).wraps()
+            }
             (Text("Ask your clinic: ").bold() + Text(row.ask)).font(.subheadline).wraps()
         }
         .accessibilityElement(children: .combine)

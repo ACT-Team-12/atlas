@@ -31,6 +31,20 @@ final class AppModel {
     var done: [String: Bool] = [:] { didSet { persist() } }
     var removed: [String: Bool] = [:] { didSet { persist() } }
     var restoredAt: Date?
+    /// The second-model double-check of `care` (paper first: only a certified explanation may lead).
+    private(set) var meaning: MeaningState = .idle { didSet { persist() } }
+    /// What `care` was read from and what `plan` was built from (StaleGuard). Nil when unknown (older saved files).
+    private(set) var readFingerprint: String?
+    private(set) var planFingerprint: String?
+
+    // Helper link: the banner, and whether the next plan counts as one built from the link. Never saved.
+    private(set) var helperBanner: HelperBanner?
+    @ObservationIgnored private var fromHelperLink = false
+
+    // The meaning check runs beside the read; every Clear, new read or restore moves this fence, so an older reply is
+    // never applied to a newer paper (web/src/lib/meaningRun.ts RunFence).
+    @ObservationIgnored private var meaningRunID = 0
+    @ObservationIgnored private var meaningTask: Task<Void, Never>?
 
     // Work in progress
     var path: [Route] = []
@@ -58,7 +72,48 @@ final class AppModel {
         Dictionary((care?.items ?? []).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
     }
     var canRead: Bool { text.trimmingCharacters(in: .whitespacesAndNewlines).count > 20 && busy == nil }
-    var canPlan: Bool { busy == nil && !(barriers.isEmpty && items.isEmpty) }
+    var canPlan: Bool { busy == nil && !(barriers.isEmpty && items.isEmpty) && !careOutdated }
+
+    func check(for id: String) -> Check { meaning.check(for: id) }
+
+    /// The steps on screen were read from different text, language or reading level than what is entered now.
+    var careOutdated: Bool {
+        guard care != nil, let readFingerprint else { return false }
+        return readFingerprint != StaleGuard.readFingerprint(text: text, language: language, level: level)
+    }
+
+    /// The plan on screen was built from different inputs than what is entered now; its actions are turned off.
+    var planOutdated: Bool {
+        guard plan != nil, let planFingerprint else { return false }
+        return careOutdated || planFingerprint != currentPlanFingerprint()
+    }
+
+    private func currentPlanFingerprint() -> String {
+        StaleGuard.planFingerprint(careIds: items.map(\.id), barriers: barriers, language: language, note: note,
+                                   place: StaleGuard.place(location: location, zip: zip), location: location)
+    }
+
+    // MARK: Helper links
+
+    /// Opened from a link. Only a helper link for our own site does anything; nothing is sent.
+    func open(_ url: URL) {
+        guard let presets = HelperLink.fromLink(url) else { return }
+        applyHelperLink(presets)
+    }
+
+    /// Applies the presets (each one is optional) and shows the banner. Nothing saved is touched; "Open it" still
+    /// brings the last plan back.
+    func applyHelperLink(_ p: HelperPresets) {
+        if let l = p.language { language = l }
+        if let l = p.level { level = l }
+        if let z = p.zip { zip = z; location = nil }
+        helperBanner = HelperLink.banner(p)
+        fromHelperLink = true
+        // Show the first screen, where the banner is.
+        if busy == nil { path = [] }
+    }
+
+    func dismissHelperBanner() { helperBanner = nil }
 
     // MARK: Text in
 
@@ -110,12 +165,15 @@ final class AppModel {
         task = Task {
             do {
                 let result = try await api.extract(text: text, level: level, language: language)
+                readFingerprint = StaleGuard.readFingerprint(text: text, language: language, level: level)
+                planFingerprint = nil
                 care = result
                 plan = nil
                 done = [:]
                 removed = [:]
                 restoredAt = nil
                 busy = nil
+                startMeaningCheck(for: result, language: result.language ?? language)
                 if path.last != .steps { path.append(.steps) }
             } catch {
                 busy = nil
@@ -130,6 +188,8 @@ final class AppModel {
         error = nil
         busy = .planning
         let validZip = zip.range(of: #"^\d{5}$"#, options: .regularExpression) != nil
+        let fingerprint = currentPlanFingerprint()
+        let viaHelper = fromHelperLink
         let request = PlanRequest(
             care: items.map(PlanCareInput.init),
             barriers: barriers,
@@ -140,8 +200,11 @@ final class AppModel {
         )
         task = Task {
             do {
-                let result = try await api.plan(request)
+                let result = try await api.plan(request, fromHelperLink: viaHelper)
+                planFingerprint = fingerprint
                 plan = result
+                // One link counts at most one plan (helperLink.ts consumeHelperSession).
+                if viaHelper { fromHelperLink = false }
                 busy = nil
                 if path.last != .plan { path.append(.plan) }
             } catch {
@@ -149,6 +212,36 @@ final class AppModel {
                 if (error as? APIError) != .cancelled { self.error = error.localizedDescription }
             }
         }
+    }
+
+    /// Runs the second check for `forCare`. Its reply is applied only while the run is current and `care` is still
+    /// that read.
+    private func startMeaningCheck(for forCare: CarePlanResponse, language: Language?) {
+        cancelMeaning()
+        let run = meaningRunID
+        guard let request = MeaningRequest.of(forCare.items, language: language) else {
+            meaning = .idle
+            return
+        }
+        meaning = MeaningState(status: .loading)
+        let api = self.api
+        meaningTask = Task {
+            let next: MeaningState
+            do {
+                next = .done(request, try await api.meaning(request))
+            } catch {
+                next = MeaningState(status: .error)
+            }
+            // Cleared, re-read, restored or cancelled meanwhile: an older reply is never shown beside a newer paper.
+            guard !Task.isCancelled, run == meaningRunID, care == forCare else { return }
+            meaning = next
+        }
+    }
+
+    private func cancelMeaning() {
+        meaningRunID += 1
+        meaningTask?.cancel()
+        meaningTask = nil
     }
 
     func cancel() {
@@ -169,14 +262,21 @@ final class AppModel {
         text = saved.text; language = saved.language; level = saved.level
         care = saved.care; barriers = saved.barriers; zip = saved.zip; note = saved.note
         plan = saved.plan; done = saved.done; removed = saved.removed
+        readFingerprint = saved.readFingerprint; planFingerprint = saved.planFingerprint
+        let savedMeaning = saved.meaning ?? .idle
+        meaning = savedMeaning.status == .done ? savedMeaning : .idle
         restoring = false
         if saved.care != nil || saved.plan != nil { restoredAt = saved.savedAt }
+        // A check that was still running when the app closed is run again; until it answers, every step is unchecked.
+        if let c = saved.care, savedMeaning.status == .loading { startMeaningCheck(for: c, language: c.language ?? saved.language) }
     }
 
     private func persist() {
         guard !restoring, care != nil || plan != nil else { return }
         let session = SavedSession(text: text, language: language, level: level, care: care, barriers: barriers,
-                                   zip: zip, note: note, plan: plan, done: done, removed: removed, savedAt: Date())
+                                   zip: zip, note: note, plan: plan, done: done, removed: removed,
+                                   meaning: meaning, readFingerprint: readFingerprint, planFingerprint: planFingerprint,
+                                   savedAt: Date())
         try? store.save(session)
     }
 
@@ -187,8 +287,11 @@ final class AppModel {
     /// "Clear from this phone": saved plan, typed text and ATLAS reminders.
     func clearFromPhone() async {
         cancel()
+        cancelMeaning()
+        helperBanner = nil; fromHelperLink = false
         store.clear()
         restoring = true
+        meaning = .idle; readFingerprint = nil; planFingerprint = nil
         text = ""; care = nil; plan = nil; barriers = []; zip = ""; note = ""; done = [:]; removed = [:]
         restoring = false
         location = nil

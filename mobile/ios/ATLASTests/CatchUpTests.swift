@@ -48,7 +48,10 @@ struct CatchUpTests {
         let plan = try JSONDecoder().decode(PlanResponse.self, from: Fixture.data("plan_sample_43215_live"))
         let text = ShareText.plan(items: care.items, plan: plan, questions: care.questions_for_doctor)
         let groundedCount = care.items.filter(\.grounded).count
-        #expect(text.components(separatedBy: "Paper says: \"").count - 1 == groundedCount)
+        // Each grounded step carries its line once in the paper part; plan steps carry their own quotes after it.
+        let paperPart = try #require(text.components(separatedBy: "WHAT THE PAPER SAYS TO DO").last?
+            .components(separatedBy: "THE PLAN (").first)
+        #expect(paperPart.components(separatedBy: "Your paper says: \"").count - 1 == groundedCount)
         for item in care.items where item.grounded { #expect(text.contains(item.source_quote)) }
         let used = Set(plan.steps.flatMap(\.resource_ids))
         for (id, card) in plan.resources {

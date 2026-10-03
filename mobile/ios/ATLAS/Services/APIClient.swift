@@ -3,6 +3,9 @@ import Foundation
 /// Talks to the live ATLAS server. Only the text the person confirmed is sent; never a photo.
 struct APIClient: Sendable {
     static let baseURL = URL(string: "https://atlas-team12.vercel.app")!
+    /// Counted as the iPhone app in the server's anonymous counts (web/src/lib/db.ts surfaceOf accepts "ios").
+    static let surfaceHeader = "x-atlas-surface"
+    static let surface = "ios"
 
     var baseURL: URL = APIClient.baseURL
     var session: URLSession = .shared
@@ -11,22 +14,36 @@ struct APIClient: Sendable {
         try await post("/api/extract", body: ExtractRequest(text: text, reading_level: level, language: language))
     }
 
-    func plan(_ request: PlanRequest) async throws -> PlanResponse {
-        try await post("/api/plan", body: request)
+    /// `fromHelperLink`: this plan was built after opening a helper link (counted once by the server, never the link).
+    func plan(_ request: PlanRequest, fromHelperLink: Bool = false) async throws -> PlanResponse {
+        try await post("/api/plan", body: request,
+                       headers: fromHelperLink ? [HelperLink.entryHeader: HelperLink.helperEntry] : [:])
+    }
+
+    /// The second-model double-check of each explanation against its line (web/src/app/api/meaning).
+    func meaning(_ request: MeaningRequest) async throws -> MeaningResponse {
+        try await post("/api/meaning", body: request)
     }
 
     func results(text: String, language: Language) async throws -> ResultsResponse {
         try await post("/api/results", body: ResultsRequest(text: text, language: language))
     }
 
-    private func post<Body: Encodable, Out: Decodable>(_ path: String, body: Body) async throws -> Out {
+    /// The request as sent: JSON body, the surface header on every call, plus any extra headers.
+    func request<Body: Encodable>(_ path: String, body: Body, headers: [String: String] = [:]) throws -> URLRequest {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))
         req.httpMethod = "POST"
         req.timeoutInterval = 90
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.setValue(Self.surface, forHTTPHeaderField: Self.surfaceHeader)
+        for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
         req.httpBody = try JSONEncoder().encode(body)
+        return req
+    }
 
+    private func post<Body: Encodable, Out: Decodable>(_ path: String, body: Body, headers: [String: String] = [:]) async throws -> Out {
+        let req = try request(path, body: body, headers: headers)
         let data: Data
         let response: URLResponse
         do {

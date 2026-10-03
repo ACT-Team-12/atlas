@@ -12,6 +12,14 @@ struct ATLASApp: App {
                 .environment(model)
                 .tint(Palette.teal)
                 .preferredColorScheme(.light)
+                // Helper links (https://atlas-team12.vercel.app/#try&via=helper&lang=es&level=simple&zip=30310) are
+                // Universal Links for the site's root page (Associated Domains + web/public/.well-known/
+                // apple-app-site-association). Anything that is not a valid helper link is ignored. Applying one is
+                // idempotent, so it is safe if both handlers see the same link.
+                .onOpenURL { model.open($0) }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    if let url = activity.webpageURL { model.open(url) }
+                }
         }
     }
 }

@@ -3,12 +3,15 @@
 The native iOS app for ATLAS. It does the things the web app cannot:
 
 - **Reads the paper on the phone.** VisionKit document camera to scan, Vision text recognition (accurate, language correction on) to read it. The photo never leaves the phone. The person checks and edits the recognized text, and only that text is sent.
-- **Reminders.** "Remind me" on any care step or plan step schedules a local notification with the step title and the line quoted from the paper. Works offline. All reminders are listed with delete.
+- **Paper first, with the double-check.** After a read, the app asks the server's second check (`POST /api/meaning`, the same body the website sends) whether each explanation matches its line. Only a certified explanation leads; every other step shows "Your paper says:" with the verbatim quote first and the explanation underneath, marked as not double-checked. Read aloud, Send to family and reminders carry an explanation only when it is certified, otherwise the quote alone (`Support/PaperFirst.swift`, a port of `web/src/lib/paperFirst.ts`). Plan steps are labelled as suggestions and carry the paper's words for the steps they come from. Lab rows lead with the report's own line.
+- **Helper links.** A link made on the website's `/helper` page (`https://atlas-team12.vercel.app/#try&via=helper&lang=es&level=simple&zip=30310`) opens the app with that language, reading level and ZIP picked and the same banner, checked against the same allow-lists (`Support/HelperLink.swift`, a port of `web/src/lib/helperLink.ts`). It is a Universal Link for the site's root page: the Associated Domains entitlement `applinks:atlas-team12.vercel.app` plus `web/public/.well-known/apple-app-site-association`. The first plan built after opening a link is counted once as a helper-link plan; the link itself is never sent.
+- **Outdated plan.** If the text, language or reading level changes after a read, or the steps, barriers, note or place change after a plan, the screen says so and turns off sharing and reminders until it is updated (`Support/StaleGuard.swift`, from `web/src/lib/staleGuard.ts`).
+- **Reminders.** "Remind me" on any care step or plan step schedules a local notification with the step's kind (never the AI's title) and the line quoted from the paper. Works offline. All reminders are listed with delete.
 - **Read aloud** with the phone's voices in the chosen language, one line at a time, with a Stop button.
 - **Saved on this phone.** The last care steps and plan are kept in Application Support (excluded from backup). "Clear from this phone" removes them and the ATLAS reminders.
 - **Call, directions, links.** `tel:` buttons, Apple Maps transit directions, program pages in an in-app browser.
 
-It talks to the same live server as the web app (`https://atlas-team12.vercel.app`, `/api/extract` and `/api/plan`). There is no mock data in the app. The only built-in text is the labeled sample paper, copied byte for byte from `web/src/lib/sample.ts`.
+It talks to the same live server as the web app (`https://atlas-team12.vercel.app`, `/api/extract`, `/api/meaning`, `/api/plan` and `/api/results`, each sent with `x-atlas-surface: ios`). There is no mock data in the app. The only built-in text is the labeled sample paper, copied byte for byte from `web/src/lib/sample.ts`.
 
 ## Build and test
 

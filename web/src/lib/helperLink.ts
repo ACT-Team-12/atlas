@@ -79,7 +79,8 @@ const SMS: Record<Language, (link: string) => string> = {
   Vietnamese: (l) => `Đây là ATLAS, đã cài sẵn cho bạn bằng tiếng Việt. ATLAS giải thích giấy tờ sau buổi khám và giúp bạn lên kế hoạch cho các bước tiếp theo. Không cần tài khoản và chúng tôi không lưu thông tin gì về bạn. ${l}`,
   Korean: (l) => `ATLAS 링크입니다. 한국어로 설정해 두었습니다. 진료 후 받은 안내문을 쉽게 설명하고 다음 단계를 계획하도록 도와줍니다. 계정이 필요 없고 저희는 개인 정보를 보관하지 않습니다. ${l}`,
   Chinese: (l) => `这是 ATLAS，已为您设置为中文。它会解释您的就诊单，并帮您安排下一步。无需注册账户，我们也不会保存您的任何信息。${l}`,
-  Amharic: (l) => `ይህ ATLAS ነው፣ በአማርኛ ተዘጋጅቶልዎታል። የሕክምና ጉብኝት ወረቀትዎን ያብራራል እና ቀጣይ እርምጃዎችን ለማቀድ ይረዳዎታል። መለያ አያስፈልግም፣ እኛ ስለ እርስዎ ምንም አናስቀምጥም። ${l}`,
+  // Reviewed 2026-10-03 by two model families (GPT and Gemini) via blind back-translation; not yet by a native speaker.
+  Amharic: (l) => `ይህ ATLAS ነው፣ በአማርኛ ተዘጋጅቶልዎታል። ከሕክምና ጉብኝትዎ ጋር የተያያዘውን ሰነድ ያብራራል፣ ቀጣይ እርምጃዎችንም ለማቀድ ይረዳዎታል። መለያ መፍጠር አያስፈልግም፤ እርስዎን የሚመለከት ምንም መረጃ አናስቀምጥም። ${l}`,
   French: (l) => `Voici ATLAS, préparé pour vous en français. Il explique le compte rendu de votre visite et vous aide à prévoir les prochaines étapes. Pas de compte, et nous ne gardons rien sur vous. ${l}`,
 };
 

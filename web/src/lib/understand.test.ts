@@ -93,3 +93,19 @@ describe("Codex round 10: a fraction's denominator is never a whole-number proof
     expect(r.dropped).toEqual([{ item_id: "item-0", reason: "quote_not_in_paper" }]);
   });
 });
+
+describe("Codex round 12: a marked answer that drops the paper's \"do not\" is held back", () => {
+  it("\"Take aspirin\" is never the right answer for \"Do not take aspirin before surgery\"", () => {
+    const text = "MEDICINES\nDo not take aspirin before surgery.";
+    const its = [{ id: "item-0", kind: "medication", title: "Aspirin", source_quote: "Do not take aspirin before surgery." }];
+    const r = checkQuestions(text, its, [{ item_id: "item-0", question: "What about aspirin?", options: ["Take aspirin", "Take double", "Take it at night"], correct: 0, answer_quote: "take aspirin before surgery" }]);
+    expect(r.questions).toEqual([]);
+    expect(r.dropped).toEqual([{ item_id: "item-0", reason: "answer_drops_cue" }]);
+  });
+  it("an answer that keeps the \"do not\" is kept", () => {
+    const text = "MEDICINES\nDo not take aspirin before surgery.";
+    const its = [{ id: "item-0", kind: "medication", title: "Aspirin", source_quote: "Do not take aspirin before surgery." }];
+    const r = checkQuestions(text, its, [{ item_id: "item-0", question: "What about aspirin?", options: ["Do not take it before surgery", "Take double", "Take it at night"], correct: 0, answer_quote: "Do not take aspirin before surgery" }]);
+    expect(r.dropped).toEqual([]);
+  });
+});

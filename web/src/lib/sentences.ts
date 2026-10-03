@@ -26,7 +26,7 @@ const END_UNLESS_LOWER = new Set([
 ]);
 /** Do-not verbs: after a bare "or" they start a second action ("Take lisinopril or stop metformin"). */
 export const NEGATIVE_START = new Set([
-  "stop", "hold", "skip", "avoid", "omit", "pause", "suspend", "withhold", "discontinue", "quit", "cease", "refrain",
+  "stop", "hold", "skip", "avoid", "omit", "pause", "delay", "postpone", "defer", "wait", "suspend", "withhold", "discontinue", "quit", "cease", "refrain",
   "abstain", "do", "don't", "don’t", "dont", "never", "deje", "pare", "suspenda", "detenga", "evite", "omita", "nunca",
   "arrêtez", "cessez", "interrompez", "évitez", "omettez", "ne", "ngừng", "ngưng", "dừng", "tránh", "đừng", "không",
 ]);
@@ -37,7 +37,7 @@ export const INSTRUCTION_START = new Set([
   "arrive", "bring", "use", "apply", "check", "continue", "resume", "wait", "keep", "have", "go", "come", "tell", "ask",
   "begin", "finish", "swallow", "chew", "inject", "remove", "wear", "fast", "nothing", "no", "please", "then",
   // the do-not verbs of prepCues.ts, so "Take lisinopril and omit metformin 2 days before" is two actions
-  "omit", "omitting", "pause", "pausing", "suspend", "suspending", "withhold", "withholding", "abstain", "refrain",
+  "delay", "postpone", "defer", "omit", "omitting", "pause", "pausing", "suspend", "suspending", "withhold", "withholding", "abstain", "refrain",
   "discontinue", "discontinuing", "quit", "cease", "stopping", "holding", "skipping", "avoiding", "fasting", "exclude",
   // Spanish and French do-not verbs (prepCues.ts), so a mixed-language second action is split too
   "detenga", "dejar", "suspender", "evitar", "omitir", "interrompez", "cessez", "arrêtez", "évitez", "omettez",

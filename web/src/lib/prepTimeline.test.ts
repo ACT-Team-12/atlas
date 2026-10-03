@@ -440,6 +440,7 @@ describe("Codex round 6: a step never borrows the time of another part of its se
     ["Take lisinopril or stop metformin 2 days before your procedure.", "Take lisinopril or stop metformin 2 days before your procedure."],
     ["Take lisinopril and detenga metformin 2 days before your procedure.", "Take lisinopril and detenga metformin 2 days before your procedure."],
     ["Take lisinopril and interrompez metformin 2 days before your procedure.", "Take lisinopril and interrompez metformin 2 days before your procedure."],
+    ["Take lisinopril now or take metformin 2 hours before your procedure.", "Take lisinopril now or take metformin 2 hours before your procedure."],
   ])("%j quoted as %j is not placed", (line, quote) => {
     expect(one(line, quote)).toMatchObject({ slot: null, reason: "other_clause" });
   });

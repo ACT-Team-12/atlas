@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { CheckedQuestion, UnderstandResponse } from "@/lib/understand";
+import { matchOption } from "@/lib/answerMatch";
+import { SayAnswer } from "./SayAnswer";
 
 type Props = { care: CarePlanResponse; items: VerifiedItem[]; language: string };
 
@@ -18,9 +20,22 @@ export function Understand({ care, items, language }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [at, setAt] = useState(0);
   const [tries, setTries] = useState<Record<string, number[]>>({});
+  // "Say your answer" (Deepgram): on only when the server has the key. Off means no mic and no answer box.
+  const [voice, setVoice] = useState<{ enabled: boolean; languages: string[] }>({ enabled: false, languages: [] });
+  const [said, setSaid] = useState<Record<string, string>>({});
+  const [hint, setHint] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetch("/api/transcribe")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (live && j && j.enabled === true && Array.isArray(j.languages)) setVoice({ enabled: true, languages: j.languages }); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   async function start() {
-    setStatus("loading"); setError(null); setTries({}); setAt(0);
+    setStatus("loading"); setError(null); setTries({}); setAt(0); setSaid({}); setHint(null);
     try {
       const res = await fetch("/api/understand", {
         method: "POST",
@@ -52,6 +67,16 @@ export function Understand({ care, items, language }: Props) {
   const lookAgain = qs.filter((x) => { const t = tries[x.item_id] ?? []; return t.length > 0 && t[0] !== x.correct; });
   const titleOf = (id: string) => items.find((i) => i.id === id)?.title ?? "";
   const proof = (x: CheckedQuestion) => care.source_text.slice(x.span.start, x.span.end);
+  const voiceHere = voice.enabled && voice.languages.includes(language) && Boolean(data?.answer_token);
+  const pick = (x: CheckedQuestion, i: number) => setTries((t) => ({ ...t, [x.item_id]: [...(t[x.item_id] ?? []), i] }));
+  // The spoken (or typed) answer goes through the same pick as a tap; it only decides which option was named.
+  function checkSaid(x: CheckedQuestion) {
+    const i = matchOption(said[x.item_id] ?? "", x.options);
+    if (i === null) { setHint("We couldn't tell which answer that is. Tap the one closest to what you said."); return; }
+    if ((tries[x.item_id] ?? []).includes(i)) { setHint(`That sounds like "${x.options[i]}", which you already tried. Tap another answer.`); return; }
+    setHint(null);
+    pick(x, i);
+  }
 
   return (
     <div className="mt-6 rounded-2xl border-2 border-teal bg-paper p-4 sm:p-6" aria-labelledby="understand-title">
@@ -83,13 +108,32 @@ export function Understand({ care, items, language }: Props) {
                 const wrong = tried && i !== q.correct;
                 return (
                   <button key={i} type="button" disabled={solved || tried} aria-pressed={tried}
-                    onClick={() => setTries((t) => ({ ...t, [q.item_id]: [...(t[q.item_id] ?? []), i] }))}
+                    onClick={() => { setHint(null); pick(q, i); }}
                     className={`rounded-2xl border-2 p-3 text-left font-bold transition-colors ${right ? "border-teal bg-mint" : wrong ? "border-red bg-red-soft line-through decoration-2" : "border-ink/70 bg-paper hover:bg-mint-soft"}`}>
                     {o}
                   </button>
                 );
               })}
             </div>
+            {voiceHere && !solved && (
+              <div className="mt-3 rounded-xl border-2 border-ink/20 p-3">
+                <label htmlFor={`said-${q.item_id}`} className="font-bold">Or say it in your own words</label>
+                <SayAnswer enabled={voiceHere} language={language} token={data?.answer_token ?? ""}
+                  onTranscript={(text) => { setHint(null); setSaid((m) => ({ ...m, [q.item_id]: text })); }} />
+                <textarea id={`said-${q.item_id}`} rows={2} value={said[q.item_id] ?? ""} maxLength={500}
+                  onChange={(e) => { const v = e.target.value; setSaid((m) => ({ ...m, [q.item_id]: v })); }}
+                  className="mt-2 w-full rounded-xl border-2 border-ink/70 bg-paper p-2 font-semibold"
+                  placeholder="Your answer appears here. You can fix it before checking." />
+                <button type="button" onClick={() => checkSaid(q)} disabled={!(said[q.item_id] ?? "").trim()}
+                  className="mt-2 rounded-full bg-ink text-paper px-4 py-1.5 text-sm font-bold disabled:opacity-40">
+                  Check my answer
+                </button>
+                {hint && <p role="status" className="mt-2 text-sm font-semibold">{hint}</p>}
+              </div>
+            )}
+            {voice.enabled && !voiceHere && data?.answer_token && !voice.languages.includes(language) && !solved && (
+              <p className="mt-2 text-sm font-semibold text-ink/70">Saying your answer isn&apos;t available in {language} yet. Tap your answer.</p>
+            )}
             {picked.length > 0 && (
               <div className={`mt-3 rounded-xl p-3 ${solved ? "bg-mint-soft" : "bg-peach"}`}>
                 <p className="font-bold">{solved ? (picked.length === 1 ? "Yes, that matches your paper." : "That one matches your paper.") : "Not quite. Here is what your paper says:"}</p>
@@ -97,7 +141,7 @@ export function Understand({ care, items, language }: Props) {
               </div>
             )}
             {solved && (
-              <button type="button" onClick={() => setAt((n) => n + 1)} className="mt-3 rounded-full bg-ink text-paper px-5 py-2 font-bold">
+              <button type="button" onClick={() => { setHint(null); setAt((n) => n + 1); }} className="mt-3 rounded-full bg-ink text-paper px-5 py-2 font-bold">
                 {at + 1 < qs.length ? "Next question" : "See how I did"}
               </button>
             )}

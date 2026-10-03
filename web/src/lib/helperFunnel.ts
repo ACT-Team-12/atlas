@@ -19,6 +19,8 @@ export type PlanCounts = { language: string | null; helper_7d: number; all_7d: n
 
 const COLS = ["helper_7d", "all_7d", "helper_all", "all_all"] as const;
 type Col = (typeof COLS)[number];
+/** [bigger, smaller]: the smaller is a part of the bigger, so bigger minus smaller is a group of its own. */
+const PAIRS: [Col, Col][] = [["all_7d", "helper_7d"], ["all_all", "helper_all"], ["all_all", "all_7d"], ["helper_all", "helper_7d"]];
 export const OTHER = "Other languages";
 export const NOT_GIVEN = "Not given";
 
@@ -28,8 +30,9 @@ export function suppress(n: number): Count {
 
 /**
  * Languages with fewer than SMALL plans in all are folded into one "Other languages" row, so a rare language is never named.
- * Then each column is suppressed: under SMALL hides, and if exactly one row in a column is hidden while the total is shown,
- * the next smallest row is marked "hidden" too, so total minus the others never gives the small number.
+ * Then counts are suppressed: under SMALL shows "<10". A shown count is also marked "hidden" when subtracting it from a
+ * shown count it is part of (helper from all, last 7 days from all time) would give a number under 10, and when the total
+ * minus the shown rows of a column would give one hidden row, or hidden rows adding up to under 10.
  */
 export function buildFunnel(rows: PlanCounts[]): HelperFunnel {
   const zero = (language: string): PlanCounts => ({ language, helper_7d: 0, all_7d: 0, helper_all: 0, all_all: 0 });
@@ -53,22 +56,35 @@ export function buildFunnel(rows: PlanCounts[]): HelperFunnel {
   const total = zero("");
   for (const r of grouped) add(total, r);
 
-  const hidden = grouped.map(() => new Set<Col>());
-  for (const c of COLS) {
-    grouped.forEach((r, i) => { if (r[c] < SMALL) hidden[i].add(c); });
-    const hiddenRows = grouped.filter((_, i) => hidden[i].has(c)).length;
-    if (hiddenRows === 1 && total[c] >= SMALL) {
+  // Index grouped.length is the total row.
+  const all = [...grouped, total];
+  const T = grouped.length;
+  const hidden = all.map(() => new Set<Col>());
+  const visible = (i: number, c: Col) => all[i][c] >= SMALL && !hidden[i].has(c);
+  // Repeat until nothing changes: hiding one count can make another one work-out-able.
+  for (let changed = true; changed; ) {
+    changed = false;
+    const hide = (i: number, c: Col) => { if (!hidden[i].has(c)) { hidden[i].add(c); changed = true; } };
+    // Within a row: all minus helper (plans not from a link) and all time minus last 7 days (older plans) must not be
+    // under 10. The smaller side is hidden, so all-time plans (also public as the plans count) always stay exact.
+    all.forEach((r, i) => { for (const [a, b] of PAIRS) if (visible(i, a) && visible(i, b) && r[a] - r[b] < SMALL) hide(i, b); });
+    // Across rows: with the total shown, the hidden rows of a column must be at least two and add up to 10 or more.
+    for (const c of COLS) {
+      if (!visible(T, c) || T === 0) continue;
+      const off = grouped.map((_, i) => i).filter((i) => !visible(i, c));
+      const offSum = off.reduce((s, i) => s + grouped[i][c], 0);
+      if (off.length === 0 || (off.length >= 2 && offSum >= SMALL)) continue;
       let next = -1;
-      grouped.forEach((r, i) => { if (!hidden[i].has(c) && (next < 0 || r[c] < grouped[next][c])) next = i; });
-      if (next >= 0) hidden[next].add(c);
+      grouped.forEach((r, i) => { if (visible(i, c) && (next < 0 || r[c] < grouped[next][c])) next = i; });
+      hide(next >= 0 ? next : T, c);
     }
   }
 
-  const show = (r: PlanCounts, c: Col, h?: Set<Col>): Count => (r[c] < SMALL ? "<10" : h?.has(c) ? "hidden" : r[c]);
-  const cell = (r: PlanCounts, h: Set<Col> | undefined, helper: Col, all: Col): FunnelCell => ({ helper_link_plans: show(r, helper, h), all_plans: show(r, all, h) });
+  const show = (r: PlanCounts, c: Col, h: Set<Col>): Count => (r[c] < SMALL ? "<10" : h.has(c) ? "hidden" : r[c]);
+  const cell = (r: PlanCounts, h: Set<Col>, helper: Col, allCol: Col): FunnelCell => ({ helper_link_plans: show(r, helper, h), all_plans: show(r, allCol, h) });
   return {
-    last_7_days: cell(total, undefined, "helper_7d", "all_7d"),
-    all_time: cell(total, undefined, "helper_all", "all_all"),
+    last_7_days: cell(total, hidden[T], "helper_7d", "all_7d"),
+    all_time: cell(total, hidden[T], "helper_all", "all_all"),
     by_language: grouped.map((r, i) => ({
       language: r.language!,
       last_7_days: cell(r, hidden[i], "helper_7d", "all_7d"),

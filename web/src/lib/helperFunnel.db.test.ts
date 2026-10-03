@@ -69,8 +69,11 @@ describe.skipIf(!BASE)("helper-link funnel (real database)", () => {
     const r = await funnelFor(MIGRATED);
     expect(r.available).toBe(true);
     if (!r.available) return;
-    expect(r.funnel.last_7_days).toEqual({ helper_link_plans: 24, all_plans: 27 });
-    expect(r.funnel.all_time).toEqual({ helper_link_plans: 27, all_plans: 35 });
+    // 35 production plans; counting any of the 50-row test, preview, local or read groups would make it 85 or more.
+    expect(r.funnel.all_time.all_plans).toBe(35);
+    // 24 of 27 and 27 of 35 would give away 3 and 8 plans not from a helper link (and 27 of 35 gives 8 older plans), so those are hidden.
+    expect(r.funnel.last_7_days).toEqual({ helper_link_plans: "hidden", all_plans: "hidden" });
+    expect(r.funnel.all_time.helper_link_plans).toBe("hidden");
   });
 
   it("groups by language and never shows a number under 10", async () => {

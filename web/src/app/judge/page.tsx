@@ -81,7 +81,7 @@ function HelperFunnelCard({ result }: { result: HelperFunnelResult }) {
       <p className="mt-4 text-sm font-semibold text-ink-soft">
         Honest note: these counts are reported by the person&apos;s browser, not proven, and exclude our own test runs and preview sites.
         Any number under 10 shows as &lt;10, languages with fewer than 10 plans are grouped together, and a number marked hidden is 10 or more
-        but would let a &lt;10 be worked out from the total, so no small group can be picked out.
+        but would let a number under 10 be worked out by subtracting (from the total, from all plans, or from all time), so no small group can be picked out.
         No ZIP or location is ever kept.
       </p>
     </section>

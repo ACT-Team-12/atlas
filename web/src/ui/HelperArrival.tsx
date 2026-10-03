@@ -60,7 +60,7 @@ export function HelperBanner({ arrival, onDismiss }: { arrival: HelperPresets | 
         <p id={textId} lang={b.lang} className="font-bold">{b.text}</p>
         {b.english && <p lang="en" className="mt-1 text-sm font-semibold text-ink/70">{b.english}</p>}
       </div>
-      <button type="button" onClick={onDismiss} className="rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold hover:bg-mint">
+      <button type="button" onClick={() => { onDismiss(); document.getElementById("try-title")?.focus({ preventScroll: true }); }} className="rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold hover:bg-mint">
         <span aria-hidden="true">✕ </span>Close this note
       </button>
     </div>

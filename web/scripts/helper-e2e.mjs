@@ -109,6 +109,7 @@ try {
   }
   await p2.getByRole("button", { name: /Close this note/ }).click();
   check(await banner.count() === 0, "banner can be dismissed");
+  check(await p2.evaluate(() => document.activeElement?.id) === "try-title", "focus lands on the Try it heading after closing the note");
   await person.close();
 
   // 3. Tampered and partial links.

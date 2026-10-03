@@ -617,7 +617,7 @@ export function CarePlanTool() {
     <section id="try" className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="try-title">
       <div className="section-card bg-mint-soft px-4 sm:px-10 py-20">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 id="try-title" className="display text-[clamp(2.4rem,5vw,5rem)]">Try it</h2>
+          <h2 id="try-title" tabIndex={-1} className="display text-[clamp(2.4rem,5vw,5rem)]">Try it</h2>
           <p className="hand text-3xl text-teal-deep rotate-1 max-w-[16em]">use the sample, or a paper you&apos;re comfortable sharing</p>
         </div>
 

@@ -171,3 +171,16 @@ describe("Codex round 11: passive and adjectival prohibitions are do-not words",
     expect(shownExplanation(s, falseSame([{ id: s.id, plain_language: plain, source_quote: quote }]))).toBeNull();
   });
 });
+
+describe("Codex round 12: delay, postpone and wait are do-not words", () => {
+  it.each([
+    ["Delay taking metformin on the morning of your procedure.", "Take metformin on the morning of your procedure."],
+    ["Postpone your iron pills 7 days before your procedure.", "Take your iron pills 7 days before your procedure."],
+    ["Wait to eat until after your procedure.", "Eat before your procedure."],
+  ])("%s / %s: never shown, even on a false same", (quote, plain) => {
+    const r = buildPrepTimeline(`PREP SHEET (sample)\n- ${quote}`, [item(quote, plain)]);
+    const s = [...r.timeline.flatMap((g) => g.steps), ...r.ask][0];
+    expect(s).toMatchObject({ negation_blocked: true, plain_language: "" });
+    expect(shownExplanation(s, falseSame([{ id: s.id, plain_language: plain, source_quote: quote }]))).toBeNull();
+  });
+});

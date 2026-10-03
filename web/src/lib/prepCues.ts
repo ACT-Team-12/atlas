@@ -39,18 +39,21 @@ const NO_WORDS = W([
   "pauses", "paused", "pausing", "suspend", "suspends", "suspended", "suspending", "abstain", "abstaining", "exclude",
   "avoided", "prohibit", "prohibits", "prohibited", "contraindicated", "contraindication", "forbid", "forbids",
   "forbidden", "ban", "banned", "disallowed", "restrict", "restricted", "restriction", "withdraw", "withdrawn",
-  "ceased", "quitting", "refrained", "excluded", "unsafe",
+  "ceased", "quitting", "refrained", "excluded", "unsafe", "delay", "delays", "delayed", "delaying", "defer", "defers",
+  "deferred", "deferring", "postpone", "postpones", "postponed", "postponing", "wait", "waits", "waiting", "later",
   // Spanish
   "nunca", "jamás", "jamas", "ni", "nada", "nadie", "ningún", "ningun", "ninguno", "ninguna", "tampoco", "sin",
   "deje", "dejar", "deja", "dejen", "suspenda", "suspender", "suspende", "suspendan", "pare", "parar", "detenga", "detener",
   "evite", "evitar", "evita", "eviten", "omita", "omitir", "omite", "ayuno", "ayunas", "ayunar", "ayune",
   "prohibido", "prohibida", "prohíbe", "contraindicado", "contraindicada", "evitarse", "evitado", "suspendido",
+  "retrase", "retrasar", "posponga", "posponer", "aplace", "aplazar", "espere", "esperar", "después",
   // French
   "ne", "pas", "jamais", "rien", "aucun", "aucune", "sans", "arrêtez", "arrêter", "arrête", "cessez", "cesser",
   "évitez", "éviter", "évite", "interrompez", "interrompre", "jeûne", "jeûner", "jeûnez", "à jeun", "omettez", "omettre",
   "interdit", "interdite", "interdits", "contre-indiqué", "contre-indiquée", "déconseillé", "déconseillée", "évité",
+  "retardez", "retarder", "reportez", "reporter", "différez", "attendez", "attendre", "plus tard",
   // Vietnamese
-  "không", "đừng", "chớ", "ngừng", "ngưng", "dừng", "tránh", "cấm", "chưa", "bỏ", "nhịn",
+  "không", "đừng", "chớ", "ngừng", "ngưng", "dừng", "tránh", "cấm", "chưa", "bỏ", "nhịn", "hoãn", "chờ", "đợi",
 ]);
 /** "don't", "can't", "isn't" (English) and "n'oubliez", "n'est" (French). */
 const NO_CONTRACTIONS = /n['’]t(?!\p{L})|(?<!\p{L})n['’](?=\p{L})/iu;

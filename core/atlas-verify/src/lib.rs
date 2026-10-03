@@ -199,6 +199,56 @@ fn index_of(hay: &[u16], needle: &[u16], from: usize) -> Option<usize> {
     (from..=hay.len() - needle.len()).find(|&i| &hay[i..i + needle.len()] == needle)
 }
 
+/// `WORD_CHAR` from verify.ts, on one UTF-16 unit: ASCII letters and digits, Latin-1 and Latin Extended letters,
+/// combining marks, Greek and Cyrillic. Chinese and Korean never count (a match there may sit mid-run).
+fn is_word_unit(u: u16) -> bool {
+    matches!(
+        u,
+        0x41..=0x5A
+            | 0x61..=0x7A
+            | 0x30..=0x39
+            | 0x00C0..=0x00D6
+            | 0x00D8..=0x00F6
+            | 0x00F8..=0x024F
+            | 0x0300..=0x036F
+            | 0x0370..=0x03FF
+            | 0x0400..=0x04FF
+            | 0x1E00..=0x1EFF
+    )
+}
+
+fn is_digit_unit(u: u16) -> bool {
+    (0x30..=0x39).contains(&u)
+}
+
+/// `onBoundary` from verify.ts: the fragment starts and ends on a word or number boundary, so "take it" is not in
+/// "mistake it", "10 mg" is not in "110 mg", and "5 mg" is not in "2.5 mg".
+fn on_boundary(norm: &[u16], f: &[u16], at: usize) -> bool {
+    let end = at + f.len();
+    let unit = |i: Option<usize>| i.and_then(|i| norm.get(i).copied());
+    let before = unit(at.checked_sub(1));
+    let before2 = unit(at.checked_sub(2));
+    let after = unit(Some(end));
+    let after2 = unit(Some(end + 1));
+    let word = |u: Option<u16>| u.is_some_and(is_word_unit);
+    let digit = |u: Option<u16>| u.is_some_and(is_digit_unit);
+    let sep = |u: Option<u16>| u == Some(u16::from(b'.')) || u == Some(u16::from(b','));
+    let (first, last) = (f.first().copied(), f.last().copied());
+    if word(first) && word(before) {
+        return false;
+    }
+    if word(last) && word(after) {
+        return false;
+    }
+    if digit(first) && sep(before) && digit(before2) {
+        return false;
+    }
+    if digit(last) && sep(after) && digit(after2) {
+        return false;
+    }
+    true
+}
+
 /// `findSpan` from verify.ts. `None` is the TS `null`: the quote is not in the paper and the step is refused.
 pub fn find_span(source: &str, quote: &str) -> Option<Span> {
     let frags = fragments(quote);
@@ -210,7 +260,10 @@ pub fn find_span(source: &str, quote: &str) -> Option<Span> {
     let mut first: Option<usize> = None;
     let mut last_end = 0;
     for f in &frags {
-        let at = index_of(&norm, f, cursor)?;
+        let mut at = index_of(&norm, f, cursor)?;
+        while !on_boundary(&norm, f, at) {
+            at = index_of(&norm, f, at + 1)?;
+        }
         if first.is_none() {
             first = Some(at);
         }

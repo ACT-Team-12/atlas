@@ -141,3 +141,24 @@ fn lower_cases_capital_letters_outside_the_bmp_in_the_source_too() {
         span(0, 9)
     );
 }
+
+#[test]
+fn a_quote_must_match_whole_words_and_whole_numbers() {
+    // Codex round 9, same cases as verify.test.ts.
+    assert_eq!(find_span("Don't make a mistake it is easy to fix.", "take it"), None);
+    assert_eq!(find_span("Take 110 mg every morning.", "10 mg"), None);
+    assert_eq!(find_span("Take 2.5 mg every morning.", "5 mg every morning"), None);
+    assert_eq!(find_span("Take 10 mgs daily.", "Take 10 mg"), None);
+    let paper = "Don't make a mistake it is easy. Take it with food.";
+    let start = paper.find("Take it").unwrap();
+    assert_eq!(
+        find_span(paper, "take it with food"),
+        Some(Span {
+            start,
+            end: paper.len() - 1
+        })
+    );
+    assert!(find_span("Take 110 mg. Then take 10 mg.", "take 10 mg").is_some());
+    // Chinese has no spaces between words, so a match mid-run still counts.
+    assert!(find_span("请每天服用两片药。", "服用两片").is_some());
+}

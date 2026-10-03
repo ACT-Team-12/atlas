@@ -165,5 +165,7 @@ describe("Codex round 9: a quote must match whole words and whole numbers", () =
     const paper = "Don't make a mistake it is easy. Take it with food.";
     expect(findSpan(paper, "take it with food")).toEqual({ start: paper.indexOf("Take it"), end: paper.length - 1 });
     expect(findSpan("Take 110 mg. Then take 10 mg.", "take 10 mg")).not.toBeNull();
+    // Chinese has no spaces between words, so a match mid-run still counts.
+    expect(findSpan("请每天服用两片药。", "服用两片")).not.toBeNull();
   });
 });

@@ -71,9 +71,13 @@ function fragments(quote: string): string[] {
   return frags.some((f) => f.length < 3) ? [] : frags;
 }
 
-/** A letter or digit in a script that puts spaces between words (a Chinese or Korean match may sit mid-run). */
-const WORD_CHAR = /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}\p{N}\p{M}]/u;
-const DIGIT = /\p{N}/u;
+/**
+ * One UTF-16 unit that is part of a word in a script that puts spaces between words: ASCII letters and digits, the
+ * Latin-1 and Latin Extended letters (Vietnamese included), combining marks, Greek and Cyrillic. A Chinese or Korean
+ * match may sit mid-run, so those scripts never count. Plain ranges, so the Rust port (core/atlas-verify) is exact.
+ */
+const WORD_CHAR = /[A-Za-z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F\u0300-\u036F\u0370-\u03FF\u0400-\u04FF\u1E00-\u1EFF]/;
+const DIGIT = /[0-9]/;
 
 /**
  * True when `f` at `at` in `norm` starts and ends on a word or number boundary: "take it" is not in "mistake it",

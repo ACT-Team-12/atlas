@@ -7,6 +7,7 @@
  * so an older reply can never show its verdicts (keyed by ids like "item-0") beside a newer paper.
  */
 import type { VerifiedItem } from "./schema";
+import { checkedText } from "./paperFirst";
 import type { MeaningResponse } from "./meaning";
 import type { ShareMeaning } from "./shareText";
 
@@ -58,7 +59,8 @@ export async function runMeaningCheck(
   if (items.length === 0) return apply(IDLE_MEANING);
   apply({ status: "loading", byId: {} });
   try {
-    const body = { ...(language ? { language } : {}), items: items.slice(0, 40).map(({ id, plain_language, when, source_quote }) => ({ id, plain_language, when, source_quote })) };
+    // The title is shown with a certified step, so it is checked with the explanation (Codex round 13).
+    const body = { ...(language ? { language } : {}), items: items.slice(0, 40).map(({ id, title, plain_language, when, source_quote }) => ({ id, plain_language: checkedText(title, plain_language), when, source_quote })) };
     const { ok, json } = await post(body, run.signal);
     if (!fence.isCurrent(run.id)) return; // cleared, deleted or replaced meanwhile
     if (!ok) throw new Error();

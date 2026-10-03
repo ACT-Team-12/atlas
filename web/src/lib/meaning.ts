@@ -4,6 +4,8 @@ import { z } from "zod";
 import { ExtractError } from "./extract";
 import { LANGUAGES } from "./schema";
 import { NAME_BEFORE_LETTER, readNumberWords, type NumberLanguage } from "./numberWords";
+import { certifyBlocker } from "./semanticGuard";
+import { readable, unreadable } from "./textReading";
 
 /**
  * Meaning check: does each plain-language explanation say the same thing as the line it quotes?
@@ -294,7 +296,22 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
  * "one of the lab locations" is not a dose (the second model covers English words). `uncheckable` (numeral text that
  * can't be read, a whole number plus a fraction, or any Amharic explanation) means it can never be certified.
  */
-export function numberCheck(item: NumItem, language?: NumberLanguage): NumberCheck {
+export function numberCheck(raw: NumItem, language?: NumberLanguage): NumberCheck {
+  // The shared reading (textReading.ts); text it can't read is never certified.
+  const item = readItem(raw);
+  if (item.unreadable) return { ...numberCheckRead(item, language), uncheckable: true };
+  return numberCheckRead(item, language);
+}
+
+/** The item through the shared reading, plus whether any of it can't be read. */
+function readItem(raw: NumItem): NumItem & { unreadable: boolean } {
+  return {
+    plain_language: readable(raw.plain_language), when: readable(raw.when ?? ""), source_quote: readable(raw.source_quote),
+    unreadable: unreadable(raw.plain_language) || unreadable(raw.when ?? "") || unreadable(raw.source_quote),
+  };
+}
+
+function numberCheckRead(item: NumItem, language?: NumberLanguage): NumberCheck {
   const q = quoteNumbers(item, language);
   const f = fractionsIn(item.plain_language);
   const plain = language && language !== "English" ? readNumberWords(f.rest, language) : null;
@@ -307,7 +324,10 @@ export function numberCheck(item: NumItem, language?: NumberLanguage): NumberChe
   const english = !language || language === "English";
   const langs: NumberLanguage[] = english ? ["English"] : language === "Amharic" ? [] : [language];
   const wordQty = english ? numberUnits(f.rest, ["English"]).pairs.filter(([n, c]) => c !== null && !counted.has(n)).map(([n]) => n) : [];
-  const wordsOff = wordQty.some((n) => !q.allowed.has(n));
+  // Any English number word the quote doesn't have ("three Tylenol" against "two Tylenol") blocks the green check,
+  // unit or no unit (Codex round 13). It is not flagged, since "one of the lab locations" is not a dose.
+  const enWords = english ? readNumberWords(f.rest, "English") : null;
+  const wordsOff = wordQty.some((n) => !q.allowed.has(n)) || !!enWords?.numbers.some((n) => !q.allowed.has(n)) || !!enWords?.uncheckable;
   const swapped = unexpected.length === 0 && unitsSwapped([item.source_quote, item.when ?? ""], item.plain_language, new Set([...counted, ...wordQty]), langs);
   return { unexpected, uncheckable: language === "Amharic" || q.uncheckable || foreignDigits || !!plain?.uncheckable || f.mixed || swapped || wordsOff };
 }
@@ -319,7 +339,13 @@ export const unexpectedNumbers = (item: NumItem, language?: NumberLanguage): str
  * tablets" is caught; "two" or "dos" against "2" is fine. Numeral text that can't be read makes it uncheckable, which
  * blocks it.
  */
-export function numberCheckAnyForm(item: NumItem, language: NumberLanguage = "English"): NumberCheck {
+export function numberCheckAnyForm(raw: NumItem, language: NumberLanguage = "English"): NumberCheck {
+  const item = readItem(raw);
+  const r = numberCheckAnyFormRead(item, language);
+  return item.unreadable ? { ...r, uncheckable: true } : r;
+}
+
+function numberCheckAnyFormRead(item: NumItem, language: NumberLanguage): NumberCheck {
   const q = quoteNumbers(item, language);
   const f = fractionsIn(item.plain_language);
   const en = readNumberWords(f.rest, "English");
@@ -346,6 +372,9 @@ Do not invent words that are not in the line. Never judge whether the medical ad
 
 export function combine(id: string, item: MeaningRequest["items"][number], verdict: MeaningResult["model_verdict"], what: string, language?: NumberLanguage): MeaningResult {
   const { unexpected, uncheckable } = numberCheck(item, language);
+  // Whatever the second model said: a dropped or added "do not", or a time, frequency or action the paper's line
+  // doesn't name, never gets the green check (semanticGuard.ts, Codex round 13).
+  const blocked = certifyBlocker(`${item.source_quote} ${item.when ?? ""}`, item.plain_language) !== null;
   // An explanation whose numbers can't be read is never certified; with no clash found it shows as "couldn't check".
   return {
     id,
@@ -355,7 +384,7 @@ export function combine(id: string, item: MeaningRequest["items"][number], verdi
     what_differs: verdict === "same" ? "" : what,
     flagged: unexpected.length > 0 || verdict === "different",
     // "unclear", or a step the checker skipped, is neither flagged nor certified: the UI says it could not double-check it.
-    certified: verdict === "same" && unexpected.length === 0 && !uncheckable,
+    certified: verdict === "same" && unexpected.length === 0 && !uncheckable && !blocked,
   };
 }
 

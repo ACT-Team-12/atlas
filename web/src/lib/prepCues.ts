@@ -1,4 +1,5 @@
 import type { LANGUAGES } from "./schema";
+import { readable, unreadable } from "./textReading";
 
 type Lang = (typeof LANGUAGES)[number];
 
@@ -32,7 +33,7 @@ const W = (words: string[]) => new RegExp(String.raw`(?<![\p{L}\p{N}])(?:${words
 
 const NO_WORDS = W([
   // English
-  "not", "no", "never", "cannot", "nothing", "none", "nobody", "neither", "nor", "without",
+  "not", "no", "never", "cannot", "dont", "doesnt", "didnt", "cant", "wont", "shouldnt", "mustnt", "isnt", "arent", "nothing", "none", "nobody", "neither", "nor", "without",
   "stop", "stops", "stopped", "stopping", "hold", "holds", "holding", "held", "avoid", "avoids", "avoiding",
   "skip", "skips", "skipping", "skipped", "refrain", "discontinue", "discontinued", "quit", "cease", "withhold", "npo", "nil",
   "fast", "fasts", "fasting", "fasted", "omit", "omits", "omitting", "omitted", "withheld", "withholding", "pause",
@@ -75,10 +76,14 @@ const LIMIT_CJK = /直到|除|只|仅|僅|까지|제외|외에는/u;
 /** Ethiopic script (Amharic, Tigrinya): "not" is part of the verb, so no word list can find it. */
 const ETHIOPIC = /[ሀ-᎟ⶀ-⷟꬀-꬯]/u;
 
+// The one shared reading of text (textReading.ts); re-exported for callers that already import it from here.
+export { readable, unreadable } from "./textReading";
+
 export function cues(text: string): Cues {
+  const t = readable(text);
   return {
-    no: NO_WORDS.test(text) || NO_CONTRACTIONS.test(text) || NO_CJK.test(text),
-    limit: LIMIT_WORDS.test(text) || LIMIT_CJK.test(text),
+    no: NO_WORDS.test(t) || NO_CONTRACTIONS.test(t) || NO_CJK.test(t),
+    limit: LIMIT_WORDS.test(t) || LIMIT_CJK.test(t),
   };
 }
 
@@ -87,7 +92,7 @@ export function cues(text: string): Cues {
  * read at all (Ethiopic script). Language-free, so the page can re-check any step it is about to show.
  */
 export function cuesDiffer(quote: string, plain: string): boolean {
-  if (ETHIOPIC.test(quote) || ETHIOPIC.test(plain)) return true;
+  if (ETHIOPIC.test(quote) || ETHIOPIC.test(plain) || unreadable(quote) || unreadable(plain)) return true;
   const q = cues(quote);
   const p = cues(plain);
   return q.no !== p.no || q.limit !== p.limit;
@@ -98,7 +103,7 @@ export function cuesDiffer(quote: string, plain: string): boolean {
  * Ethiopic script. Language-free, so the page re-checks every step it is about to show (prepView.ts).
  */
 export function cuesForbid(quote: string, plain: string): boolean {
-  if (ETHIOPIC.test(quote) || ETHIOPIC.test(plain)) return true;
+  if (ETHIOPIC.test(quote) || ETHIOPIC.test(plain) || unreadable(quote) || unreadable(plain)) return true;
   const q = cues(quote);
   const p = cues(plain);
   return q.no || q.limit || p.no || p.limit;

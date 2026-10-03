@@ -3,7 +3,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { careStepView, checkOf, labRowView, paperFirstLines, paperFirstView } from "./paperFirst";
+import { bookSafe, careStepView, checkedText, checkOf, labRowView, paperFirstLines, paperFirstView } from "./paperFirst";
+import { buildIcs, callScript, eventDescription } from "./booking";
 import { PaperFirst } from "@/ui/PaperFirst";
 import { HandoffSheetBody } from "@/ui/HandoffSheet";
 import { planShareText } from "./shareText";
@@ -160,5 +161,30 @@ describe("Codex round 12: removing a step never strips a plan step's quote", () 
     const html = renderToStaticMarkup(createElement(HandoffSheetBody, { items: [], plan, questions: [], language: "English", planItems: [item()] }));
     expect(html).toContain("suggestions from ATLAS");
     expect(html).toContain("Your paper says:");
+  });
+});
+
+describe("Codex round 13: titles, held-back steps and bookings", () => {
+  it("the meaning check is asked about the title too", () => {
+    expect(checkedText(TITLE, PARA)).toBe(`${TITLE}. ${PARA}`);
+  });
+  it.each(["unchecked", "flagged", "certified"] as const)("booking a %s step never carries the AI's title; its when only when certified", (check) => {
+    const b = bookSafe(item({ kind: "lab_test" }), check);
+    expect(b.title).toBe("Lab test from your paper");
+    expect(b.when).toBe(check === "certified" ? WHEN : "");
+    expect(b.source_quote).toBe(QUOTE);
+    const ics = buildIcs({ uid: "u", start: new Date(2026, 9, 10, 9), minutes: 60, title: b.title, description: eventDescription(b, null), now: new Date(2026, 9, 1) });
+    for (const w of [TITLE, PARA]) expect(ics).not.toContain(w);
+    // Each reminder alarm carries the paper's words.
+    expect(ics.replace(/\r\n /g, "").match(/BEGIN:VALARM[\s\S]*?END:VALARM/g)!.every((a) => a.includes("From your paper"))).toBe(true);
+    for (const l of callScript(b, [], "English")) for (const w of [TITLE, PARA]) expect(l).not.toContain(w);
+  });
+  it("no UI file puts an AI title next to a held-back or removed step, or in an aria-label", () => {
+    const src = readFileSync(fileURLToPath(new URL("../ui/CarePlanTool.tsx", import.meta.url)), "utf8");
+    expect(src).not.toMatch(/aria-label=\{`[^`]*\$\{\w+\.title\}/);
+    expect(src).not.toMatch(/refused\.map\([^)]*\)\s*=>\s*\(\s*<li[^>]*>\{r\.title\}/);
+    expect(src).not.toMatch(/<span>\{r\.title\}<\/span>/);
+    const und = readFileSync(fileURLToPath(new URL("../ui/Understand.tsx", import.meta.url)), "utf8");
+    expect(und).not.toMatch(/\?\.title/);
   });
 });

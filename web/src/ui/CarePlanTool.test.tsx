@@ -344,7 +344,7 @@ describe("a result the person changed their answers after", () => {
     await act(async () => { byText("Read my paper").click(); await drain(); });
     await release(read, ready(careFor(PAPER)));
     await makePlan("Plan with metformin");
-    act(() => (host.querySelector('button[aria-label="Remove Metformin"]') as HTMLButtonElement).click());
+    act(() => (host.querySelector('button[aria-label="Remove step 1"]') as HTMLButtonElement).click());
     expect(screenText()).toContain(PLAN_OUTDATED);
   });
 
@@ -543,7 +543,7 @@ describe("an outdated plan cannot be acted on", () => {
     ["place (a ZIP typed)", () => typeInto(host.querySelector<HTMLInputElement>("#zip")!, "30340")],
     ["barriers", () => byText("Paying for the visit").click()],
     ["language", () => selectValue("Explain it in", "Spanish")],
-    ["a removed step", () => (host.querySelector('button[aria-label="Remove Metformin"]') as HTMLButtonElement).click()],
+    ["a removed step", () => (host.querySelector('button[aria-label="Remove step 1"]') as HTMLButtonElement).click()],
   ];
   for (const [what, change] of changes) {
     it(`after changing ${what}: read aloud, both prints, Send to family, Book it now and place links are off, with the reason`, async () => {

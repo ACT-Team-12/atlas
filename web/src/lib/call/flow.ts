@@ -296,14 +296,21 @@ async function callTruth(deps: Hook, k: string, leg: "code" | "plan", uuid: unkn
 /**
  * A Vonage event for one of a session's two calls. Ending the plan call wipes everything sensitive. Returns "error"
  * when the event could not be checked or saved, so the route answers 5xx and Vonage retries it.
+ * `claimed` is the status in the callback body. It is never trusted to change anything, only used as a hint: when it
+ * says the call ended but Vonage's own GET still reports it live (Vonage's read lagging its webhook), the answer is
+ * "error", so Vonage retries and the end of the call (and the wipe) is not lost to a stale read.
  */
-export async function handleEvent(deps: Hook, t: CallTicket, uuid: unknown): Promise<"ok" | "ignored" | "error"> {
+export async function handleEvent(deps: Hook, t: CallTicket, uuid: unknown, claimed?: unknown): Promise<"ok" | "ignored" | "error"> {
   if (t.c !== "code" && t.c !== "plan") return "ignored";
   const now = deps.now ?? Date.now();
   const truth = await callTruth(deps, t.k, t.c, uuid, now);
   if (truth.kind !== "ok") return truth.kind;
   const { row, status } = truth;
   if (!(status in RANK)) return "ignored";
+  if (typeof claimed === "string" && RANK[claimed] === 4 && RANK[status] < 4) {
+    console.error("call event: the callback says ended but Vonage still reports it live; asking for a retry");
+    return "error";
+  }
   const field = t.c === "code" ? "code_status" : "plan_status";
   const current = row[field];
   if (current && (RANK[current] ?? -1) >= RANK[status]) return "ok";

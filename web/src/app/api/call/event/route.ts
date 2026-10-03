@@ -24,11 +24,11 @@ export async function POST(request: Request) {
   if (!cfg || !t) return new Response(null, { status: 204 });
   const raw = await request.text().catch(() => "");
   if (!signedByVonage(request, raw, cfg)) return new Response("unauthorized", { status: 401 });
-  const body = parse(raw) as { uuid?: unknown } | null;
+  const body = parse(raw) as { uuid?: unknown; status?: unknown } | null;
   const store = await callStore();
   if (!store) return new Response("unavailable", { status: 503 });
   try {
-    const r = await handleEvent({ store, cfg }, t, body?.uuid);
+    const r = await handleEvent({ store, cfg }, t, body?.uuid, body?.status);
     return new Response(null, { status: r === "error" ? 503 : 204 });
   } catch (e) {
     if (!(e instanceof CallStoreDown)) throw e;

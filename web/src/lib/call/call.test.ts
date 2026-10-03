@@ -595,6 +595,22 @@ describe("the call flow", () => {
     expect(publicStatus(row)).toMatchObject({ phase: "done", plan_status: "completed", last4: null });
   });
 
+  it("a 'completed' callback while Vonage's GET still says answered asks for a retry, then the retry wipes", async () => {
+    const id = await started();
+    await verifyAndCall(deps(), { id, code: "4821" });
+    const ev = { k: id, p: "event" as const, c: "plan" as const, exp: NOW + 60_000 };
+    truth.set("call-2", { status: "answered" });
+    expect(await handleEvent(hk(), ev, "call-2", "answered")).toBe("ok");
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await handleEvent(hk(), ev, "call-2", "completed")).toBe("error"); // stale read: 503, Vonage retries
+    err.mockRestore();
+    expect(store.rows.get(id)!.phase).toBe("calling"); // the body alone never ends a call or wipes it
+    truth.set("call-2", { status: "completed" });
+    expect(await handleEvent(hk(), ev, "call-2", "completed")).toBe("ok");
+    expect(store.rows.get(id)!.phase).toBe("done");
+    expect(store.rows.get(id)!.sealed_text).toBeNull();
+  });
+
   it("ends a session whose code call nobody answered, freeing the number for a new code", async () => {
     const id = await started();
     truth.set("call-1", { status: "unanswered" });

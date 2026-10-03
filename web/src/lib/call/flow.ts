@@ -159,7 +159,7 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
   const code = typeof input.code === "string" ? input.code.trim() : "";
   if (!/^\d{4}$/.test(code)) return { state: "wrong", attemptsLeft: CODE_ATTEMPTS };
   const row = await store.takeAttempt(id, now);
-  if (!row || !row.code_hash) return { state: "expired" };
+  if (!row || !row.code_hash || !row.phone_hash) return { state: "expired" };
   const want = Buffer.from(row.code_hash, "hex");
   const got = Buffer.from(codeHash(cfg.secret, id, row.phone_hash, code), "hex");
   if (want.length !== got.length || !timingSafeEqual(want, got)) {
@@ -175,7 +175,8 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
   // "done" only when the wipe was written. Otherwise the session stays "preparing" and is wiped by the sweep after
   // PREPARING_MAX_MS (and refused at read time from then on), so the person is never told it was deleted when it wasn't.
   const fail = async (state: "token" | "capped-plan" | "capped-site" | "failed", note: string) => {
-    const wiped = await store.update(id, { ...WIPE, phase: "failed", note }, ["calling"]);
+    const wiped = await store.update(id, { ...WIPE, phase: "failed" }, ["calling"]);
+    console.error("plan call refused:", note); // the reason goes to the log only, never into the kept row
     if (wiped !== "updated") console.error("call wipe not confirmed", wiped);
     return { state, cleanup: wiped === "updated" ? "done" : "pending" } as const;
   };
@@ -335,7 +336,7 @@ async function gateInput(deps: Hook, t: CallTicket, digits: unknown, uuid: unkno
   const truth = await callTruth(deps, t.k, "plan", uuid, now);
   const row = truth.kind === "ok" ? truth.row : null;
   const language = LANGUAGES.find((l) => l === row?.language) ?? "English";
-  if (truth.kind !== "ok" || !row || row.phase !== "calling" || !row.code_hash || (truth.status !== "answered" && truth.status !== "started")) return goodbyeNcco(language);
+  if (truth.kind !== "ok" || !row || row.phase !== "calling" || !row.code_hash || !row.phone_hash || (truth.status !== "answered" && truth.status !== "started")) return goodbyeNcco(language);
   // Tries are counted in the store too, so replaying a first-try callback cannot keep guessing.
   if (!(await deps.store.takeSlot(`gate:${t.k}`, GATE_TRIES, now, SESSION_TTL_MS))) return goodbyeNcco(language);
   const base = urls(deps.cfg);

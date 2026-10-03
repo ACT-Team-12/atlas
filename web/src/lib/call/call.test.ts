@@ -386,6 +386,7 @@ describe("the call flow", () => {
     const row = store.rows.get(id)!;
     expect(row.phase).toBe("expired");
     expect([row.sealed_phone, row.sealed_text, row.sealed_token, row.last4]).toEqual([null, null, null, null]);
+    expect([row.phone_hash, row.language, row.code_uuid, row.note]).toEqual([null, null, null, null]);
   });
 
   it("logs and returns only the Vonage status, never its body", async () => {
@@ -560,6 +561,8 @@ describe("the call flow", () => {
     expect(await audioFor({ store, cfg, now: NOW }, { ...ev, p: "audio" })).toBeNull();
     // even the last 4 digits go: the page keeps its own copy for display
     expect(row.last4).toBeNull();
+    // and everything else about the call: only whether it finished is left, with nothing tied to the person
+    expect([row.phone_hash, row.language, row.code_uuid, row.plan_uuid, row.note, row.plan_mode, row.placed_at, row.code_hash]).toEqual([null, null, null, null, null, null, null, null]);
     expect(publicStatus(row)).toMatchObject({ phase: "done", plan_status: "completed", last4: null });
   });
 

@@ -4,9 +4,9 @@
 -- Counters are keyed by an HMAC of the number, never the number.
 create table if not exists atlas_calls (
   id              text primary key,
-  phone_hash      text not null,
+  phone_hash      text,           -- cleared when the session ends
   last4           text check (last4 ~ '^[0-9]{4}$'), -- cleared when the session ends
-  language        text not null,
+  language        text,
   phase           text not null check (phase in ('code', 'code_missed', 'expired', 'calling', 'done', 'failed')),
   code_hash       text,
   attempts        smallint not null default 0,
@@ -23,6 +23,8 @@ create table if not exists atlas_calls (
   expires_at      timestamptz not null
 );
 alter table atlas_calls alter column last4 drop not null;
+alter table atlas_calls alter column phone_hash drop not null;
+alter table atlas_calls alter column language drop not null;
 alter table atlas_calls add column if not exists code_uuid text;
 alter table atlas_calls add column if not exists plan_uuid text;
 alter table atlas_calls add column if not exists placed_at timestamptz;

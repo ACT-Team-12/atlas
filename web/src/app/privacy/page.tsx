@@ -40,16 +40,17 @@ export default function PrivacyPage() {
               <p>If you type a ZIP code or tap Use my location, it is sent once to find nearby health centers for your plan. We do not save it, and it is never stored on your device.</p>
             </Block>
             <Block title="Phone calls (Call me with my plan)">
-              <p>Only enter your own number. ATLAS calls only after you type a number and tick the box: first a short call that says a 4-digit code, then, once you type that code, a call that reads your plan.</p>
-              <p>The calls go through Vonage, our phone provider, which gets the number and plays the call. The natural voice, when it is used, is made by ElevenLabs from your plan text; otherwise Vonage reads it. Your number, plan text and that recording are kept encrypted on our server while your call is in progress and deleted when it ends (or when a code goes unused for 10 minutes). If our database is down at that moment, deletion waits until it is back, but the encryption itself stops them being opened after 30 minutes.</p>
-              <p>To limit calls, we count them per number and per network for 2 days under a scrambled key, never the number or the address itself. After a call we keep only its status until the session expires.</p>
+              <p>Only enter your own number. ATLAS calls only after you type a number and tick the box: first a short call that says a 4-digit code, then, once you type that code, a call that asks for the same code on the keypad before it reads your plan, so voicemail or anyone else who answers hears nothing about it.</p>
+              <p>While your call is in progress, our server holds your number, the plan text and the voice recording of it, all encrypted, plus the last 4 digits of your number in plain text so this page can show which phone it is calling. The calls go through Vonage, our phone provider, which gets your number and plays the call and keeps its own record of it (number, time and length). The natural voice, when it is used, is made by ElevenLabs from your plan text; otherwise Vonage reads it.</p>
+              <p>After the call ends, or once a code has gone unused for 10 minutes, all of that is deleted (our cleanup runs every few minutes): what is left is only whether the call finished or was missed, with nothing about you, and that is deleted later too. If our database is down at that moment, deletion waits until it is back, but the encryption itself stops your number and plan being opened after 30 minutes.</p>
+              <p>To limit calls, we count them per number and per network for up to 2 days, under a scrambled key that is not your number or address.</p>
             </Block>
             <Block title="What stays on your device">
               <p>Your last checklist and plan are saved in this browser (or in the app) so you can come back to them. Nothing is uploaded when you do that. Clear it from this device removes it, and so does clearing your browser data or deleting the app.</p>
               <p>Reminders you set in the app are stored on your phone only.</p>
             </Block>
             <Block title="What our server keeps">
-              <p>To stop abuse, the server counts requests per network address for 10 minutes, in memory only. Our host (Vercel) keeps standard request logs such as time, page and network address. If a request fails we log the kind of error, not your paper.</p>
+              <p>To stop abuse, the server counts requests per network address for 10 minutes, in memory only (phone calls are counted separately, see Phone calls). Our host (Vercel) keeps standard request logs such as time, page and network address. If a request fails we log the kind of error, not your paper.</p>
               <p>To show how ATLAS is used, we count each read, plan and feedback answer without anything about you: the language, how many steps, how long it took, which kinds of barriers were picked, and your three feedback taps. No paper text, no name, no ZIP or location, no network address, no free text. The totals are public on our tests page.</p>
               <p>We do not sell data, run ads, or add tracking or analytics tools of our own.</p>
               <p>One exception to know about: the Android app reads your paper with Google&apos;s ML Kit, which runs on your phone. Google says ML Kit sends it diagnostics that cannot be turned off: device model and system version, the app version, an installation identifier, how long reading took, and the image size. Google&apos;s list does not include the photo or the words on it (<a className="underline decoration-2 underline-offset-4" href="https://developers.google.com/ml-kit/android-data-disclosure" target="_blank" rel="noreferrer">ML Kit data disclosure</a>). The iPhone app uses Apple&apos;s built-in reading and sends nothing extra.</p>
@@ -58,7 +59,7 @@ export default function PrivacyPage() {
               <p>ATLAS explains your paper and helps you plan around what gets in the way. It does not diagnose or change your care. Check with your doctor or clinic before changing anything, and if you have a warning sign from your paper, call your clinic or 911.</p>
             </Block>
             <Block title="Questions or deletion">
-              <p>Because we do not keep your paper or plan, there is nothing on our side to delete. Your saved plan is removed with Clear it from this device. Questions: reach Team 12 through the ATL Innovation Cup organizers.</p>
+              <p>We do not keep your paper or plan, except while a phone call you asked for is in progress: then the plan is held encrypted, never readable past 30 minutes, and deleted when the call ends. So there is nothing on our side to delete. Your saved plan is removed with Clear it from this device. Questions: reach Team 12 through the ATL Innovation Cup organizers.</p>
             </Block>
           </div>
         </section>

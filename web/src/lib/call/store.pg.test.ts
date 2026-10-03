@@ -63,6 +63,8 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     expect((await store.get("f", NOW))?.has_audio).toBe(true);
     expect(await store.getAudio("f", NOW)).toEqual(Buffer.from([7, 7]));
     expect(await store.update("f", { ...WIPE, phase: "done", plan_status: "completed" })).toBe("updated");
+    const { rows: [left] } = await pool.query("select phone_hash, language, code_uuid, plan_uuid, note, plan_mode, placed_at, last4 from atlas_calls where id = 'f'");
+    expect(Object.values(left).every((v) => v === null)).toBe(true);
     expect(await store.update("f", { plan_status: "x" }, ["code"])).toBe("phase_changed");
     const row = await store.get("f", NOW);
     expect([row?.sealed_phone, row?.sealed_text, row?.sealed_token, row?.has_audio, await store.getAudio("f", NOW), row?.phase, row?.last4]).toEqual([null, null, null, false, null, "done", null]);
@@ -84,7 +86,7 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     await store.update("h", { phase: "calling", code_hash: null }, ["code"]);
     await store.sweep(NOW + 11 * 60_000);
     const g = await store.get("g", NOW + 11 * 60_000);
-    expect([g?.phase, g?.sealed_phone, g?.sealed_text, g?.sealed_token, g?.last4]).toEqual(["expired", null, null, null, null]);
+    expect([g?.phase, g?.sealed_phone, g?.sealed_text, g?.sealed_token, g?.last4, g?.phone_hash, g?.language, g?.note]).toEqual(["expired", null, null, null, null, null, null, null]);
     expect((await store.get("h", NOW + 11 * 60_000))?.sealed_phone).toEqual(Buffer.from([1, 2, 3]));
   });
 

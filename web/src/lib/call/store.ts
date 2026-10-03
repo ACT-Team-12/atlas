@@ -36,10 +36,11 @@ export type Phase = "code" | "code_missed" | "expired" | "calling" | "done" | "f
 
 export type SessionRow = {
   id: string;
-  phone_hash: string;
+  /** HMAC of the number while the session is live; cleared when it ends (the caps live in atlas_call_counters). */
+  phone_hash: string | null;
   /** The number's last 4 digits, for the person's own status line; cleared with everything else when the session ends. */
   last4: string | null;
-  language: string;
+  language: string | null;
   phase: Phase;
   code_hash: string | null;
   attempts: number;
@@ -63,10 +64,17 @@ export type SessionRow = {
 };
 
 export type NewSession = Pick<SessionRow, "id" | "phone_hash" | "last4" | "language" | "code_hash" | "code_expires_at" | "sealed_phone" | "sealed_text" | "sealed_token" | "expires_at">;
-export type SessionPatch = Partial<Pick<SessionRow, "last4" | "phase" | "code_hash" | "code_status" | "plan_status" | "plan_mode" | "note" | "code_uuid" | "plan_uuid" | "placed_at" | "sealed_phone" | "sealed_text" | "sealed_token">> & { sealed_audio?: Buffer | null };
+export type SessionPatch = Partial<Pick<SessionRow, "phone_hash" | "language" | "last4" | "phase" | "code_hash" | "code_status" | "plan_status" | "plan_mode" | "note" | "code_uuid" | "plan_uuid" | "placed_at" | "sealed_phone" | "sealed_text" | "sealed_token">> & { sealed_audio?: Buffer | null };
 
+/**
+ * Clears everything a session holds about the person and the call except its phase and statuses (so the page can say
+ * whether it finished or was missed). Rate limits do not need the row: they live in atlas_call_counters, keyed by HMAC.
+ */
+export const WIPE_SQL = "phone_hash = null, language = null, plan_mode = null, note = null, code_uuid = null, plan_uuid = null, placed_at = null, code_hash = null, last4 = null, sealed_phone = null, sealed_text = null, sealed_token = null, sealed_audio = null";
 /** Clears everything sensitive a session holds. Used when a call ends or a session can go no further. */
-export const WIPE: SessionPatch = { last4: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null, code_hash: null };
+export const WIPE: SessionPatch = {
+  phone_hash: null, language: null, plan_mode: null, note: null, code_uuid: null, plan_uuid: null, placed_at: null,
+  last4: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null, code_hash: null };
 
 export interface CallStore {
   /** Deletes expired sessions and counters and wipes sessions that can go no further. False on a database error. */
@@ -109,9 +117,9 @@ export interface CallStore {
 export const SCHEMA_SQL = `
 create table if not exists atlas_calls (
   id              text primary key,
-  phone_hash      text not null,
+  phone_hash      text,
   last4           text check (last4 ~ '^[0-9]{4}$'),
-  language        text not null,
+  language        text,
   phase           text not null check (phase in ('code', 'code_missed', 'expired', 'calling', 'done', 'failed')),
   code_hash       text,
   attempts        smallint not null default 0,
@@ -128,6 +136,8 @@ create table if not exists atlas_calls (
   expires_at      timestamptz not null
 );
 alter table atlas_calls alter column last4 drop not null;
+alter table atlas_calls alter column phone_hash drop not null;
+alter table atlas_calls alter column language drop not null;
 alter table atlas_calls add column if not exists code_uuid text;
 alter table atlas_calls add column if not exists plan_uuid text;
 alter table atlas_calls add column if not exists placed_at timestamptz;
@@ -197,7 +207,7 @@ export function refuseStale(row: SessionRow, now: number): SessionRow {
 }
 
 const COLS = "id, phone_hash, last4, language, phase, code_hash, attempts, code_expires_at, code_status, plan_status, plan_mode, note, code_uuid, plan_uuid, placed_at, sealed_phone, sealed_text, sealed_token, (sealed_audio is not null) as has_audio, created_at, expires_at";
-const PATCHABLE = new Set(["last4", "phase", "code_hash", "code_status", "plan_status", "plan_mode", "note", "code_uuid", "plan_uuid", "placed_at", "sealed_phone", "sealed_text", "sealed_token", "sealed_audio"]);
+const PATCHABLE = new Set(["phone_hash", "language", "last4", "phase", "code_hash", "code_status", "plan_status", "plan_mode", "note", "code_uuid", "plan_uuid", "placed_at", "sealed_phone", "sealed_text", "sealed_token", "sealed_audio"]);
 const logErr = (what: string, e: unknown) => console.error(what, e instanceof Error ? e.name : typeof e); // never values
 
 export class PgCallStore implements CallStore {
@@ -209,13 +219,13 @@ export class PgCallStore implements CallStore {
       await this.db.query("delete from atlas_calls where expires_at < $1", [at]);
       // A code nobody typed in time: the session can go no further, so its encrypted data goes now, not at 30 minutes.
       await this.db.query(
-        `update atlas_calls set phase = 'expired', code_hash = null, last4 = null, sealed_phone = null, sealed_text = null, sealed_token = null, sealed_audio = null
-         where (phase = 'code' and code_expires_at < $1) or (phase in ('code_missed', 'expired', 'failed', 'done') and sealed_phone is not null)`,
+        `update atlas_calls set phase = case when phase = 'code' then 'expired' else phase end, ${WIPE_SQL}
+         where (phase = 'code' and code_expires_at < $1) or (phase in ('code_missed', 'expired', 'failed', 'done') and phone_hash is not null)`,
         [at],
       );
       // A plan call Vonage never confirmed (placing timed out, no event since), or one past its longest possible length.
       await this.db.query(
-        `update atlas_calls set phase = 'failed', note = 'plan call not confirmed', code_hash = null, last4 = null, sealed_phone = null, sealed_text = null, sealed_token = null, sealed_audio = null
+        `update atlas_calls set phase = 'failed', ${WIPE_SQL}
          where phase = 'calling' and ((plan_status = 'unknown' and placed_at < $1) or placed_at < $2 or (plan_status is null and placed_at < $3))`,
         [new Date(now - UNCONFIRMED_PLAN_MS), new Date(now - PLAN_CALL_MAX_MS), new Date(now - PREPARING_MAX_MS)],
       );

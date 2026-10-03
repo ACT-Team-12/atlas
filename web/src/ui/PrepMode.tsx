@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { LANGUAGES } from "@/lib/schema";
 import type { PrepResponse, PrepStep } from "@/lib/prepTimeline";
@@ -8,7 +8,7 @@ import { ASK_LABEL, PREP_KIND_LABEL, WHEN_REASON_TEXT } from "@/lib/prepTime";
 import { prepSpeechLines } from "@/lib/prepSpeech";
 import { SPEECH_LANG } from "@/lib/speechLang";
 import { SAMPLE_PREP, SAMPLE_PREP_LABEL } from "@/lib/samplePrep";
-import { EXPLAIN_NOTE, explainState, meaningItems, NO_MEANING, shownExplanation, type MeaningState } from "@/lib/prepView";
+import { defaultOpenSlot, EXPLAIN_NOTE, explainState, meaningItems, NO_MEANING, prepAskText, prepClosedRow, prepMustSee, shownExplanation, type MeaningState } from "@/lib/prepView";
 import { createRequestGate, type Ticket } from "@/lib/requestGate";
 
 type Inputs = { text: string; language: string };
@@ -200,22 +200,7 @@ export function PrepMode() {
                   </div>
                 )}
 
-                <ol className="mt-6 space-y-6" aria-label="Your prep timeline">
-                  {res.timeline.map((g) => (
-                    <li key={g.slot}>
-                      <h3 className="text-xl font-extrabold">{g.label}</h3>
-                      <ul className="mt-2 space-y-3">{g.steps.map((s) => <Step key={s.id} s={s} meaning={meaning} />)}</ul>
-                    </li>
-                  ))}
-                </ol>
-
-                {res.ask.length > 0 && (
-                  <div className="mt-8 rounded-2xl border-2 border-sun bg-paper p-4">
-                    <h3 className="text-xl font-extrabold">{ASK_LABEL}</h3>
-                    <p className="text-sm font-semibold text-ink/70">Your paper does not say a day and time for these. Ask your clinic before your procedure.</p>
-                    <ul className="mt-3 space-y-3">{res.ask.map((s) => <Step key={s.id} s={s} meaning={meaning} />)}</ul>
-                  </div>
-                )}
+                <PrepTimeline res={res} meaning={meaning} />
                 <p className="mt-4 text-xs text-ink/70">
                   Your clinic&apos;s paper is what counts. If anything here differs from it, follow the paper and call your clinic.
                 </p>
@@ -229,33 +214,110 @@ export function PrepMode() {
   );
 }
 
-function Step({ s, meaning }: { s: PrepStep; meaning: MeaningState }) {
+/**
+ * The timeline, concise (Akhil's pattern, PR 73): one collapsed group per time, in order, with only the next group open.
+ * A closed group still shows its must-see steps ("Stop drinking", "Do not eat", when to call), whole and in red. Every
+ * step is one line of the paper's own words that opens to the rest. "Ask your clinic when" stays one open list.
+ */
+export function PrepTimeline({ res, meaning }: { res: Pick<PrepResponse, "timeline" | "ask">; meaning: MeaningState }) {
+  const first = defaultOpenSlot(res.timeline);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const isOpen = (slot: string) => open[slot] ?? slot === first;
+  const base = useId();
+  return (
+    <>
+      <ol className="mt-6 space-y-4" aria-label="Your prep timeline">
+        {res.timeline.map((g) => {
+          const shut = !isOpen(g.slot);
+          const listId = `${base}-${g.slot}`;
+          const folded = shut ? g.steps.filter((s) => !prepMustSee(s)).length : 0;
+          return (
+            <li key={g.slot} data-prep-group={g.slot} data-open={!shut || undefined}
+              className={`rounded-2xl border-2 ${shut ? "border-ink/20" : "border-ink"} bg-paper/60 p-3`}>
+              <h3>
+                <button type="button" aria-expanded={!shut} aria-controls={listId} onClick={() => setOpen((o) => ({ ...o, [g.slot]: shut }))}
+                  className="group flex w-full items-baseline justify-between gap-2 rounded-xl text-left">
+                  <span className="display text-xl">{g.label}</span>
+                  <span className="flex items-baseline gap-2 text-xs font-bold text-ink/70">
+                    {g.steps.length} {g.steps.length === 1 ? "step" : "steps"}
+                    <span aria-hidden="true" className="text-base font-extrabold transition-transform group-aria-expanded:rotate-90">›</span>
+                  </span>
+                </button>
+              </h3>
+              {folded > 0 && <p className="mt-1 text-xs font-semibold text-ink/70" data-folded-count="">{folded} more {folded === 1 ? "step" : "steps"} in this group. Tap {g.label.toLowerCase()} to see {folded === 1 ? "it" : "them"}.</p>}
+              <ul id={listId} className="mt-2 space-y-2">
+                {g.steps.map((s) => <Step key={s.id} s={s} meaning={meaning} folded={shut && !prepMustSee(s)} />)}
+              </ul>
+            </li>
+          );
+        })}
+      </ol>
+      {res.ask.length > 0 && <AskWhen steps={res.ask} meaning={meaning} />}
+    </>
+  );
+}
+
+/** "Ask your clinic when": one list, always open, with Copy. Each line is the paper's own sentence. */
+function AskWhen({ steps, meaning }: { steps: PrepStep[]; meaning: MeaningState }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard?.writeText(prepAskText(steps)).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
+  }
+  return (
+    <section aria-labelledby="prep-ask-title" className="mt-6 rounded-2xl border-2 border-dashed border-peach-deep bg-paper p-4" data-ask-when="">
+      <h3 id="prep-ask-title" className="display text-xl">{ASK_LABEL} ({steps.length})</h3>
+      <p className="text-sm font-semibold text-ink/70">Your paper does not say a day and time for these. Ask your clinic before your procedure.</p>
+      <ul className="mt-3 space-y-2">{steps.map((s) => <Step key={s.id} s={s} meaning={meaning} folded={false} />)}</ul>
+      <div className="mt-3 flex items-center gap-2">
+        <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">Copy these questions</button>
+        <span role="status" className="text-xs font-semibold text-ink/70">{copied ? "Copied" : ""}</span>
+      </div>
+    </section>
+  );
+}
+
+function Step({ s, meaning, folded }: { s: PrepStep; meaning: MeaningState; folded: boolean }) {
   const state = explainState(s, meaning);
   // The only way the AI's words reach this card: the shared paper-first rule (prepView.ts, paperFirst.ts).
   const shown = shownExplanation(s, meaning);
+  const closed = prepClosedRow(s);
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
   return (
-    <li className="min-w-0 rounded-2xl border-2 border-ink/30 bg-paper p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-xs font-bold uppercase tracking-wide text-ink/70">Your paper says</span>
-        <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-paper">{PREP_KIND_LABEL[s.kind]}</span>
+    <li hidden={folded} data-prep-step={s.id} data-must-see={closed.full || undefined} data-open={open || undefined}
+      className={`min-w-0 rounded-2xl border-2 bg-paper ${closed.full ? "border-red" : open ? "border-ink" : "border-ink/20"}`}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId}
+        className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl p-3 text-left">
+        <span className="min-w-0" data-closed-row="quote">
+          <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">{closed.full ? <span className="text-red">Don&apos;t miss · your paper says</span> : "Your paper says"}</span>
+          <span className="block font-bold leading-snug [overflow-wrap:anywhere]" data-paper-quote="">&ldquo;{closed.quote}&rdquo;</span>
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-ink/70">
+            <span className="chip bg-ink text-paper">{PREP_KIND_LABEL[s.kind]}</span>
+            {closed.whenWords.length > 0 && <span>{closed.whenWords.map((w) => `“${w}”`).join(", ")}</span>}
+          </span>
+        </span>
+        <span aria-hidden="true" className="font-extrabold text-ink/70 transition-transform group-aria-expanded:rotate-90">›</span>
+      </button>
+      <div id={panelId} hidden={!open} className="px-3 pb-3" data-prep-panel="">
+        <p className="text-xs font-bold uppercase tracking-wide text-ink/70">Your paper says, in full</p>
+        <p className="mt-1 border-l-4 border-sun pl-2 font-extrabold [overflow-wrap:anywhere]" data-paper-quote="">{s.source_quote}</p>
+        {s.slot && s.when_words.length > 0 && (
+          <p className="mt-2 text-sm font-semibold">When, in your paper&apos;s words: {s.when_words.map((w) => `"${w}"`).join(", ")}</p>
+        )}
+        {!s.slot && s.reason !== "placed" && (
+          <p className="mt-2 text-sm font-semibold">
+            {WHEN_REASON_TEXT[s.reason]}{s.when_words.length > 0 ? ` It says: ${s.when_words.map((w) => `"${w}"`).join(", ")}.` : ""}
+          </p>
+        )}
+        {shown && (
+          <p className="mt-2 text-sm [overflow-wrap:anywhere]" data-explanation="">
+            <span className="font-bold">In plain words (double-checked against your paper):</span> {shown}
+          </p>
+        )}
+        {state !== "certified" && state !== "none" && (
+          <p className="mt-2 text-xs font-semibold text-ink/70">{EXPLAIN_NOTE[state]}</p>
+        )}
       </div>
-      <p className="mt-1 border-l-4 border-sun pl-2 font-extrabold [overflow-wrap:anywhere]">{s.source_quote}</p>
-      {s.slot && s.when_words.length > 0 && (
-        <p className="mt-2 text-sm font-semibold">When, in your paper&apos;s words: {s.when_words.map((w) => `"${w}"`).join(", ")}</p>
-      )}
-      {!s.slot && s.reason !== "placed" && (
-        <p className="mt-2 text-sm font-semibold">
-          {WHEN_REASON_TEXT[s.reason]}{s.when_words.length > 0 ? ` It says: ${s.when_words.map((w) => `"${w}"`).join(", ")}.` : ""}
-        </p>
-      )}
-      {shown && (
-        <p className="mt-2 text-sm [overflow-wrap:anywhere]">
-          <span className="font-bold">In plain words (double-checked against your paper):</span> {shown}
-        </p>
-      )}
-      {state !== "certified" && state !== "none" && (
-        <p className="mt-2 text-xs font-semibold text-ink/70">{EXPLAIN_NOTE[state]}</p>
-      )}
     </li>
   );
 }

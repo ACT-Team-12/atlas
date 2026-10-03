@@ -1,7 +1,9 @@
 import type { MeaningResult } from "./meaning";
-import { cuesForbid } from "./prepCues";
+import { cues, cuesForbid } from "./prepCues";
 import { paperFirstView } from "./paperFirst";
-import type { PrepResponse, PrepStep } from "./prepTimeline";
+import type { PrepGroup, PrepResponse, PrepStep } from "./prepTimeline";
+import type { Slot } from "./prepTime";
+import { shortQuote } from "./stepsView";
 
 /**
  * What the page may show for a prep step's plain-words explanation. Fails closed: the paper's own quote is always
@@ -49,7 +51,38 @@ export function shownExplanation(step: PrepStep, m: MeaningState): string | null
   return v.lead === "explanation" ? v.explanation : null;
 }
 
-export const allSteps = (res: Pick<PrepResponse, "timeline" | "ask">): PrepStep[] => [...res.timeline.flatMap((g) => g.steps), ...res.ask];
+/**
+ * A step that must never be folded away: its paper sentence has a "do not" / "stop" word (prepCues.ts, the same list
+ * that hides explanations: "Stop drinking", "Do not eat", "Nothing red", "fasting"), it is a "when to call" step, or it
+ * names 911 or the emergency room. Its row stays visible in a closed group and keeps its whole sentence.
+ */
+export function prepMustSee(s: Pick<PrepStep, "kind" | "source_quote">): boolean {
+  return s.kind === "call" || cues(s.source_quote).no || /(?<![\p{L}\p{N}])(?:911|emergency|emergencia|urgencias)(?![\p{L}\p{N}])/iu.test(s.source_quote);
+}
+
+/**
+ * What a closed prep row shows: the paper's own sentence (shortened at a word boundary, or whole for a must-see step)
+ * and the time words from it. Never the AI's explanation, certified or not: prep keeps it inside the opened row.
+ */
+export function prepClosedRow(s: PrepStep): { quote: string; full: boolean; whenWords: string[] } {
+  const full = prepMustSee(s);
+  return { quote: full ? s.source_quote.replace(/\s+/g, " ").trim() : shortQuote(s.source_quote), full, whenWords: s.when_words };
+}
+
+/**
+ * The group open when the timeline first shows: the next one ahead. The paper gives no date, so that is the earliest
+ * group (days before, then the day before, ...). Every other group starts closed, its must-see steps still showing.
+ */
+export function defaultOpenSlot(timeline: Pick<PrepGroup, "slot">[]): Slot | null {
+  return timeline[0]?.slot ?? null;
+}
+
+/** What Copy puts on the clipboard for "Ask your clinic when": each step as the paper's own sentence. */
+export function prepAskText(ask: Pick<PrepStep, "source_quote">[]): string {
+  return ask.map((s, i) => `${i + 1}. When should I do this? Your paper says: "${s.source_quote.replace(/\s+/g, " ").trim()}"`).join("\n");
+}
+
+export const allSteps =(res: Pick<PrepResponse, "timeline" | "ask">): PrepStep[] => [...res.timeline.flatMap((g) => g.steps), ...res.ask];
 
 /** The items sent to /api/meaning: every step with an explanation, within that route's limits (40 items, 800 chars). */
 export function meaningItems(res: Pick<PrepResponse, "timeline" | "ask">) {

@@ -48,7 +48,7 @@ const FR = map({
 const VI = map({ "một": 1, "mốt": 1, hai: 2, ba: 3, "bốn": 4, "tư": 4, "năm": 5, "lăm": 5, "sáu": 6, "bảy": 7, "tám": 8, "chín": 9, "mười": 10 });
 
 const EN_LEX: Lexicon = {
-  count: /^(?:tablets?|pills?|capsules?|doses?|times?|drops?|puffs?|hours?|days?|weeks?|months?|mg|ml|cups?|glasses?|spoons?|teaspoons?|tablespoons?)$/,
+  count: /^(?:tablets?|pills?|capsules?|doses?|times?|drops?|puffs?|minutes?|seconds?|hours?|days?|weeks?|months?|years?|mg|mcg|g|ml|l|grams?|liters?|litres?|ounces?|oz|units?|patch(?:es)?|injections?|cups?|glasses?|bottles?|packets?|spoons?|teaspoons?|tablespoons?)$/,
   word: (w, _p, next) => {
     if (w === "hundred") return { kind: "mul", v: 100 };
     if (w === "thousand") return { kind: "mul", v: 1000 };
@@ -59,7 +59,7 @@ const EN_LEX: Lexicon = {
   },
 };
 const ES_LEX: Lexicon = {
-  count: /^(?:tabletas?|pastillas?|c[áa]psulas?|comprimidos?|dosis|vez|veces|cucharadas?|cucharaditas?|gotas?|horas?|d[íi]as?|semanas?|mes|meses|sobres?|vasos?|tazas?|inhalaciones|inhalaci[óo]n|mg|ml)$/,
+  count: /^(?:tabletas?|pastillas?|c[áa]psulas?|comprimidos?|dosis|vez|veces|cucharadas?|cucharaditas?|gotas?|horas?|d[íi]as?|semanas?|mes|meses|sobres?|vasos?|tazas?|inhalaciones|inhalaci[óo]n|minutos?|segundos?|a[ñn]os?|gramos?|litros?|onzas?|unidades|unidad|parches?|inyecciones|inyecci[óo]n|botellas?|frascos?|mg|mcg|g|ml|l)$/,
   word: (w) => {
     if (w === "mil") return { kind: "mul", v: 1000 };
     if (w === "y") return { kind: "conn" };
@@ -70,7 +70,7 @@ const ES_LEX: Lexicon = {
 };
 const FR_LEX: Lexicon = {
   french: true,
-  count: /^(?:comprim[ée]s?|pilules?|g[ée]lules?|cachets?|fois|doses?|cuill[èe]res?|gouttes?|heures?|jours?|semaines?|mois|sachets?|verres?|tasses?|inhalations?|bouff[ée]es?|mg|ml)$/,
+  count: /^(?:comprim[ée]s?|pilules?|g[ée]lules?|cachets?|fois|doses?|cuill[èe]res?|gouttes?|heures?|jours?|semaines?|mois|sachets?|verres?|tasses?|inhalations?|bouff[ée]es?|minutes?|secondes?|ans?|ann[ée]es?|grammes?|litres?|onces?|unit[ée]s?|patchs?|injections?|bouteilles?|flacons?|mg|mcg|g|ml|l)$/,
   word: (w, prev) => {
     if (w === "cent" || w === "cents") return { kind: "mul", v: 100 };
     if (w === "mille") return { kind: "mul", v: 1000 };
@@ -82,7 +82,7 @@ const FR_LEX: Lexicon = {
   },
 };
 const VI_LEX: Lexicon = {
-  count: /^(?:viên|lần|liều|giờ|ngày|tuần|tháng|gói|cốc|ly|giọt|muỗng|thìa|nhát|ống|vỉ|mg|ml)$/u,
+  count: /^(?:viên|lần|liều|phút|giây|giờ|ngày|tuần|tháng|năm|gói|cốc|ly|chai|lọ|giọt|muỗng|thìa|nhát|ống|vỉ|miếng|mũi|gam|lít|mg|mcg|g|ml|l)$/u,
   word: (w) => {
     if (w === "mươi") return { kind: "mul", v: 10 };
     if (w === "trăm") return { kind: "mul", v: 100 };
@@ -155,7 +155,7 @@ function readLatin(text: string, lex: Lexicon, lang: NumberLanguage): NumberRead
 
 const ZH_DIGIT: Record<string, number> = { "零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "兩": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9 };
 const ZH_UNIT: Record<string, number> = { "十": 10, "百": 100, "千": 1000 };
-const ZH_COUNT = "片粒颗顆次天日周週个個小时時杯袋包滴勺匙支瓶毫克";
+const ZH_COUNT = "片粒颗顆次天日周週个個小时時分秒年月杯袋包滴勺匙支瓶毫克升贴貼针針";
 /** Words that contain a numeral character but are not numbers ("together", "must", "by all means", "percent of"). */
 const ZH_NOT_NUMBERS = /一起|一定|一些|一样|一樣|一般|一直|一切|一下|一旦|统一|統一|唯一|万一|萬一|千万|千萬|百分之/gu;
 
@@ -195,7 +195,7 @@ function readChinese(text: string): NumberReading {
 
 const KO_SINO: Record<string, number> = { "일": 1, "이": 2, "삼": 3, "사": 4, "오": 5, "육": 6, "칠": 7, "팔": 8, "구": 9 };
 const KO_SINO_UNIT: Record<string, number> = { "십": 10, "백": 100, "천": 1000 };
-const KO_COUNT = String.raw`(?:알|정|번|시간|개|잔|컵|봉|포|방울|회|캡슐|스푼|숟가락|일|주|달|개월|분|밀리그램|밀리리터|mg|ml)`;
+const KO_COUNT = String.raw`(?:알|정|번|시간|개|잔|컵|봉|포|방울|회|캡슐|스푼|숟가락|일|주|달|개월|분|초|년|밀리그램|밀리리터|그램|리터|mg|ml)`;
 const KO_TENS: Record<string, number> = { "스물": 20, "스무": 20, "서른": 30, "마흔": 40, "쉰": 50, "예순": 60, "일흔": 70, "여든": 80, "아흔": 90 };
 const KO_UNITS_FULL: Record<string, number> = { "하나": 1, "둘": 2, "셋": 3, "넷": 4, "다섯": 5, "여섯": 6, "일곱": 7, "여덟": 8, "아홉": 9 };
 const KO_UNITS_BEFORE: Record<string, number> = { "한": 1, "두": 2, "세": 3, "네": 4, "다섯": 5, "여섯": 6, "일곱": 7, "여덟": 8, "아홉": 9, "열": 10 };

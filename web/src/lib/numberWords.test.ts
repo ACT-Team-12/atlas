@@ -57,3 +57,41 @@ describe("Codex round 4: numeral text the parser can't read is uncheckable, neve
     expect(combine("x", { ...it0, source_quote: "Take your tablet.", plain_language: "ጽላትዎን ይውሰዱ።" }, "same", "", "Amharic").certified).toBe(false);
   });
 });
+
+describe("Codex round 5: a singular time or unit word after an article is still a number", () => {
+  it.each([
+    ["Spanish", "Espere un minuto.", "1"],
+    ["Spanish", "Espere un segundo.", "1"],
+    ["Spanish", "Use una unidad.", "1"],
+    ["French", "Attendez une minute.", "1"],
+    ["French", "Attendez une seconde.", "1"],
+    ["French", "Appliquez un patch.", "1"],
+    ["Vietnamese", "Chờ một phút.", "1"],
+    ["Vietnamese", "Chờ một giây.", "1"],
+    ["Chinese", "等一分钟。", "1"],
+    ["Korean", "한 시간 기다리세요.", "1"],
+  ] as const)("%s %j reads %s", (lang, text, n) => {
+    expect(readNumberWords(text, lang)).toEqual({ numbers: [n], uncheckable: false });
+  });
+
+  it.each([
+    ["Spanish", "Espere un minuto."],
+    ["French", "Attendez une minute."],
+    ["Vietnamese", "Chờ một phút."],
+    ["Chinese", "等一分钟。"],
+    ["Korean", "일 분 기다리세요."],
+    ["English", "Wait one minute."],
+  ] as const)("%s %j against \"Wait 2 minutes\" is caught in prep and never certified", (lang, plain) => {
+    const quote = "Wait 2 minutes.";
+    expect(numberCheckAnyForm({ plain_language: plain, source_quote: quote }, lang).unexpected).toEqual(["1"]);
+    // English number words on the care-plan path are left to the second model (meaning.ts numberCheck), so only the
+    // other languages are asserted here.
+    if (lang !== "English") expect(combine("x", { id: "x", when: "", source_quote: quote, plain_language: plain }, "same", "", lang).certified).toBe(false);
+  });
+
+  it("an article before an ordinary noun is still not a number", () => {
+    expect(readNumberWords("Llame a un médico.", "Spanish").numbers).toEqual([]);
+    expect(readNumberWords("Appelez un médecin.", "French").numbers).toEqual([]);
+    expect(readNumberWords("이 병은 위험합니다.", "Korean").numbers).toEqual([]);
+  });
+});

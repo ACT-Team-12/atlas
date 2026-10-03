@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { CallStoreDown, ensureSchema, PgCallStore, reserveSlots, WIPE, type NewSession } from "./store";
+import { CallStoreDown, END_PENDING, ensureSchema, PgCallStore, reserveSlots, WIPE, type NewSession } from "./store";
 
 /**
  * The SQL of PgCallStore against a real Postgres. Runs only with CALL_TEST_DATABASE_URL pointing at a throwaway
@@ -168,6 +168,25 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     await store.sweep(NOW + 6 * 60_000);
     const { rows } = await pool.query("select phase, sealed_phone, sealed_text from atlas_calls where id = 'w'");
     expect(rows[0]).toEqual({ phase: "failed", sealed_phone: null, sealed_text: null });
+  });
+
+  it("lists only live plan calls with a pending end and a UUID; the sweep alone never wipes them; the wipe clears the marker", async () => {
+    await store.startCode(session("pe1", "h11"), NOW);
+    await store.update("pe1", { phase: "calling", code_hash: null, placed_at: new Date(NOW), plan_status: "answered", plan_uuid: "v-1" }, ["code"]);
+    await store.startCode(session("pe2", "h12"), NOW);
+    await store.update("pe2", { phase: "calling", code_hash: null, placed_at: new Date(NOW), plan_status: "answered" }, ["code"]);
+    expect(await store.pendingEnds(NOW, 10)).toEqual([]);
+    expect(await store.update("pe1", { note: END_PENDING }, ["calling"])).toBe("updated");
+    expect(await store.update("pe2", { note: END_PENDING }, ["calling"])).toBe("updated"); // no UUID: nothing to ask Vonage about
+    expect(await store.pendingEnds(NOW, 10)).toEqual([{ id: "pe1", plan_uuid: "v-1" }]);
+    expect(await store.pendingEnds(NOW, 0)).toEqual([]);
+    await store.sweep(NOW + 6 * 60_000); // the marker is not a reason to wipe
+    expect((await store.get("pe1", NOW + 6 * 60_000))?.sealed_text).toEqual(Buffer.from([4, 5]));
+    expect(await store.update("pe1", { ...WIPE, phase: "done", plan_status: "completed" })).toBe("updated");
+    const { rows } = await pool.query("select note, plan_uuid from atlas_calls where id = 'pe1'");
+    expect(rows[0]).toEqual({ note: null, plan_uuid: null });
+    expect(await store.pendingEnds(NOW, 10)).toEqual([]);
+    expect(await store.pendingEnds(NOW + 31 * 60_000, 10)).toEqual([]); // past the row's life
   });
 
   it("sweeps expired sessions and counters", async () => {

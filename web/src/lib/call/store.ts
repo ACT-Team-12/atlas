@@ -22,6 +22,13 @@ export const PREPARING_MAX_MS = 5 * 60_000;
 /** A placed plan call can ring 45 s and last 15 min (length_timer); past this its data is wiped even if no event came. */
 export const PLAN_CALL_MAX_MS = 17 * 60_000;
 export const COUNTER_TTL_MS = 2 * 24 * 60 * 60_000;
+/**
+ * Written to a plan call's `note` when a callback for its own, already verified call UUID says the call ended but
+ * Vonage's GET still reports it live (a lagging read). It never wipes or ends anything by itself: the sweep and the
+ * status route ask Vonage again (settlePendingEnds in flow.ts) and wipe only once Vonage itself reports an end.
+ * The wipe clears it with everything else.
+ */
+export const END_PENDING = "end_pending";
 
 /**
  * Thrown by get, getAudio, takeAttempt and takeSlot when the database cannot answer, so a caller can never mistake an outage for
@@ -79,6 +86,11 @@ export const WIPE: SessionPatch = {
 export interface CallStore {
   /** Deletes expired sessions and counters and wipes sessions that can go no further. False on a database error. */
   sweep(now: number): Promise<boolean>;
+  /**
+   * Live plan calls carrying the END_PENDING marker and a stored plan UUID (at most `limit`, oldest placed first), so
+   * the end can be checked with Vonage again. null on a database error.
+   */
+  pendingEnds(now: number, limit: number): Promise<{ id: string; plan_uuid: string }[] | null>;
   /** Inserts a session in phase "code", unless this number already has a live code ("in-flight"). */
   startCode(s: NewSession, now: number): Promise<"ok" | "in-flight" | "error">;
   /** Deletes a session that never got a call. True only when the delete was confirmed; false on a database error. */
@@ -236,6 +248,21 @@ export class PgCallStore implements CallStore {
     } catch (e) {
       logErr("call sweep failed", e);
       return false;
+    }
+  }
+
+  async pendingEnds(now: number, limit: number) {
+    try {
+      const r = await this.db.query(
+        `select id, plan_uuid from atlas_calls
+         where phase = 'calling' and note = $1 and plan_uuid is not null and expires_at > $2
+         order by placed_at nulls first limit $3`,
+        [END_PENDING, new Date(now), limit],
+      );
+      return r.rows as { id: string; plan_uuid: string }[];
+    } catch (e) {
+      logErr("call pending ends failed", e);
+      return null;
     }
   }
 

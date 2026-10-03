@@ -5,7 +5,7 @@ import { PlanRequestSchema, buildPlan } from "@/lib/plan";
 import { ExtractError } from "@/lib/extract";
 import { issueFeedbackToken } from "@/lib/feedbackToken";
 import { issueSpeakToken } from "@/lib/speakToken";
-import { speechText } from "@/lib/speechText";
+import { paidSpeechText } from "@/lib/speechText";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     }, test));
     // A one-time token so the person who got this plan can rate it once (see feedbackToken.ts).
     // And one that lets this plan, and only this plan, be read in the natural voice (see speakToken.ts).
-    return Response.json({ ...plan, feedback_token: issueFeedbackToken(), speak_token: issueSpeakToken(parsed.data.language, speechText(plan, parsed.data.care)) });
+    return Response.json({ ...plan, feedback_token: issueFeedbackToken(), speak_token: issueSpeakToken(parsed.data.language, paidSpeechText(plan)) });
   } catch (e) {
     if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status });
     // Log the kind of error only, never the request or message, so a paper can never land in the host logs.

@@ -22,7 +22,7 @@ import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEven
 import { restoredTab, scrollTargetAfter, shownTab, type Tab } from "@/lib/phoneTabs";
 import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
-import { speechLines } from "@/lib/speechText";
+import { paidVoiceAllowed, speechLines } from "@/lib/speechText";
 import {
   closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan, saveSession,
   STORE_KEY, type Session, type Store,
@@ -512,7 +512,8 @@ export function CarePlanTool() {
     setSpeaking(true);
     setVoiceNote("");
     const text = lines.join("\n");
-    if (text.length > MAX_SPEAK_CHARS || !plan.speak_token) return phoneVoice(lines, run);
+    // The paid voice reads only the plan's own signed text; with the paper's words added, the device's voice reads it.
+    if (text.length > MAX_SPEAK_CHARS || !plan.speak_token || !paidVoiceAllowed(plan, lines)) return phoneVoice(lines, run);
     const audio = new Audio();
     speechAudio.current = audio;
     const ctrl = new AbortController();

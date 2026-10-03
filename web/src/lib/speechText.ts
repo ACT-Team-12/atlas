@@ -4,9 +4,18 @@ import { planStepQuotes } from "./planQuotes";
 type Linked = { id: string; source_quote: string; grounded?: boolean };
 
 /**
- * What "Read it out loud" says for a plan. One line each; the server signs exactly this text (speakToken.ts).
- * A plan step is the AI's suggestion and is never certified, so a step tied to steps from the paper is followed by
- * the paper's own words for them (paperFirst.ts).
+ * The text the paid natural voice may read: ONLY what /api/plan itself produced (summary and steps). /api/plan signs
+ * exactly this (speakToken.ts). It never includes anything the caller sent, such as care-step quotes, so a caller
+ * can't get a natural-voice token for text of their choosing.
+ */
+export const paidSpeechText = (plan: Pick<PlanResponse, "summary" | "steps">) => planLines(plan).join("\n");
+
+const planLines = (plan: Pick<PlanResponse, "summary" | "steps">) => [plan.summary, ...plan.steps.map((s, i) => `${i + 1}. ${s.title}. ${s.action}`)];
+
+/**
+ * What "Read it out loud" says for a plan, one line each. A plan step is the AI's suggestion and is never certified,
+ * so a step tied to steps from the paper is followed by the paper's own words for them (paperFirst.ts). When that
+ * adds anything to the paid text, the page reads it with the device's own voice (free), never the paid one.
  */
 export function speechLines(plan: Pick<PlanResponse, "summary" | "steps">, items: Linked[] = []): string[] {
   return [
@@ -15,4 +24,5 @@ export function speechLines(plan: Pick<PlanResponse, "summary" | "steps">, items
   ];
 }
 
-export const speechText = (plan: Pick<PlanResponse, "summary" | "steps">, items: Linked[] = []) => speechLines(plan, items).join("\n");
+/** True when the natural (paid) voice may read these lines: they are exactly the plan's own signed text. */
+export const paidVoiceAllowed = (plan: Pick<PlanResponse, "summary" | "steps">, lines: string[]) => lines.join("\n") === paidSpeechText(plan);

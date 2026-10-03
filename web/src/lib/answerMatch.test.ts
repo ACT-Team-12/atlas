@@ -1,38 +1,78 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { matchOption } from "./answerMatch";
+import { quantities, suggestOption } from "./answerMatch";
 import { pickMimeType, SayAnswer } from "@/ui/SayAnswer";
 
-describe("which option did they say", () => {
-  const dose = ["1 tablet 2 times a day", "2 tablets 3 times a day", "1 tablet at bedtime"];
+/**
+ * Speech never grades (design decision, 2026-10-02). suggestOption only proposes "Did you mean ...?" when the words
+ * said are a near-exact restatement of exactly one option; the person's tap is still the only answer recorded.
+ */
+describe("suggests only on a near-exact restatement", () => {
+  const dose = ["Take 1 tablet 2 times a day", "Take 2 tablets 1 time a day", "Take 1 tablet at bedtime"];
+  const food = ["Take it with food", "Take it without food", "Take it at bedtime"];
 
-  it("matches the option whose numbers and words they said", () => {
-    expect(matchOption("I take one tablet two times a day", dose)).toBe(0);
-    expect(matchOption("2 tablets, 3 times a day.", dose)).toBe(1);
-    expect(matchOption("one tablet at bedtime", dose)).toBe(2);
+  it("exact restatements still suggest, with filler words allowed", () => {
+    expect(suggestOption("take one tablet two times a day", dose)).toBe(0);
+    expect(suggestOption("I think you take 2 tablets one time a day", dose)).toBe(1);
+    expect(suggestOption("Take it with food.", food)).toBe(0);
+    expect(suggestOption("um, take it without food", food)).toBe(1);
   });
 
-  it("never picks an option whose number they did not say", () => {
-    expect(matchOption("tablets times a day", dose)).toBeNull();
-    expect(matchOption("four tablets four times a day", dose)).toBeNull();
+  it("reviewer cases return null (Codex round 2)", () => {
+    expect(suggestOption("decrease the dose", ["Increase the dose", "Keep the same dose", "Stop the medicine"])).toBeNull();
+    expect(suggestOption("take it after eating", ["Take it before eating", "Take it at night", "Take it with water"])).toBeNull();
+    expect(suggestOption("take 5 g", ["Take 5 mg", "Take 10 mg", "Take 50 mg"])).toBeNull();
+    expect(suggestOption("2 tablets 1 time", ["1 tablet 2 times", "3 tablets 1 time", "1 tablet 1 time"])).toBeNull();
+    expect(suggestOption("take 2 tablets 1 time a day", ["Take 1 tablet 2 times a day", "Take 1 tablet at bedtime", "Take 3 tablets"])).toBeNull();
   });
 
-  it("keeps 'not' apart, so 'don't take it with food' is not 'take it with food'", () => {
-    const food = ["Take it with food", "Do not take it with food", "Take it at night"];
-    expect(matchOption("I think you don't take it with food", food)).toBe(1);
-    expect(matchOption("take it with food", food)).toBe(0);
+  it("anything extra or missing returns null", () => {
+    expect(suggestOption("take it with food in the morning", food)).toBeNull();
+    expect(suggestOption("with food", food)).toBeNull();
+    expect(suggestOption("I'm not sure", food)).toBeNull();
+    expect(suggestOption("", food)).toBeNull();
   });
 
-  it("returns null when unclear, so the person taps instead", () => {
-    expect(matchOption("", dose)).toBeNull();
-    expect(matchOption("I'm not sure", ["Call the clinic", "Go to the ER", "Wait a week"])).toBeNull();
+  it("negatives never suggest the positive", () => {
+    const pair = ["Take it with food", "Do not take it with food", "Take it at bedtime"];
+    for (const said of ["I cannot take it with food", "I should avoid taking it with food", "never take it with food", "No, take it with food", "stop taking it with food"]) {
+      expect(suggestOption(said, pair), said).not.toBe(0);
+    }
+    expect(suggestOption("do not take it with food", pair)).toBe(1);
+    expect(suggestOption("don't take it with food", pair)).toBe(1);
   });
 
-  it("works in Spanish and Chinese", () => {
-    expect(matchOption("dos tabletas tres veces al día", ["1 tableta 2 veces al día", "2 tabletas 3 veces al día", "1 tableta en la noche"])).toBe(1);
-    expect(matchOption("每天早上吃药", ["每天早上吃药", "每天晚上吃药", "不要吃药"])).toBe(0);
-    expect(matchOption("不要吃药", ["每天早上吃药", "每天晚上吃药", "不要吃药"])).toBe(2);
+  it("decimals, halves and units are exact", () => {
+    const mg = ["Take 0.5 mg", "Take 5 mg", "Take 10 mg"];
+    for (const said of ["take point five mg", "take .5 mg", "take zero point five mg", "take half a milligram", "take 0,5 mg", "take 1/2 mg"]) {
+      expect(suggestOption(said, mg), said).not.toBe(1);
+    }
+    expect(suggestOption("take 0.5 mg", mg)).toBe(0);
+    expect(suggestOption("take five milligrams", mg)).toBe(1);
+    expect(suggestOption("take 5.5.5 mg", mg)).toBeNull();
+    expect(suggestOption("take 5 ml", mg)).toBeNull();
+  });
+
+  it("quantities carry value, unit and role, in order", () => {
+    expect(quantities("Take 1 tablet 2 times a day for 5 days")).toEqual([
+      { value: "1", unit: "tablet", role: "dose" }, { value: "2", unit: "time", role: "frequency" }, { value: "5", unit: "day", role: "duration" },
+    ]);
+    expect(quantities("twice a day")).toEqual([{ value: "2", unit: "time", role: "frequency" }]);
+  });
+
+  it("other languages: antonyms and units differ, restatements suggest", () => {
+    expect(suggestOption("tome dos tabletas tres veces al día", ["Tome 2 tabletas 3 veces al día", "Tome 3 tabletas 2 veces al día", "Tome 1 tableta"])).toBe(0);
+    expect(suggestOption("tome 3 tabletas 2 veces al día", ["Tome 2 tabletas 3 veces al día", "Tome 1 tableta", "Tome 4 tabletas"])).toBeNull();
+    expect(suggestOption("tómelo después de comer", ["Tómelo antes de comer", "Tómelo de noche", "Tómelo con agua"])).toBeNull();
+    expect(suggestOption("aumente la dosis", ["Disminuya la dosis", "Mantenga la dosis", "Suspenda el medicamento"])).toBeNull();
+    expect(suggestOption("prenez-le après le repas", ["Prenez-le avant le repas", "Prenez-le le soir", "Prenez-le avec de l'eau"])).toBeNull();
+    expect(suggestOption("prenez-le avant le repas", ["Prenez-le avant le repas", "Prenez-le le soir", "Prenez-le avec de l'eau"])).toBe(0);
+    expect(suggestOption("uống sau khi ăn", ["Uống trước khi ăn", "Uống buổi tối", "Uống với nước"])).toBeNull();
+    expect(suggestOption("식후에 드세요", ["식전에 드세요", "저녁에 드세요", "물과 함께 드세요"])).toBeNull();
+    expect(suggestOption("饭后吃", ["饭前吃", "晚上吃", "和水一起吃"])).toBeNull();
+    expect(suggestOption("饭前吃", ["饭前吃", "晚上吃", "和水一起吃"])).toBe(0);
+    expect(suggestOption("吃5克", ["吃5毫克", "吃10毫克", "吃50毫克"])).toBeNull();
   });
 });
 
@@ -57,63 +97,3 @@ describe("Say your answer button", () => {
   });
 });
 
-describe("polarity fails closed (Codex review, 2026-10-02)", () => {
-  const food = ["Take it with food", "Take it on an empty stomach", "Take it at bedtime"];
-  const pair = ["Take it with food", "Do not take it with food", "Take it at bedtime"];
-
-  it("a spoken negative never lands on the positive option", () => {
-    for (const said of [
-      "I cannot take it with food", "I can't take it with food", "I should avoid taking it with food", "never take it with food",
-      "I shouldn't take it with food", "you mustn't take it with food", "stop taking it with food", "skip it with food",
-      "I'm not allowed to take it with food", "hold it with food", "refrain from taking it with food",
-    ]) {
-      expect(matchOption(said, food), said).toBeNull();
-      expect(matchOption(said, pair), said).not.toBe(0);
-    }
-  });
-
-  it("an unclear polarity (double negative, leading 'no') returns null when options differ only by 'not'", () => {
-    expect(matchOption("No, take it with food", pair)).toBeNull();
-    expect(matchOption("I don't think you can't take it with food", pair)).toBeNull();
-  });
-
-  it("other languages: the negative never matches the positive", () => {
-    expect(matchOption("no lo tome con comida", ["Tómelo con comida", "No lo tome con comida", "Tómelo de noche"])).not.toBe(0);
-    expect(matchOption("evite tomarlo con comida", ["Tómelo con comida", "Tómelo de noche", "Tómelo en ayunas"])).toBeNull();
-    expect(matchOption("ne le prenez pas avec de la nourriture", ["Prenez-le avec de la nourriture", "Prenez-le le soir", "Prenez-le à jeun"])).toBeNull();
-    expect(matchOption("không uống thuốc với thức ăn", ["Uống thuốc với thức ăn", "Uống thuốc buổi tối", "Uống thuốc lúc đói"])).toBeNull();
-    expect(matchOption("음식과 함께 먹지 마세요", ["음식과 함께 드세요", "저녁에 드세요", "공복에 드세요"])).toBeNull();
-    expect(matchOption("避免和食物一起吃", ["和食物一起吃", "晚上吃", "空腹吃"])).toBeNull();
-  });
-});
-
-describe("quantities are exact (Codex review, 2026-10-02)", () => {
-  const mg = ["Take 0.5 mg", "Take 5 mg", "Take 10 mg"];
-
-  it("decimals, spoken decimals and halves are not 5", () => {
-    for (const said of ["point five mg", ".5 mg", "zero point five mg", "half a milligram", "0.5 milligrams", "0,5 mg", "one half mg", "1/2 mg"]) {
-      expect(matchOption(`take ${said}`, mg), said).not.toBe(1);
-      expect([0, null]).toContain(matchOption(`take ${said}`, mg));
-    }
-    expect(matchOption("take 0.5 mg", mg)).toBe(0);
-    expect(matchOption("take half a milligram", mg)).toBe(0);
-    expect(matchOption("take 5 mg", mg)).toBe(1);
-    expect(matchOption("take five milligrams", mg)).toBe(1);
-    expect(matchOption("take ten mg", mg)).toBe(2);
-    expect(matchOption("take one and a half tablets", ["Take 1 1/2 tablets", "Take 1 tablet", "Take 2 tablets"])).toBe(0);
-    expect(matchOption("take one and a half tablets", ["Take 1.5 tablets", "Take 1 tablet", "Take 2 tablets"])).toBe(0);
-    expect(matchOption("take 1 tablet", ["Take 1 1/2 tablets", "Take 1 tablet", "Take 2 tablets"])).toBe(1);
-  });
-
-  it("a number the option does not have, or an unreadable one, returns null", () => {
-    expect(matchOption("take 5 mg and 10 mg", mg)).toBeNull();
-    expect(matchOption("take point mg", mg)).toBeNull();
-    expect(matchOption("take 5.5.5 mg", mg)).toBeNull();
-    expect(matchOption("take 50 mg", mg)).toBeNull();
-  });
-
-  it("Spanish and French decimals", () => {
-    expect(matchOption("tome cero coma cinco mg", ["Tome 0,5 mg", "Tome 5 mg", "Tome 10 mg"])).toBe(0);
-    expect(matchOption("prenez un demi milligramme", ["Prenez 0,5 mg", "Prenez 5 mg", "Prenez 10 mg"])).toBe(0);
-  });
-});

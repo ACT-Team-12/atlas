@@ -434,7 +434,7 @@ describe("an outdated plan cannot be acted on", () => {
     p.steps = [{ title: "Book the A1c test", action: "Call to book it.", why: "", barrier: null, care_ids: ["c2"], resource_ids: ["k1", "g1"], dropped_refs: [] } as unknown as PlanResponse["steps"][number]];
     p.resources = {
       k1: { type: "clinic", id: "k1", km: 2, clinic: { id: "k1", name: "Old Place Clinic", org: "", address: "1 Main St", city: "Atlanta", zip: "30303", county: "", phone: "404-555-0100", website: "https://clinic.example", lat: 0, lng: 0, hours_per_week: null, setting: "", health_center_type: "", nearest_rail: null, nearest_bus: null, barriers: [], source_id: "hrsa", hours: [{ day: 1, open: "0800", close: "1700" }], hours_source_id: "clinic-site", hours_quote: "Mon 8 to 5", hours_url: "https://clinic.example/hours" } },
-      g1: { type: "program", id: "g1", program: { id: "g1", name: "Ride Program", barriers: [], access: { phone: "404-555-0199", url: "https://ride.example" }, languages: [], evidence_quote: "Free rides.", source_url: "https://ride.example/about" } },
+      g1: { type: "program", id: "g1", program: { id: "g1", name: "Ride Program", barriers: [], access: { phone: "404-555-0199", url: "https://ride.example", text: "Text RIDE to 404-555-0177" }, languages: [], evidence_quote: "Free rides, call 404-555-0188.", source_url: "https://ride.example/about" } },
     } as unknown as PlanResponse["resources"];
     return p;
   }
@@ -480,9 +480,12 @@ describe("an outdated plan cannot be acted on", () => {
     it(`after changing ${what}: read aloud, both prints, Send to family, Book it now and place links are off, with the reason`, async () => {
       await planReady();
       expect(placeLinks()).toHaveLength(7); // clinic: call, website, directions, hours source; program: call, open, source
+      expect(screenText()).toContain("Text RIDE to 404-555-0177");
+      expect(screenText()).toContain("call 404-555-0188");
       act(change);
       expect(enabled()).toEqual(all(false));
       expect(placeLinks()).toEqual([]);
+      for (const n of ["404-555-0100", "404-555-0199", "404-555-0177", "404-555-0188"]) expect(screenText()).not.toContain(n); // no number to call or text
       expect(screenText()).toContain("Old Place Clinic"); // the place is still shown, only not offered
       expect(screenText()).toContain("Plan with the A1c test"); // still shown, labelled
       expect(screenText()).toMatch(/Update the plan first|Read your paper again first/);

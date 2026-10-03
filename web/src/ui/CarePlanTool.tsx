@@ -209,12 +209,13 @@ function Resource({ r, off }: { r: ResourceCard; off?: string }) {
     <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
       <span className="chip bg-sky text-sky-deep">Program</span>
       <p className="font-extrabold mt-2">{p.name}</p>
-      <p className="text-sm italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{p.evidence_quote}&rdquo;</p>
+      {/* The quote and the how-to text can hold a number to call or text: not offered while the plan is outdated. */}
+      {!off && <p className="text-sm italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{p.evidence_quote}&rdquo;</p>}
       {off ? <ResourceLinksOff off={off} /> : <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
         {p.access.phone && <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${p.access.phone.replace(/[^\d]/g, "")}`}>Call {p.access.phone}</a>}
         {p.access.url && <a className="rounded-full border-2 border-ink px-3 py-1" href={p.access.url} target="_blank" rel="noreferrer">Open ↗</a>}
       </div>}
-      {p.access.text && <p className="text-sm mt-2">{p.access.text}</p>}
+      {p.access.text && !off && <p className="text-sm mt-2">{p.access.text}</p>}
       <p className="mt-2 text-[11px] text-ink/70">Verified on the official page: <SourceLink href={p.source_url} label={new URL(p.source_url).hostname} off={off} /></p>
     </div>
   );

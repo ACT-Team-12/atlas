@@ -18,8 +18,8 @@ struct PlanView: View {
                     MedicalNote()
                     if outdated {
                         OutdatedNote(text: model.careOutdated
-                            ? "You changed your paper's text, language or reading level since this plan was made. Read your paper again first; until then sharing and reminders are off."
-                            : "You changed your steps, barriers, language, note or place since this plan was made. Update the plan; until then sharing and reminders are off.")
+                            ? "You changed your paper's text, language or reading level since this plan was made. Read your paper again first; until then reading aloud, sharing and reminders are off."
+                            : "You changed your steps, barriers, language, note or place since this plan was made. Update the plan; until then reading aloud, sharing and reminders are off.")
                         if !model.careOutdated {
                             Button("Update the plan") {
                                 speaker.stop()
@@ -36,7 +36,10 @@ struct PlanView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     // The plan is a suggestion and never certified: each step is followed by the paper's own words for it.
-                    ReadAloudBar(speaker: speaker, language: model.language, lines: PaperFirst.planSpeechLines(plan, items: planItems))
+                    // Off while outdated, like the website: the plan was built in a language that may no longer be the one picked.
+                    if model.planCanReadAloud {
+                        ReadAloudBar(speaker: speaker, language: model.language, lines: PaperFirst.planSpeechLines(plan, items: planItems))
+                    }
                     if !outdated {
                         ShareLink(item: ShareText.plan(items: model.items, plan: plan, questions: model.care?.questions_for_doctor ?? [],
                                                        meaning: model.meaning, planItems: planItems),
@@ -94,6 +97,8 @@ struct PlanView: View {
         .navigationTitle("Step 3 of 3")
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear { speaker.stop() }
+        // A plan that turns outdated while it is being read stops being read (its button is hidden too).
+        .onChange(of: model.planOutdated) { _, outdated in if outdated { speaker.stop() } }
         .sheet(item: $reminder) { ReminderSheet(target: $0) }
         .sheet(item: $web) { SafariView(url: $0.url).ignoresSafeArea() }
         .confirmationDialog("Clear your saved plan and ATLAS reminders from this phone?", isPresented: $confirmClear, titleVisibility: .visible) {

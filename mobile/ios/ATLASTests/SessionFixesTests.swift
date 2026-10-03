@@ -110,4 +110,25 @@ struct SessionFixesTests {
         AppModel(store: doneStore).done[other] = true
         #expect(try #require(doneStore.load()).savedAt > Self.legacyDate, "marking a step done moves it")
     }
+
+    // MARK: Bug 3: read aloud followed the new language
+
+    @Test func readAloudUsesTheLanguageTheStepsWereWrittenIn() throws {
+        let model = AppModel(store: try Self.legacyStore())
+        #expect(model.stepsLanguage == .Spanish)
+        model.applyHelperLink(HelperPresets(language: .Vietnamese))
+        #expect(model.careOutdated)
+        #expect(model.stepsLanguage == .Spanish, "the Spanish steps are still read in Spanish")
+        #expect(model.language == .Vietnamese)
+    }
+
+    @Test func planReadAloudIsOffWhileThePlanIsOutdated() throws {
+        let model = AppModel(store: try Self.legacyStore(withPlan: true))
+        #expect(model.planCanReadAloud)
+        model.applyHelperLink(HelperPresets(language: .Vietnamese))
+        #expect(model.planOutdated)
+        #expect(!model.planCanReadAloud, "a Spanish plan is not read with the newly picked language")
+        model.language = .Spanish
+        #expect(model.planCanReadAloud, "back to what it was built in")
+    }
 }

@@ -81,6 +81,14 @@ final class AppModel {
     /// "Lines on your paper we didn't turn into steps", for the steps still kept: follows every Remove and Undo.
     var missedLines: MissedLinesView { MissedLines.view(care?.missed_lines, keptIDs: items.map(\.id)) }
 
+    /// The language the steps on screen were written in, for reading them aloud. While the steps are outdated it is still
+    /// theirs, not the language just picked, so a Spanish plan is never read with a Vietnamese voice.
+    var stepsLanguage: Language { care?.language ?? language }
+
+    /// Read aloud on the plan screen is off while the plan is outdated, like the website: the plan was built in a
+    /// language that may no longer be the one picked.
+    var planCanReadAloud: Bool { plan != nil && !planOutdated }
+
     /// The steps on screen were read from different text, language or reading level than what is entered now.
     var careOutdated: Bool {
         guard care != nil, let readFingerprint else { return false }
@@ -169,7 +177,9 @@ final class AppModel {
         let text = self.text, level = self.level, language = self.language
         task = Task {
             do {
-                let result = try await api.extract(text: text, level: level, language: language)
+                var result = try await api.extract(text: text, level: level, language: language)
+                // An older server leaves out the language; the steps were still written in the one asked for.
+                if result.language == nil { result.language = language }
                 readFingerprint = StaleGuard.readFingerprint(text: text, language: language, level: level)
                 planFingerprint = nil
                 care = result

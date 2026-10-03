@@ -32,7 +32,8 @@ struct CareStepsView: View {
                     }
 
                     // Paper first: read aloud carries an explanation only when it was certified; otherwise the paper's words.
-                    ReadAloudBar(speaker: speaker, language: model.language, lines: readLines)
+                    // Always in the steps' own language, even while they are outdated.
+                    ReadAloudBar(speaker: speaker, language: model.stepsLanguage, lines: readLines)
 
                     ForEach(model.items) { item in
                         let check = model.check(for: item.id)

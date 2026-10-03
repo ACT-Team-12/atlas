@@ -181,9 +181,11 @@ describe("Say your answer never sends more than 20 seconds (review finding, 2026
     }
     expect(recorders.at(-1)?.state).toBe("inactive");
     expect(track.stop).toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled(); // stopping because the page was hidden uploads nothing (Codex review)
+    expect(status()).toMatch(/left the page, so nothing was sent/);
   });
 
-  it("stops when the page is left (pagehide)", async () => {
+  it("stops when the page is left (pagehide), and sends nothing", async () => {
     const { stream, track } = fakeStream();
     getUserMedia.mockResolvedValue(stream);
     render();
@@ -191,5 +193,10 @@ describe("Say your answer never sends more than 20 seconds (review finding, 2026
     await act(async () => { window.dispatchEvent(new Event("pagehide")); });
     expect(recorders.at(-1)?.state).toBe("inactive");
     expect(track.stop).toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    // and it can record again afterwards
+    getUserMedia.mockResolvedValue(fakeStream().stream);
+    await act(async () => { button().click(); });
+    expect(recorders.at(-1)?.state).toBe("recording");
   });
 });

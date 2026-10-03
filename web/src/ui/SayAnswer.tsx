@@ -6,6 +6,7 @@ export const MAX_RECORD_SECONDS = 20;
 /** The automatic stop fires this early, so a timer that runs a little late still lands inside the 20 s. */
 const AUTO_STOP_MS = MAX_RECORD_SECONDS * 1000 - 250;
 const TOO_LONG = `That recording ran longer than ${MAX_RECORD_SECONDS} seconds, so we didn't send it. Try again, or tap your answer.`;
+const LEFT = "Recording stopped when you left the page, so nothing was sent. Tap Say your answer to try again.";
 
 /**
  * Whether a recording ran past the 20 s the privacy page promises, from monotonic clock readings (performance.now)
@@ -117,18 +118,29 @@ export function SayAnswer({ enabled, language, token, onTranscript }: Props) {
     try {
       const rec = new MediaRecorder(mic, { mimeType: type, audioBitsPerSecond: 32_000 });
       const chunks: Blob[] = [];
-      let startedAt = 0, stoppedAt: number | null = null;
-      const end = () => {
+      let startedAt = 0, stoppedAt: number | null = null, discard = false;
+      /** Stop and send (Stop or the 20 s limit), or stop and throw the audio away (the page was hidden or left). */
+      const end = (drop: boolean) => {
         if (rec.state !== "recording") return;
         stoppedAt ??= performance.now();
+        discard = drop;
         rec.stop();
       };
+      const finish = () => end(false);
       rec.ondataavailable = (ev) => { if (ev.data.size > 0) chunks.push(ev.data); };
       rec.onstop = () => {
         free();
         if (recorder.current === rec) recorder.current = null;
-        if (halt.current === end) halt.current = null;
+        if (halt.current === finish) halt.current = null;
         if (cancelled.current) { busy.current = false; return; }
+        // Hidden or left without tapping Stop: nothing is uploaded, and the chunks go with this closure.
+        if (discard) {
+          chunks.length = 0;
+          busy.current = false;
+          setState("idle");
+          setMessage(LEFT);
+          return;
+        }
         // Never send more than the 20 s the privacy page promises, however late a throttled timer fired.
         if (recordedTooLong(startedAt, stoppedAt ?? performance.now())) {
           busy.current = false;
@@ -142,19 +154,19 @@ export function SayAnswer({ enabled, language, token, onTranscript }: Props) {
       recorder.current = rec;
       rec.start();
       startedAt = performance.now();
-      halt.current = end;
+      halt.current = finish;
       setSeconds(0);
       setState("recording");
-      // Background tabs throttle timers, so also stop the moment the page is hidden or left.
-      onHidden = () => { if (document.visibilityState === "hidden") end(); };
-      stopNow = end;
+      // Background tabs throttle timers, so also stop the moment the page is hidden or left, and send nothing then.
+      onHidden = () => { if (document.visibilityState === "hidden") end(true); };
+      stopNow = () => end(true);
       document.addEventListener("visibilitychange", onHidden);
       window.addEventListener("pagehide", stopNow);
-      limit = setTimeout(end, AUTO_STOP_MS);
+      limit = setTimeout(finish, AUTO_STOP_MS);
       timer = setInterval(() => {
         const s = Math.min(MAX_RECORD_SECONDS, Math.floor((performance.now() - startedAt) / 1000));
         setSeconds(s);
-        if (s >= MAX_RECORD_SECONDS) end();
+        if (s >= MAX_RECORD_SECONDS) finish();
       }, 250);
     } catch {
       free();

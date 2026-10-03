@@ -166,7 +166,10 @@ describe("Codex round 6: an English number word with a unit is a quantity on the
   it("\"three tablets\" against \"Take 2 tablets\" is never certified; \"two tablets\" still is", () => {
     expect(combine("x", { ...base, source_quote: "Take 2 tablets.", plain_language: "Take three tablets." }, "same", "").certified).toBe(false);
     expect(combine("x", { ...base, source_quote: "Take 2 tablets.", plain_language: "Take two tablets." }, "same", "").certified).toBe(true);
-    expect(combine("x", { ...base, source_quote: "Go to any lab location.", plain_language: "Go to one of the lab locations." }, "same", "").certified).toBe(true);
+    // Round 13: any English number word the line doesn't have blocks the green check, even "one of" (fail closed),
+    // but it is not flagged, since it is not a dose.
+    const lab = combine("x", { ...base, source_quote: "Go to any lab location.", plain_language: "Go to one of the lab locations." }, "same", "");
+    expect(lab).toMatchObject({ certified: false, flagged: false });
   });
 });
 
@@ -186,7 +189,7 @@ describe("Codex round 7: doses swapped between two medicines are never certified
     expect(caught(plain)).toEqual({ certified: false, prepBlocked: true });
   });
   it("the same doses on the same medicines still certify", () => {
-    expect(caught("Take warfarin 2 mg and vitamin K 5 mg each day.")).toEqual({ certified: true, prepBlocked: false });
+    expect(caught("Take warfarin 2 mg and vitamin K 5 mg.")).toEqual({ certified: true, prepBlocked: false });
     expect(caught("Take warfarin 2 mg.")).toEqual({ certified: true, prepBlocked: false });
     expect(combine("x", { ...base, source_quote: lisinopril, plain_language: "Take 2 tablets (20 mg total) once a day." }, "same", "").certified).toBe(true);
   });
@@ -207,7 +210,7 @@ describe("Codex round 8: a shared word like \"insulin\" never lines up swapped d
     expect(caught(plain)).toEqual({ certified: false, prepBlocked: true });
   });
   it("the right doses on the right insulins still certify", () => {
-    expect(caught("Inject insulin glargine 10 units and insulin lispro 5 units each day.")).toEqual({ certified: true, prepBlocked: false });
+    expect(caught("Inject insulin glargine 10 units and insulin lispro 5 units, as the paper says.")).toEqual({ certified: true, prepBlocked: false });
   });
 });
 
@@ -235,5 +238,26 @@ describe("Codex round 12: swapped mixture ratios are never certified", () => {
     expect(combine("x", { id: "x", when: "", source_quote: paper, plain_language: plain }, "same", "").certified).toBe(false);
     const any = numberCheckAnyForm({ source_quote: paper, plain_language: plain });
     expect(any.unexpected.length > 0 || any.uncheckable).toBe(true);
+  });
+});
+
+describe("Codex round 13: a false \"same\" never certifies a flipped meaning", () => {
+  const base = { id: "x", when: "" };
+  it.each([
+    ["Do not take aspirin.", "Take aspirin."],
+    ["Take your pill in the morning.", "Take your pill in the evening."],
+    ["Take two Tylenol.", "Take three Tylenol."],
+    ["Take your pill.", "Take more of your pill."],
+    ["Take your pill.", "Take your pill daily."],
+    ["Take your pill daily.", "Take your pill weekly."],
+    ["Take metformin with breakfast.", "Take metformin after dinner."],
+    ["Continue your insulin.", "Start a new insulin."],
+    ["Take your pill in the morning.", "Tome su pastilla por la noche."],
+  ])("paper %j, explanation %j: never certified", (paper, plain) => {
+    expect(combine("x", { ...base, source_quote: paper, plain_language: plain }, "same", "").certified).toBe(false);
+  });
+  it("a faithful explanation still certifies", () => {
+    expect(combine("x", { ...base, source_quote: "Take your pill in the morning.", plain_language: "Take your pill in the morning." }, "same", "").certified).toBe(true);
+    expect(combine("x", { ...base, source_quote: "Take your pill in the morning.", plain_language: "Tome su pastilla por la mañana." }, "same", "", "Spanish").certified).toBe(true);
   });
 });

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ExtractError } from "./extract";
 import { LANGUAGES } from "./schema";
 import { NAME_BEFORE_LETTER, readNumberWords, type NumberLanguage } from "./numberWords";
+import { certifyBlocker } from "./semanticGuard";
 
 /**
  * Meaning check: does each plain-language explanation say the same thing as the line it quotes?
@@ -307,7 +308,10 @@ export function numberCheck(item: NumItem, language?: NumberLanguage): NumberChe
   const english = !language || language === "English";
   const langs: NumberLanguage[] = english ? ["English"] : language === "Amharic" ? [] : [language];
   const wordQty = english ? numberUnits(f.rest, ["English"]).pairs.filter(([n, c]) => c !== null && !counted.has(n)).map(([n]) => n) : [];
-  const wordsOff = wordQty.some((n) => !q.allowed.has(n));
+  // Any English number word the quote doesn't have ("three Tylenol" against "two Tylenol") blocks the green check,
+  // unit or no unit (Codex round 13). It is not flagged, since "one of the lab locations" is not a dose.
+  const enWords = english ? readNumberWords(f.rest, "English") : null;
+  const wordsOff = wordQty.some((n) => !q.allowed.has(n)) || !!enWords?.numbers.some((n) => !q.allowed.has(n)) || !!enWords?.uncheckable;
   const swapped = unexpected.length === 0 && unitsSwapped([item.source_quote, item.when ?? ""], item.plain_language, new Set([...counted, ...wordQty]), langs);
   return { unexpected, uncheckable: language === "Amharic" || q.uncheckable || foreignDigits || !!plain?.uncheckable || f.mixed || swapped || wordsOff };
 }
@@ -346,6 +350,9 @@ Do not invent words that are not in the line. Never judge whether the medical ad
 
 export function combine(id: string, item: MeaningRequest["items"][number], verdict: MeaningResult["model_verdict"], what: string, language?: NumberLanguage): MeaningResult {
   const { unexpected, uncheckable } = numberCheck(item, language);
+  // Whatever the second model said: a dropped or added "do not", or a time, frequency or action the paper's line
+  // doesn't name, never gets the green check (semanticGuard.ts, Codex round 13).
+  const blocked = certifyBlocker(`${item.source_quote} ${item.when ?? ""}`, item.plain_language) !== null;
   // An explanation whose numbers can't be read is never certified; with no clash found it shows as "couldn't check".
   return {
     id,
@@ -355,7 +362,7 @@ export function combine(id: string, item: MeaningRequest["items"][number], verdi
     what_differs: verdict === "same" ? "" : what,
     flagged: unexpected.length > 0 || verdict === "different",
     // "unclear", or a step the checker skipped, is neither flagged nor certified: the UI says it could not double-check it.
-    certified: verdict === "same" && unexpected.length === 0 && !uncheckable,
+    certified: verdict === "same" && unexpected.length === 0 && !uncheckable && !blocked,
   };
 }
 

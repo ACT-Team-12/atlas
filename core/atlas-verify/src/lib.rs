@@ -199,26 +199,45 @@ fn index_of(hay: &[u16], needle: &[u16], from: usize) -> Option<usize> {
     (from..=hay.len() - needle.len()).find(|&i| &hay[i..i + needle.len()] == needle)
 }
 
-/// `WORD_CHAR` from verify.ts, on one UTF-16 unit: ASCII letters and digits, Latin-1 and Latin Extended letters,
-/// combining marks, Greek and Cyrillic. Chinese and Korean never count (a match there may sit mid-run).
+/// `WORD_CHAR` from verify.ts, on one UTF-16 unit: the same plain ranges (Latin, Greek, Cyrillic, Armenian, Hebrew,
+/// Arabic, Devanagari, Georgian, Ethiopic, fullwidth). Chinese, Japanese, Korean and Thai never count.
 fn is_word_unit(u: u16) -> bool {
     matches!(
         u,
         0x41..=0x5A
             | 0x61..=0x7A
             | 0x30..=0x39
+            | 0x00AA
+            | 0x00B2
+            | 0x00B3
+            | 0x00B5
+            | 0x00B9
+            | 0x00BA
+            | 0x00BC..=0x00BE
             | 0x00C0..=0x00D6
             | 0x00D8..=0x00F6
-            | 0x00F8..=0x024F
+            | 0x00F8..=0x02FF
             | 0x0300..=0x036F
             | 0x0370..=0x03FF
-            | 0x0400..=0x04FF
-            | 0x1E00..=0x1EFF
+            | 0x0400..=0x052F
+            | 0x0530..=0x058F
+            | 0x0590..=0x05FF
+            | 0x0600..=0x06FF
+            | 0x0900..=0x097F
+            | 0x10A0..=0x10FF
+            | 0x1200..=0x139F
+            | 0x1E00..=0x1FFF
+            | 0x2070..=0x209F
+            | 0x2150..=0x218F
+            | 0xFF10..=0xFF19
+            | 0xFF21..=0xFF3A
+            | 0xFF41..=0xFF5A
     )
 }
 
+/// `DIGIT` from verify.ts.
 fn is_digit_unit(u: u16) -> bool {
-    (0x30..=0x39).contains(&u)
+    matches!(u, 0x30..=0x39 | 0x0660..=0x0669 | 0x06F0..=0x06F9 | 0x0966..=0x096F | 0xFF10..=0xFF19)
 }
 
 /// `onBoundary` from verify.ts: the fragment starts and ends on a word or number boundary, so "take it" is not in

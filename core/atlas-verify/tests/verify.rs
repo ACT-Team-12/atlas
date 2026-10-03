@@ -159,6 +159,9 @@ fn a_quote_must_match_whole_words_and_whole_numbers() {
         })
     );
     assert!(find_span("Take 110 mg. Then take 10 mg.", "take 10 mg").is_some());
+    // Arabic-Indic and fullwidth digits count as digits too.
+    assert_eq!(find_span("Use \u{0663}10 mg.", "10 mg"), None);
+    assert_eq!(find_span("Use \u{FF11}10 mg.", "10 mg"), None);
     // Chinese has no spaces between words, so a match mid-run still counts.
     assert!(find_span("请每天服用两片药。", "服用两片").is_some());
 }

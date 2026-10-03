@@ -73,11 +73,15 @@ function fragments(quote: string): string[] {
 
 /**
  * One UTF-16 unit that is part of a word in a script that puts spaces between words: ASCII letters and digits, the
- * Latin-1 and Latin Extended letters (Vietnamese included), combining marks, Greek and Cyrillic. A Chinese or Korean
- * match may sit mid-run, so those scripts never count. Plain ranges, so the Rust port (core/atlas-verify) is exact.
+ * Latin-1 and Latin Extended letters (Vietnamese included), combining marks, Greek, Cyrillic, Armenian, Hebrew,
+ * Arabic (with its digits), Devanagari, Georgian, Ethiopic and fullwidth letters and digits. Chinese, Japanese,
+ * Korean and Thai never count: they don't put spaces between words, so a match may sit mid-run. Plain ranges, so the
+ * Rust port (core/atlas-verify) is exact. Erring toward MORE word characters only refuses more quotes.
  */
-const WORD_CHAR = /[A-Za-z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F\u0300-\u036F\u0370-\u03FF\u0400-\u04FF\u1E00-\u1EFF]/;
-const DIGIT = /[0-9]/;
+const WORD_CHAR =
+  /[A-Za-z0-9\u00AA\u00B2\u00B3\u00B5\u00B9\u00BA\u00BC-\u00BE\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0300-\u036F\u0370-\u03FF\u0400-\u052F\u0530-\u058F\u0590-\u05FF\u0600-\u06FF\u0900-\u097F\u10A0-\u10FF\u1200-\u139F\u1E00-\u1FFF\u2070-\u209F\u2150-\u218F\uFF10-\uFF19\uFF21-\uFF3A\uFF41-\uFF5A]/;
+/** A digit, in any of the digit sets above. */
+const DIGIT = /[0-9\u0660-\u0669\u06F0-\u06F9\u0966-\u096F\uFF10-\uFF19]/;
 
 /**
  * True when `f` at `at` in `norm` starts and ends on a word or number boundary: "take it" is not in "mistake it",

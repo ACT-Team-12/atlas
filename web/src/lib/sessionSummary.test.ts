@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanMinutes, SESSION_HEADINGS, sessionSummary, type HelperEntry, type SessionPlanState } from "./sessionSummary";
+import { cleanMinutes, helperSessionKey, SESSION_HEADINGS, sessionSummary, type HelperEntry, type SessionPlanState } from "./sessionSummary";
 import { LANGUAGES, type VerifiedItem } from "./schema";
 import type { PlanResponse } from "./plan";
 
@@ -169,5 +169,13 @@ describe("helper session summary", () => {
     const s = sessionSummary(state({ language }), helper());
     expect(headingLines(s.text).every((i) => i > 0)).toBe(true);
     expect(s.text).toContain(`(${language}, simple reading level)`);
+  });
+});
+
+describe("helperSessionKey", () => {
+  it("gives two saved plans with the same summary different keys, so helper notes never carry over", () => {
+    expect(helperSessionKey("plan-a", "Same summary.")).not.toBe(helperSessionKey("plan-b", "Same summary."));
+    expect(helperSessionKey("plan-a", "Same summary.")).toBe(helperSessionKey("plan-a", "Same summary."));
+    expect(helperSessionKey(null, "Same summary.")).not.toBe(helperSessionKey("plan-a", "Same summary."));
   });
 });

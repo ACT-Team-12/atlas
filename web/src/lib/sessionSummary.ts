@@ -143,3 +143,12 @@ export function sessionSummary(state: SessionPlanState, helper: HelperEntry): Se
   const text = [SUMMARY_TITLE, ...sections.flatMap((s) => ["", s.heading, ...s.lines]), "", SUMMARY_FOOT].join("\n");
   return { sections, minutes, totalMinutes, text };
 }
+
+/**
+ * React key for the helper panel. It holds minutes, notes and consent for ONE person's session, so it is tied to the
+ * saved plan's own id as well as the plan: two saved plans with the same summary (the same sample paper, a standard
+ * discharge sheet) must never share one helper's notes.
+ */
+export function helperSessionKey(savedPlanId: string | null, planSummary: string): string {
+  return `helper:${savedPlanId ?? "unsaved"}:${planSummary}`;
+}

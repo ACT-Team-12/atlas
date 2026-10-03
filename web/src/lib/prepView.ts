@@ -1,11 +1,13 @@
 import type { MeaningResult } from "./meaning";
+import { cuesDiffer } from "./prepCues";
 import type { PrepResponse, PrepStep } from "./prepTimeline";
 
 /**
  * What the page may show for a prep step's plain-words explanation. Fails closed: the paper's own quote is always
  * the headline, and the AI's explanation is shown only when the existing second-model meaning check (meaning.ts,
- * POST /api/meaning, the same one the care plan uses) certified it. Checking, flagged, unclear, a check that failed,
- * or a number the quote doesn't have: the explanation stays hidden and the page says why.
+ * POST /api/meaning, the same one the care plan uses) certified it, AND our code finds the same "do not" / "stop" /
+ * "until" words in it as in the quote (prepCues.ts). Checking, flagged, unclear, a check that failed, a number the
+ * quote doesn't have, or a cue word dropped or added: the explanation stays hidden and the page says why.
  *
  * Client-safe: type imports only.
  */
@@ -13,11 +15,12 @@ import type { PrepResponse, PrepStep } from "./prepTimeline";
 export type MeaningState = { status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult> };
 export const NO_MEANING: MeaningState = { status: "idle", byId: {} };
 
-export type ExplainState = "certified" | "checking" | "flagged" | "unclear" | "numbers" | "check_failed" | "none";
+export type ExplainState = "certified" | "checking" | "flagged" | "unclear" | "numbers" | "negation" | "check_failed" | "none";
 
 export const EXPLAIN_NOTE: Record<Exclude<ExplainState, "certified" | "none">, string> = {
   checking: "Checking the plain-words explanation against your paper. Until then, read your paper's words above.",
   numbers: "Plain-words explanation hidden: it had a number your paper doesn't say. Read your paper's words above.",
+  negation: "Plain-words explanation hidden: our code couldn't confirm it keeps your paper's \"do not\", \"stop\" or \"until\" words. Read your paper's words above.",
   flagged: "Plain-words explanation hidden: a second check found it may not match your paper. Read your paper's words above.",
   unclear: "Plain-words explanation hidden: a second check couldn't confirm it matches your paper. Read your paper's words above.",
   check_failed: "Plain-words explanation hidden: the double-check isn't available right now. Read your paper's words above.",
@@ -25,7 +28,10 @@ export const EXPLAIN_NOTE: Record<Exclude<ExplainState, "certified" | "none">, s
 
 export function explainState(step: PrepStep, m: MeaningState): ExplainState {
   if (step.numbers_blocked) return "numbers";
+  if (step.negation_blocked) return "negation";
   if (!step.plain_language) return "none";
+  // Checked again here, whatever the server sent: no "same" from the meaning check can show a dropped or added "not".
+  if (cuesDiffer(step.source_quote, step.plain_language)) return "negation";
   if (m.status === "idle" || m.status === "loading") return "checking";
   if (m.status === "error") return "check_failed";
   const r = m.byId[step.id];

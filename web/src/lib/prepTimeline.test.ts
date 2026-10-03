@@ -203,8 +203,10 @@ describe("Codex review: the explanation fails closed (negation reversal)", () =>
     expect(Object.keys(s)).not.toContain("title");
   });
 
-  it("the reversed explanation passes the number check (no numbers), so only the meaning check can stop it", () => {
+  it("the reversed explanation passes the number check (no numbers), and our code's do-not rule blocks it", () => {
     expect(s.numbers_blocked).toBe(false);
+    expect(s.negation_blocked).toBe(true);
+    expect(s.plain_language).toBe("");
   });
 
   it("is not shown while checking, after a failed check, when flagged, unclear, or not returned", () => {
@@ -216,14 +218,21 @@ describe("Codex review: the explanation fails closed (negation reversal)", () =>
       { status: "done", byId: { [s.id]: combine(s.id, { id: s.id, plain_language: s.plain_language, when: "", source_quote: insulin }, "different", 'paper says "do not take it" but explanation says "take insulin"') } },
       { status: "done", byId: { [s.id]: combine(s.id, { id: s.id, plain_language: s.plain_language, when: "", source_quote: insulin }, "unclear", "") } },
     ];
-    expect(states.map((m) => explainState(s, m))).toEqual(["checking", "checking", "check_failed", "unclear", "flagged", "unclear"]);
+    expect(states.map((m) => explainState(s, m))).toEqual(["negation", "negation", "negation", "negation", "negation", "negation"]);
     for (const m of states) expect(shownExplanation(s, m)).toBeNull();
   });
 
-  it("is shown only when the meaning check certified it", () => {
-    const ok: MeaningState = { status: "done", byId: { [s.id]: combine(s.id, { id: s.id, plain_language: s.plain_language, when: "", source_quote: insulin }, "same", "") } };
-    expect(explainState(s, ok)).toBe("certified");
-    expect(shownExplanation(s, ok)).toBe("Take insulin that morning.");
+  it("is not shown even when the meaning check wrongly says \"same\" (Codex review)", () => {
+    const ok: MeaningState = { status: "done", byId: { [s.id]: combine(s.id, { id: s.id, plain_language: "Take insulin that morning.", when: "", source_quote: insulin }, "same", "") } };
+    expect(explainState(s, ok)).toBe("negation");
+    expect(shownExplanation(s, ok)).toBeNull();
+  });
+
+  it("an explanation that keeps the do-not is shown only when the meaning check certified it", () => {
+    const keep = buildPrepTimeline(SAMPLE_PREP, [item({ source_quote: insulin, plain_language: "Do not take insulin that morning unless your doctor said to.", ai_slot: "morning_of" })]).timeline[0].steps[0];
+    const m = (v: "same" | "different" | "unclear"): MeaningState => ({ status: "done", byId: { [keep.id]: combine(keep.id, { id: keep.id, plain_language: keep.plain_language, when: "", source_quote: insulin }, v, "") } });
+    expect([explainState(keep, { status: "loading", byId: {} }), explainState(keep, m("different")), explainState(keep, m("unclear"))]).toEqual(["checking", "flagged", "unclear"]);
+    expect(shownExplanation(keep, m("same"))).toBe("Do not take insulin that morning unless your doctor said to.");
   });
 
   it("a blocked explanation is never sent to the meaning check and never shown", () => {
@@ -232,8 +241,10 @@ describe("Codex review: the explanation fails closed (negation reversal)", () =>
     expect(explainState(b.timeline[0].steps[0], { status: "done", byId: {} })).toBe("numbers");
   });
 
-  it("sends every unblocked explanation with its quote and time words", () => {
-    expect(meaningItems(r)).toEqual([{ id: s.id, plain_language: "Take insulin that morning.", when: "the morning of your procedure", source_quote: insulin }]);
+  it("sends every unblocked explanation with its quote and time words, and never a blocked one", () => {
+    expect(meaningItems(r)).toEqual([]);
+    const keep = buildPrepTimeline(SAMPLE_PREP, [item({ source_quote: insulin, plain_language: "Do not take insulin that morning unless your doctor said to.", ai_slot: "morning_of" })]);
+    expect(meaningItems(keep)).toEqual([{ id: keep.timeline[0].steps[0].id, plain_language: "Do not take insulin that morning unless your doctor said to.", when: "the morning of your procedure", source_quote: insulin }]);
   });
 });
 

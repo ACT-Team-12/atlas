@@ -28,5 +28,5 @@ export async function preparePrep(req: PrepRequest): Promise<PrepResponse> {
   if (msg.stop_reason === "refusal") throw new ExtractError("The AI declined to read this paper.", 422);
   const parsed = PrepModelOutput.safeParse(msg.parsed_output);
   if (!parsed.success) throw new ExtractError("The AI returned a malformed answer. Try again.", 502);
-  return { ...buildPrepTimeline(req.text, parsed.data.items), model: MODEL, ms: Date.now() - t0 };
+  return { ...buildPrepTimeline(req.text, parsed.data.items, req.language), model: MODEL, ms: Date.now() - t0 };
 }

@@ -2,6 +2,7 @@ import { SAMPLE_PREP } from "./samplePrep";
 import { buildPrepTimeline, type PrepModelItem } from "./prepTimeline";
 import { SLOTS, SLOT_LABEL, type PrepKind, type Slot } from "./prepTime";
 import { shownExplanation, type MeaningState } from "./prepView";
+import { cuesDiffer } from "./prepCues";
 import type { MeaningResult } from "./meaning";
 
 /**
@@ -14,19 +15,21 @@ import type { MeaningResult } from "./meaning";
  * time words off the quote, skipping the line's "do not" with an ellipsis, changing a number (digits or words) in the
  * explanation, and reversing what the explanation says ("do not take insulin" explained as "take insulin"). Our code must catch each one.
  *
- * What this does NOT test: whether the second model (the meaning check) notices a reversal. That needs the AI. It
- * tests our gate: an explanation is never shown unless that check certified it, and the headline is the paper's words.
+ * What this does NOT test: whether the second model (the meaning check) notices a reversal that keeps the line's
+ * cue words. That needs the AI. It tests our gates: a dropped or added "do not" / "stop" / "until" is hidden by our
+ * code even on a wrong "same", an explanation is never shown unless that check certified it, and the headline is the
+ * paper's words.
  */
 
 export type PrepTruth = { kind: PrepKind; quote: string; plain: string; truth: Slot | "ask" };
 
 export const PREP_TRUTH: PrepTruth[] = [
   { kind: "medicine", quote: "Stop taking iron pills and fish oil 7 days before your procedure.", plain: "Stop iron pills and fish oil 7 days before.", truth: "days_before" },
-  { kind: "medicine", quote: "If you take a blood thinner, call the doctor who prescribes it 7 days before your procedure to ask if you should stop it.", plain: "If you take a blood thinner, call that doctor 7 days before.", truth: "days_before" },
+  { kind: "medicine", quote: "If you take a blood thinner, call the doctor who prescribes it 7 days before your procedure to ask if you should stop it.", plain: "If you take a blood thinner, call that doctor 7 days before to ask if you should stop it.", truth: "days_before" },
   { kind: "food_drink", quote: "Starting 3 days before your procedure, do not eat nuts, seeds, popcorn, or raw vegetables.", plain: "From 3 days before, no nuts, seeds, popcorn or raw vegetables.", truth: "days_before" },
   { kind: "food_drink", quote: "The day before your procedure, drink only clear liquids all day: water, clear broth, apple juice, and plain gelatin.", plain: "The whole day before, only clear liquids.", truth: "day_before" },
   { kind: "bowel_prep", quote: "Take 2 bisacodyl tablets at 3 PM.", plain: "Take 2 bisacodyl tablets at 3 PM.", truth: "ask" },
-  { kind: "bowel_prep", quote: "At 5 PM the evening before your procedure, drink the first half of the bowel prep (8 ounces every 15 minutes until it is gone).", plain: "At 5 PM the evening before, drink the first half of the prep, 8 ounces every 15 minutes.", truth: "evening_before" },
+  { kind: "bowel_prep", quote: "At 5 PM the evening before your procedure, drink the first half of the bowel prep (8 ounces every 15 minutes until it is gone).", plain: "At 5 PM the evening before, drink the first half of the prep, 8 ounces every 15 minutes until it is gone.", truth: "evening_before" },
   { kind: "food_drink", quote: "Do not eat or drink anything after midnight the night before your procedure, except the second half of the prep.", plain: "After midnight, nothing to eat or drink except the rest of the prep.", truth: "evening_before" },
   { kind: "bowel_prep", quote: "5 hours before your procedure, drink the second half of the bowel prep.", plain: "5 hours before, drink the second half of the prep.", truth: "hours_before" },
   { kind: "food_drink", quote: "Stop drinking all liquids 2 hours before your procedure.", plain: "Nothing to drink in the last 2 hours.", truth: "hours_before" },
@@ -54,7 +57,8 @@ const TIME_SWAPS: [RegExp, string][] = [
 export const PREP_PLANT_KINDS = [
   "wrong time claimed", "untimed step given a time", "time words changed in the quote", "time words added to the quote",
   "invented step", "time borrowed from the next line", "time words cut off the quote", "number changed in the explanation",
-  "number word changed in the explanation", "meaning reversed in the explanation", "words skipped with an ellipsis",
+  "number word changed in the explanation", "meaning reversed in the explanation", "do-not dropped from the explanation",
+  "do-not added to the explanation", "words skipped with an ellipsis",
 ] as const;
 
 /** Explanations that say the opposite of their line. Digits match, so only the meaning check could catch these. */
@@ -65,6 +69,13 @@ const REVERSALS: [string, string][] = [
   ["Do not drive, work", "For the rest of that day, you can drive and work."],
   ["Stop drinking all liquids", "Keep drinking liquids in the last 2 hours."],
   ["An adult must drive you home", "You can drive yourself home."],
+];
+/** Explanations that add a "do not" the line doesn't have. Digits match; our code's cue rule must catch these. */
+const ADDED_NO: [string, string][] = [
+  ["take your blood pressure pill", "That morning, do not take your blood pressure pill."],
+  ["drink the second half of the bowel prep", "5 hours before, do not drink the second half of the prep."],
+  ["Bring your photo ID", "Don't bring your ID, insurance card or medicine list."],
+  ["Take 2 bisacodyl tablets", "Skip the 2 bisacodyl tablets at 3 PM."],
 ];
 const WORDS = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
 
@@ -139,8 +150,15 @@ export function prepPlants(paper = SAMPLE_PREP, truth = PREP_TRUTH): Plant[] {
     if (neg) p("words skipped with an ellipsis", "held back", { source_quote: t.quote.replace(neg[0], "...") }, `"${neg[0]}" replaced by "..." in "${short}"`);
 
     // The explanation says the opposite of the line. Its numbers still match, so our number check can't see it.
+    // When the reversal drops the line's "do not" / "stop" / "until", our code hides it even if the second model says
+    // "same". When the cue words survive ("must drive you home" vs "you can drive yourself home"), only the meaning
+    // check can catch it, so the test is that it never shows uncertified.
     const rev = REVERSALS.find(([q]) => t.quote.includes(q));
-    if (rev) p("meaning reversed in the explanation", "shown only if certified", { plain_language: rev[1] }, `"${short}" explained as "${rev[1]}"`);
+    if (rev && cuesDiffer(t.quote, rev[1])) p("do-not dropped from the explanation", "explanation hidden", { plain_language: rev[1] }, `"${short}" explained as "${rev[1]}"`);
+    else if (rev) p("meaning reversed in the explanation", "shown only if certified", { plain_language: rev[1] }, `"${short}" explained as "${rev[1]}"`);
+
+    const add = ADDED_NO.find(([q]) => t.quote.includes(q));
+    if (add) p("do-not added to the explanation", "explanation hidden", { plain_language: add[1] }, `"${short}" explained as "${add[1]}"`);
   });
   for (const [quote, slot] of [
     ["Take 2 aspirin the morning of your procedure.", "morning_of"],
@@ -181,12 +199,12 @@ export function runPrepPlantedTest(paper = SAMPLE_PREP, truth = PREP_TRUTH): Pre
     const res = buildPrepTimeline(paper, [pl.item]);
     const s = res.timeline[0]?.steps[0] ?? res.ask[0];
     const neverShownUncertified = !!s && uncertifiedStates(s.id).every((m) => shownExplanation(s, m) === null);
-    const got = !s ? "held back" : s.numbers_blocked ? `explanation blocked, ${s.slot ?? "ask"}` : neverShownUncertified ? (s.slot ?? "ask") : "explanation shown without certification";
+    const got = !s ? "held back" : s.numbers_blocked || s.negation_blocked ? `explanation blocked, ${s.slot ?? "ask"}` : neverShownUncertified ? (s.slot ?? "ask") : "explanation shown without certification";
     const ok =
       pl.expect === "held back" ? !s :
       pl.expect === "not placed" ? !s || s.slot === null :
       pl.expect === "placed right" ? !!s && s.slot === pl.truth :
-      pl.expect === "explanation hidden" ? !!s && s.numbers_blocked && s.plain_language === "" && shownExplanation(s, certifiedState(s.id)) === null :
+      pl.expect === "explanation hidden" ? !!s && (s.numbers_blocked || s.negation_blocked) && s.plain_language === "" && shownExplanation(s, certifiedState(s.id)) === null :
       // The headline is the paper's own words, and the explanation never shows until certified.
       !!s && s.source_quote === pl.item.source_quote.trim() && neverShownUncertified;
     const k = (rep.planted.byKind[pl.kind] ??= { total: 0, caught: 0 });

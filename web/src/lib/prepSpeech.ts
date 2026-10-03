@@ -15,6 +15,7 @@ export type SpeechLine = { text: string; voice: "paper" | "ours" | "explanation"
 const SPOKEN_NOTE: Record<Exclude<ExplainState, "certified" | "none">, string> = {
   checking: "The plain-words explanation is still being checked, so it is left out.",
   numbers: "The plain-words explanation is left out because it had a number your paper doesn't say.",
+  negation: "The plain-words explanation is left out because our code couldn't confirm it keeps your paper's do-not, stop or until words.",
   flagged: "The plain-words explanation is left out because a second check found it may not match your paper.",
   unclear: "The plain-words explanation is left out because a second check couldn't confirm it.",
   check_failed: "The plain-words explanation is left out because the double-check isn't available right now.",

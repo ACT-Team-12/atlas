@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { LANGUAGES } from "./schema";
+import { negationBlocked } from "./prepCues";
 import { findSpan } from "./verify";
 import { unexpectedNumbersAnyForm } from "./meaning";
 import { LINE_BREAK, PREP_KINDS, readWhen, SLOTS, SLOT_LABEL, type PrepKind, type Slot, type WhenReason } from "./prepTime";
@@ -14,7 +15,8 @@ import { LINE_BREAK, PREP_KINDS, readWhen, SLOTS, SLOT_LABEL, type PrepKind, typ
  *    and counted, never shown. A kept step carries the paper's own text at the matched place, not the model's copy;
  * 2. places each kept step on the timeline from the time words in its own quote (prepTime.ts), never from the AI;
  * 3. makes the paper's own quote the step's headline. The AI's plain-words explanation is never the headline. It is
- *    blocked here when it has a number (digits or English number words) the quote doesn't, and otherwise the page
+ *    blocked here when it has a number (digits or English number words) the quote doesn't, or when it drops or adds a
+ *    "do not", "stop" or "until" (prepCues.ts, a rule in code the second model can't overrule), and otherwise the page
  *    shows it only after the second-model meaning check (meaning.ts, /api/meaning) certifies it (prepView.ts).
  *
  * Nothing here calls the network, so it is unit tested and used by the planted-mistake test on /tests.
@@ -51,6 +53,11 @@ export type PrepStep = {
   plain_language: string;
   /** True when the explanation had a number the quote doesn't, so it was dropped here and never sent on. */
   numbers_blocked: boolean;
+  /**
+   * True when the explanation doesn't keep the line's "do not" / "stop" / "until" words, or can't be checked for them
+   * in its language (prepCues.ts), so it was dropped here and never sent on. A rule in code; the AI can't overrule it.
+   */
+  negation_blocked: boolean;
   /** The time words from the quote that placed it, as written in the paper. */
   when_words: string[];
   slot: Slot | null;
@@ -67,6 +74,8 @@ export type PrepResponse = {
     ai_slot_overridden: number;
     /** Explanations dropped here because of a number the quote doesn't have. */
     numbers_blocked: number;
+    /** Explanations dropped here because they don't keep the line's "do not" / "stop" / "until" words. */
+    negation_blocked: number;
   };
   model: string;
   ms: number;
@@ -91,7 +100,7 @@ const clip = (s: string, n: number) => s.trim().slice(0, n);
 export const ELLIPSIS = /\.\s*\.|[\u2026\u22EF\u1801\uFE19]/;
 
 /** The deterministic part of prep mode: verify, place, group. `source` is the paper the person pasted. */
-export function buildPrepTimeline(source: string, items: PrepModelItem[]): Omit<PrepResponse, "model" | "ms"> {
+export function buildPrepTimeline(source: string, items: PrepModelItem[], language: PrepRequest["language"] = "English"): Omit<PrepResponse, "model" | "ms"> {
   const kept: { step: PrepStep; at: number }[] = [];
   const heldKinds: PrepKind[] = [];
   let overridden = 0;
@@ -110,10 +119,13 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[]): Omit<
     const plain = clip(it.plain_language, 600);
     // A number in the AI's words (digits or "two", "twice") that the paper's line doesn't have blocks the explanation.
     const blocked = plain !== "" && unexpectedNumbersAnyForm({ plain_language: plain, source_quote: quote }).length > 0;
+    // A "do not", "stop" or "until" the paper's line has and the explanation lacks (or the other way round) blocks it.
+    const negBlocked = !blocked && plain !== "" && negationBlocked(quote, plain, language);
     kept.push({
       at: span.start,
       step: {
-        id: `prep-${i}`, kind: it.kind, source_quote: quote, plain_language: blocked ? "" : plain, numbers_blocked: blocked,
+        id: `prep-${i}`, kind: it.kind, source_quote: quote, plain_language: blocked || negBlocked ? "" : plain,
+        numbers_blocked: blocked, negation_blocked: negBlocked,
         when_words: when.words, slot: when.slot, reason: when.reason,
       },
     });
@@ -131,6 +143,7 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[]): Omit<
       extracted: Math.min(items.length, MAX_ITEMS), verified: steps.length, held_back: heldKinds.length,
       placed: steps.length - ask.length, ask: ask.length, ai_slot_overridden: overridden,
       numbers_blocked: steps.filter((s) => s.numbers_blocked).length,
+      negation_blocked: steps.filter((s) => s.negation_blocked).length,
     },
   };
 }

@@ -18,7 +18,7 @@ export function GET() {
 }
 
 /**
- * Body: the raw recording (audio/webm, audio/mp4 or audio/ogg, at most 1 MB).
+ * Body: the raw recording (audio/webm, audio/mp4 or audio/ogg, at most 512 KB).
  * Query: language and token (the quiz token /api/understand issued). Returns { transcript } and nothing else.
  */
 export async function POST(request: Request) {

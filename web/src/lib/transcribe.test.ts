@@ -4,7 +4,7 @@ vi.mock("ai", () => ({ gateway: { transcription: (id: string) => ({ id }) }, tra
 import { GET, POST } from "@/app/api/transcribe/route";
 import { LANGUAGES } from "./schema";
 import {
-  chargeSeconds, DAILY_AUDIO_SECONDS, GATEWAY_STT_MODEL, sttProvider, HOURLY_AUDIO_SECONDS, issueQuizToken, MAX_AUDIO_BYTES, QUIZ_TOKEN_TTL_MS, resetTranscribeStateForTests,
+  chargeSeconds, DAILY_AUDIO_SECONDS, MAX_AUDIO_SECONDS, reserveFor, GATEWAY_STT_MODEL, sttProvider, HOURLY_AUDIO_SECONDS, issueQuizToken, MAX_AUDIO_BYTES, QUIZ_TOKEN_TTL_MS, resetTranscribeStateForTests,
   STT_LANG, transcribe, USES_PER_TOKEN, verifyQuizToken,
 } from "./transcribe";
 
@@ -199,5 +199,40 @@ describe("gateway path (no Deepgram key)", () => {
     expect((await GET().json()).enabled).toBe(false);
     expect((await post()).status).toBe(503);
     expect(aiMock.transcribe).not.toHaveBeenCalled();
+  });
+});
+
+describe("caps cannot be slipped (security review lead, 2026-10-02)", () => {
+  const fetchMock = vi.fn();
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("DEEPGRAM_API_KEY", "dg-test");
+    vi.stubEnv("FEEDBACK_SECRET", SECRET);
+    fetchMock.mockReset();
+    resetTranscribeStateForTests();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
+
+  it("counts the real length even when it pushes past the hourly fuse", async () => {
+    const t = Date.UTC(2026, 9, 2, 12);
+    chargeSeconds(1_000, t);
+    fetchMock.mockResolvedValue(dg("long", 1_000));
+    await transcribe(audio(4000), "audio/webm", "English", t).catch(() => {});
+    // 1,000 + 1,000 real seconds is past the 1,800 s fuse: it must all be on the books, so even 500 more is refused.
+    expect(chargeSeconds(500, t)).toBe(false);
+    expect(reserveFor(4000)).toBe(30);
+  });
+
+  it("reserves an upper bound from the byte count, so a low-bitrate file cannot sneak hours past the fuse", async () => {
+    const t = Date.UTC(2026, 9, 2, 12);
+    chargeSeconds(HOURLY_AUDIO_SECONDS - 100, t);
+    await expect(transcribe(audio(MAX_AUDIO_BYTES), "audio/webm", "English", t)).rejects.toMatchObject({ status: 429 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a recording longer than the quiz allows instead of returning its words", async () => {
+    fetchMock.mockResolvedValue(dg("a very long speech", MAX_AUDIO_SECONDS + 10));
+    await expect(transcribe(audio(), "audio/webm", "English")).rejects.toMatchObject({ status: 413 });
   });
 });

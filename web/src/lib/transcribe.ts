@@ -35,16 +35,25 @@ export function sttProvider(env: Record<string, string | undefined> = process.en
   return null;
 }
 export const PROVIDER_NAME: Record<SttProvider, string> = { deepgram: "Deepgram", gateway: "xAI (Grok speech-to-text) through Vercel AI Gateway" };
-export const MAX_AUDIO_BYTES = 1_000_000;
+/** A 20 s browser recording is about 80 KB (WebM/Opus at 32 kbps) or up to about 320 KB (Safari MP4/AAC). */
+export const MAX_AUDIO_BYTES = 512_000;
+/** The quiz records 20 s; anything the provider says is longer than this is refused, not returned. */
+export const MAX_AUDIO_SECONDS = 35;
+/**
+ * The fuse never trusts a length it has not measured: each call reserves the most audio its byte count could hold
+ * (Opus goes as low as 6 kbps), then settles to the length the provider reports. So a low-bitrate file cannot
+ * carry hours of billable audio past the hourly or daily fuse.
+ */
+const MIN_BITS_PER_SECOND = 6_000;
+export const reserveFor = (bytes: number) => Math.max(30, Math.ceil((bytes * 8) / MIN_BITS_PER_SECOND));
 /** Browsers record WebM/Opus (Chrome, Firefox, Android) or MP4/AAC (Safari); both providers read both containers. */
 export const AUDIO_TYPES = ["audio/webm", "audio/mp4", "audio/ogg"] as const;
 export const QUIZ_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 /** Three answers per question at most is plenty; a quiz has up to 20 questions. */
 export const USES_PER_TOKEN = 40;
-/** Per server instance. Each call reserves 30 s up front, then settles to the length the provider reports. */
+/** Per server instance. Each call reserves reserveFor(bytes) up front, then settles to the length the provider reports. */
 export const HOURLY_AUDIO_SECONDS = 1_800;
 export const DAILY_AUDIO_SECONDS = 9_000;
-const RESERVE_SECONDS = 30;
 
 export class TranscribeError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -94,12 +103,15 @@ export function chargeToken(token: string): boolean {
   return true;
 }
 
-/** Adds seconds to both windows; refuses (and adds nothing) if either would go over. A negative value refunds. */
-export function chargeSeconds(seconds: number, now = Date.now()): boolean {
+/**
+ * Adds seconds to both windows; refuses (and adds nothing) if either would go over. A negative value refunds.
+ * force records usage that already happened (a settle), even past the fuse, so the next call is refused.
+ */
+export function chargeSeconds(seconds: number, now = Date.now(), force = false): boolean {
   const hour = Math.floor(now / 3_600_000), day = Math.floor(now / 86_400_000);
   if (hourly.hour !== hour) hourly = { hour, used: 0 };
   if (daily.day !== day) daily = { day, used: 0 };
-  if (seconds > 0 && (hourly.used + seconds > HOURLY_AUDIO_SECONDS || daily.used + seconds > DAILY_AUDIO_SECONDS)) return false;
+  if (!force && seconds > 0 && (hourly.used + seconds > HOURLY_AUDIO_SECONDS || daily.used + seconds > DAILY_AUDIO_SECONDS)) return false;
   hourly.used = Math.max(0, hourly.used + seconds);
   daily.used = Math.max(0, daily.used + seconds);
   return true;
@@ -139,14 +151,19 @@ export async function transcribe(audio: Uint8Array, type: string, language: (typ
   if (!code) throw new TranscribeError(`Speaking your answer isn't available in ${language} yet. Tap your answer instead.`, 422);
   const provider = sttProvider();
   if (!provider) throw new TranscribeError("Speaking your answer is off right now. Tap your answer instead.", 503);
-  if (!chargeSeconds(RESERVE_SECONDS, now)) throw new TranscribeError("Speaking answers is resting for a bit. Tap your answer instead.", 429);
+  const reserved = reserveFor(audio.byteLength);
+  if (!chargeSeconds(reserved, now)) throw new TranscribeError("Speaking answers is resting for a bit. Tap your answer instead.", 429);
 
-  const settle = { seconds: RESERVE_SECONDS };
+  const settle = { seconds: reserved };
+  let text: string;
   try {
-    return provider === "deepgram" ? await viaDeepgram(audio, type, code, settle) : await viaGateway(audio, settle);
+    text = provider === "deepgram" ? await viaDeepgram(audio, type, code, settle) : await viaGateway(audio, settle);
   } finally {
-    chargeSeconds(settle.seconds - RESERVE_SECONDS, now); // settle the reservation to what the provider actually heard
+    // Settle to what the provider actually heard. Forced: it already happened, so it counts even past the fuse.
+    chargeSeconds(settle.seconds - reserved, now, true);
   }
+  if (settle.seconds > MAX_AUDIO_SECONDS) throw new TranscribeError("That recording is too long. Keep it under 20 seconds.", 413);
+  return text;
 }
 
 const seconds = (d: unknown) => (typeof d === "number" && Number.isFinite(d) && d >= 0 ? Math.ceil(d) : null);

@@ -16,6 +16,11 @@ data class SavedSession(
     val plan: PlanResponse? = null,
     val done: Map<String, Boolean> = emptyMap(),
     val removed: Map<String, Boolean> = emptyMap(),
+    /** The second-model double-check for `care`. Missing in files saved by older versions: then every step is unchecked. */
+    val meaning: MeaningState = MeaningState.IDLE,
+    /** What the steps were read from and what the plan was built from (StaleGuard). Null in older files. */
+    val readFingerprint: String? = null,
+    val planFingerprint: String? = null,
     /** Epoch milliseconds. */
     val savedAt: Long,
 )

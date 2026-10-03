@@ -28,7 +28,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.common.moduleinstall.ModuleInstall
@@ -104,6 +107,19 @@ fun HomeScreen(model: AppModel, onAbout: () -> Unit) {
         }
         ScreenTitle("Your visit paper", "Turn it into steps you can finish, with help near you.")
         MedicalNote()
+
+        // Opened from a helper link: say so in the person's language, and in English for whoever is with them.
+        model.helperBanner?.let { b ->
+            AtlasCard(background = Palette.sun.copy(alpha = 0.5f), border = Palette.ink) {
+                Text(b.text, style = Type.sub.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                b.english?.let { Text(it, style = Type.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Normal)) }
+                Text("Language: ${model.language.name} · Reading level: ${model.level.name}" + (model.zip.takeIf { it.isNotEmpty() }?.let { " · ZIP $it" } ?: ""),
+                    style = Type.caption)
+                TextLink("OK", onClick = { model.dismissHelperBanner() },
+                    modifier = Modifier.semantics { contentDescription = "Dismiss this note" })
+            }
+        }
 
         model.restoredAt?.let { at ->
             AtlasCard(border = Palette.teal) {

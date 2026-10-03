@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stephensookra.atlas.AppModel
 import com.stephensookra.atlas.data.Barrier
+import com.stephensookra.atlas.data.PaperFirst
 import com.stephensookra.atlas.data.PlanResponse
 import com.stephensookra.atlas.data.PlanStep
 import com.stephensookra.atlas.data.ResourceCard
@@ -49,16 +50,28 @@ fun PlanScreen(model: AppModel) {
         ScreenBody { Text("No plan yet.", style = Type.body) }
         return
     }
-    val careById = model.careById
+    // Every grounded step the plan could point at, removed or not: a plan step's paper quote never drops out.
+    val planItems = model.care?.items.orEmpty().filter { it.grounded }
+    val outdated = model.planOutdated
     ScreenBody {
         ScreenTitle("Your plan", plan.located.label)
         MedicalNote()
+        if (outdated) {
+            OutdatedNote(
+                if (model.careOutdated) "You changed your paper's text, language or reading level since this plan was made. Read your paper again first; until then sharing and reminders are off."
+                else "You changed your steps, barriers, language, note or place since this plan was made. Update the plan; until then sharing and reminders are off."
+            )
+            if (!model.careOutdated) PillButton("Update the plan", onClick = { speaker.stop(); model.makePlan() },
+                fill = Palette.ink, textColor = Palette.paper, shadow = Palette.mint)
+        }
         if (model.care?.has_warning_signs == true) WarningBanner()
+        Text(PaperFirst.PLAN_IS_A_SUGGESTION, style = Type.caption)
         Text(plan.summary, style = Type.title3.copy(fontWeight = FontWeight.SemiBold, fontSize = 19.sp))
-        ReadAloudBar(speaker, model.language, listOf(plan.summary) + plan.steps.mapIndexed { i, s -> "${i + 1}. ${s.title}. ${s.action}" })
+        // The plan is a suggestion and never certified: each step is followed by the paper's own words for it.
+        ReadAloudBar(speaker, model.language, PaperFirst.planSpeechLines(plan, planItems))
         val context = LocalContext.current
-        OutlinePill("Send to family", onClick = {
-            val text = ShareText.plan(model.items, plan, model.care?.questions_for_doctor.orEmpty())
+        if (!outdated) OutlinePill("Send to family", onClick = {
+            val text = ShareText.plan(model.items, plan, model.care?.questions_for_doctor.orEmpty(), model.meaning, planItems)
             val send = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_SUBJECT, ShareText.TITLE)
@@ -82,9 +95,11 @@ fun PlanScreen(model: AppModel) {
         }
 
         plan.steps.forEachIndexed { i, step ->
-            PlanStepCard(i + 1, step, plan, careById) {
-                val quote = step.care_ids.firstNotNullOfOrNull { careById[it]?.source_quote } ?: ""
-                reminder = ReminderTarget(step.title, quote, step.action)
+            val quotes = PaperFirst.planStepQuotes(step, planItems)
+            PlanStepCard(i + 1, step, plan, quotes, remindEnabled = !outdated) {
+                // A plan step is the AI's suggestion: the reminder says so, and carries the paper's words.
+                reminder = ReminderTarget("Step ${i + 1} of your plan", quotes.firstOrNull() ?: "",
+                    "Suggestion from ATLAS, not the paper: ${step.title}. ${step.action}")
             }
         }
 
@@ -108,7 +123,7 @@ fun PlanScreen(model: AppModel) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun PlanStepCard(index: Int, step: PlanStep, plan: PlanResponse, careById: Map<String, VerifiedItem>, onRemind: () -> Unit) {
+fun PlanStepCard(index: Int, step: PlanStep, plan: PlanResponse, quotes: List<String>, remindEnabled: Boolean, onRemind: () -> Unit) {
     AtlasCard {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top,
             modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = "Step $index: ${step.title}"; heading() }) {
@@ -118,16 +133,12 @@ fun PlanStepCard(index: Int, step: PlanStep, plan: PlanResponse, careById: Map<S
         if (step.barrier.isNotEmpty()) Chip(Barrier.of(step.barrier)?.label ?: step.barrier, Palette.mintSoft, Palette.ink)
         Text(step.action, style = Type.body.copy(fontWeight = FontWeight.SemiBold))
         if (step.why.isNotEmpty()) Text("Why: ${step.why}", style = Type.sub.copy(fontWeight = FontWeight.Normal, color = Palette.inkSoft))
-        step.care_ids.forEach { id ->
-            careById[id]?.let { item ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(item.title, style = Type.caption.copy(color = Palette.ink))
-                    PaperQuote(item.source_quote)
-                }
-            }
+        quotes.forEach { q ->
+            Text("Your paper says: “$q”", style = Type.sub.copy(color = Palette.ink),
+                modifier = Modifier.sunRule().semantics { contentDescription = "Your paper says: $q" })
         }
-        OutlinePill("Remind me", onClick = onRemind, fill = Palette.mint, icon = Icons.Filled.Notifications,
-            contentDescription = "Remind me about ${step.title}")
+        if (remindEnabled) OutlinePill("Remind me", onClick = onRemind, fill = Palette.mint, icon = Icons.Filled.Notifications,
+            contentDescription = "Remind me about step $index")
         step.resource_ids.forEach { id -> plan.resources[id]?.let { ResourceView(it) } }
     }
 }

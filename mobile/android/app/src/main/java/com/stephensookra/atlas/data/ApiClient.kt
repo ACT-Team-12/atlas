@@ -42,21 +42,28 @@ object ApiErrors {
 class ApiClient(private val baseUrl: String = BASE_URL) {
     companion object {
         const val BASE_URL = "https://atlas-team12.vercel.app"
+        const val SURFACE_HEADER = "x-atlas-surface"
     }
 
     suspend fun extract(text: String, level: ReadingLevel, language: Language): CarePlanResponse =
         post("/api/extract", AtlasJson.encodeToString(ExtractRequest.serializer(), ExtractRequest(text, level, language)),
             CarePlanResponse.serializer())
 
-    suspend fun plan(request: PlanRequest): PlanResponse =
-        post("/api/plan", AtlasJson.encodeToString(PlanRequest.serializer(), request), PlanResponse.serializer())
+    /** `fromHelperLink`: this plan was built after opening a helper link (counted once by the server, never the link). */
+    suspend fun plan(request: PlanRequest, fromHelperLink: Boolean = false): PlanResponse =
+        post("/api/plan", AtlasJson.encodeToString(PlanRequest.serializer(), request), PlanResponse.serializer(),
+            if (fromHelperLink) mapOf(HelperLink.ENTRY_HEADER to HelperLink.HELPER_ENTRY) else emptyMap())
+
+    /** The second-model double-check of each explanation against its line (web/src/app/api/meaning). */
+    suspend fun meaning(request: MeaningRequest): MeaningResponse =
+        post("/api/meaning", AtlasJson.encodeToString(MeaningRequest.serializer(), request), MeaningResponse.serializer())
 
     suspend fun results(text: String, language: Language): ResultsResponse =
         post("/api/results", AtlasJson.encodeToString(ResultsRequest.serializer(), ResultsRequest(text, language)), ResultsResponse.serializer())
 
-    private suspend fun <T> post(path: String, body: String, out: KSerializer<T>): T = coroutineScope {
+    private suspend fun <T> post(path: String, body: String, out: KSerializer<T>, headers: Map<String, String> = emptyMap()): T = coroutineScope {
         val conn = URL(baseUrl + path).openConnection() as HttpURLConnection
-        val call = async(Dispatchers.IO) { send(conn, body, out) }
+        val call = async(Dispatchers.IO) { send(conn, body, out, headers) }
         try {
             call.await()
         } catch (e: CancellationException) {
@@ -66,7 +73,7 @@ class ApiClient(private val baseUrl: String = BASE_URL) {
         }
     }
 
-    private suspend fun <T> send(conn: HttpURLConnection, body: String, out: KSerializer<T>): T {
+    private suspend fun <T> send(conn: HttpURLConnection, body: String, out: KSerializer<T>, headers: Map<String, String>): T {
         try {
             conn.requestMethod = "POST"
             conn.connectTimeout = 20_000
@@ -74,6 +81,9 @@ class ApiClient(private val baseUrl: String = BASE_URL) {
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Accept", "application/json")
+            // Counted as the Android app in the server's anonymous counts (web/src/lib/db.ts surfaceOf).
+            conn.setRequestProperty(SURFACE_HEADER, "android")
+            for ((k, v) in headers) conn.setRequestProperty(k, v)
             conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             val status = conn.responseCode
             val stream = if (status in 200..299) conn.inputStream else conn.errorStream

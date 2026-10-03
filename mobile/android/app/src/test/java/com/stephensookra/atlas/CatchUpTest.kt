@@ -65,7 +65,8 @@ class CatchUpTest {
     @Test fun shareTextCarriesTheLineFromThePaperAndOnlyUsedResources() {
         val text = ShareText.plan(Fixture.care.items, ohio, Fixture.care.questions_for_doctor)
         val grounded = Fixture.care.items.filter { it.grounded }
-        assertEquals(grounded.size, text.split("Paper says: \"").size - 1)
+        val paperPart = text.substringAfter("WHAT THE PAPER SAYS TO DO").substringBefore("THE PLAN (")
+        assertEquals(grounded.size, paperPart.split("Your paper says: \"").size - 1)
         for (i in grounded) assertTrue(text.contains(i.source_quote))
         val used = ohio.steps.flatMap { it.resource_ids }.toSet()
         for ((id, card) in ohio.resources) if (card is ResourceCard.ClinicCard) assertEquals(id in used, text.contains(card.clinic.name))

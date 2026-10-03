@@ -51,6 +51,9 @@ for (const p of papers) {
     id: p.id,
     originals: base.length,
     false_alarms: orig.results.filter((r) => r.flagged).map((r) => ({ id: r.id, numbers: r.unexpected_numbers, why: r.what_differs })),
+    // Untouched explanations that earned the green check, and planted flips that wrongly did.
+    certified: orig.results.filter((r) => r.certified).length,
+    planted_certified: flipped.results.filter((r) => r.certified).length,
     planted: caught.length,
     caught: caught.filter((c) => c.flagged).length,
     by_kind: caught,
@@ -69,6 +72,8 @@ const out = {
   totals: {
     originals: rows.reduce((a, r) => a + r.originals, 0),
     false_alarms: rows.reduce((a, r) => a + r.false_alarms.length, 0),
+    certified: rows.reduce((a, r) => a + r.certified, 0),
+    planted_certified: rows.reduce((a, r) => a + r.planted_certified, 0),
     planted: all.length,
     caught: all.filter((c) => c.flagged).length,
     caught_by_numbers: all.filter((c) => c.by_numbers).length,

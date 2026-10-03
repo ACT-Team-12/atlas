@@ -205,10 +205,10 @@ function Resource({ r }: { r: ResourceCard }) {
 }
 
 export function CarePlanTool() {
-  const [text, setText] = useState("");
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [language, setLanguage] = useState<(typeof LANGUAGES)[number]>("English");
-  const [level, setLevel] = useState<(typeof READING_LEVELS)[number]>("simple");
+  const [text, setTextState] = useState("");
+  const [photo, setPhotoState] = useState<File | null>(null);
+  const [language, setLanguageState] = useState<(typeof LANGUAGES)[number]>("English");
+  const [level, setLevelState] = useState<(typeof READING_LEVELS)[number]>("simple");
   // The level the steps on screen were read at (the select can change after a read).
   const [readLevel, setReadLevel] = useState<(typeof READING_LEVELS)[number] | null>(null);
   const [reading, setReading] = useState(false);
@@ -224,18 +224,46 @@ export function CarePlanTool() {
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const [planReadyNote, setPlanReadyNote] = useState<string | null>(null);
-  const [care, setCare] = useState<CarePlanResponse | null>(null);
-  const [barriers, setBarriers] = useState<Barrier[]>([]);
-  const [zip, setZip] = useState("");
-  const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
-  const [note, setNote] = useState("");
+  const [care, setCareState] = useState<CarePlanResponse | null>(null);
+  const [barriers, setBarriersState] = useState<Barrier[]>([]);
+  const [zip, setZipState] = useState("");
+  const [loc, setLocState] = useState<{ lat: number; lng: number } | null>(null);
+  const [note, setNoteState] = useState("");
   const [planning, setPlanning] = useState(false);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string | null>(null);
-  const [removed, setRemoved] = useState<Record<string, boolean>>({});
+  const [removed, setRemovedState] = useState<Record<string, boolean>>({});
   const [restoredAt, setRestoredAt] = useState<string | null>(null);
+  // The inputs a read or plan is built from, written the moment they change (before React re-renders).
+  // A reply is checked against these when it lands, so a change whose render or effect has not run yet still counts.
+  const live = useRef({ text, photo, language, level, care, removed, barriers, zip, loc, note });
+  const setText = (v: string) => { live.current.text = v; setTextState(v); };
+  const setPhoto = (v: File | null) => { live.current.photo = v; setPhotoState(v); };
+  const setLanguage = (v: (typeof LANGUAGES)[number]) => { live.current.language = v; setLanguageState(v); };
+  const setLevel = (v: (typeof READING_LEVELS)[number]) => { live.current.level = v; setLevelState(v); };
+  const setCare = (v: CarePlanResponse | null) => { live.current.care = v; setCareState(v); };
+  const setZip = (v: string) => { live.current.zip = v; setZipState(v); };
+  const setLoc = (v: { lat: number; lng: number } | null) => { live.current.loc = v; setLocState(v); };
+  const setNote = (v: string) => { live.current.note = v; setNoteState(v); };
+  const setBarriers = (v: Barrier[] | ((b: Barrier[]) => Barrier[])) => {
+    const next = typeof v === "function" ? v(live.current.barriers) : v;
+    live.current.barriers = next; setBarriersState(next);
+  };
+  const setRemoved = (v: Record<string, boolean> | ((r: Record<string, boolean>) => Record<string, boolean>)) => {
+    const next = typeof v === "function" ? v(live.current.removed) : v;
+    live.current.removed = next; setRemovedState(next);
+  };
+  const liveReadFp = () => {
+    const l = live.current;
+    return readFingerprint({ text: l.photo ? null : l.text, photo: photoId(l.photo), language: l.language, level: l.level });
+  };
+  const livePlanFp = () => {
+    const l = live.current;
+    const careIds = (l.care?.items ?? []).filter((i) => !l.removed[i.id]).map((i) => i.id);
+    return planFingerprint({ careIds, barriers: l.barriers, language: l.language, note: l.note, place: planPlace(!!l.loc, l.zip), location: l.loc });
+  };
   // Photo reads: the quote check runs against the AI's own reading of the photo, so the person checks that reading first.
   const [transcript, setTranscript] = useState<string | null>(null);
   const [photoChecked, setPhotoChecked] = useState(false);
@@ -396,7 +424,7 @@ export function CarePlanTool() {
       if (typeof body.text === "string") {
         // Pasted text: show each verified step as it arrives. Photos keep the plain route (the person checks our reading first).
         try {
-          json = await streamExtract(body, (it) => { if (readRun.current === run) setPartial((p) => [...p, it]); }, abort.signal);
+          json = await streamExtract(body, (it) => { if (readRun.current === run && pendingRead.current?.fp === liveReadFp()) setPartial((p) => [...p, it]); }, abort.signal);
         } catch (e) {
           if (!(e instanceof StreamBroken) || readRun.current !== run) throw e;
           // The stream broke part way: drop what we showed and read it again the plain way.
@@ -406,6 +434,8 @@ export function CarePlanTool() {
       } else json = await postExtract(body, abort.signal);
       if (readRun.current !== run) return;
       const sent = pendingRead.current;
+      if (!sent || sent.run !== run) return;
+      if (sent.fp !== liveReadFp()) return stopStaleRead(); // changed after sending; the change's effect may not have run yet
       pendingRead.current = null;
       setPartial([]);
       setCare(json);
@@ -415,13 +445,27 @@ export function CarePlanTool() {
       // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared),
       // and only if the person has not scrolled, tapped or typed since pressing the button.
       const target = scrollTargetAfter("read", isPhoneNow());
-      if (target && sent && autoScrollOk(sent.at)) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true };
+      if (target && autoScrollOk(sent.at)) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true };
     } catch (e) {
       if (readRun.current !== run) return; // stopped or replaced: nothing to show
+      if (pendingRead.current?.run === run && pendingRead.current.fp !== liveReadFp()) return stopStaleRead();
       pendingRead.current = null;
       setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong.");
     }
     finally { if (readRun.current === run) setReading(false); }
+  }
+
+  // A pending read or plan whose inputs changed is stopped, its late reply ignored, and a short note says why.
+  function stopStaleRead() {
+    readRun.current++; pendingRead.current?.abort.abort(); pendingRead.current = null;
+    setReading(false); setPartial([]);
+    setReadNote("You changed your paper or settings, so we stopped reading. Press Read my paper again when ready.");
+  }
+
+  function stopStalePlan() {
+    planRun.current++; pendingPlan.current?.abort.abort(); pendingPlan.current = null;
+    setPlanning(false);
+    setPlanNote("You changed your answers, so we stopped building the plan. Press Make my plan again when ready.");
   }
 
   function autoScrollOk(submittedAt: number) {
@@ -454,17 +498,23 @@ export function CarePlanTool() {
       const json = await res.json();
       if (planRun.current !== run) return; // a new read, a clear, or a changed answer happened meanwhile
       const sent = pendingPlan.current;
+      if (!sent || sent.run !== run) return;
+      if (sent.fp !== livePlanFp()) return stopStalePlan(); // changed after sending; the change's effect may not have run yet
       pendingPlan.current = null;
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
       // Step 3 only exists after this render, so scroll once it is on the page (desktop and phones).
       // If the person has been using the page meanwhile, leave them where they are and say the plan is ready.
-      const free = !!sent && autoScrollOk(sent.at);
+      const free = autoScrollOk(sent.at);
       if (free || !isPhoneNow()) setTab(3);
       else setPlanReadyNote("Your plan is ready. Open 3 · Plan.");
       const target = scrollTargetAfter("plan", isPhoneNow());
       if (target && free) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true };
-    } catch (e) { if (planRun.current === run) { pendingPlan.current = null; setError(e instanceof Error ? e.message : "Something went wrong."); } }
+    } catch (e) {
+      if (planRun.current !== run) return;
+      if (pendingPlan.current?.run === run && pendingPlan.current.fp !== livePlanFp()) return stopStalePlan();
+      pendingPlan.current = null; setError(e instanceof Error ? e.message : "Something went wrong.");
+    }
     finally { if (planRun.current === run) setPlanning(false); }
   }
 
@@ -597,9 +647,7 @@ export function CarePlanTool() {
     const r = pendingRead.current;
     if (!r || r.run !== readRun.current) return;
     if (readFingerprint({ text: photo ? null : text, photo: photoId(photo), language, level }) === r.fp) return;
-    readRun.current++; r.abort.abort(); pendingRead.current = null;
-    setReading(false); setPartial([]);
-    setReadNote("You changed your paper or settings, so we stopped reading. Press Read my paper again when ready.");
+    stopStaleRead();
   }, [text, photo, language, level]);
 
   useEffect(() => {
@@ -607,9 +655,7 @@ export function CarePlanTool() {
     if (!p || p.run !== planRun.current) return;
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
     if (planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip), location: loc }) === p.fp) return;
-    planRun.current++; p.abort.abort(); pendingPlan.current = null;
-    setPlanning(false);
-    setPlanNote("You changed your answers, so we stopped building the plan. Press Make my plan again when ready.");
+    stopStalePlan();
   }, [care, removed, barriers, language, note, loc, zip]);
 
   // Runs after every render; does nothing unless a phone tab change asked for a scroll.

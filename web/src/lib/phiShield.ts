@@ -187,15 +187,32 @@ export class PhiShield {
     return this.names.size > 0 || this.values.size > 0;
   }
 
+  /**
+   * Most names and ids one session spreads through later text. A real paper has one patient (a few name parts, a
+   * handful of ids); the cap keeps a crafted paper with thousands of "Name:" labels from making every later text pay
+   * once per name. Each labeled occurrence is still hidden where it stands; only the spreading stops growing.
+   */
+  static readonly MAX_SPREAD = 48;
+  /** Longest name or id value that is spread (a real name or id is short; a run-on "value" is not one). */
+  static readonly MAX_SPREAD_LEN = 80;
+
+  /** How many names and ids this session spreads (for tests). */
+  get spreadCount(): number {
+    return this.names.size + this.values.size;
+  }
+
   private remember(value: string, kind: PhiKind): void {
     const v = value.trim();
-    if (!v) return;
+    if (!v || v.length > PhiShield.MAX_SPREAD_LEN) return;
+    const room = () => this.names.size + this.values.size < PhiShield.MAX_SPREAD;
     if (kind === "NAME") {
-      this.names.set(v, true);
+      if (room()) this.names.set(v, true);
       for (const part of v.split(/[\s,]+/)) {
         const p = part.replace(/^[.'’-]+|[.'’-]+$/g, "");
-        if (p.length >= 2 && !NO_SPREAD.has(p.toLowerCase()) && !NOT_NAME.has(p.toLowerCase())) this.names.set(p, true);
+        if (p.length >= 2 && !NO_SPREAD.has(p.toLowerCase()) && !NOT_NAME.has(p.toLowerCase()) && room()) this.names.set(p, true);
       }
+    } else if (!room()) {
+      return;
     } else if ((kind === "MRN" || kind === "ACCT" || kind === "ID" || kind === "SSN") && v.replace(/[^A-Za-z0-9]/g, "").length >= 5) {
       this.values.set(v, kind);
     } else if (kind === "PHONE" || kind === "EMAIL") {
@@ -223,8 +240,13 @@ export class PhiShield {
     const hits: Hit[] = [...detectPositional(text)];
     for (const h of hits) this.remember(text.slice(h.start, h.end), h.kind);
     hits.push(...this.spread(text));
-    const blocked = tokenRanges(text);
-    const chosen = resolve(hits.filter((h) => !blocked.some((b) => h.start < b.end && h.end > b.start)));
+    // Placeholders already in the text are never touched. A prefix count of their characters answers "does this hit
+    // overlap one?" in constant time per hit (a scan of every placeholder per hit is quadratic on a crafted paper).
+    const inToken = new Uint32Array(text.length + 1);
+    const marks = new Uint8Array(text.length);
+    for (const b of tokenRanges(text)) marks.fill(1, b.start, b.end);
+    for (let i = 0; i < text.length; i++) inToken[i + 1] = inToken[i] + marks[i];
+    const chosen = resolve(hits.filter((h) => inToken[h.end] - inToken[h.start] === 0));
 
     let out = "";
     let at = 0;
@@ -246,10 +268,11 @@ export class PhiShield {
   /** Every later use of a learned name or id, anywhere in the text. */
   private spread(text: string): Hit[] {
     const out: Hit[] = [];
-    // Longest first, so "Maria Lopez" wins over "Maria" where both match.
+    // One pass over the text for all names (at most MAX_SPREAD of them), longest first in the alternation, so
+    // "Maria Lopez" wins over "Maria" where both match.
     const names = [...this.names.keys()].sort((a, b) => b.length - a.length);
-    for (const name of names) {
-      const re = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(name).replace(/\s+/g, "\\s+")}(?![\\p{L}\\p{N}])`, "giu");
+    if (names.length) {
+      const re = new RegExp(`(?<![\\p{L}\\p{N}])(?:${names.map((n) => escapeRe(n).replace(/\s+/g, "[ \\t]+")).join("|")})(?![\\p{L}\\p{N}])`, "giu");
       for (const m of text.matchAll(re)) {
         const start = m.index, end = start + m[0].length;
         if (!/\p{Lu}/u.test(m[0][0])) continue; // "may", "will", "rose" in a sentence are words, not the patient
@@ -329,7 +352,8 @@ function labelsOn(line: string): LabelHit[] {
 
 /** Drops label matches that are really part of a sentence or belong to a provider. */
 function accept(line: string, f: LabelHit): boolean {
-  const before = line.slice(0, f.labelStart);
+  // Only the words just before the label matter; a bounded slice keeps a line of thousands of labels linear.
+  const before = line.slice(Math.max(0, f.labelStart - 48), f.labelStart);
   const label = line.slice(f.labelStart, f.valueStart);
   const k = f.rule.kind;
   // A label inside a sentence ("the patient: take ...", "born on", "age 7") is kept only if a real value follows it:
@@ -340,21 +364,25 @@ function accept(line: string, f: LabelHit): boolean {
   return true;
 }
 
-/** Where a field's value ends: the next label on the line, a wide gap, a bar or semicolon, or the line end. */
-function valueEnd(line: string, from: number, next: number | undefined): number {
-  let end = next ?? line.length;
-  const gap = /\s{2,}|\t|\s*\|\s*|;/g;
-  gap.lastIndex = from;
-  for (let m = gap.exec(line); m; m = gap.exec(line)) {
-    if (m.index > from && m.index < end) { end = m.index; break; }
-    if (m.index >= end) break;
+/**
+ * Where values can end on a line: a wide gap, a tab, a bar or semicolon, or another field label ("Visit:"). Found once
+ * per line, sorted, so finding each field's end is a binary search (rescanning the line per label is quadratic).
+ */
+function lineStops(line: string): number[] {
+  const stops: number[] = [];
+  for (const m of line.matchAll(/[ \t]{2,}|\t|[ \t]*\|[ \t]*|;/g)) stops.push(m.index);
+  for (const m of line.matchAll(OTHER_FIELD)) stops.push(m.index);
+  return stops.sort((a, b) => a - b);
+}
+
+/** Where a field's value ends: the first stop after it, the next label on the line, or the line end. */
+function valueEnd(stops: readonly number[], lineLength: number, from: number, next: number | undefined): number {
+  let lo = 0, hi = stops.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (stops[mid] > from) hi = mid; else lo = mid + 1;
   }
-  OTHER_FIELD.lastIndex = from;
-  for (let m = OTHER_FIELD.exec(line); m; m = OTHER_FIELD.exec(line)) {
-    if (m.index >= end) break;
-    if (m.index > from) { end = m.index; break; }
-  }
-  return end;
+  return Math.min(next ?? lineLength, lo < stops.length ? stops[lo] : lineLength);
 }
 
 /** Reads a name value: up to 4 name-like words, stopping at a care / field / instruction word. */
@@ -423,8 +451,10 @@ export function detectPositional(text: string): Hit[] {
     const labels = labelsOn(line.text);
     // A line is the patient's when it carries an identity label with a value, or it is a field line
     // (it starts with a contact label) right under a patient line.
+    const stops = labels.length ? lineStops(line.text) : [];
+    const trimmedLength = line.text.trimEnd().length;
     const fields: { hit: LabelHit; len: number }[] = labels.map((hit, i) => {
-      const end = valueEnd(line.text, hit.valueStart, labels[i + 1]?.labelStart);
+      const end = valueEnd(stops, line.text.length, hit.valueStart, labels[i + 1]?.labelStart);
       return { hit, len: readValue(hit.rule.kind, line.text.slice(hit.valueStart, end)) };
     });
     const anchored = fields.some((f) => f.len > 0 && ANCHOR_KINDS.has(f.hit.rule.kind));
@@ -438,7 +468,8 @@ export function detectPositional(text: string): Hit[] {
       const start = line.start + f.hit.valueStart;
       hits.push({ start, end: start + f.len, kind: kindOf(k) });
       // An address can go on to a "City, ST 30310" line.
-      if (k === "CONTACT_ADDR" && f.hit.valueStart + f.len >= line.text.trimEnd().length && lines[li + 1] && CITY_STATE_ZIP.test(lines[li + 1].text)) {
+      // (Only a short line is tested: the pattern backtracks on a long run of spaces, and a city line is never long.)
+      if (k === "CONTACT_ADDR" && f.hit.valueStart + f.len >= trimmedLength && lines[li + 1] && lines[li + 1].text.length <= 120 && CITY_STATE_ZIP.test(lines[li + 1].text)) {
         const nx = lines[li + 1];
         const lead = nx.text.length - nx.text.trimStart().length;
         hits.push({ start: nx.start + lead, end: nx.start + nx.text.trimEnd().length, kind: "ADDR" });

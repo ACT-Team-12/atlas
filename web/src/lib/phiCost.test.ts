@@ -1,0 +1,63 @@
+import { describe, expect, it } from "vitest";
+import { PhiShield, shield } from "./phiShield";
+import { guardMeaning, guardUnderstand } from "./phiGuard";
+
+/**
+ * Cost bounds for the shield (security review: resource amplification). /api/extract accepts 20,000 characters, so
+ * every adversarial paper here is 20,000 characters, and the whole shield must finish in well under 100 ms.
+ */
+const N = 20_000;
+const fill = (unit: string) => unit.repeat(Math.ceil(N / unit.length)).slice(0, N);
+const W = Array.from({ length: 5000 }, (_, i) => `N${i.toString(36)}x`); // many distinct name-like words
+
+export const ADVERSARIAL: Record<string, string> = {
+  "thousands of Name: labels, each a different name": W.map((w) => `Name: ${w[0].toUpperCase()}${w.slice(1)} `).join("").slice(0, N),
+  "one line of thousands of labels with no other field": fill("MRN: 12345 DOB: x Phone: "),
+  "Name: labels on separate lines (header chain)": W.map((w) => `Patient: Q${w}\nPhone: 404-555-0100\n`).join("").slice(0, N),
+  "a single huge name value": `Patient: ${fill("Aaaa ")}`.slice(0, N),
+  "pathological whitespace after labels": `Address: 1 A St\nA${" ".repeat(N - 40)}\n`,
+  "address then a long city line": `Patient: Ana Ruiz\nAddress: 1 Elm St\n${fill("a ")}`.slice(0, N),
+  "address then a city line that is all spaces after one word": `Patient: Ana Ruiz\nAddress: 1 Elm St\nAtlanta${" ".repeat(N - 50)}`,
+  "thousands of placeholders already in the text": fill("⟦NAME_A⟧ Maria "),
+  "Mr followed by long whitespace": fill(`Mr${" ".repeat(300)}`),
+  "digits and long dashes (age phrase)": fill(`12${"-".repeat(200)}`),
+  "email-like run": `Patient: Ana Ruiz\nEmail: a@${fill("a.")}`.slice(0, N),
+  "id-like run": `MRN: ${fill("A1")}`.slice(0, N),
+  "honorifics with distinct surnames": W.map((w) => `Ms. Q${w} `).join("").slice(0, N),
+};
+
+const time = (f: () => void) => {
+  f(); // warm up the regexes once
+  const t = performance.now();
+  f();
+  return performance.now() - t;
+};
+
+describe("worst-case cost of the shield on a 20,000-character paper", () => {
+  for (const [name, text] of Object.entries(ADVERSARIAL)) {
+    it(`${name}: under 100 ms`, () => {
+      expect(text.length).toBeLessThanOrEqual(N);
+      const ms = time(() => shield(text));
+      expect(ms).toBeLessThan(100);
+    });
+  }
+
+  it("names and ids a session spreads are capped", () => {
+    const s = new PhiShield();
+    s.learn(ADVERSARIAL["thousands of Name: labels, each a different name"]);
+    s.learn(ADVERSARIAL["honorifics with distinct surnames"]);
+    expect(s.spreadCount).toBeLessThanOrEqual(PhiShield.MAX_SPREAD);
+  });
+
+  it("many fields with many names (the meaning and quiz routes) stay under 100 ms", async () => {
+    const paper = ADVERSARIAL["thousands of Name: labels, each a different name"];
+    const items = Array.from({ length: 40 }, (_, i) => ({ id: `i${i}`, plain_language: paper.slice(0, 800), when: paper.slice(0, 200), source_quote: paper.slice(i * 100, i * 100 + 800) }));
+    let t = performance.now();
+    await guardMeaning({ items }, async () => ({}));
+    expect(performance.now() - t).toBeLessThan(100);
+    const qItems = items.slice(0, 20).map((it) => ({ id: it.id, kind: "x", title: it.when, source_quote: it.source_quote }));
+    t = performance.now();
+    await guardUnderstand({ source_text: paper, language: "English", items: qItems }, async () => ({ questions: [], dropped: [], model: "m", ms: 0 }));
+    expect(performance.now() - t).toBeLessThan(100);
+  });
+});

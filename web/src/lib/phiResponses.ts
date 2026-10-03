@@ -22,7 +22,7 @@ export const SHIELD_HEADER = "x-atlas-shielded";
 
 /** Shields one paper with the session's knowledge, keeping what is needed to map the answer back. */
 export function shieldText(session: PhiShield, original: string): ShieldContext {
-  session.learn(original);
+  // shield() learns from the text itself before hiding, so no separate learn() pass (each pass is a full scan).
   return { original, result: session.shield(original) };
 }
 

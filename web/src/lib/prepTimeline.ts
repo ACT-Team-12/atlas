@@ -1,4 +1,4 @@
-import { INSTRUCTION_START } from "./sentences";
+import { INSTRUCTION_START, NEGATIVE_START } from "./sentences";
 import { z } from "zod";
 import { LANGUAGES } from "./schema";
 import { negationBlocked } from "./prepCues";
@@ -162,7 +162,8 @@ export const ELLIPSIS = /\.\s*\.|[\u2026\u22EF\u1801\uFE19]/;
  */
 export function timeForOneOfTwoActions(quote: string, words: string[]): boolean {
   const verbs = [...INSTRUCTION_START].map((v) => escapeRe(v)).join("|");
-  const splitter = new RegExp(String.raw`[;•]|\s[-–—]\s|,\s*(?:(?:and\s+then|and|then|or|but|y|et|và)\s+)?(?=(?:${verbs})(?![\p{L}\p{M}]))|\s(?:and\s+then|and|then|but|y|luego|et|puis|và|rồi)\s+(?=(?:${verbs})(?![\p{L}\p{M}]))`, "giu");
+  const negVerbs = [...NEGATIVE_START].map((v) => escapeRe(v)).join("|");
+  const splitter = new RegExp(String.raw`[;•]|\s[-–—]\s|,\s*(?:(?:and\s+then|and|then|or|but|y|et|và)\s+)?(?=(?:${verbs})(?![\p{L}\p{M}]))|\s(?:and\s+then|and|then|but|y|luego|et|puis|và|rồi)\s+(?=(?:${verbs})(?![\p{L}\p{M}]))|\s(?:or|o|ou|hoặc)\s+(?=(?:${negVerbs})(?![\p{L}\p{M}]))`, "giu");
   const cuts: { start: number; end: number }[] = [];
   let last = 0;
   for (const m of quote.matchAll(splitter)) { cuts.push({ start: last, end: m.index }); last = m.index + m[0].length; }

@@ -173,7 +173,8 @@ export function readWhen(quote: string, multiLine = false): WhenRead {
   }
   // A more exact phrase for the same moment wins ("the day before, at 5 PM the evening before").
   if (slots.has("evening_before") && slots.has("day_before")) slots.delete("day_before");
-  if (slots.has("morning_of") && slots.has("hours_before")) slots.delete("hours_before");
+  // "2 hours before your procedure ... the morning of your procedure" can be two doses at two times, so it is a
+  // conflict, never quietly the morning (Codex round 11).
   if (slots.has("day_of") && (slots.has("morning_of") || slots.has("hours_before"))) slots.delete("day_of");
 
   if (slots.size === 1) return { slot: [...slots][0], reason: "placed", words };

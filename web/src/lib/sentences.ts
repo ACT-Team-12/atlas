@@ -24,6 +24,12 @@ const END_UNLESS_LOWER = new Set([
   "a.m", "p.m", "mg", "mcg", "g", "ml", "l", "oz", "tsp", "tbsp", "etc", "approx", "apt", "ste", "ave", "rd", "blvd", "jr",
   "sr", "ft", "hr", "hrs", "min", "mins", "sec", "secs", "wk", "wks", "mo", "mos", "tab", "tabs", "cap", "caps",
 ]);
+/** Do-not verbs: after a bare "or" they start a second action ("Take lisinopril or stop metformin"). */
+export const NEGATIVE_START = new Set([
+  "stop", "hold", "skip", "avoid", "omit", "pause", "suspend", "withhold", "discontinue", "quit", "cease", "refrain",
+  "abstain", "do", "don't", "don’t", "dont", "never", "deje", "pare", "suspenda", "detenga", "evite", "omita", "nunca",
+  "arrêtez", "cessez", "interrompez", "évitez", "omettez", "ne", "ngừng", "ngưng", "dừng", "tránh", "đừng", "không",
+]);
 /** Words that start an instruction: after "5 mg." they begin a new sentence even in lowercase. */
 export const INSTRUCTION_START = new Set([
   // English
@@ -33,6 +39,8 @@ export const INSTRUCTION_START = new Set([
   // the do-not verbs of prepCues.ts, so "Take lisinopril and omit metformin 2 days before" is two actions
   "omit", "omitting", "pause", "pausing", "suspend", "suspending", "withhold", "withholding", "abstain", "refrain",
   "discontinue", "discontinuing", "quit", "cease", "stopping", "holding", "skipping", "avoiding", "fasting", "exclude",
+  // Spanish and French do-not verbs (prepCues.ts), so a mixed-language second action is split too
+  "detenga", "dejar", "suspender", "evitar", "omitir", "interrompez", "cessez", "arrêtez", "évitez", "omettez",
   // Spanish
   "tome", "deje", "pare", "suspenda", "llame", "empiece", "comience", "evite", "omita", "coma", "beba", "llegue",
   "traiga", "use", "aplique", "revise", "continúe", "continue", "siga", "espere", "nunca", "omita", "suspenda", "ayune",

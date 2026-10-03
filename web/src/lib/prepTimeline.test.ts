@@ -437,6 +437,9 @@ describe("Codex round 6: a step never borrows the time of another part of its se
     ["Take lisinopril and pause metformin 2 days before your procedure.", "Take lisinopril and pause metformin 2 days before your procedure."],
     ["Take lisinopril and suspend metformin 2 days before your procedure.", "Take lisinopril and suspend metformin 2 days before your procedure."],
     ["Take lisinopril and withhold metformin 2 days before your procedure.", "Take lisinopril and withhold metformin 2 days before your procedure."],
+    ["Take lisinopril or stop metformin 2 days before your procedure.", "Take lisinopril or stop metformin 2 days before your procedure."],
+    ["Take lisinopril and detenga metformin 2 days before your procedure.", "Take lisinopril and detenga metformin 2 days before your procedure."],
+    ["Take lisinopril and interrompez metformin 2 days before your procedure.", "Take lisinopril and interrompez metformin 2 days before your procedure."],
   ])("%j quoted as %j is not placed", (line, quote) => {
     expect(one(line, quote)).toMatchObject({ slot: null, reason: "other_clause" });
   });
@@ -470,5 +473,13 @@ describe("Codex round 8: a quote that runs across two sentences is never placed"
     const line = "Stop drinking 2 hours before your procedure. Take your pill.";
     const r = buildPrepTimeline(`PREP SHEET (sample)\n- ${line}`, [item({ source_quote: line, plain_language: "" })]);
     expect([...r.timeline.flatMap((g) => g.steps), ...r.ask][0]).toMatchObject({ slot: null, reason: "multi_sentence" });
+  });
+});
+
+describe("Codex round 11: two different times are a conflict, never quietly the morning", () => {
+  it("\"2 hours before ... and another tablet the morning of\" is not placed", () => {
+    const line = "Take one tablet 2 hours before your procedure and another tablet the morning of your procedure.";
+    const r = buildPrepTimeline(`PREP SHEET (sample)\n- ${line}`, [item({ source_quote: line, plain_language: "" })]);
+    expect([...r.timeline.flatMap((g) => g.steps), ...r.ask][0]).toMatchObject({ slot: null });
   });
 });

@@ -475,6 +475,7 @@ describe("the call flow", () => {
     const out = await gate(id, "1111", 1);
     expect(out.map((a) => a.action)).toEqual(["talk"]);
     expect(JSON.stringify([retry, out])).not.toContain("blue pill");
+    expect(JSON.stringify([retry, out])).not.toContain("/api/call/audio"); // no plan audio URL before the right code
     expect((await gate(id, "4821", 2)).map((a) => a.action)).toEqual(["talk"]); // past the tries, even the right code
   });
 
@@ -485,6 +486,7 @@ describe("the call flow", () => {
     const second = await gate(id, digits as string, 1);
     expect([first.map((a) => a.action), second.map((a) => a.action)]).toEqual([["talk", "input"], ["talk"]]);
     expect(JSON.stringify([first, second])).not.toContain("blue pill");
+    expect(JSON.stringify([first, second])).not.toContain("/api/call/audio");
   });
 
   it("counts code tries at the start of the plan call in the store, so a replayed first-try callback cannot guess on", async () => {

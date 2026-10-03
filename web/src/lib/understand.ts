@@ -52,6 +52,8 @@ export type UnderstandResponse = {
   dropped: { item_id: string; reason: DropReason }[];
   model: string;
   ms: number;
+  /** Set by /api/understand: lets this quiz use "Say your answer" (transcribe.ts). Null when the secret is unset. */
+  answer_token?: string | null;
 };
 
 const SYSTEM = `You help a patient check that they understood their after-visit paper (teach-back).

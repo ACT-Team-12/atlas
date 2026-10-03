@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nav } from "@/ui/Nav";
 import { Footer } from "@/ui/Footer";
+import { sttProvider } from "@/lib/transcribe";
 
 export const metadata: Metadata = {
   title: "Privacy · ATLAS",
@@ -8,6 +9,8 @@ export const metadata: Metadata = {
 };
 
 const UPDATED = "October 3, 2026";
+// Rendered per request so the speech-to-text paragraph always names the service this deployment uses right now.
+export const dynamic = "force-dynamic";
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -20,6 +23,7 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 
 /** Every line here describes what the code actually does; change the code and this page together. */
 export default function PrivacyPage() {
+  const stt = sttProvider(); // names the speech-to-text service this deployment actually uses
   return (
     <>
       <Nav />
@@ -35,6 +39,17 @@ export default function PrivacyPage() {
               <p>When you press Read my paper, the text (or the photo, on the website) goes to our server and to Anthropic, the company whose AI model reads it. We use it only to build your checklist and send it back.</p>
               <p>We do not save your paper on our side. Anthropic says that by default it does not use inputs or outputs from its API to train its models (<a className="underline decoration-2 underline-offset-4" href="https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training" target="_blank" rel="noreferrer">Anthropic privacy center</a>).</p>
               <p>In the ATLAS phone apps, the photo is read on your phone and never leaves it. Only the text you check and confirm is sent.</p>
+            </Block>
+            <Block title="Saying your answer out loud">
+              <p>In Check I understood, you can tap Say your answer instead of typing or tapping. Only then, and only while you record (up to 20 seconds), the recording is sent to a speech-to-text service to turn it into words. The words come back to your screen so you can fix them before you check your answer. If you never tap Say your answer, nothing is recorded.</p>
+              <p>To keep this fair and within budget, our database counts seconds of speaking per hour and per day, for the whole site and for each visitor. A visitor is counted by a keyed hash: a scrambled code made from the network address with a secret key, never the address itself. An hourly cleanup deletes any count older than two days, and every use of Say your answer also deletes counts that have expired. If the hourly cleanup stops running, Say your answer switches itself off within three hours, so no new counts are made.</p>
+              {stt === "deepgram" && (
+                <p>Right now that service is Deepgram. ATLAS does not store the recording or the words, and we do not log them. On every request we set Deepgram&apos;s Model Improvement Program opt-out, and Deepgram says opted-out data is kept only as long as it takes to process the request (<a className="underline decoration-2 underline-offset-4" href="https://developers.deepgram.com/docs/the-deepgram-model-improvement-partnership-program" target="_blank" rel="noreferrer">Deepgram model improvement program</a>).</p>
+              )}
+              {stt === "gateway" && (
+                <p>Right now that service is xAI&apos;s speech-to-text model, reached through Vercel AI Gateway. ATLAS does not store the recording or the words, and we do not log them. We tell the gateway to use only providers with a zero data retention agreement that do not train on what we send.</p>
+              )}
+              {stt === null && <p>This is switched off right now, so no recording is ever sent.</p>}
             </Block>
             <Block title="Your location">
               <p>If you type a ZIP code or tap Use my location, it is sent once to find nearby health centers for your plan. We do not save it on our side. A ZIP you type stays with that plan in your saved plans on this device until you clear it; a location from Use my location is never stored.</p>
@@ -62,7 +77,8 @@ export default function PrivacyPage() {
               <p>ATLAS explains your paper and helps you plan around what gets in the way. It does not diagnose or change your care. Check with your doctor or clinic before changing anything, and if you have a warning sign from your paper, call your clinic or 911.</p>
             </Block>
             <Block title="Questions or deletion">
-              <p>We do not keep your paper or plan, except while a phone call you asked for is in progress: then the plan is stored encrypted, ATLAS refuses to open it after 30 minutes, and it is deleted when the call ends. So there is nothing on our side to delete. Your saved plan is removed with Clear it from this device. Questions: reach Team 12 through the ATL Innovation Cup organizers.</p>
+              <p>We do not keep your paper or your plan, except while a phone call you asked for is in progress: then the plan is stored encrypted, ATLAS refuses to open it after 30 minutes, and it is deleted when the call ends. The only thing we keep about each visitor for Say your answer is the usage counter described above, made from a keyed hash, never the network address. It is deleted automatically once it is two days old: the hourly cleanup deletes it, and every use of Say your answer also deletes counts that have expired.</p>
+              <p>Your saved plan is removed with Clear it from this device. Questions: ask the ATL Innovation Cup organizers to reach Team 12.</p>
             </Block>
           </div>
         </section>

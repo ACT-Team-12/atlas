@@ -1,4 +1,7 @@
 {
   "framework": "nextjs",
-  "crons": [{ "path": "/api/call/sweep", "schedule": "*/5 * * * *" }]
+  "crons": [
+    { "path": "/api/call/sweep", "schedule": "*/5 * * * *" },
+    { "path": "/api/transcribe/sweep", "schedule": "17 * * * *" }
+  ]
 }

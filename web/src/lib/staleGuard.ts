@@ -41,9 +41,24 @@ function normalLocation(l: { lat: number; lng: number } | null): [number | null,
   return [n(l.lat), n(l.lng)];
 }
 
-/** A stable name for a chosen photo file, so choosing a different photo counts as a change. */
-export function photoId(f: { name: string; size: number; lastModified: number } | null): string | null {
-  return f ? `${f.name}:${f.size}:${f.lastModified}` : null;
+/**
+ * Each chosen photo is its own identity. Name, size and date are not enough: two different photos can share all
+ * three (camera exports, renamed copies), and a late reading of the first must not pass as the second's. A file
+ * input hands back a new File object on every choice, so the object itself is the identity, numbered on first sight.
+ */
+const photoSerials = new WeakMap<object, number>();
+let nextPhotoSerial = 0;
+
+export function photoId(f: object | null): string | null {
+  if (!f) return null;
+  let n = photoSerials.get(f);
+  if (n === undefined) { n = ++nextPhotoSerial; photoSerials.set(f, n); }
+  return `photo:${n}`;
+}
+
+/** The fingerprint of a read from the inputs on screen: a chosen photo replaces the text box. */
+export function readFingerprintFor(i: { text: string; photo: object | null; language: string; level: string }): string {
+  return readFingerprint({ text: i.photo ? null : i.text, photo: photoId(i.photo), language: i.language, level: i.level });
 }
 
 /**

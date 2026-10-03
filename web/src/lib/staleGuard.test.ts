@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   anchorHolds, ANCHOR_MS, isEditable, LAYOUT_SCROLL_MS, NO_LAYOUT_SHIFT, OWN_SCROLL_SLACK_PX, ownScrollArrived, ownScrollEndedByPerson, photoId, rebaseOwnScroll, planFingerprint, planPlace,
-  readFingerprint, scrollIsPersons, shouldAutoScroll,
+  readFingerprint, readFingerprintFor, scrollIsPersons, shouldAutoScroll,
 } from "./staleGuard";
 
 const read = { text: "paper one", photo: null, language: "English", level: "simple" };
@@ -54,9 +54,36 @@ describe("planPlace", () => {
   });
 });
 
+/** A chosen photo, as a file input hands it over: a new File object each time. */
+const pick = (bytes: string) => new File([bytes], "IMG_0001.jpg", { type: "image/jpeg", lastModified: 1_700_000_000_000 });
+
 describe("photoId", () => {
-  it("names a file by name, size and date", () => expect(photoId({ name: "a.jpg", size: 5, lastModified: 9 })).toBe("a.jpg:5:9"));
+  it("gives two different photos with the same name, size and date different ids", () => {
+    const a = pick("aaaa"), b = pick("bbbb");
+    expect([a.name, a.size, a.lastModified]).toEqual([b.name, b.size, b.lastModified]);
+    expect(photoId(a)).not.toBe(photoId(b));
+  });
+  it("keeps the same id for the same chosen file", () => {
+    const a = pick("aaaa");
+    expect(photoId(a)).toBe(photoId(a));
+  });
+  it("choosing the same file again is a new choice", () => expect(photoId(pick("aaaa"))).not.toBe(photoId(pick("aaaa"))));
   it("is null without a photo", () => expect(photoId(null)).toBeNull());
+});
+
+describe("readFingerprintFor (the freshness check the care tool runs)", () => {
+  const inputs = { text: "", language: "English", level: "simple" };
+  it("a reading of photo A is not current once photo B (same name, size and date) is chosen", () => {
+    const a = pick("aaaa"), b = pick("bbbb");
+    const sentForA = readFingerprintFor({ ...inputs, photo: a });
+    expect(readFingerprintFor({ ...inputs, photo: a })).toBe(sentForA);
+    expect(readFingerprintFor({ ...inputs, photo: b })).not.toBe(sentForA);
+  });
+  it("matches the plain fingerprint: a photo replaces the text box, no photo reads the text", () => {
+    const a = pick("aaaa");
+    expect(readFingerprintFor({ ...inputs, text: "ignored", photo: a })).toBe(readFingerprintFor({ ...inputs, photo: a }));
+    expect(readFingerprintFor({ ...inputs, text: "paper one", photo: null })).toBe(readFingerprint({ ...read }));
+  });
 });
 
 describe("isEditable", () => {

@@ -26,7 +26,7 @@ import {
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
 import {
-  anchorHolds, isEditable, NO_LAYOUT_SHIFT, OWN_INSTANT_SCROLL_MS, ownScrollArrived, OWN_SCROLL_MS, ownScrollEndedByPerson, photoId, planFingerprint, planPlace, readFingerprint, rebaseOwnScroll,
+  anchorHolds, isEditable, NO_LAYOUT_SHIFT, OWN_INSTANT_SCROLL_MS, ownScrollArrived, OWN_SCROLL_MS, ownScrollEndedByPerson, planFingerprint, planPlace, readFingerprint, readFingerprintFor, rebaseOwnScroll,
   scrollIsPersons, shouldAutoScroll, type LayoutShift, type OwnScroll,
 } from "@/lib/staleGuard";
 import { SPEECH_LANG } from "@/lib/speechLang";
@@ -294,7 +294,7 @@ export function CarePlanTool() {
   };
   const liveReadFp = () => {
     const l = live.current;
-    return readFingerprint({ text: l.photo ? null : l.text, photo: photoId(l.photo), language: l.language, level: l.level });
+    return readFingerprintFor({ text: l.text, photo: l.photo, language: l.language, level: l.level });
   };
   const livePlanFp = () => {
     const l = live.current;
@@ -397,7 +397,7 @@ export function CarePlanTool() {
   }, []);
 
   // Is the reading (or the plan) on screen still the one these inputs would get? A plan built from an outdated reading is outdated too.
-  const careOutdated = !!care && careFp !== null && readFingerprint({ text: photo ? null : text, photo: photoId(photo), language, level }) !== careFp;
+  const careOutdated = !!care && careFp !== null && readFingerprintFor({ text, photo, language, level }) !== careFp;
   const planOutdated = !!plan && planFp !== null && (careOutdated || planFingerprint({
     careIds: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id),
     barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc,
@@ -481,7 +481,7 @@ export function CarePlanTool() {
     const abort = new AbortController();
     pendingRead.current = {
       run, abort, at: performance.now(),
-      fp: readFingerprint({ text: usePhoto ? null : (corrected ?? text), photo: usePhoto ? photoId(photo) : null, language, level: usedLevel }),
+      fp: readFingerprintFor({ text: corrected ?? text, photo: usePhoto ? photo : null, language, level: usedLevel }),
     };
     try {
       const body: Record<string, unknown> = { language, reading_level: usedLevel };
@@ -809,7 +809,7 @@ export function CarePlanTool() {
   useEffect(() => {
     const r = pendingRead.current;
     if (!r || r.run !== readRun.current) return;
-    if (readFingerprint({ text: photo ? null : text, photo: photoId(photo), language, level }) === r.fp) return;
+    if (readFingerprintFor({ text, photo, language, level }) === r.fp) return;
     stopStaleRead();
   }, [text, photo, language, level]);
 

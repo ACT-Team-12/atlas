@@ -172,6 +172,17 @@ describe("matchOnPhoto", () => {
     expect(matchOnPhoto(source, spanOf(source, source), ocr(photo)).status).toBe("not_found");
   });
 
+  it("never treats a decimal or fraction dose as a different number", () => {
+    expect(normWord("1.5")).toBe("1.5");
+    expect(normWord("1/2")).toBe("1/2");
+    expect(normWord("5.")).toBe("5");
+    for (const [paper, misread] of [["Take 1.5 tablets daily", "Take 15 tablets daily"], ["Take 1/2 tablet daily", "Take 12 tablet daily"], ["Take 1.0 mg daily", "Take 10 mg daily"], ["Take 0.5 mg daily", "Take 05 mg daily"]]) {
+      expect(matchOnPhoto(paper, spanOf(paper, paper), ocr(misread)).status, `${paper} vs ${misread}`).toBe("not_found");
+    }
+    const same = "Take 1.5 tablets daily";
+    expect(matchOnPhoto(same, spanOf(same, same), ocr(same)).status).toBe("found");
+  });
+
   it("says when the photo had no readable words, and refuses without a span", () => {
     expect(matchOnPhoto("Take 1 tablet.", { start: 0, end: 14 }, [])).toEqual({ status: "not_found", reason: "no_words" });
     expect(matchOnPhoto("Take 1 tablet.", null, ocr("Take 1 tablet.")).status).toBe("not_found");

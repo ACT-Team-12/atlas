@@ -46,9 +46,17 @@ export function spanContext(text: string, span: Span | null, contextLines = 2): 
 
 // ---------- tokens ----------
 
-/** Lower case, accents removed, only letters and digits kept ("Follow-up," becomes "followup"). */
+const NUM_SEP = /[.,/:\-‐‑–]/u;
+
+/**
+ * Lower case, accents removed, only letters and digits kept ("Follow-up," becomes "followup"), except a separator
+ * between two digits: "1.5", "1/2" and "10-20" stay as written, so a dose can never equal a different one ("15", "12").
+ */
 export function normWord(s: string): string {
-  return s.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  const t = s.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
+  const digit = (c: string | undefined) => c !== undefined && /\p{N}/u.test(c);
+  // Kept between digits; the dash variants all become "-".
+  return t.replace(/[^\p{L}\p{N}]/gu, (c, i: number) => (NUM_SEP.test(c) && digit(t[i - 1]) && digit(t[i + 1]) ? (/[‐‑–]/u.test(c) ? "-" : c) : ""));
 }
 
 const HYPHEN_END = /[-­‐‑]$/;

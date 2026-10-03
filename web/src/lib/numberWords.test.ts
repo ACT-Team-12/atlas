@@ -118,3 +118,20 @@ describe("Codex round 9: English \"a\" and \"an\" before a unit are 1", () => {
     expect(combine("x", { id: "x", when: "", source_quote: "Take 1 tablet.", plain_language: "Take a tablet." }, "same", "").certified).toBe(true);
   });
 });
+
+describe("Codex round 10: \"vitamin A\" is a name, not 1", () => {
+  it.each([
+    ["Take vitamin A tablet daily.", "Take 1 tablet daily."],
+    ["Take Vitamin A 5000 units daily.", "Take 1 tablet of 5000 units daily."],
+    ["Get your hepatitis A shot.", "Get 1 shot."],
+  ])("paper %j, explanation %j: caught in prep, never certified", (quote, plain) => {
+    const any = numberCheckAnyForm({ plain_language: plain, source_quote: quote });
+    expect(any.unexpected.length > 0 || any.uncheckable).toBe(true);
+    expect(combine("x", { id: "x", when: "", source_quote: quote, plain_language: plain }, "same", "").certified).toBe(false);
+  });
+  it("reads no number in \"vitamin A\" or a mid-sentence \"Class A\", and still reads a sentence-initial \"A tablet\"", () => {
+    expect(readNumberWords("Take vitamin A tablet daily.", "English").numbers).toEqual([]);
+    expect(readNumberWords("Use the Class A inhaler.", "English").numbers).toEqual([]);
+    expect(readNumberWords("A tablet is enough.", "English").numbers).toEqual(["1"]);
+  });
+});

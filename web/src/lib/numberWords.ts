@@ -47,6 +47,9 @@ const FR = map({
 });
 const VI = map({ "một": 1, "mốt": 1, hai: 2, ba: 3, "bốn": 4, "tư": 4, "năm": 5, "lăm": 5, "sáu": 6, "bảy": 7, "tám": 8, "chín": 9, "mười": 10 });
 
+/** Words before a letter that is a name, not "a": "vitamin A", "hepatitis A", "type A", "group A" (Codex round 10). */
+export const NAME_BEFORE_LETTER = /^(?:vitamin|vitamins|hepatitis|hep|type|class|grade|stage|group|plan|part|step|schedule|category|level|phase|section|form|option|list|blood|strep|influenza|flu|size|ward|wing|building|suite|room|floor|zone|area|track|lot)$/;
+
 const EN_COUNT = /^(?:tablets?|pills?|capsules?|doses?|times?|drops?|puffs?|minutes?|seconds?|hours?|days?|weeks?|months?|years?|mg|mcg|g|ml|l|grams?|liters?|litres?|ounces?|oz|units?|patch(?:es)?|injections?|cups?|glasses?|bottles?|packets?|spoons?|teaspoons?|tablespoons?)$/;
 const EN_LEX: Lexicon = {
   count: EN_COUNT,
@@ -58,7 +61,7 @@ const EN_LEX: Lexicon = {
     // "a tablet", "an hour" are 1 (Codex round 9), but not the "a" of "once a day", "2 times a week", "half a tablet".
     // "2 tablets a day" also reads as 1 here: a per-day "a" and "a day before" can't be told apart from one word, so
     // it fails closed (the explanation must match the paper's wording, or it isn't certified).
-    if ((w === "a" || w === "an") && !/^(?:once|twice|times?|half|quarter|per|every|each|and)$/.test(prev ?? "")) return { kind: "n", v: 1, article: true };
+    if ((w === "a" || w === "an") && !/^(?:once|twice|times?|half|quarter|per|every|each|and)$/.test(prev ?? "") && !NAME_BEFORE_LETTER.test(prev ?? "")) return { kind: "n", v: 1, article: true };
     const v = EN.get(w);
     return v === undefined ? null : { kind: "n", v };
   },
@@ -132,6 +135,8 @@ function readLatin(text: string, lex: Lexicon, lang: NumberLanguage): NumberRead
   let i = 0;
   while (i < words.length) {
     const prev = i > 0 ? words[i - 1].w : null;
+    // A capital "A" or "An" that does not start a sentence is a name ("Take Vitamin A tablet", "Class A"), never 1.
+    if (lang === "English" && /^an?$/.test(words[i].w) && /^A/.test(text.slice(words[i].at, words[i].at + 1)) && i > 0 && !/[.!?:]\s*$/.test(text.slice(words[i - 1].end, words[i].at))) { i++; continue; }
     const first = lex.word(words[i].w, prev, words[i + 1]?.w ?? null);
     if (!first || first.kind === "conn") { i++; continue; }
     const run: Tok[] = [first];

@@ -3,7 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { ExtractError } from "./extract";
 import { LANGUAGES } from "./schema";
-import { readNumberWords, type NumberLanguage } from "./numberWords";
+import { NAME_BEFORE_LETTER, readNumberWords, type NumberLanguage } from "./numberWords";
 
 /**
  * Meaning check: does each plain-language explanation say the same thing as the line it quotes?
@@ -223,6 +223,8 @@ function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [strin
     } else {
       // The "a" of "once a day" or "half a tablet" is not a number (numberWords.ts reads it with the word before).
       if (/^an?$/i.test(tok) && /^(?:once|twice|times?|half|quarter|per|every|each|and)$/i.test(toks[i - 1] ?? "")) continue;
+      // "vitamin A", "Class A": a name, not 1 (Codex round 10).
+      if (/^an?$/i.test(tok) && (NAME_BEFORE_LETTER.test((toks[i - 1] ?? "").toLowerCase()) || (/^A/.test(tok) && i > 0))) continue;
       for (const lang of languages) {
         const both = readNumberWords(`${tok} ${next ?? ""}`, lang).numbers;
         if (both.length === 1 && readNumberWords(next ?? "", lang).numbers.length === 0) { value = both[0]; break; }

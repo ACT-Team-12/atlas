@@ -48,18 +48,31 @@ describe("natural voice", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("never caches a phone call's audio (keep: false), and does not extend a cached entry's life for one", async () => {
+  it("a phone call's audio (keep: false) is never cached, and leaves no copy of the same text behind", async () => {
     fetchMock.mockImplementation(async () => new Response(mp3(), { status: 200 }));
     const text = `Your plan ${Math.random()}`;
     expect((await synthesize(text, "English", { keep: false })).cached).toBe(false);
-    // nothing was kept: the next request, of either kind, goes to the vendor again
+    expect((await synthesize(text, "English")).cached).toBe(false); // nothing was kept by the call
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // the page read it aloud first (now cached): the call does not use that copy, and evicts it
     expect((await synthesize(text, "English", { keep: false })).cached).toBe(false);
     expect((await synthesize(text, "English")).cached).toBe(false);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    // an entry read aloud on the page can serve a call, but the call does not refresh it: it is still evicted first
-    expect((await synthesize(text, "English", { keep: false })).cached).toBe(true);
-    for (let i = 0; i < 40; i++) await synthesize(`filler ${i} ${Math.random()}`, "English");
-    expect((await synthesize(text, "English", { keep: false })).cached).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("a page read-aloud of the same text running during a call does not leave it cached", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    fetchMock.mockImplementation(async () => { await gate; return new Response(mp3(), { status: 200 }); });
+    const text = `Your plan ${Math.random()}`;
+    const page = synthesize(text, "English");
+    const call = synthesize(text, "English", { keep: false });
+    release();
+    await page;
+    await call;
+    expect(fetchMock).toHaveBeenCalledTimes(2); // the call did not join the page's request
+    fetchMock.mockImplementation(async () => new Response(mp3(), { status: 200 }));
+    expect((await synthesize(text, "English")).cached).toBe(false); // the call's finish evicted the page's copy
   });
 
   it("turns a vendor error or empty audio into a 502 the page answers with the phone's voice", async () => {

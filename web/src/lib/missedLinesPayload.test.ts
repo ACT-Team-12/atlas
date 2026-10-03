@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { verifyItems } from "./verify";
-import { missedFromPayload, missedLinesPayload, missedLinesView, type MissedLinesPayload } from "./missedLines";
+import { missedFromPayload, missedLinesAnnouncement, missedLinesPayload, missedLinesPayloadValid, missedLinesView, type MissedLinesPayload } from "./missedLines";
 import { SAMPLE_AVS } from "./sample";
 import type { CareItem, CarePlanResponse, VerifiedItem } from "./schema";
 import type { CoverageItem } from "./coverage";
@@ -54,8 +54,10 @@ function assertEquivalent(name: string, source: string, items: Item[], seed = 1)
   const subsets = keptSubsets(items, seed);
   for (const keep of subsets) {
     const want = missedLinesView(source, keep);
-    const got = missedFromPayload(payload, keep.map((i) => i.id));
-    expect(got, `${name} kept=[${keep.map((i) => i.id).join(",")}]`).toEqual(want);
+    const ids = keep.map((i) => i.id);
+    expect(missedFromPayload(payload, ids), `${name} kept=[${ids.join(",")}]`).toEqual(want);
+    // A real payload is always within its paper, so the bound never changes the answer.
+    expect(missedFromPayload(payload, ids, source.length), `${name} kept=[${ids.join(",")}] bounded`).toEqual(want);
   }
   checked += subsets.length;
   return subsets.length;
@@ -188,5 +190,60 @@ describe("missed_lines payload equals the website's check for every removal set"
   it("checked a meaningful number of removal sets in total", () => {
     expect(checked).toBeGreaterThan(1000);
     console.info(`missed_lines equivalence: ${checked} removal sets checked`);
+  });
+});
+
+describe("a malformed missed_lines payload is hidden, never shown as all covered", () => {
+  type Shown = Extract<MissedLinesPayload, { show: true }>;
+  type Sentence = Shown["sentences"][number];
+  const sentence = (text: string, start: number, end: number, group: number, critical: [number, number][] = []): Sentence =>
+    ({ text, start, end, reason: "imperative", critical, group });
+  const one = sentence("Take 1 tablet for 10 days.", 0, 26, 0, [[5, 6], [18, 20]]);
+  // The kept quote does not touch the sentence, so a valid payload always shows it as missed.
+  const good: Shown = { show: true, languages: ["en"], quotes: { a: [[30, 40]] }, sentences: [one] };
+  const hidden = { show: false, why: "invalid" };
+
+  it("a valid payload still shows its line", () => {
+    expect(missedLinesPayloadValid(good, 40)).toBe(true);
+    expect(missedFromPayload(good, ["a"], 40)).toMatchObject({ show: true, total: 1, covered: 0 });
+  });
+
+  const bad: Record<string, unknown> = {
+    "kept range [-1, 2147483647] overlaps everything": { ...good, quotes: { a: [[-1, 2147483647]] } },
+    "one number": { ...good, quotes: { a: [[0]] } },
+    "three numbers": { ...good, quotes: { a: [[0, 26, 30]] } },
+    "start after end": { ...good, quotes: { a: [[26, 0]] } },
+    "empty range": { ...good, quotes: { a: [[5, 5]] } },
+    "fraction": { ...good, quotes: { a: [[0.5, 26]] } },
+    "string offsets": { ...good, quotes: { a: [["0", "26"]] } },
+    "past the paper": { ...good, quotes: { a: [[0, 41]] } },
+    "ranges not a list": { ...good, quotes: { a: "0-26" } },
+    "an unkept item's bad range still poisons the payload": { ...good, quotes: { ...good.quotes, z: [[-1, 2]] } },
+    "no sentences": { ...good, sentences: [] },
+    "sentence end before start": { ...good, sentences: [{ ...one, start: 26, end: 0 }] },
+    "sentence negative": { ...good, sentences: [{ ...one, start: -1 }] },
+    "sentence past the paper": { ...good, sentences: [{ ...one, end: 41 }] },
+    "critical outside its sentence": { ...good, sentences: [{ ...one, critical: [[30, 35]] }] },
+    "critical one number": { ...good, sentences: [{ ...one, critical: [[17]] }] },
+    "critical reversed": { ...good, sentences: [{ ...one, critical: [[19, 17]] }] },
+    "group out of range": { ...good, sentences: [{ ...one, group: 1 }] },
+    "group negative": { ...good, sentences: [{ ...one, group: -1 }] },
+    "group points forward": { ...good, sentences: [one, sentence("Call 911.", 27, 36, 2), sentence("Call 911.", 37, 40, 2)] },
+    "group points at a non-first sentence": { ...good, sentences: [one, sentence("Call 911.", 27, 36, 0), sentence("Take 1 tablet for 10 days.", 37, 40, 1)] },
+  };
+
+  it.each(Object.keys(bad))("%s", (name) => {
+    const p = bad[name] as MissedLinesPayload;
+    expect(missedLinesPayloadValid(p, 40)).toBe(false);
+    for (const kept of [["a"], ["a", "z"], []]) {
+      const v = missedFromPayload(p, kept, 40);
+      expect(v).toEqual(hidden);
+      expect(missedLinesAnnouncement(v)).toBe("");
+    }
+  });
+
+  it("without a known paper length, [-1, 2147483647] is still refused; with one, [0, MAX] is too", () => {
+    expect(missedFromPayload(bad["kept range [-1, 2147483647] overlaps everything"] as MissedLinesPayload, ["a"])).toEqual(hidden);
+    expect(missedFromPayload({ ...good, quotes: { a: [[0, 2147483647]] } }, ["a"], 40)).toEqual(hidden);
   });
 });

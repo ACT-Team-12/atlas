@@ -18,7 +18,8 @@ import { normalize } from "./verify";
  */
 
 export type MissedLinesView =
-  | { show: false; why: "empty" | "unsupported_language" | "no_instructions" }
+  /** "invalid": a missed_lines payload broke a rule in missedLinesPayloadValid (only from missedFromPayload). */
+  | { show: false; why: "empty" | "unsupported_language" | "no_instructions" | "invalid" }
   | { show: true; languages: CoverageLang[]; total: number; covered: number; lines: UncoveredSentence[] };
 
 /* Words that are common in one language and rare in the others. Ambiguous ones (en, de, la, que, no, si)
@@ -226,12 +227,48 @@ export function missedLinesPayload(source: string, items: (CoverageItem & { id: 
   return { show: true, languages, quotes, sentences };
 }
 
+const isOffset = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 0;
+
+/**
+ * The rules every client checks before computing anything from a show:true payload (the Android app has the
+ * same rules in MissedLines.valid). `sourceLength` is the UTF-16 length of the response's source_text when known.
+ *  - at least one sentence (with none, "every line is in a step" would be vacuous);
+ *  - every range is two integers with 0 <= start < end, and end <= sourceLength when it is known;
+ *  - each sentence's critical ranges sit inside that sentence;
+ *  - each group points at an earlier-or-same sentence that is its own group's first (group(group) === group).
+ * It takes `unknown` on purpose: the payload arrives as JSON, and a range like [-1, 2147483647] (which overlaps
+ * every sentence) would otherwise claim the whole paper is covered.
+ */
+export function missedLinesPayloadValid(payload: unknown, sourceLength?: number): boolean {
+  const limit = sourceLength ?? Number.MAX_SAFE_INTEGER;
+  const range = (r: unknown): r is OffsetRange =>
+    Array.isArray(r) && r.length === 2 && isOffset(r[0]) && isOffset(r[1]) && r[0] < r[1] && r[1] <= limit;
+  if (typeof payload !== "object" || payload === null) return false;
+  const p = payload as { show?: unknown; languages?: unknown; quotes?: unknown; sentences?: unknown };
+  if (p.show !== true || !Array.isArray(p.languages) || !Array.isArray(p.sentences) || p.sentences.length === 0) return false;
+  if (typeof p.quotes !== "object" || p.quotes === null || Array.isArray(p.quotes)) return false;
+  const sentences = p.sentences as unknown[];
+  for (let i = 0; i < sentences.length; i++) {
+    const s = sentences[i] as { text?: unknown; start?: unknown; end?: unknown; critical?: unknown; group?: unknown } | null;
+    if (typeof s !== "object" || s === null || typeof s.text !== "string") return false;
+    if (!range([s.start, s.end])) return false;
+    const [start, end] = [s.start as number, s.end as number];
+    if (!Array.isArray(s.critical) || !s.critical.every((c) => range(c) && c[0] >= start && c[1] <= end)) return false;
+    const g = s.group;
+    if (typeof g !== "number" || !Number.isSafeInteger(g) || g < 0 || g > i) return false;
+    if ((sentences[g] as { group?: unknown }).group !== g) return false;
+  }
+  return Object.values(p.quotes).every((rs) => Array.isArray(rs) && rs.every(range));
+}
+
 /**
  * The reference client: missedLinesView rebuilt from the payload and the ids of the steps still kept.
- * Equal to missedLinesView(source, keptItems) for every removal set (see missedLines.test.ts).
+ * Equal to missedLinesView(source, keptItems) for every removal set (see missedLines.test.ts). A show:true
+ * payload that breaks a rule in missedLinesPayloadValid is hidden as "invalid": no list, no all-covered claim.
  */
-export function missedFromPayload(payload: MissedLinesPayload, keptIds: Iterable<string>): MissedLinesView {
+export function missedFromPayload(payload: MissedLinesPayload, keptIds: Iterable<string>, sourceLength?: number): MissedLinesView {
   if (!payload.show) return { show: false, why: payload.why };
+  if (!missedLinesPayloadValid(payload, sourceLength)) return { show: false, why: "invalid" };
   const ranges: OffsetRange[] = [];
   for (const id of new Set(keptIds)) if (Object.prototype.hasOwnProperty.call(payload.quotes, id)) ranges.push(...payload.quotes[id]);
   ranges.sort((a, b) => a[0] - b[0]);

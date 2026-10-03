@@ -42,6 +42,7 @@ export default function PrivacyPage() {
             </Block>
             <Block title="Saying your answer out loud">
               <p>In Check I understood, you can tap Say your answer instead of typing or tapping. Only then, and only while you record (up to 20 seconds), the recording is sent to a speech-to-text service to turn it into words. The words come back to your screen so you can fix them before you check your answer. If you never tap Say your answer, nothing is recorded.</p>
+              <p>To keep this fair and within budget, our database counts seconds of speaking per hour and per day, for the whole site and for each visitor. A visitor is counted by a scrambled code made from the network address with a secret key, never the address itself, and these counts are deleted after two days.</p>
               {stt === "deepgram" && (
                 <p>Right now that service is Deepgram. ATLAS does not store the recording or the words, and we do not log them. On every request we set Deepgram&apos;s Model Improvement Program opt-out, and Deepgram says opted-out data is kept only as long as it takes to process the request (<a className="underline decoration-2 underline-offset-4" href="https://developers.deepgram.com/docs/the-deepgram-model-improvement-partnership-program" target="_blank" rel="noreferrer">Deepgram model improvement program</a>).</p>
               )}

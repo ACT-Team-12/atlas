@@ -15,9 +15,10 @@ import { LINE_BREAK, PREP_KINDS, readWhen, SLOTS, SLOT_LABEL, type PrepKind, typ
  *    and counted, never shown. A kept step carries the whole sentence from the paper, not the model's copy or a piece;
  * 2. places each kept step on the timeline from the time words in its own quote (prepTime.ts), never from the AI;
  * 3. makes the paper's own quote the step's headline. The AI's plain-words explanation is never the headline. It is
- *    blocked here when it has a number (digits or English number words) the quote doesn't, or when it drops or adds a
- *    "do not", "stop" or "until" (prepCues.ts, a rule in code the second model can't overrule), and otherwise the page
- *    shows it only after the second-model meaning check (meaning.ts, /api/meaning) certifies it (prepView.ts).
+ *    blocked here when it has a number (digits or English number words) the quote doesn't, or when the sentence or the
+ *    explanation has a "do not", "stop" or "until" (prepCues.ts, a rule in code the second model can't overrule),
+ *    and otherwise the page shows it only after the second-model meaning check (meaning.ts, /api/meaning) certifies
+ *    it (prepView.ts).
  *
  * Nothing here calls the network, so it is unit tested and used by the planted-mistake test on /tests.
  */
@@ -54,8 +55,9 @@ export type PrepStep = {
   /** True when the explanation had a number the quote doesn't, so it was dropped here and never sent on. */
   numbers_blocked: boolean;
   /**
-   * True when the explanation doesn't keep the line's "do not" / "stop" / "until" words, or can't be checked for them
-   * in its language (prepCues.ts), so it was dropped here and never sent on. A rule in code; the AI can't overrule it.
+   * True when the sentence or the explanation has a "do not" / "stop" / "until" word, or the explanation can't be
+   * checked for one in its language (prepCues.ts), so it was dropped here and never sent on. A rule in code; the AI
+   * can't overrule it.
    */
   negation_blocked: boolean;
   /** The time words from the quote that placed it, as written in the paper. */
@@ -74,7 +76,7 @@ export type PrepResponse = {
     ai_slot_overridden: number;
     /** Explanations dropped here because of a number the quote doesn't have. */
     numbers_blocked: number;
-    /** Explanations dropped here because they don't keep the line's "do not" / "stop" / "until" words. */
+    /** Explanations dropped here because the sentence or the explanation has a "do not" / "stop" / "until" word. */
     negation_blocked: number;
   };
   model: string;
@@ -121,7 +123,7 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[], langua
     const plain = clip(it.plain_language, 600);
     // A number in the AI's words (digits or "two", "twice") that the paper's line doesn't have blocks the explanation.
     const blocked = plain !== "" && unexpectedNumbersAnyForm({ plain_language: plain, source_quote: quote }).length > 0;
-    // A "do not", "stop" or "until" the paper's line has and the explanation lacks (or the other way round) blocks it.
+    // A "do not", "stop" or "until" in the paper's sentence or in the explanation blocks it (prepCues.ts).
     const negBlocked = !blocked && plain !== "" && negationBlocked(quote, plain, language);
     kept.push({
       at: span.start,

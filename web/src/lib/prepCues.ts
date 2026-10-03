@@ -3,24 +3,24 @@ import type { LANGUAGES } from "./schema";
 type Lang = (typeof LANGUAGES)[number];
 
 /**
- * A rule in code, not AI: a plain-words explanation must keep its paper line's "do not" and its "until".
+ * A rule in code, not AI: no plain-words explanation is shown for a line that says "do not", "stop" or "until".
  *
  * The meaning check (a second model) can answer "same" for "Take insulin that morning" against "do not take it the
- * morning of your procedure". So before any explanation can be shown, our code compares two kinds of cue words:
+ * morning of your procedure". Comparing cue words is not enough either: "Take insulin unless your doctor says not to"
+ * keeps both the "not" and the "unless" of "do not take insulin unless your doctor told you to" and still reverses it.
+ * So prep mode fails closed on two kinds of cue words:
  *
  * - "no": not, no, never, n't, nothing, without, stop, hold, avoid, skip, ... (a do-not or a stop);
  * - "limit": until, unless, except, only (a condition or a limit on the instruction).
  *
- * If the paper's line has a kind of cue the explanation lacks, or the explanation has one the line lacks, the
- * explanation is hidden. This is a necessary check, not a full one: "Take insulin, do not skip it" still has a "not"
- * and passes here, which is why the meaning check still has to certify it as well.
+ * If the paper's sentence has any cue word, its explanation is never shown: the person reads the paper's own
+ * sentence. If the sentence has none and the explanation has one (an added "do not"), the explanation is hidden too.
+ * Only an explanation with no cue word, of a sentence with no cue word, can be shown, and still only after the meaning
+ * check certifies it.
  *
- * Languages. Cue words are listed for English, Spanish, French, Vietnamese, Chinese and Korean, and a line is read with
- * all of them (a paper can be in any of these). Because a word list for another language can't be proved complete:
- * - an explanation in any language other than English is hidden whenever the paper's line has a cue word;
- * - Amharic explanations are always hidden, and so is any line or explanation in Ethiopic script, since Amharic marks
- *   "not" inside the verb and a word list can't see it.
- * A cue-free line with a non-English explanation is shown only when the explanation has no cue word either.
+ * Languages. Cue words are listed for English, Spanish, French, Vietnamese, Chinese and Korean, and every text is
+ * read with all of them (a paper can be in any of these). Amharic explanations are always hidden, and so is any line
+ * or explanation in Ethiopic script, since Amharic marks "not" inside the verb and a word list can't see it.
  *
  * Pure functions, no network. Safe to import in the browser.
  */
@@ -83,13 +83,18 @@ export function cuesDiffer(quote: string, plain: string): boolean {
   return q.no !== p.no || q.limit !== p.limit;
 }
 
+/**
+ * True when no explanation may be shown for this sentence: it, or the explanation, has a cue word, or either is in
+ * Ethiopic script. Language-free, so the page re-checks every step it is about to show (prepView.ts).
+ */
+export function cuesForbid(quote: string, plain: string): boolean {
+  if (ETHIOPIC.test(quote) || ETHIOPIC.test(plain)) return true;
+  const q = cues(quote);
+  const p = cues(plain);
+  return q.no || q.limit || p.no || p.limit;
+}
+
 /** The full rule, used when the timeline is built and the explanation's language is known. True means hide it. */
 export function negationBlocked(quote: string, plain: string, language: Lang): boolean {
-  if (language === "Amharic") return true;
-  if (cuesDiffer(quote, plain)) return true;
-  if (language !== "English") {
-    const q = cues(quote);
-    if (q.no || q.limit) return true;
-  }
-  return false;
+  return language === "Amharic" || cuesForbid(quote, plain);
 }

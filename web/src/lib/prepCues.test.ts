@@ -46,9 +46,10 @@ describe("cuesDiffer (both directions)", () => {
 });
 
 describe("negationBlocked (with the explanation's language)", () => {
-  it("English: only a cue mismatch blocks", () => {
+  it("English too: any line with a cue word is blocked, even when the explanation keeps it (Codex re-review)", () => {
     expect(negationBlocked(BP, "That morning, take your blood pressure pill with a sip of water.", "English")).toBe(false);
     expect(negationBlocked(INSULIN, "Take your insulin that morning.", "English")).toBe(true);
+    expect(negationBlocked(INSULIN, "Do not take insulin that morning unless your doctor said to.", "English")).toBe(true);
   });
   it("other languages: any line with a cue word is blocked, even when the explanation looks right", () => {
     expect(negationBlocked(INSULIN, "No tome insulina esa mañana a menos que su médico se lo diga.", "Spanish")).toBe(true);
@@ -65,8 +66,12 @@ describe("negationBlocked (with the explanation's language)", () => {
   it("Amharic explanations are always blocked", () => {
     expect(negationBlocked(BP, "ጠዋት የደም ግፊት መድሃኒትዎን ይውሰዱ።", "Amharic")).toBe(true);
   });
-  it("every hand-written sample explanation keeps its line's cues", () => {
-    for (const t of PREP_TRUTH) expect([t.quote, negationBlocked(t.quote, t.plain, "English")]).toEqual([t.quote, false]);
+  it("a sample explanation is shown only for a line with no cue word", () => {
+    for (const t of PREP_TRUTH) {
+      const q = cues(t.quote);
+      expect([t.quote, negationBlocked(t.quote, t.plain, "English")]).toEqual([t.quote, q.no || q.limit]);
+    }
+    expect(PREP_TRUTH.filter((t) => !negationBlocked(t.quote, t.plain, "English")).length).toBeGreaterThan(4);
   });
 });
 
@@ -100,13 +105,16 @@ describe("end to end: a false \"same\" from the meaning check cannot show a reve
     expect(shownExplanation(forged, m)).toBeNull();
   });
 
-  it("what this rule can't see: a reversal that keeps the same cue words is left to the meaning check", () => {
-    // "not" and "unless" are both still there, so the cue rule passes it; it is shown only if the second model certifies it.
+  it("a reversal that keeps the same cue words is hidden too, even on a false same (Codex re-review)", () => {
+    // "not" and "unless" are both still there, so comparing cue words alone would pass it.
     const plain = "Take insulin that morning unless your doctor says not to.";
     const r = buildPrepTimeline(SAMPLE_PREP, [item(INSULIN, plain)]);
     const s = r.timeline[0].steps[0];
-    expect(s.negation_blocked).toBe(false);
-    expect(explainState(s, { status: "done", byId: {} })).toBe("unclear");
+    expect(s.negation_blocked).toBe(true);
+    expect(s.plain_language).toBe("");
+    expect(shownExplanation(s, falseSame([{ id: s.id, plain_language: plain, source_quote: INSULIN }]))).toBeNull();
+    const forged = { ...s, negation_blocked: false, plain_language: plain };
+    expect(explainState(forged, falseSame([forged]))).toBe("negation");
   });
 
   it("a Spanish explanation of a do-not line is hidden even when it is right", () => {
@@ -114,10 +122,18 @@ describe("end to end: a false \"same\" from the meaning check cannot show a reve
     expect(r.timeline[0].steps[0].negation_blocked).toBe(true);
   });
 
-  it("a right English explanation is still shown once certified", () => {
+  it("a right explanation of a do-not line is hidden too: the paper's own sentence is shown", () => {
     const r = buildPrepTimeline(SAMPLE_PREP, [item(INSULIN, "Do not take insulin that morning unless your doctor said to.")]);
     const s = r.timeline[0].steps[0];
+    expect(s.negation_blocked).toBe(true);
+    expect(s.source_quote).toBe(INSULIN);
+  });
+
+  it("an explanation of a line with no cue word is still shown once certified", () => {
+    const plain = "That morning, take your blood pressure pill with a sip of water.";
+    const r = buildPrepTimeline(SAMPLE_PREP, [item(BP, plain)]);
+    const s = r.timeline[0].steps[0];
     expect(s.negation_blocked).toBe(false);
-    expect(shownExplanation(s, falseSame([s]))).toBe("Do not take insulin that morning unless your doctor said to.");
+    expect(shownExplanation(s, falseSame([s]))).toBe(plain);
   });
 });

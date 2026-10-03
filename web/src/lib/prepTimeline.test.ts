@@ -104,22 +104,29 @@ describe("prepSpeechLines (phone voice, Codex review: read the paper, not the pa
     expect(prepSpeechLines(r, { status: "loading", byId: {} }).filter((l) => l.voice === "explanation")).toEqual([]);
     // (one sample explanation is word for word its quote, so that text is still read, as the quote)
     for (const t of PREP_TRUTH.filter((x) => x.plain !== x.quote)) expect(lines).not.toContain(t.plain);
-    expect(lines.filter((l) => l === "The plain-words explanation is still being checked, so it is left out.")).toHaveLength(PREP_TRUTH.length);
+    const open = steps.filter((s) => s.plain_language !== "");
+    expect(open.length).toBeGreaterThan(3);
+    expect(lines.filter((l) => l === "The plain-words explanation is still being checked, so it is left out.")).toHaveLength(open.length);
+    expect(lines.filter((l) => l.startsWith("There is no plain-words explanation for this one"))).toHaveLength(steps.length - open.length);
     expect(texts({ status: "error", byId: {} })).toContain("The plain-words explanation is left out because the double-check isn't available right now.");
   });
 
   it("announces a flagged or number-blocked explanation", () => {
-    const s = steps[0];
+    const s = steps.find((x) => x.plain_language !== "")!;
     const flagged: MeaningState = { status: "done", byId: { [s.id]: combine(s.id, { id: s.id, plain_language: s.plain_language, when: "", source_quote: s.source_quote }, "different", "x") } };
     expect(texts(flagged)).toContain("The plain-words explanation is left out because a second check found it may not match your paper.");
-    const b = buildPrepTimeline(SAMPLE_PREP, [item({ plain_language: "Stop iron 5 days before." })]);
+    const b = buildPrepTimeline(SAMPLE_PREP, [item({ source_quote: "5 hours before your procedure, drink the second half of the bowel prep.", plain_language: "8 hours before, drink the rest of the prep." })]);
     expect(prepSpeechLines(b, { status: "done", byId: {} }).map((l) => l.text)).toContain("The plain-words explanation is left out because it had a number your paper doesn't say.");
   });
 
   it("reads a certified explanation, in the chosen language's voice", () => {
     const byId = Object.fromEntries(steps.map((s) => [s.id, combine(s.id, { id: s.id, plain_language: s.plain_language, when: s.when_words.join(", "), source_quote: s.source_quote }, "same", "")]));
     const lines = prepSpeechLines(r, { status: "done", byId });
-    for (const t of PREP_TRUTH) expect(lines).toContainEqual({ text: t.plain, voice: "explanation" });
+    for (const s of steps) {
+      const t = PREP_TRUTH.find((x) => x.quote === s.source_quote)!;
+      if (s.plain_language) expect(lines).toContainEqual({ text: t.plain, voice: "explanation" });
+      else expect(lines).not.toContainEqual({ text: t.plain, voice: "explanation" });
+    }
   });
 });
 
@@ -228,11 +235,20 @@ describe("Codex review: the explanation fails closed (negation reversal)", () =>
     expect(shownExplanation(s, ok)).toBeNull();
   });
 
-  it("an explanation that keeps the do-not is shown only when the meaning check certified it", () => {
+  it("even an explanation that keeps the do-not is never shown for this line (Codex re-review)", () => {
     const keep = buildPrepTimeline(SAMPLE_PREP, [item({ source_quote: insulin, plain_language: "Do not take insulin that morning unless your doctor said to.", ai_slot: "morning_of" })]).timeline[0].steps[0];
-    const m = (v: "same" | "different" | "unclear"): MeaningState => ({ status: "done", byId: { [keep.id]: combine(keep.id, { id: keep.id, plain_language: keep.plain_language, when: "", source_quote: insulin }, v, "") } });
+    const same: MeaningState = { status: "done", byId: { [keep.id]: combine(keep.id, { id: keep.id, plain_language: "Do not take insulin that morning unless your doctor said to.", when: "", source_quote: insulin }, "same", "") } };
+    expect(explainState(keep, same)).toBe("negation");
+    expect(shownExplanation(keep, same)).toBeNull();
+  });
+
+  it("an explanation of a line with no cue word is shown only when the meaning check certified it", () => {
+    const bp = "The morning of your procedure, take your blood pressure pill with a small sip of water.";
+    const plain = "That morning, take your blood pressure pill with a sip of water.";
+    const keep = buildPrepTimeline(SAMPLE_PREP, [item({ source_quote: bp, plain_language: plain, ai_slot: "morning_of" })]).timeline[0].steps[0];
+    const m = (v: "same" | "different" | "unclear"): MeaningState => ({ status: "done", byId: { [keep.id]: combine(keep.id, { id: keep.id, plain_language: plain, when: "", source_quote: bp }, v, "") } });
     expect([explainState(keep, { status: "loading", byId: {} }), explainState(keep, m("different")), explainState(keep, m("unclear"))]).toEqual(["checking", "flagged", "unclear"]);
-    expect(shownExplanation(keep, m("same"))).toBe("Do not take insulin that morning unless your doctor said to.");
+    expect(shownExplanation(keep, m("same"))).toBe(plain);
   });
 
   it("a blocked explanation is never sent to the meaning check and never shown", () => {
@@ -243,8 +259,9 @@ describe("Codex review: the explanation fails closed (negation reversal)", () =>
 
   it("sends every unblocked explanation with its quote and time words, and never a blocked one", () => {
     expect(meaningItems(r)).toEqual([]);
-    const keep = buildPrepTimeline(SAMPLE_PREP, [item({ source_quote: insulin, plain_language: "Do not take insulin that morning unless your doctor said to.", ai_slot: "morning_of" })]);
-    expect(meaningItems(keep)).toEqual([{ id: keep.timeline[0].steps[0].id, plain_language: "Do not take insulin that morning unless your doctor said to.", when: "the morning of your procedure", source_quote: insulin }]);
+    const bp = "The morning of your procedure, take your blood pressure pill with a small sip of water.";
+    const keep = buildPrepTimeline(SAMPLE_PREP, [item({ source_quote: bp, plain_language: "That morning, take your blood pressure pill.", ai_slot: "morning_of" })]);
+    expect(meaningItems(keep)).toEqual([{ id: keep.timeline[0].steps[0].id, plain_language: "That morning, take your blood pressure pill.", when: "The morning of your procedure", source_quote: bp }]);
   });
 });
 

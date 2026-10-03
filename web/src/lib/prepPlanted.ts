@@ -2,7 +2,7 @@ import { SAMPLE_PREP } from "./samplePrep";
 import { buildPrepTimeline, type PrepModelItem } from "./prepTimeline";
 import { SLOTS, SLOT_LABEL, type PrepKind, type Slot } from "./prepTime";
 import { shownExplanation, type MeaningState } from "./prepView";
-import { cuesDiffer } from "./prepCues";
+import { cues, cuesDiffer } from "./prepCues";
 import type { MeaningResult } from "./meaning";
 
 /**
@@ -186,13 +186,21 @@ export type PrepPlantedReport = {
 export function runPrepPlantedTest(paper = SAMPLE_PREP, truth = PREP_TRUTH): PrepPlantedReport {
   const rep: PrepPlantedReport = { real: { total: 0, right: 0, wrong: [] }, planted: { total: 0, caught: 0, byKind: {}, slipped: [], examples: {} } };
 
-  // The correct answer, all at once: every step kept, in its true slot, its explanation shown once certified.
+  // The correct answer, all at once: every step kept, in its true slot, its explanation shown once certified (or
+  // never, for a sentence with a "do not" / "stop" / "until").
   const real = buildPrepTimeline(paper, truth.map((t) => asModel(t)));
   const all = [...real.timeline.flatMap((g) => g.steps), ...real.ask];
   truth.forEach((t) => {
     rep.real.total++;
     const s = all.find((x) => x.source_quote === t.quote);
-    const got = !s ? "held back" : shownExplanation(s, certifiedState(s.id)) !== t.plain ? "explanation not shown when certified" : (s.slot ?? "ask");
+    // A sentence with a "do not" / "stop" / "until" never gets an explanation; any other one shows it once certified.
+    const q = cues(t.quote);
+    const wantShown = !(q.no || q.limit);
+    const shown = s ? shownExplanation(s, certifiedState(s.id)) : null;
+    const got = !s ? "held back"
+      : wantShown && shown !== t.plain ? "explanation not shown when certified"
+      : !wantShown && shown !== null ? "explanation shown for a do-not line"
+      : (s.slot ?? "ask");
     if (got === t.truth) rep.real.right++;
     else rep.real.wrong.push({ quote: t.quote, truth: t.truth, got });
   });

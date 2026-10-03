@@ -149,7 +149,6 @@ struct MissedLinesTests {
         p.quotes = ["a": [[0, 10, 20]]]; hidden(p, "three numbers")
         p.quotes = ["a": [[5, 5]]]; hidden(p, "empty range")
         p.quotes = ["a": [[10, 5]]]; hidden(p, "backwards range")
-        p.quotes = ["a": [[0, 27]]]; hidden(p, "past the last sentence end when the paper length is unknown")
         p.quotes = ["a": [[0, 31]]]; hidden(p, sourceLength: 30, "past the paper's length")
         p = good
         p.sentences = [s(line.text, -1, 26, group: 0)]; hidden(p, "negative sentence start")
@@ -160,11 +159,30 @@ struct MissedLinesTests {
         p.sentences = [s(line.text, 0, 26, group: 0, critical: [[19, 17]])]; hidden(p, "backwards critical")
         p.sentences = [s(line.text, 0, 26, group: 1)]; hidden(p, "group after itself")
         p.sentences = [s(line.text, 0, 26, group: -1)]; hidden(p, "negative group")
+        // A group must point at its group's first sentence, not along a chain (0 <- 1 <- 2 is not a group).
+        p.sentences = [line, s("Call 911.", 27, 36, group: 0), s("Call 911.", 37, 46, group: 1)]
+        hidden(p, sourceLength: 50, "chained group")
+        p.sentences = [line, s("Call 911.", 27, 36, group: 1), s("Call 911.", 37, 46, group: 1)]
+        #expect(MissedLines.isValid(p, sourceLength: 50), "a real repeat: both copies point at the first")
         // Out of range for Int (or not a number at all): the payload does not decode, so the section is hidden too.
         let huge = try? JSONDecoder().decode(MissedLinesPayload.self, from: Data(#"""
             {"show":true,"languages":["en"],"quotes":{"a":[[0,1e30]]},"sentences":[{"text":"x","start":0,"end":1,"group":0}]}
             """#.utf8))
         #expect(huge == nil)
+        // show:true missing a field it needs, or a sentence without its critical list: dropped, so the section hides.
+        for json in [
+            #"{"show":true,"languages":["en"],"quotes":{"a":[[0,26]]},"sentences":[{"text":"Take 1 tablet for 10 days.","start":0,"end":26,"group":0}]}"#,
+            #"{"show":true,"languages":["en"],"sentences":[{"text":"x","start":0,"end":1,"critical":[],"group":0}]}"#,
+            #"{"show":true,"quotes":{},"sentences":[{"text":"x","start":0,"end":1,"critical":[],"group":0}]}"#,
+            #"{"show":true,"languages":["en"],"quotes":{}}"#,
+        ] {
+            let care = try? JSONDecoder().decode(CarePlanResponse.self, from: Data(
+                #"{"items":[],"stats":{"extracted":0,"grounded":0,"refused":0,"ms":1},"missed_lines":"#.utf8 + Data(json.utf8) + Data("}".utf8)))
+            #expect(care != nil, "the read itself still decodes")
+            #expect(MissedLines.view(care?.missed_lines, keptIDs: ["a"]) == .hidden(why: "missing"), "\(json)")
+        }
+        let hiddenOnly = try? JSONDecoder().decode(MissedLinesPayload.self, from: Data(#"{"show":false,"why":"empty"}"#.utf8))
+        #expect(hiddenOnly == MissedLinesPayload(show: false, why: "empty"))
     }
 
     @Test func announcementAndBadgeMatchTheWebsiteWording() {

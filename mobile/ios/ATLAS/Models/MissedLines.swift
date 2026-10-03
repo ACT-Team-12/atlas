@@ -25,9 +25,15 @@ struct MissedLinesPayload: Codable, Hashable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         show = try c.decodeIfPresent(Bool.self, forKey: .show) ?? false
         why = try c.decodeIfPresent(String.self, forKey: .why) ?? ""
-        languages = try c.decodeIfPresent([String].self, forKey: .languages) ?? []
-        quotes = try c.decodeIfPresent([String: [[Int]]].self, forKey: .quotes) ?? [:]
-        sentences = try c.decodeIfPresent([MissedSentence].self, forKey: .sentences) ?? []
+        if show {
+            // A payload that says show must carry every field (missedLinesPayloadValid in the web reference); a missing
+            // one fails the decode, which drops the payload and hides the section.
+            languages = try c.decode([String].self, forKey: .languages)
+            quotes = try c.decode([String: [[Int]]].self, forKey: .quotes)
+            sentences = try c.decode([MissedSentence].self, forKey: .sentences)
+        } else {
+            languages = []; quotes = [:]; sentences = []
+        }
     }
 }
 
@@ -51,7 +57,8 @@ struct MissedSentence: Codable, Hashable, Sendable {
         start = try c.decode(Int.self, forKey: .start)
         end = try c.decode(Int.self, forKey: .end)
         reason = try c.decodeIfPresent(String.self, forKey: .reason) ?? ""
-        critical = try c.decodeIfPresent([[Int]].self, forKey: .critical) ?? []
+        // Required: a sentence with no critical list would be held by any overlapping quote at all.
+        critical = try c.decode([[Int]].self, forKey: .critical)
         group = try c.decode(Int.self, forKey: .group)
     }
 }
@@ -108,17 +115,18 @@ enum MissedLines {
         return .shown(languages: payload.languages, total: total, covered: total - lines.count, lines: lines)
     }
 
-    /// The whole payload is well formed: every range is two non-negative integers with start < end inside
-    /// [0, bound] (the paper's length when known, otherwise the last sentence end), every critical range lies inside its
-    /// sentence, and every group points at a sentence at or before its own. Anything else hides the section.
+    /// missedLinesPayloadValid in web/src/lib/missedLines.ts (Android: MissedLines.valid). Every range is two
+    /// non-negative integers with start < end, and end <= the paper's UTF-16 length when known; every critical range lies
+    /// inside its sentence; every group points at a sentence at or before its own that is its own group's first
+    /// (group(group) == group). Anything else hides the section.
     static func isValid(_ payload: MissedLinesPayload, sourceLength: Int? = nil) -> Bool {
-        let bound = sourceLength ?? payload.sentences.map(\.end).max() ?? 0
+        let bound = sourceLength ?? Int.max
         func ok(_ a: Int, _ b: Int) -> Bool { a >= 0 && a < b && b <= bound }
         for ranges in payload.quotes.values {
             for r in ranges where !(r.count == 2 && ok(r[0], r[1])) { return false }
         }
         for (i, s) in payload.sentences.enumerated() {
-            guard ok(s.start, s.end), (0...i).contains(s.group) else { return false }
+            guard ok(s.start, s.end), (0...i).contains(s.group), payload.sentences[s.group].group == s.group else { return false }
             for c in s.critical where !(c.count == 2 && c[0] >= s.start && c[0] < c[1] && c[1] <= s.end) { return false }
         }
         return true

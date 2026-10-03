@@ -12,6 +12,8 @@ import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
 import { HandoffSheet } from "./HandoffSheet";
+import { MissedLines, useMissedLines } from "./MissedLines";
+import { missedLineTexts } from "@/lib/missedLines";
 import { ShareFamily } from "./ShareFamily";
 import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
@@ -598,6 +600,7 @@ export function CarePlanTool() {
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
+  const missed = useMissedLines(care, removed);
   const deviceStatus: "idle" | "loading" | "done" | "error" =
     !care || needsPhotoCheck || care.items.length === 0 ? "idle" : deviceRun.for !== care ? "loading" : deviceRun.ok ? "done" : "error";
   const flow = { hasCare: !!care, hasPlan: !!plan };
@@ -805,6 +808,7 @@ export function CarePlanTool() {
                   )}
                 </div>
               </div>
+              <MissedLines view={missed} />
               <Understand key={`${care.source_text.length}:${items.map((i) => i.id).join(",")}:${language}`} care={care} items={items} language={language} />
               <button type="button" onClick={() => pickTab(2, false)}
                 className="md:hidden mt-8 w-full rounded-full border-2 border-ink bg-sun px-5 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
@@ -851,7 +855,7 @@ export function CarePlanTool() {
           </div>
         </div>
 
-        {plan && care && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} />}
+        {plan && care && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} alsoOnPaper={missedLineTexts(missed)} />}
 
         {/* Step 3 */}
         {plan && (

@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.stephensookra.atlas",
+      "sha256_cert_fingerprints": [
+        "13:D7:02:73:4D:DE:7A:7F:F0:A2:9F:AD:AD:8D:BB:8C:3B:79:9C:45:DD:DF:D9:CE:83:23:3C:4C:9D:3A:8D:AD"
+      ]
+    }
+  }
+]

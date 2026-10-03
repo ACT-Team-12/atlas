@@ -638,6 +638,22 @@ describe("a size change during the page's own scroll", () => {
     expect(scrolls).toEqual(["step-2"]);
   });
 
+  it("a far scrollbar move in the moment right after a size change counts as the person", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    act(() => observers.forEach((cb) => cb([], {} as ResizeObserver))); // baseline height 5_000
+    Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: 5_100 });
+    act(() => observers.forEach((cb) => cb([], {} as ResizeObserver))); // grew by 100
+    setScrollY(2_000); // far further than 100px, inside the moment after the change
+    window.dispatchEvent(new Event("scroll"));
+    await release(req, ready(planFor("The new plan")));
+    expect(scrolls).toEqual(["step-2"]);
+  });
+
   it("staying on the re-aimed path does not", async () => {
     const req = await readThenLayoutShift();
     window.dispatchEvent(new Event("scroll"));

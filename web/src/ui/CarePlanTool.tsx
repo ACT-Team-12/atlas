@@ -26,8 +26,8 @@ import {
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
 import {
-  anchorHolds, isEditable, OWN_INSTANT_SCROLL_MS, OWN_SCROLL_MS, ownScrollEndedByPerson, photoId, planFingerprint, planPlace, readFingerprint, rebaseOwnScroll,
-  scrollIsPersons, shouldAutoScroll, type OwnScroll,
+  anchorHolds, isEditable, NO_LAYOUT_SHIFT, OWN_INSTANT_SCROLL_MS, OWN_SCROLL_MS, ownScrollEndedByPerson, photoId, planFingerprint, planPlace, readFingerprint, rebaseOwnScroll,
+  scrollIsPersons, shouldAutoScroll, type LayoutShift, type OwnScroll,
 } from "@/lib/staleGuard";
 import { SPEECH_LANG } from "@/lib/speechLang";
 
@@ -236,7 +236,8 @@ export function CarePlanTool() {
   // Device location requests: a generation so only the latest answer counts, and whether one is out.
   const locGen = useRef(0);
   const [locating, setLocating] = useState(false);
-  const layoutChangedAt = useRef(-Infinity);
+  const layoutShift = useRef<LayoutShift>(NO_LAYOUT_SHIFT);
+  const pageHeight = useRef<number | null>(null);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const [planReadyNote, setPlanReadyNote] = useState<string | null>(null);
@@ -705,7 +706,7 @@ export function CarePlanTool() {
     // A scroll with none of those (dragging the scrollbar, find in page) counts too, unless it is the page's own.
     const onScroll = () => {
       const now = performance.now();
-      if (scrollIsPersons({ now, y: window.scrollY, own: ownScroll.current, layoutChangedAt: layoutChangedAt.current })) lastInteraction.current = now;
+      if (scrollIsPersons({ now, y: window.scrollY, own: ownScroll.current, layout: layoutShift.current })) lastInteraction.current = now;
     };
     // The page's own scroll is over. If it stopped short of (or past) its target, the person moved it.
     const onScrollEnd = () => {
@@ -713,15 +714,19 @@ export function CarePlanTool() {
       if (!own) return;
       ownScroll.current = null;
       const now = performance.now();
-      if (now <= own.until && ownScrollEndedByPerson({ y: window.scrollY, own, layoutChangedAt: layoutChangedAt.current, now })) lastInteraction.current = now;
+      if (now <= own.until && ownScrollEndedByPerson({ y: window.scrollY, own, layout: layoutShift.current, now })) lastInteraction.current = now;
     };
     window.addEventListener("scroll", onScroll, opts);
     window.addEventListener("scrollend", onScrollEnd, opts);
     // A size change while the page's own scroll is moving re-aims its path at where the target sits now,
     // so a drag off that path is still seen once the browser's own adjustment has passed.
+    // The size change is measured, so only a scroll within that much counts as the browser's adjustment.
     const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
       const now = performance.now();
-      layoutChangedAt.current = now;
+      const h = document.documentElement.scrollHeight;
+      const shift = pageHeight.current == null ? 0 : Math.abs(h - pageHeight.current);
+      pageHeight.current = h;
+      layoutShift.current = { at: now, y: window.scrollY, shift };
       const own = ownScroll.current, el = ownScrollEl.current;
       if (own && el?.isConnected && now <= own.until) ownScroll.current = rebaseOwnScroll(own, { y: window.scrollY, to: scrollTargetY(el) });
     });

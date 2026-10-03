@@ -30,23 +30,30 @@ class MissedLinesTest {
         val fixtures = vectors.getValue("fixtures").jsonArray
         var cases = 0
         var shownWithLines = 0
+        var invalid = 0
         for (f in fixtures) {
             val fx = f.jsonObject
             val name = fx.getValue("name").jsonPrimitive.content
+            val sourceLength = fx.getValue("source_length").jsonPrimitive.int
+            val malformed = name.startsWith("malformed:")
             // Through the app's own decoder, exactly as a response or a saved plan is read.
             val payload = AtlasJson.decodeFromJsonElement(MissedLinesPayload.serializer(), fx.getValue("payload"))
             for (c in fx.getValue("cases").jsonArray) {
                 val kept = c.jsonObject.getValue("kept").jsonArray.map { it.jsonPrimitive.content }
                 val want = c.jsonObject.getValue("expected").jsonObject
-                val got = MissedLines.view(payload, kept)
+                val got = MissedLines.view(payload, kept, sourceLength)
                 assertEquals("$name kept=$kept", want.summary(), got.summary())
+                // A real payload sits inside its paper, so leaving the length out never changes the answer.
+                if (!malformed) assertEquals("$name kept=$kept unbounded", got, MissedLines.view(payload, kept))
                 if (got is MissedLinesView.Shown && got.lines.isNotEmpty()) shownWithLines++
+                if (got == MissedLinesView.Hidden(MissedLines.INVALID)) invalid++
                 cases++
             }
         }
-        assertEquals(17, fixtures.size)
-        assertEquals(576, cases)
-        assertTrue("too few cases with missed lines: $shownWithLines", shownWithLines > 400)
+        assertEquals(35, fixtures.size)
+        assertEquals(732, cases)
+        assertTrue("too few cases with missed lines: $shownWithLines", shownWithLines > 600)
+        assertEquals("every malformed case, and only those, is hidden as invalid", 12 * 3, invalid)
         println("missed_lines vectors: ${fixtures.size} fixtures, $cases kept sets, all equal to the web reference")
     }
 

@@ -10,23 +10,44 @@ struct PlanView: View {
     var body: some View {
         ScrollView {
             if let plan = model.plan {
+                // Every grounded step the plan could point at, removed or not: a plan step's paper quote never drops out.
+                let planItems = (model.care?.items ?? []).filter(\.grounded)
+                let outdated = model.planOutdated
                 VStack(alignment: .leading, spacing: 16) {
                     ScreenTitle(title: "Your plan", note: plan.located.label)
                     MedicalNote()
+                    if outdated {
+                        OutdatedNote(text: model.careOutdated
+                            ? "You changed your paper's text, language or reading level since this plan was made. Read your paper again first; until then sharing and reminders are off."
+                            : "You changed your steps, barriers, language, note or place since this plan was made. Update the plan; until then sharing and reminders are off.")
+                        if !model.careOutdated {
+                            Button("Update the plan") {
+                                speaker.stop()
+                                model.makePlan()
+                            }
+                            .buttonStyle(PillButtonStyle(fill: Palette.ink, text: Palette.paper, shadow: Palette.mint))
+                            .disabled(!model.canPlan)
+                        }
+                    }
                     if model.care?.has_warning_signs == true { WarningBanner() }
 
+                    Text(PaperFirst.planIsASuggestion).font(.caption.weight(.semibold)).foregroundStyle(Palette.inkSoft).wraps()
                     Text(plan.summary).font(.title3.weight(.semibold)).foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    ReadAloudBar(speaker: speaker, language: model.language, lines: readLines(plan))
-                    ShareLink(item: ShareText.plan(items: model.items, plan: plan, questions: model.care?.questions_for_doctor ?? []),
-                              subject: Text(ShareText.title), preview: SharePreview(ShareText.title)) {
-                        Label("Send to family", systemImage: "square.and.arrow.up")
+                    // The plan is a suggestion and never certified: each step is followed by the paper's own words for it.
+                    ReadAloudBar(speaker: speaker, language: model.language, lines: PaperFirst.planSpeechLines(plan, items: planItems))
+                    if !outdated {
+                        ShareLink(item: ShareText.plan(items: model.items, plan: plan, questions: model.care?.questions_for_doctor ?? [],
+                                                       meaning: model.meaning, planItems: planItems),
+                                  subject: Text(ShareText.title), preview: SharePreview(ShareText.title)) {
+                            Label("Send to family", systemImage: "square.and.arrow.up")
+                        }
+                        .buttonStyle(OutlinePillStyle(fill: Palette.mint))
+                        .accessibilityHint("Opens the share sheet to text or email the plan. ATLAS does not see or keep it.")
+                        Text("Send to family goes from your own phone. ATLAS doesn't see or keep it.")
+                            .font(.caption).foregroundStyle(Palette.inkSoft)
                     }
-                    .buttonStyle(OutlinePillStyle(fill: Palette.mint))
-                    .accessibilityHint("Opens the share sheet to text or email the plan. ATLAS does not see or keep it.")
-                    Text("Send to family goes from your own phone. ATLAS doesn't see or keep it.")
-                        .font(.caption).foregroundStyle(Palette.inkSoft)
                     Text("\(plan.stats.steps) steps · \(plan.stats.candidates) verified options checked · \(plan.stats.dropped_refs) unverified suggestions removed")
                         .font(.footnote.weight(.bold)).foregroundStyle(Palette.inkSoft)
 
@@ -40,9 +61,12 @@ struct PlanView: View {
                     }
 
                     ForEach(Array(plan.steps.enumerated()), id: \.offset) { i, step in
-                        PlanStepCard(index: i + 1, step: step, plan: plan, careByID: model.careByID, open: { web = IdentifiedURL(url: $0) }) {
-                            let quote = step.care_ids.compactMap { model.careByID[$0]?.source_quote }.first ?? ""
-                            reminder = ReminderTarget(title: step.title, quote: quote, detail: step.action)
+                        let quotes = PaperFirst.planStepQuotes(step, items: planItems)
+                        PlanStepCard(index: i + 1, step: step, plan: plan, quotes: quotes, remindEnabled: !outdated,
+                                     open: { web = IdentifiedURL(url: $0) }) {
+                            // A plan step is the AI's suggestion: the reminder says so, and carries the paper's words.
+                            reminder = ReminderTarget(title: "Step \(i + 1) of your plan", quote: quotes.first ?? "",
+                                                      detail: "Suggestion from ATLAS, not the paper: \(step.title). \(step.action)")
                         }
                     }
 
@@ -76,10 +100,6 @@ struct PlanView: View {
             Button("Clear from this phone", role: .destructive) { Task { await model.clearFromPhone() } }
         }
     }
-
-    private func readLines(_ plan: PlanResponse) -> [String] {
-        [plan.summary] + plan.steps.enumerated().map { i, s in "\(i + 1). \(s.title). \(s.action)" }
-    }
 }
 
 struct IdentifiedURL: Identifiable {
@@ -91,7 +111,9 @@ struct PlanStepCard: View {
     let index: Int
     let step: PlanStep
     let plan: PlanResponse
-    let careByID: [String: VerifiedItem]
+    /// The paper's own words behind this step (PaperFirst.planStepQuotes).
+    let quotes: [String]
+    let remindEnabled: Bool
     let open: (URL) -> Void
     let onRemind: () -> Void
 
@@ -110,18 +132,17 @@ struct PlanStepCard: View {
             Text(step.action).font(.body.weight(.semibold)).wraps()
             if !step.why.isEmpty { Text("Why: \(step.why)").font(.subheadline).foregroundStyle(Palette.inkSoft).wraps() }
 
-            ForEach(step.care_ids, id: \.self) { id in
-                if let item = careByID[id] {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label(item.title, systemImage: "doc.text").font(.caption.weight(.bold))
-                        PaperQuote(quote: item.source_quote)
-                    }
-                }
+            ForEach(quotes, id: \.self) { q in
+                Text("Your paper says: \u{201C}\(q)\u{201D}").font(.subheadline).foregroundStyle(Palette.ink)
+                    .wraps().sunRule()
+                    .accessibilityLabel("Your paper says: \(q)")
             }
 
-            Button { onRemind() } label: { Label("Remind me", systemImage: "bell.badge") }
-                .buttonStyle(OutlinePillStyle(fill: Palette.mint))
-                .accessibilityLabel("Remind me about \(step.title)")
+            if remindEnabled {
+                Button { onRemind() } label: { Label("Remind me", systemImage: "bell.badge") }
+                    .buttonStyle(OutlinePillStyle(fill: Palette.mint))
+                    .accessibilityLabel("Remind me about step \(index)")
+            }
 
             ForEach(step.resource_ids, id: \.self) { id in
                 if let r = plan.resources[id] { ResourceView(card: r, open: open) }

@@ -115,11 +115,14 @@ struct CarePlanResponse: Codable, Hashable, Sendable {
     let questions_for_doctor: [String]
     let not_in_document: [String]
     let has_warning_signs: Bool
+    /// The language the explanations were written in (sent back to the meaning check). Missing from older servers
+    /// and from plans saved by older versions of the app.
+    let language: Language?
     let model: String
     let stats: CareStats
 
     enum CodingKeys: String, CodingKey {
-        case source_text, source_kind, items, refused, questions_for_doctor, not_in_document, has_warning_signs, model, stats
+        case source_text, source_kind, items, refused, questions_for_doctor, not_in_document, has_warning_signs, language, model, stats
     }
 
     init(from decoder: Decoder) throws {
@@ -131,6 +134,8 @@ struct CarePlanResponse: Codable, Hashable, Sendable {
         questions_for_doctor = try c.decodeIfPresent([String].self, forKey: .questions_for_doctor) ?? []
         not_in_document = try c.decodeIfPresent([String].self, forKey: .not_in_document) ?? []
         has_warning_signs = try c.decodeIfPresent(Bool.self, forKey: .has_warning_signs) ?? false
+        // An unknown language (a newer server) is left out rather than failing the whole read.
+        language = (try? c.decodeIfPresent(Language.self, forKey: .language)) ?? nil
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
         stats = try c.decode(CareStats.self, forKey: .stats)
     }

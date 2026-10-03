@@ -24,6 +24,21 @@ struct HomeView: View {
                 ScreenTitle(title: "Your visit paper", note: "Turn it into steps you can finish, with help near you.")
                 MedicalNote()
 
+                // Opened from a helper link: say so in the person's language, and in English for whoever is with them.
+                if let b = model.helperBanner {
+                    Card(background: Palette.sun.opacity(0.5), border: Palette.ink) {
+                        Text(b.text).font(.subheadline.weight(.bold)).wraps()
+                            .environment(\.locale, Locale(identifier: b.langCode))
+                        if let english = b.english { Text(english).font(.caption).wraps() }
+                        Text("Language: \(model.language.rawValue) · Reading level: \(model.level.rawValue)\(model.zip.isEmpty ? "" : " · ZIP \(model.zip)")")
+                            .font(.caption).foregroundStyle(Palette.inkSoft)
+                        Button("OK") { model.dismissHelperBanner() }
+                            .font(.subheadline.weight(.bold))
+                            .accessibilityLabel("Dismiss this note")
+                    }
+                    .accessibilityElement(children: .contain)
+                }
+
                 if let restoredAt = model.restoredAt {
                     Card(border: Palette.teal) {
                         Text("Welcome back. Your last plan is saved on this phone (\(restoredAt.formatted(date: .abbreviated, time: .shortened))).")

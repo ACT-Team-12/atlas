@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["Y8XVCMLQCZ.com.stephensookra.atlas"],
+        "components": [
+          {
+            "/": "/",
+            "comment": "Helper links: the site's root page; the choices travel in the # fragment (web/src/lib/helperLink.ts)."
+          }
+        ]
+      }
+    ]
+  }
+}

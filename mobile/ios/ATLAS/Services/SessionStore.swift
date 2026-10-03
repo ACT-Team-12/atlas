@@ -12,6 +12,11 @@ struct SavedSession: Codable, Equatable, Sendable {
     var plan: PlanResponse?
     var done: [String: Bool]
     var removed: [String: Bool]
+    /// The second-model double-check for `care`. Nil in files saved by older versions: then every step is unchecked.
+    var meaning: MeaningState?
+    /// What the steps were read from and what the plan was built from (StaleGuard). Nil in older files.
+    var readFingerprint: String?
+    var planFingerprint: String?
     var savedAt: Date
 }
 

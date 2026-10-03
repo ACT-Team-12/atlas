@@ -10,8 +10,8 @@ settings:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     DEVELOPMENT_TEAM: Y8XVCMLQCZ
-    MARKETING_VERSION: "1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "1.1"
+    CURRENT_PROJECT_VERSION: "2"
 targets:
   ATLAS:
     type: application
@@ -29,6 +29,13 @@ targets:
       configs:
         Debug:
           CODE_SIGN_STYLE: Automatic
+    # Helper links open the app (Universal Links for the site's root page). The file the system checks is
+    # web/public/.well-known/apple-app-site-association; the App ID needs the Associated Domains capability.
+    entitlements:
+      path: ATLAS/ATLAS.entitlements
+      properties:
+        com.apple.developer.associated-domains:
+          - applinks:atlas-team12.vercel.app
     info:
       path: ATLAS/Info.plist
       properties:

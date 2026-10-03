@@ -11,26 +11,35 @@ enum ShareText {
         "self_care": "Self care", "warning_sign": "Warning sign",
     ]
 
-    static func plan(items: [VerifiedItem], plan: PlanResponse, questions: [String]) -> String {
-        var out = ["Plan after the visit (from ATLAS)", "", plan.summary]
+    /// The double-check travels with it: an explanation is sent only when the second check certified it; otherwise the
+    /// paper's own words are sent in its place (PaperFirst), so a text message never carries an unchecked paraphrase.
+    /// `planItems`: every grounded step the plan could point at, removed or not, so a plan step's quote never drops out.
+    static func plan(items: [VerifiedItem], plan: PlanResponse, questions: [String], meaning: MeaningState = .idle,
+                     planItems: [VerifiedItem]? = nil) -> String {
+        var out = ["Plan after the visit (from ATLAS)", "", "Suggestion from ATLAS, not the paper: \(plan.summary)"]
 
         let grounded = items.filter(\.grounded)
         if !grounded.isEmpty {
             out += ["", "WHAT THE PAPER SAYS TO DO"]
             for (n, i) in grounded.enumerated() {
-                let when = i.when.trimmingCharacters(in: .whitespaces)
-                out.append("\(n + 1). \(kindLabel[i.kind] ?? i.kind): \(i.title)\(when.isEmpty ? "" : " (\(when))")")
-                let plain = i.plain_language.trimmingCharacters(in: .whitespaces)
-                if !plain.isEmpty { out.append("   \(plain)") }
-                // The phone app has no second-model double-check, so every explanation says so.
-                out.append("   (Not double-checked. If this and the paper differ, follow the paper.)")
-                out.append("   Paper says: \"\(i.source_quote)\"")
+                let check = meaning.check(for: i.id)
+                let when = i.when.trimmingCharacters(in: .whitespacesAndNewlines)
+                let head = check == .certified ? ": \(i.title)\(when.isEmpty ? "" : " (\(when))")" : ""
+                out.append("\(n + 1). \(kindLabel[i.kind] ?? i.kind)\(head)")
+                if check == .flagged {
+                    out.append("   Double-check this one with your clinic: our second check found the explanation may not match the paper.")
+                }
+                for l in PaperFirst.lines(PaperFirst.careStep(i, check: check)) { out.append("   \(l)") }
             }
         }
 
         if !plan.steps.isEmpty {
             out += ["", "THE PLAN (suggestions from ATLAS; if anything differs from the paper, follow the paper)"]
-            for (n, s) in plan.steps.enumerated() { out.append("\(n + 1). \(s.title). \(s.action)") }
+            for (n, s) in plan.steps.enumerated() {
+                out.append("\(n + 1). \(s.title). \(s.action)")
+                // Every step the plan was built from, even one removed from the list since: its quote never drops out.
+                for q in PaperFirst.planStepQuotes(s, items: planItems ?? grounded) { out.append("   Your paper says: \"\(q)\"") }
+            }
         }
 
         // Only the verified resources the plan actually uses, in a stable order.

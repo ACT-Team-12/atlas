@@ -7,7 +7,6 @@ import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
 import { BARRIERS, BARRIER_LABEL, type Barrier, formatHours, openNow, opensEvenings, opensWeekends } from "@/lib/resources";
 import type { PlanResponse, ResourceCard } from "@/lib/plan";
-import type { MeaningResponse, MeaningResult } from "@/lib/meaning";
 import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
@@ -31,6 +30,7 @@ import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun
 import { forgetDeviceChecker, loadDeviceChecker, sameSpan } from "@/lib/deviceChecker";
 import { streamThenPlain } from "@/lib/readCancel";
 import { persistDeletion } from "@/lib/persistDeletion";
+import { fetchMeaning, IDLE_MEANING, RunFence, runMeaningCheck, type MeaningState } from "@/lib/meaningRun";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -237,8 +237,9 @@ export function CarePlanTool() {
   const [transcript, setTranscript] = useState<string | null>(null);
   const [photoChecked, setPhotoChecked] = useState(false);
   // Second-model meaning check: does each explanation say the same thing as its quoted line?
-  const [meaning, setMeaning] = useState<{ status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult> }>({ status: "idle", byId: {} });
-  const meaningFor = useRef("");
+  const [meaning, setMeaning] = useState<MeaningState>(IDLE_MEANING);
+  // One check at a time, with its own id and abort: Clear, Delete, a new read and unmount cancel it (lib/meaningRun.ts).
+  const [meaningFence] = useState(() => new RunFence());
   // The same quote checker, run again on this device (WebAssembly, loaded only after a read). Per step: did the
   // browser find the same words in the same place as the server?
   // Stored with the id of the reading it belongs to (never the reading, which holds the paper), so a newer read
@@ -275,7 +276,7 @@ export function CarePlanTool() {
   /** Puts a saved plan into the tool. Anything still running belongs to the plan being left, so it is dropped. */
   function applySession(v: Session) {
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
-    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
+    meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setLoc(null);
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
@@ -286,7 +287,7 @@ export function CarePlanTool() {
   /** Empties the tool for a new plan. Saved plans stay as they are. */
   function resetTool() {
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
-    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
+    meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setPhotoChecked(false); setReadLevel(null);
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
     setTab(1); setDeviceRun(NO_DEVICE_RUN);
@@ -363,25 +364,12 @@ export function CarePlanTool() {
     resetTool();
   }
 
-  async function checkMeaningFor(c: CarePlanResponse) {
-    const key = `${c.source_text.length}:${c.items.length}:${c.stats.ms}`;
-    meaningFor.current = key;
-    if (c.items.length === 0) return setMeaning({ status: "idle", byId: {} });
-    setMeaning({ status: "loading", byId: {} });
-    try {
-      const res = await fetch("/api/meaning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: c.items.slice(0, 40).map(({ id, plain_language, when, source_quote }) => ({ id, plain_language, when, source_quote })) }),
-      });
-      const json: MeaningResponse = await res.json();
-      if (meaningFor.current !== key) return; // a newer paper was read meanwhile
-      if (!res.ok) throw new Error();
-      setMeaning({ status: "done", byId: Object.fromEntries(json.results.map((r) => [r.id, r])) });
-    } catch {
-      if (meaningFor.current === key) setMeaning({ status: "error", byId: {} });
-    }
+  function checkMeaningFor(c: CarePlanResponse) {
+    return runMeaningCheck(meaningFence, c.items, fetchMeaning, setMeaning);
   }
+
+  // Leaving the page cancels a meaning check still in flight.
+  useEffect(() => () => meaningFence.cancel(), [meaningFence]);
 
   async function readPaper(corrected?: string, levelOverride?: (typeof READING_LEVELS)[number]) {
     const usedLevel = levelOverride ?? level;
@@ -389,7 +377,7 @@ export function CarePlanTool() {
     const openSavedPlan = storeRef.current.plans.find((p) => p.id === storeRef.current.active);
     const fresh = corrected === undefined;
     if (readStartsNewPlan({ openPlanHasPaper: !!openSavedPlan?.care, fresh, isPhoto: fresh && !!photo, sameText: openSavedPlan?.text === text })) writeStore(closePlan(storeRef.current));
-    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
+    meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setReading(true); setError(null); setCare(null); setPlan(null); setDone({}); setRemoved({}); setRestoredAt(null);
     setTranscript(null); setPhotoChecked(false); setPartial([]); setTab(1);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }

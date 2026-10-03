@@ -8,7 +8,7 @@
  * Pure functions, no network, no AI. Safe to import in the browser.
  */
 
-import { firstSentenceEnd, LINE_BREAK as SENTENCE_LINE_BREAK } from "./sentences";
+import { firstSentenceEnd, hasAmbiguousEnd, LINE_BREAK as SENTENCE_LINE_BREAK } from "./sentences";
 
 export const SLOTS = ["days_before", "day_before", "evening_before", "day_of", "hours_before", "morning_of", "arrival", "after"] as const;
 export type Slot = (typeof SLOTS)[number];
@@ -33,13 +33,14 @@ export const PREP_KIND_LABEL: Record<PrepKind, string> = {
 };
 
 /** Why a step was or was not placed on the timeline. */
-export type WhenReason = "placed" | "no_time_words" | "clock_without_day" | "conflict" | "multi_line";
+export type WhenReason = "placed" | "no_time_words" | "clock_without_day" | "conflict" | "multi_line" | "ambiguous_sentence";
 
 export const WHEN_REASON_TEXT: Record<Exclude<WhenReason, "placed">, string> = {
   no_time_words: "Your paper doesn't say when for this one.",
   clock_without_day: "Your paper gives a time but not which day.",
   conflict: "This line names more than one time, so we didn't pick one.",
   multi_line: "This step's words run across more than one line of your paper, so we didn't place it.",
+  ambiguous_sentence: "We couldn't tell where this sentence ends in your paper, so we didn't place it.",
 };
 
 export type WhenRead = {
@@ -146,6 +147,8 @@ export function firstClause(quote: string): string {
 export function readWhen(quote: string, multiLine = false): WhenRead {
   if (multiLine || LINE_BREAK.test(quote)) return { slot: null, reason: "multi_line", words: [] };
   const t = firstClause(quote);
+  // "Take 5 mg. aspirin 3 days before": maybe one sentence, maybe two. Never place a step on a guess.
+  if (hasAmbiguousEnd(t)) return { slot: null, reason: "ambiguous_sentence", words: [] };
   const days = dayHits(t);
   const clocks = [...t.matchAll(CLOCK)].map((m) => ({ text: m[0], at: m.index ?? 0 }));
   const midnight = [...t.matchAll(MIDNIGHT)].map((m) => ({ text: m[0], at: m.index ?? 0 }));

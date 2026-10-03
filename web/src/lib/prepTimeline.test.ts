@@ -367,3 +367,38 @@ describe("Codex round 4: the widened sentence never borrows the next sentence's 
     expect(one("Stop drinking 2 hours")).toMatchObject({ source_quote: "Stop drinking 2 hours before your procedure.", slot: "hours_before" });
   });
 });
+
+describe("Codex round 5: a unit abbreviation then a lowercase instruction is two sentences", () => {
+  const steps = (paper: string, quotes: string[]) => {
+    const r = buildPrepTimeline(paper, quotes.map((q) => item({ source_quote: q, plain_language: "" })));
+    return [...r.timeline.flatMap((g) => g.steps), ...r.ask];
+  };
+  it.each([
+    ["mg. stop", "Take 5 mg. stop aspirin 3 days before your procedure.", "Take 5 mg.", "stop aspirin 3 days before your procedure."],
+    ["mg.stop (OCR)", "Take 5 mg.stop aspirin 3 days before your procedure.", "Take 5 mg.", "stop aspirin 3 days before your procedure."],
+    ["a.m. take", "Eat breakfast by 7 a.m. take your pill 3 days before your procedure.", "Eat breakfast by 7 a.m.", "take your pill 3 days before your procedure."],
+    ["ml. do not", "Drink 240 ml. do not eat 3 days before your procedure.", "Drink 240 ml.", "do not eat 3 days before your procedure."],
+    ["etc. drink", "Bring snacks, drinks, etc. drink only water 2 hours before your procedure.", "Bring snacks, drinks, etc.", "drink only water 2 hours before your procedure."],
+  ])("%s: the first step is its own sentence, unplaced; the second keeps its time", (_n, line, first, second) => {
+    const paper = `PREP SHEET (sample)\n- ${line}`;
+    const all = steps(paper, [first.replace(/\.$/, ""), second.replace(/\.$/, "")]);
+    expect(all).toHaveLength(2);
+    const a = all.find((s) => s.source_quote === first);
+    const b = all.find((s) => s.source_quote === second);
+    if (!a || !b) throw new Error(`steps were ${JSON.stringify(all.map((s) => s.source_quote))}`);
+    expect(a.slot).toBeNull();
+    expect(b.slot).not.toBeNull();
+    expect(prepSpeechLines({ timeline: [], ask: [a] }).map((l) => l.text)).not.toContain(line);
+  });
+
+  it("an abbreviation followed by a word that could go either way is never placed", () => {
+    const paper = "PREP SHEET (sample)\n- Take 5 mg. aspirin 3 days before your procedure.";
+    const [s] = steps(paper, ["Take 5 mg"]);
+    expect(s).toMatchObject({ slot: null, reason: "ambiguous_sentence" });
+  });
+
+  it("a.m. followed by \"the\" still reads as one sentence and is placed", () => {
+    const [s] = steps("PREP SHEET (sample)\n- Arrive at 6:45 a.m. the morning of your procedure.", ["Arrive at 6:45"]);
+    expect(s).toMatchObject({ source_quote: "Arrive at 6:45 a.m. the morning of your procedure.", slot: "arrival" });
+  });
+});

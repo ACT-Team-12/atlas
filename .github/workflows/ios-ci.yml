@@ -1,9 +1,9 @@
 name: ios-ci
 on:
   push:
-    paths: ["mobile/ios/**", ".github/workflows/ios-ci.yml"]
+    paths: ["mobile/ios/**", "mobile/shared/**", ".github/workflows/ios-ci.yml"]
   pull_request:
-    paths: ["mobile/ios/**", ".github/workflows/ios-ci.yml"]
+    paths: ["mobile/ios/**", "mobile/shared/**", ".github/workflows/ios-ci.yml"]
 concurrency:
   group: ios-ci-${{ github.ref }}
   cancel-in-progress: true

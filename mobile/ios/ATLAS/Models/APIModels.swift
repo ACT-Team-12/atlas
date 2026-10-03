@@ -141,7 +141,7 @@ struct CarePlanResponse: Codable, Hashable, Sendable {
         language = (try? c.decodeIfPresent(Language.self, forKey: .language)) ?? nil
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
         stats = try c.decode(CareStats.self, forKey: .stats)
-        // A payload this app cannot read hides the section (fails closed) rather than failing the whole read.
+        // Never fails the read: a payload this app cannot read decodes as MissedLinesPayload.unreadable (hidden, invalid).
         missed_lines = (try? c.decodeIfPresent(MissedLinesPayload.self, forKey: .missed_lines)) ?? nil
     }
 }

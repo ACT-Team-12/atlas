@@ -12,6 +12,7 @@ struct MissedLinesTests {
         struct Fixture: Decodable {
             let name: String
             let payload: MissedLinesPayload
+            let source_length: Int?
             let cases: [Case]
         }
         struct Case: Decodable {
@@ -45,12 +46,13 @@ struct MissedLinesTests {
     }
 
     @Test func matchesTheWebReferenceForEveryVector() throws {
-        // The payload goes through the app's own decoder, exactly as a response or a saved plan is read.
+        // The payload goes through the app's own decoder, exactly as a response or a saved plan is read, so the
+        // malformed shapes (string or fractional offsets, ranges that are not lists, missing fields) are checked too.
         let vectors = try JSONDecoder().decode(Vectors.self, from: Self.vectorsData())
         var cases = 0, passed = 0, shownWithLines = 0
         for f in vectors.fixtures {
             for c in f.cases {
-                let got = MissedLines.view(f.payload, keptIDs: c.kept)
+                let got = MissedLines.view(f.payload, keptIDs: c.kept, sourceLength: f.source_length)
                 let want = Self.summary(c.expected), have = Self.summary(got)
                 #expect(have == want, "\(f.name) kept=\(c.kept)")
                 if have == want { passed += 1 }
@@ -58,9 +60,10 @@ struct MissedLinesTests {
                 cases += 1
             }
         }
-        #expect(vectors.fixtures.count == 17)
-        #expect(cases == 576)
-        #expect(passed == 576)
+        #expect(vectors.fixtures.count == 42)
+        #expect(cases == 753)
+        #expect(passed == 753)
+        #expect(vectors.fixtures.filter { $0.name.hasPrefix("malformed:") }.count == 19)
         #expect(shownWithLines > 400, "too few cases with missed lines: \(shownWithLines)")
         print("missed_lines vectors: \(vectors.fixtures.count) fixtures, \(passed) of \(cases) kept sets equal to the web reference")
     }
@@ -106,12 +109,22 @@ struct MissedLinesTests {
             {"items":[],"stats":{"extracted":0,"grounded":0,"refused":0,"ms":1},
              "missed_lines":{"show":true,"languages":["en"],"quotes":{},"sentences":[{"text":"Take it.","start":"zero","end":8,"group":0}]}}
             """#.utf8))
-        #expect(care.missed_lines == nil)
-        #expect(MissedLines.view(care.missed_lines, keptIDs: []) == .hidden(why: "missing"))
+        #expect(care.items.isEmpty && care.stats.ms == 1, "the read itself decodes")
+        #expect(care.missed_lines == .unreadable)
+        #expect(MissedLines.view(care.missed_lines, keptIDs: []) == .hidden(why: "invalid"))
+        // Saved and read back, it is still unreadable (and still hidden).
+        let again = try JSONDecoder().decode(CarePlanResponse.self, from: JSONEncoder().encode(care))
+        #expect(again.missed_lines == .unreadable)
+        // Shapes beyond the shared vectors: show not a bool, not an object at all.
+        for json in [#"{"show":1,"languages":["en"],"quotes":{},"sentences":[]}"#, #"{"show":"true"}"#, #"[1,2]"#, #"{"why":"empty"}"#] {
+            let p = try JSONDecoder().decode(MissedLinesPayload.self, from: Data(json.utf8))
+            #expect(p == .unreadable, "\(json)")
+            #expect(MissedLines.view(p, keptIDs: []) == .hidden(why: "invalid"))
+        }
     }
 
     @Test func showWithoutSentencesNeverClaimsAllCovered() {
-        #expect(MissedLines.view(MissedLinesPayload(show: true, languages: ["en"]), keptIDs: ["a"]) == .hidden(why: "no_instructions"))
+        #expect(MissedLines.view(MissedLinesPayload(show: true, languages: ["en"]), keptIDs: ["a"]) == .hidden(why: "invalid"))
     }
 
     @Test func touchingRangesMergeAndMalformedRangesNeverCoverALine() {
@@ -168,7 +181,10 @@ struct MissedLinesTests {
         let huge = try? JSONDecoder().decode(MissedLinesPayload.self, from: Data(#"""
             {"show":true,"languages":["en"],"quotes":{"a":[[0,1e30]]},"sentences":[{"text":"x","start":0,"end":1,"group":0}]}
             """#.utf8))
-        #expect(huge == nil)
+        #expect(huge == .unreadable)
+        p = good
+        p.quotes = ["a": [[0, 2147483648]]]; hidden(p, "offset past 32 bits")
+        p.sentences = [line, s("Call 911.", 27, 36, group: 0)]; hidden(p, sourceLength: 50, "an unrelated line in the first line's group")
         // show:true missing a field it needs, or a sentence without its critical list: dropped, so the section hides.
         for json in [
             #"{"show":true,"languages":["en"],"quotes":{"a":[[0,26]]},"sentences":[{"text":"Take 1 tablet for 10 days.","start":0,"end":26,"group":0}]}"#,
@@ -179,10 +195,42 @@ struct MissedLinesTests {
             let care = try? JSONDecoder().decode(CarePlanResponse.self, from: Data(
                 #"{"items":[],"stats":{"extracted":0,"grounded":0,"refused":0,"ms":1},"missed_lines":"#.utf8 + Data(json.utf8) + Data("}".utf8)))
             #expect(care != nil, "the read itself still decodes")
-            #expect(MissedLines.view(care?.missed_lines, keptIDs: ["a"]) == .hidden(why: "missing"), "\(json)")
+            #expect(MissedLines.view(care?.missed_lines, keptIDs: ["a"]) == .hidden(why: "invalid"), "\(json)")
         }
         let hiddenOnly = try? JSONDecoder().decode(MissedLinesPayload.self, from: Data(#"{"show":false,"why":"empty"}"#.utf8))
         #expect(hiddenOnly == MissedLinesPayload(show: false, why: "empty"))
+    }
+
+    /// verify.ts normalize, ported: a group may only join word-for-word repeats once normalized, nothing else.
+    @Test func groupsJoinOnlyRepeatsOfTheSameLine() {
+        #expect(MissedLines.normalize("  Call\u{00A0}911 \u{2014} NOW\u{2019}s  \u{2022} \u{201C}ok\u{201D}\n") == "call 911 - now's \"ok\"")
+        #expect(MissedLines.normalize("\u{039F}\u{0394}\u{039F}\u{03A3}") == "\u{03BF}\u{03B4}\u{03BF}\u{03C3}")
+        #expect(MissedLines.sameText("Call 911 if you have chest pain.", "CALL  911 if you have chest pain."))
+        #expect(!MissedLines.sameText("Call 911 if you have chest pain.", "Take 1 tablet daily."))
+        // Like JavaScript ===, not Swift ==: a precomposed and a decomposed letter are different text.
+        #expect(!MissedLines.sameText("caf\u{00E9}", "cafe\u{0301}"))
+        let a = s("Call 911 if you have chest pain.", 0, 32, group: 0)
+        let repeatLine = s("call 911 if you have  chest pain.", 33, 66, group: 0)
+        let other = s("Take 1 tablet daily.", 33, 53, group: 0)
+        let ok = MissedLinesPayload(show: true, languages: ["en"], quotes: ["x": [[0, 32]]], sentences: [a, repeatLine])
+        #expect(MissedLines.view(ok, keptIDs: ["x"], sourceLength: 70) == .shown(languages: ["en"], total: 2, covered: 2, lines: []))
+        var bad = ok
+        bad.sentences = [a, other]
+        let v = MissedLines.view(bad, keptIDs: ["x"], sourceLength: 70)
+        #expect(v == .hidden(why: "invalid"), "quoting one line must not vouch for an unrelated line put in its group")
+        #expect(MissedLines.announcement(v) == "")
+    }
+
+    /// A show:true payload whose read has no source_text has no paper to bound its offsets: hidden, not trusted.
+    @Test func aReadWithoutItsTextHidesTheSection() throws {
+        let care = try JSONDecoder().decode(CarePlanResponse.self, from: Data(#"""
+            {"items":[],"stats":{"extracted":0,"grounded":0,"refused":0,"ms":1},
+             "missed_lines":{"show":true,"languages":["en"],"quotes":{"a":[[0,20]]},
+             "sentences":[{"text":"Take 1 tablet daily.","start":0,"end":20,"reason":"imperative","critical":[],"group":0}]}}
+            """#.utf8))
+        #expect(care.source_text.isEmpty)
+        #expect(MissedLines.forCare(care, keptIDs: ["a"]) == .hidden(why: "invalid"))
+        #expect(MissedLines.view(care.missed_lines, keptIDs: ["a"], sourceLength: 20) == .shown(languages: ["en"], total: 1, covered: 1, lines: []))
     }
 
     @Test func announcementAndBadgeMatchTheWebsiteWording() {

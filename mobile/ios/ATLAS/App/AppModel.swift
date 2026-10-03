@@ -83,7 +83,7 @@ final class AppModel {
 
     /// "Lines on your paper we didn't turn into steps", for the steps still kept: follows every Remove and Undo.
     var missedLines: MissedLinesView {
-        MissedLines.view(care?.missed_lines, keptIDs: items.map(\.id), sourceLength: care?.source_text.utf16.count)
+        MissedLines.forCare(care, keptIDs: items.map(\.id))
     }
 
     /// The language the steps on screen were written in, for reading them aloud. While the steps are outdated it is still

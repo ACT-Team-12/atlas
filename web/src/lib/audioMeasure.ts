@@ -199,11 +199,13 @@ function mp4AacSeconds(b: Uint8Array): number | null {
       }
     } else if (type === "stsd") {
       if (u32(b, data + 4) !== 1) { bad = true; return; } // exactly one sample description
-      const entry = data + 8;
+      const entry = data + 8, entryEnd = entry + u32(b, entry);
+      // The sample entry and everything read inside it must end inside this stsd box (so inside the file).
+      if (entry + 36 > stop || entryEnd < entry + 36 || entryEnd > stop) { bad = true; return; }
       if (fourcc(b, entry + 4) !== "mp4a" || ((b[entry + 16] << 8) | b[entry + 17]) !== 0) { bad = true; return; } // version 0 only
       aac = true;
       entryRate = u32(b, entry + 32) >>> 16;
-      const esds = findBox(b, entry + 36, entry + u32(b, entry), "esds");
+      const esds = findBox(b, entry + 36, entryEnd, "esds");
       ascRate = esds ? aacRate(b, esds.data + 4, esds.end) : null;
     } else if (type === "stts") {
       const n = u32(b, data + 4);

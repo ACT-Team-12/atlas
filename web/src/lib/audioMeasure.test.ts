@@ -149,6 +149,15 @@ describe("parsing is bounded (Codex round 2, 2026-10-02)", () => {
     expect(measureAudio(b)).toBeNull();
   });
 
+  it("a sample entry claiming to run past its stsd box is refused at once (Codex round 3)", () => {
+    const b = fx("short.m4a");
+    const i = [...b].findIndex((_, k) => b[k] === 0x73 && b[k + 1] === 0x74 && b[k + 2] === 0x73 && b[k + 3] === 0x64); // "stsd"
+    b.set([0x05, 0xf5, 0xe1, 0x00], i + 12); // mp4a entry size = 100,000,000 bytes
+    const t0 = performance.now();
+    expect(measureAudio(b)).toBeNull();
+    expect(performance.now() - t0).toBeLessThan(50);
+  });
+
   it("a trun before its traf's tfhd is refused", () => {
     const box = (type: string, body: number[]) => { const n = body.length + 8; return [0, 0, n >> 8, n & 255, ...new TextEncoder().encode(type), ...body]; };
     const traf = box("traf", [...box("trun", [0, 0, 0, 0, 0, 0, 0, 1]), ...box("tfhd", [0, 0, 0, 0, 0, 0, 0, 1])]);

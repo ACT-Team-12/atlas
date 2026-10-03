@@ -38,7 +38,7 @@ function line(s: Status, suffix: string, typed: string): string {
     case "calling":
       if (!s.plan_status) return "Code is right. Getting your plan ready to call...";
       if (s.plan_status === "ringing") return `Ringing ${n} with your plan...`;
-      if (s.plan_status === "unknown") return `We couldn't confirm the plan call to ${n}. If your phone rings, pick up. If it doesn't ring in a few minutes, your number and plan text are deleted.`;
+      if (s.plan_status === "unknown") return `We couldn't confirm the plan call to ${n}. If your phone rings, pick up. If it doesn't ring in a few minutes, it isn't coming, and your number and plan text will be deleted.`;
       if (s.plan_status === "answered") return `Answered. On the phone keypad, enter your code${typed ? ` ${typed.split("").join(" ")}` : ""}, then press #. Then ATLAS reads your plan; press 1 to hear it again.`;
       return `Calling ${n} with your plan. When you answer, enter your code${typed ? ` ${typed.split("").join(" ")}` : ""} on the keypad, then press #.`;
     case "done":
@@ -193,7 +193,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
             </>
           )}
           {msg && <p role="alert" className="mt-2 text-sm font-bold text-peach-deep">{msg}</p>}
-          <p className="mt-3 text-xs font-semibold text-ink/70">Your number and plan text are kept encrypted only until the call ends (at most 30 minutes).</p>
+          <p className="mt-3 text-xs font-semibold text-ink/70">Your number and plan text are kept encrypted while your call is in progress and deleted when it ends. They can&apos;t be opened after 30 minutes in any case.</p>
         </div>
       )}
     </>

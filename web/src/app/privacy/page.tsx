@@ -41,7 +41,7 @@ export default function PrivacyPage() {
             </Block>
             <Block title="Phone calls (Call me with my plan)">
               <p>Only enter your own number. ATLAS calls only after you type a number and tick the box: first a short call that says a 4-digit code, then, once you type that code, a call that reads your plan.</p>
-              <p>The calls go through Vonage, our phone provider, which gets the number and plays the call. The natural voice, when it is used, is made by ElevenLabs from your plan text; otherwise Vonage reads it. Your number, plan text and that recording are kept encrypted on our server only until the call ends, at most 30 minutes; a code nobody types is wiped after 10 minutes.</p>
+              <p>The calls go through Vonage, our phone provider, which gets the number and plays the call. The natural voice, when it is used, is made by ElevenLabs from your plan text; otherwise Vonage reads it. Your number, plan text and that recording are kept encrypted on our server while your call is in progress and deleted when it ends (or when a code goes unused for 10 minutes). If our database is down at that moment, deletion waits until it is back, but the encryption itself stops them being opened after 30 minutes.</p>
               <p>To limit calls, we count them per number and per network for 2 days under a scrambled key, never the number or the address itself. After a call we keep only its status until the session expires.</p>
             </Block>
             <Block title="What stays on your device">

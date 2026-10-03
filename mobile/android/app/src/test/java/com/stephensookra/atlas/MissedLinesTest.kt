@@ -37,7 +37,7 @@ class MissedLinesTest {
             val sourceLength = fx.getValue("source_length").jsonPrimitive.int
             val malformed = name.startsWith("malformed:")
             // Through the app's own decoder, exactly as a response or a saved plan is read.
-            val payload = AtlasJson.decodeFromJsonElement(MissedLinesPayload.serializer(), fx.getValue("payload"))
+            val payload = AtlasJson.decodeFromJsonElement(com.stephensookra.atlas.data.LenientMissedLinesSerializer, fx.getValue("payload"))
             for (c in fx.getValue("cases").jsonArray) {
                 val kept = c.jsonObject.getValue("kept").jsonArray.map { it.jsonPrimitive.content }
                 val want = c.jsonObject.getValue("expected").jsonObject
@@ -93,6 +93,29 @@ class MissedLinesTest {
         assertEquals(1, (MissedLines.view(p, emptyList()) as MissedLinesView.Shown).lines.size)
         val hidden = AtlasJson.decodeFromString(MissedLinesPayload.serializer(), """{"show":false,"why":"unsupported_language"}""")
         assertEquals(MissedLinesView.Hidden("unsupported_language"), MissedLines.view(hidden, listOf("a")))
+    }
+
+    @Test fun anUnreadableMissedLinesFieldIsHiddenAndTheStepsSurvive() {
+        val live = AtlasJson.parseToJsonElement(Fixture.text("extract_sample_live")) as JsonObject
+        val sentence = """{"text":"Take 1 tablet daily.","start":0,"end":20,"reason":"imperative","critical":[],"group":0}"""
+        val shapes = listOf(
+            """{"show":true,"languages":["en"],"quotes":{"a":[[0.5,10]]},"sentences":[$sentence]}""",
+            """{"show":true,"languages":["en"],"quotes":{"a":[["0","10"]]},"sentences":[$sentence]}""",
+            """{"show":true,"languages":["en"],"quotes":{"a":"0-10"},"sentences":[$sentence]}""",
+            """{"show":true,"languages":["en"],"quotes":{"a":[[0,10]]},"sentences":[{"text":"Take 1 tablet daily.","start":0,"group":0}]}""",
+            """{"show":true,"languages":["en"],"quotes":{"a":[[0,4294967296]]},"sentences":[$sentence]}""",
+            """{"show":"yes"}""",
+            """[1,2,3]""",
+        )
+        for (raw in shapes) {
+            val withField = JsonObject(live + ("missed_lines" to AtlasJson.parseToJsonElement(raw)))
+            val care = AtlasJson.decodeFromString(CarePlanResponse.serializer(), withField.toString())
+            assertEquals(raw, 12, care.items.size)
+            assertEquals(raw, MissedLinesView.Hidden(MissedLines.INVALID), MissedLines.forCare(care, care.items.map { it.id }))
+            // Saved and read back, it is still hidden.
+            val again = AtlasJson.decodeFromString(CarePlanResponse.serializer(), AtlasJson.encodeToString(CarePlanResponse.serializer(), care))
+            assertEquals(raw, MissedLinesView.Hidden(MissedLines.INVALID), MissedLines.forCare(again, again.items.map { it.id }))
+        }
     }
 
     @Test fun showWithoutSentencesNeverClaimsAllCovered() {

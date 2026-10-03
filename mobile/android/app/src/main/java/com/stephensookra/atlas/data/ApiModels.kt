@@ -95,6 +95,7 @@ data class CarePlanResponse(
     val model: String = "",
     val stats: CareStats,
     /** The "Lines on your paper we didn't turn into steps" check (MissedLines). Missing from older servers and saved plans. */
+    @Serializable(with = LenientMissedLinesSerializer::class)
     val missed_lines: MissedLinesPayload? = null,
 )
 

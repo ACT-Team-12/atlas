@@ -1,6 +1,66 @@
 package com.stephensookra.atlas.data
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.intOrNull
+
+/**
+ * Reads `missed_lines` without letting it break the response it rides on. A shape the strict decoder cannot read
+ * (a fractional or string offset, a range that is not a list, a sentence missing a field) becomes [UNREADABLE], which
+ * MissedLines.view hides as "invalid", instead of throwing and losing the steps that came with it. That is the same
+ * answer missedLinesPayloadValid gives on the web for those shapes.
+ */
+object LenientMissedLinesSerializer : KSerializer<MissedLinesPayload> {
+    /** show:true with nothing to show: always invalid, and saved and read back as the same thing. */
+    val UNREADABLE = MissedLinesPayload(show = true)
+
+    override val descriptor: SerialDescriptor = MissedLinesPayload.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): MissedLinesPayload {
+        val json = decoder as? JsonDecoder ?: return MissedLinesPayload.serializer().deserialize(decoder)
+        val element = json.decodeJsonElement()
+        // The app's Json reads "10" as 10; the web check does not, so the shape is checked first, as JSON.
+        if (!wellShaped(element)) return UNREADABLE
+        return try {
+            json.json.decodeFromJsonElement(MissedLinesPayload.serializer(), element)
+        } catch (_: Exception) {
+            UNREADABLE
+        }
+    }
+
+    private fun isInt(e: JsonElement?) = e is JsonPrimitive && !e.isString && e.intOrNull != null
+    private fun isRange(e: JsonElement?) = e is JsonArray && e.all { isInt(it) }
+    private fun isRanges(e: JsonElement?) = e is JsonArray && e.all { isRange(it) }
+
+    /** The JSON types missedLinesPayloadValid accepts: numbers as numbers, lists as lists, every field present. */
+    private fun wellShaped(e: JsonElement): Boolean {
+        val o = e as? JsonObject ?: return false
+        val show = o["show"] as? JsonPrimitive ?: return false
+        if (show.isString || show.booleanOrNull == null) return false
+        if (show.boolean == false) return true
+        val languages = o["languages"] as? JsonArray ?: return false
+        if (!languages.all { it is JsonPrimitive && it.isString }) return false
+        val quotes = o["quotes"] as? JsonObject ?: return false
+        if (!quotes.values.all { isRanges(it) }) return false
+        val sentences = o["sentences"] as? JsonArray ?: return false
+        return sentences.all { s ->
+            s is JsonObject && (s["text"] as? JsonPrimitive)?.isString == true &&
+                isInt(s["start"]) && isInt(s["end"]) && isInt(s["group"]) && isRanges(s["critical"])
+        }
+    }
+
+    override fun serialize(encoder: Encoder, value: MissedLinesPayload) = MissedLinesPayload.serializer().serialize(encoder, value)
+}
 
 /**
  * `missed_lines` on the /api/extract response: MissedLinesPayload in web/src/lib/missedLines.ts. The server finds the

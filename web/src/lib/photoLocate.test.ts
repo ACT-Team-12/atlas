@@ -61,3 +61,17 @@ describe("locateOnPhoto: languages the photo reader has no data for", () => {
     expect(ocr.langs).toEqual(["eng", "spa"]);
   });
 });
+
+describe("locateOnPhoto: progress announcements", () => {
+  it("changes the status line only a few times (start, 0%, 50%), while the bar still gets every step", async () => {
+    for (let i = 0; i <= 10; i++) ocr.events.push(["loading", i / 10]);
+    for (let i = 0; i <= 100; i++) ocr.events.push(["reading", i / 100]);
+    const seen: LocateProgress[] = [];
+    await locate(SAMPLE_AVS, (p) => seen.push(p));
+    const said = seen.map((p) => p.message).filter((m, i, a) => i === 0 || m !== a[i - 1]);
+    expect(said.length).toBeLessThanOrEqual(3);
+    expect(said[0]).toMatch(/Getting the reader ready/);
+    expect(said.slice(1)).toEqual(["Reading your photo on this device... 0%", "Reading your photo on this device... 50%"]);
+    expect(seen.at(-1)!.pct).toBe(100);
+  });
+});

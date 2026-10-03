@@ -18,10 +18,14 @@ export type LocateResult =
 /** Shown instead of the photo when the paper's language has no reading data. */
 export const UNSUPPORTED_MESSAGE = "Highlighting on photos works for English and Spanish papers for now. Here is the quote on the text we read:";
 
+/**
+ * The status line is a live region, so every change is read aloud. It only names whole steps (0% and 50%; the
+ * result line says when it is done), however often the reader reports progress. The bar still moves with `pct`.
+ */
 export function progressMessage(stage: Stage, pct: number): string {
   return stage === "loading"
     ? "Getting the reader ready on this device (the first time it downloads about 7 MB)..."
-    : `Reading your photo on this device... ${pct}%`;
+    : `Reading your photo on this device... ${pct >= 50 ? 50 : 0}%`;
 }
 
 export async function locateOnPhoto(text: string, span: Span | null, photo: File, onProgress: (p: LocateProgress) => void): Promise<LocateResult> {

@@ -29,6 +29,7 @@ import { SPEECH_LANG } from "@/lib/speechLang";
 import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun, type DeviceVerdict } from "@/lib/deviceRun";
 // Static, so erasing never waits on a chunk download; the WebAssembly itself is still fetched only after a read.
 import { forgetDeviceChecker, loadDeviceChecker, sameSpan } from "@/lib/deviceChecker";
+import { streamThenPlain } from "@/lib/readCancel";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -58,8 +59,8 @@ async function fileToBase64(file: File) {
   return canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
 }
 
-async function postExtract(body: Record<string, unknown>): Promise<CarePlanResponse> {
-  const res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+async function postExtract(body: Record<string, unknown>, signal?: AbortSignal): Promise<CarePlanResponse> {
+  const res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
   return json;
@@ -69,10 +70,10 @@ async function postExtract(body: Record<string, unknown>): Promise<CarePlanRespo
  * Reads a pasted paper over the streaming route. Throws StreamBroken when the caller should retry
  * with the plain route (connection cut, route missing, server error), or a plain Error to show.
  */
-async function streamExtract(body: Record<string, unknown>, onItem: (it: VerifiedItem) => void): Promise<CarePlanResponse> {
+async function streamExtract(body: Record<string, unknown>, onItem: (it: VerifiedItem) => void, signal?: AbortSignal): Promise<CarePlanResponse> {
   let res: Response;
   try {
-    res = await fetch("/api/extract/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    res = await fetch("/api/extract/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
   } catch {
     throw new StreamBroken("Network error");
   }
@@ -215,6 +216,8 @@ export function CarePlanTool() {
   // Verified steps that arrived while the paper is still being read. Shown, never final.
   const [partial, setPartial] = useState<VerifiedItem[]>([]);
   const readRun = useRef(0);
+  // Cancels the read in flight; erasing the open paper aborts it, so the paper is not sent again.
+  const readAbort = useRef<AbortController | null>(null);
   // Plan requests in flight. A new read or a clear bumps it, so an older plan reply cannot land on newer steps.
   const planRun = useRef(0);
   const [care, setCare] = useState<CarePlanResponse | null>(null);
@@ -317,6 +320,7 @@ export function CarePlanTool() {
    */
   function eraseOpenPaper() {
     resetTool();
+    readAbort.current?.abort();
     forgetDeviceChecker();
   }
 
@@ -376,23 +380,24 @@ export function CarePlanTool() {
     setTranscript(null); setPhotoChecked(false); setPartial([]); setTab(1);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }
     const run = ++readRun.current;
+    const ac = new AbortController();
+    readAbort.current = ac;
     planRun.current++; setPlanning(false); // drop any plan still on its way: it was built from the old steps
     try {
       const body: Record<string, unknown> = { language, reading_level: usedLevel };
       if (corrected !== undefined) body.text = corrected;
       else if (photo) { body.image_base64 = await fileToBase64(photo); body.image_media_type = "image/jpeg"; } else body.text = text;
+      if (readRun.current !== run) return; // cleared or replaced while the photo was prepared: never send it
       let json: CarePlanResponse;
       if (typeof body.text === "string") {
         // Pasted text: show each verified step as it arrives. Photos keep the plain route (the person checks our reading first).
-        try {
-          json = await streamExtract(body, (it) => { if (readRun.current === run) setPartial((p) => [...p, it]); });
-        } catch (e) {
-          if (!(e instanceof StreamBroken)) throw e;
-          // The stream broke part way: drop what we showed and read it again the plain way.
-          if (readRun.current === run) setPartial([]);
-          json = await postExtract(body);
-        }
-      } else json = await postExtract(body);
+        // If the stream broke part way, drop what we showed and read it again the plain way, unless this read was cleared.
+        json = await streamThenPlain(
+          (signal) => streamExtract(body, (it) => { if (readRun.current === run) setPartial((p) => [...p, it]); }, signal),
+          (signal) => postExtract(body, signal),
+          ac.signal, () => readRun.current === run, () => setPartial([]),
+        );
+      } else json = await postExtract(body, ac.signal);
       if (readRun.current !== run) return;
       setPartial([]);
       setCare(json);
@@ -402,8 +407,8 @@ export function CarePlanTool() {
       // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared).
       const target = scrollTargetAfter("read", isPhoneNow());
       if (target) scrollAfter.current = { t: target, onlyIfHidden: false };
-    } catch (e) { setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong."); }
-    finally { setReading(false); }
+    } catch (e) { if (readRun.current === run) { setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong."); } }
+    finally { if (readRun.current === run) setReading(false); }
   }
 
   // "Too much? Make it simpler": the same paper, read again the normal way at the simple level.

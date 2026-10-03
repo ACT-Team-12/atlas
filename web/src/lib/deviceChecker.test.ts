@@ -78,7 +78,8 @@ describe("the checker the browser runs (public/atlas_verify.wasm)", () => {
     // A dynamic import would make Clear wait on a chunk download before it could abort the pending load.
     expect(ui).not.toMatch(/import\(\s*["']@\/lib\/deviceChecker["']\s*\)/);
     expect(ui).toMatch(/import \{[^}]*\bforgetDeviceChecker\b[^}]*\} from "@\/lib\/deviceChecker";/);
-    expect(body("eraseOpenPaper")).toMatch(/resetTool\(\);\s*forgetDeviceChecker\(\);/);
+    expect(body("eraseOpenPaper")).toMatch(/resetTool\(\);/);
+    expect(body("eraseOpenPaper")).toMatch(/forgetDeviceChecker\(\);/);
     // "Clear it from this device", and Delete on the plan that is open.
     expect(body("clearSaved")).toMatch(/eraseOpenPaper\(\)/);
     expect(body("deleteSaved")).toMatch(/if \(wasOpen\) eraseOpenPaper\(\);/);

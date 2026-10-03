@@ -419,3 +419,82 @@ describe("the person scrolling while the page's own scroll is still moving", () 
     expect(scrolls).toEqual(["step-2", "step-3"]);
   });
 });
+
+describe("an outdated plan cannot be acted on", () => {
+  const LAB_PAPER = `${PAPER} Get an A1c blood test before your next visit.`;
+  function careWithLab(): CarePlanResponse {
+    const c = careFor(LAB_PAPER);
+    c.items.push({ id: "c2", kind: "lab_test", title: "A1c test", plain_language: "Get a blood test.", when: "before your next visit", source_quote: "Get an A1c blood test", grounded: true } as CarePlanResponse["items"][number]);
+    return c;
+  }
+  function planWithLab(summary: string): PlanResponse {
+    const p = planFor(summary);
+    p.steps = [{ title: "Book the A1c test", action: "Call to book it.", why: "", barrier: null, care_ids: ["c2"], resource_ids: [], dropped_refs: [] } as unknown as PlanResponse["steps"][number]];
+    return p;
+  }
+  const ACTIONS = ["Read it out loud", "Print a handoff sheet", "Send to family", "Book it now"];
+  const enabled = () => Object.fromEntries(ACTIONS.map((t) => [t, !byText(t).disabled]));
+  const all = (v: boolean) => Object.fromEntries(ACTIONS.map((t) => [t, v]));
+  let speech: { speak: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    speech = { speak: vi.fn(), cancel: vi.fn() };
+    vi.stubGlobal("speechSynthesis", speech);
+    vi.stubGlobal("SpeechSynthesisUtterance", class { constructor(public text: string) {} });
+  });
+
+  async function planReady() {
+    act(() => typeInto(paperBox(), LAB_PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careWithLab()));
+    act(() => byText("Getting there").click());
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    await release(req, ready(planWithLab("Plan with the A1c test")));
+    expect(enabled()).toEqual(all(true));
+    expect(screenText()).not.toContain("Update the plan first");
+  }
+
+  const selectValue = (label: string, value: string) => {
+    const sel = [...host.querySelectorAll("label")].find((l) => l.textContent?.startsWith(label))!.querySelector("select")!;
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(sel, value);
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  const changes: [string, () => void][] = [
+    ["place (a ZIP typed)", () => typeInto(host.querySelector<HTMLInputElement>("#zip")!, "30340")],
+    ["barriers", () => byText("Paying for the visit").click()],
+    ["language", () => selectValue("Explain it in", "Spanish")],
+    ["a removed step", () => (host.querySelector('button[aria-label="Remove Metformin"]') as HTMLButtonElement).click()],
+  ];
+  for (const [what, change] of changes) {
+    it(`after changing ${what}: read aloud, handoff print, Send to family and Book it now are off, with the reason`, async () => {
+      await planReady();
+      act(change);
+      expect(enabled()).toEqual(all(false));
+      expect(screenText()).toContain("Plan with the A1c test"); // still shown, labelled
+      expect(screenText()).toMatch(/Update the plan first|Read your paper again first/);
+    });
+  }
+
+  it("speech in progress stops when the plan goes out of date", async () => {
+    await planReady();
+    act(() => byText("Read it out loud").click());
+    expect(speech.speak).toHaveBeenCalled();
+    expect(byText("Stop reading")).toBeTruthy();
+    speech.cancel.mockClear();
+    act(() => byText("Paying for the visit").click());
+    expect(speech.cancel).toHaveBeenCalled();
+    expect(byText("Read it out loud").disabled).toBe(true);
+  });
+
+  it("updating the plan turns the actions back on", async () => {
+    await planReady();
+    act(() => byText("Paying for the visit").click());
+    const req = hold("/api/plan");
+    act(() => byText("Update plan").click());
+    await release(req, ready(planWithLab("Updated plan")));
+    expect(enabled()).toEqual(all(true));
+  });
+});

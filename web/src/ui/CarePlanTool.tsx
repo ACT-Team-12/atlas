@@ -371,6 +371,7 @@ export function CarePlanTool() {
     barriers, language, note, place: planPlace(!!loc, zip), location: loc,
   }) !== planFp);
   const resultsCurrent = !careOutdated && !planOutdated;
+  const actionsOffReason = careOutdated ? "Read your paper again first" : "Update the plan first";
 
   // Every change to the open plan is saved into it; the first read or plan of a new one creates it.
   // While a result on screen is outdated, nothing is saved, so a saved plan never sits beside answers it was not built for.
@@ -654,6 +655,13 @@ export function CarePlanTool() {
       fallBack(run);
     }
   }
+
+  // An outdated plan is not read aloud: stop any reading in progress the moment it goes out of date.
+  useEffect(() => {
+    if (planOutdated) stopSpeaking();
+    // Only the change to outdated matters; stopSpeaking only touches refs and setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planOutdated]);
 
   // Stop reading if the plan changes or goes away, or the page unmounts.
   useEffect(() => () => {
@@ -1095,16 +1103,19 @@ export function CarePlanTool() {
             )}
             <p className="mt-4 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
+              {/* An outdated plan can't be read aloud, printed as a handoff, sent or booked from; the on-screen note says why. */}
+              {planOutdated && <span id="plan-actions-off" className="basis-full text-sm font-bold text-peach-deep">{actionsOffReason}: read aloud, the handoff sheet, Send to family and Book it now are off until then.</span>}
               {tapToPlay
-                ? <button type="button" onClick={() => void startAudio(speechRun.current)} className="rounded-full border-2 border-ink bg-sun px-4 py-2">▶ Tap to play</button>
-                : <button type="button" onClick={speak} aria-pressed={speaking} className={`rounded-full border-2 border-ink px-4 py-2 ${speaking ? "bg-ink text-paper" : "bg-sun"}`}>
+                ? <button type="button" onClick={() => void startAudio(speechRun.current)} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink bg-sun px-4 py-2 disabled:opacity-40">▶ Tap to play</button>
+                : <button type="button" onClick={speak} aria-pressed={speaking} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined}
+                    className={`rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40 ${speaking ? "bg-ink text-paper" : "bg-sun"}`}>
                     {speaking ? "⏹ Stop reading" : "🔊 Read it out loud"}
                   </button>}
               {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2">Cancel</button>}
               <span role="status" className={voiceNote ? "self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
               <button type="button" onClick={() => window.print()} className="rounded-full border-2 border-ink px-4 py-2">🖨️ Print for the next visit</button>
-              <button type="button" onClick={printSheet} className="rounded-full border-2 border-ink px-4 py-2">📄 Print a handoff sheet</button>
-              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={meaning} />}
+              <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40">📄 Print a handoff sheet</button>
+              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={meaning} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} />}
               <span className="self-center text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
             </div>
             {plan.ask_a_person && (
@@ -1134,7 +1145,7 @@ export function CarePlanTool() {
                     </div>
                   )}
                   {[...bookAt.values()].includes(i) && (
-                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean)} barriers={barriers} language={language} />
+                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean)} barriers={barriers} language={language} offReason={planOutdated ? actionsOffReason : undefined} />
                   )}
                 </li>
               ))}

@@ -126,3 +126,32 @@ describe("parser differentials fail closed", () => {
     }
   });
 });
+
+describe("parsing is bounded (Codex round 2, 2026-10-02)", () => {
+  // A plain AAC file plus one tiny moof whose trun claims 4,294,967,295 samples with no per-sample fields.
+  const tinyBomb = () => {
+    const box = (type: string, body: number[]) => { const n = body.length + 8; return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255, ...new TextEncoder().encode(type), ...body]; };
+    const tfhd = box("tfhd", [0, 0, 0, 0x08, 0, 0, 0, 1, 0, 0, 4, 0]); // default sample duration 1024
+    const trun = box("trun", [0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff]);
+    return new Uint8Array([...fx("short.m4a"), ...box("moof", [...box("mfhd", [0, 0, 0, 0, 0, 0, 0, 1]), ...box("traf", [...tfhd, ...trun])])]);
+  };
+
+  it("a trun claiming billions of samples is refused at once", () => {
+    const t0 = performance.now();
+    expect(measureAudio(tinyBomb())).toBeNull();
+    expect(performance.now() - t0).toBeLessThan(50);
+  });
+
+  it("a sample table listing more frames than 35 s could hold is refused", () => {
+    const b = fx("short.m4a");
+    const i = [...b].findIndex((_, k) => b[k] === 0x73 && b[k + 1] === 0x74 && b[k + 2] === 0x73 && b[k + 3] === 0x7a); // "stsz"
+    b.set([0, 0x01, 0, 0], i + 4 + 8); // sample_count = 65,536
+    expect(measureAudio(b)).toBeNull();
+  });
+
+  it("a trun before its traf's tfhd is refused", () => {
+    const box = (type: string, body: number[]) => { const n = body.length + 8; return [0, 0, n >> 8, n & 255, ...new TextEncoder().encode(type), ...body]; };
+    const traf = box("traf", [...box("trun", [0, 0, 0, 0, 0, 0, 0, 1]), ...box("tfhd", [0, 0, 0, 0, 0, 0, 0, 1])]);
+    expect(measureAudio(new Uint8Array([...fx("short.m4a"), ...box("moof", [...box("mfhd", [0, 0, 0, 0, 0, 0, 0, 1]), ...traf])]))).toBeNull();
+  });
+});

@@ -75,9 +75,10 @@ const uint = (b: Uint8Array, start: number, end: number) => { let v = 0; for (le
 
 function webmOpusSeconds(b: Uint8Array): number | null {
   const stack: { id: number; end: number; unknown: boolean }[] = [{ id: ROOT, end: b.length, unknown: false }];
-  let pos = 0, ms = 0, tracks = 0, opus = false, audio = false, trackNumber = -1;
+  let pos = 0, ms = 0, tracks = 0, opus = false, audio = false, trackNumber = -1, steps = 0;
   const blockTracks = new Set<number>();
   while (pos < b.length) {
+    if (++steps > MAX_STEPS) return null;
     // Close every parent that ends here.
     while (stack.length > 1 && !stack[stack.length - 1].unknown && pos === stack[stack.length - 1].end) stack.pop();
     const id = vint(b, pos, true);
@@ -141,6 +142,10 @@ const MP4_CHILDREN: Record<string, Set<string>> = {
   moof: new Set(["mfhd", "traf"]),
   traf: new Set(["tfhd", "tfdt", "trun", "sgpd", "sbgp"]),
 };
+/** The most AAC frames 35 s can hold (1,024 samples at 96 kHz is the shortest frame). More is refused before any loop. */
+export const MAX_AAC_FRAMES = Math.ceil((35 * 96_000) / 1024);
+/** Every parse is a bounded walk: at most this many elements, boxes or blocks, then it gives up (refuses). */
+const MAX_STEPS = 200_000;
 const AAC_RATES = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
 
 function u32(b: Uint8Array, p: number) { return ((b[p] << 24) >>> 0) + (b[p + 1] << 16) + (b[p + 2] << 8) + b[p + 3]; }
@@ -204,22 +209,26 @@ function mp4AacSeconds(b: Uint8Array): number | null {
       const n = u32(b, data + 4);
       if (data + 8 + n * 8 > stop) { bad = true; return; }
       for (let i = 0; i < n; i++) sttsSum += u32(b, data + 8 + i * 8) * u32(b, data + 12 + i * 8);
-    } else if (type === "stsz") frames += u32(b, data + 8);
+    } else if (type === "stsz") { frames += u32(b, data + 8); if (frames > MAX_AAC_FRAMES) bad = true; }
     else if (type === "trex") trexDur = u32(b, data + 12);
     else if (type === "trun") {
+      if (!tfhdSeen) { bad = true; return; } // each traf states its tfhd first
       const flags = u32(b, data) & 0xffffff, n = u32(b, data + 4);
       frames += n;
+      if (n > MAX_AAC_FRAMES || frames > MAX_AAC_FRAMES) { bad = true; return; } // refused before any per-sample loop
       let q = data + 8 + (flags & 0x1 ? 4 : 0) + (flags & 0x4 ? 4 : 0);
       const per = (flags & 0x100 ? 4 : 0) + (flags & 0x200 ? 4 : 0) + (flags & 0x400 ? 4 : 0) + (flags & 0x800 ? 4 : 0);
       if (q + n * per > stop) { bad = true; return; }
-      for (let i = 0; i < n; i++, q += per) trunSum += flags & 0x100 ? u32(b, q) : tfhdDur || trexDur;
+      if (!(flags & 0x100)) trunSum += n * (tfhdDur || trexDur); // no per-sample durations: one multiplication
+      else for (let i = 0; i < n; i++, q += per) trunSum += u32(b, q);
     } else if (type === "tfhd") {
       const flags = u32(b, data) & 0xffffff;
       const q = data + 8 + (flags & 0x1 ? 8 : 0) + (flags & 0x2 ? 4 : 0);
       tfhdDur = flags & 0x8 ? u32(b, q) : 0;
+      tfhdSeen = true;
     }
   };
-  let tfhdDur = 0;
+  let tfhdDur = 0, tfhdSeen = false, steps = 0;
 
   const walk = (parent: string, start: number, end: number): boolean => {
     let p = start;
@@ -232,7 +241,9 @@ function mp4AacSeconds(b: Uint8Array): number | null {
       else if (size === 0) { if (parent !== "" || type !== "mdat") return false; size = end - p; }
       if (size < head || p + size > end) return false;
       const data = p + head, stop = p + size;
+      if (++steps > MAX_STEPS) return false;
       if (type === "trak") traks++;
+      if (type === "traf") { tfhdSeen = false; tfhdDur = 0; }
       if (MP4_CHILDREN[type]) { if (!walk(type, data, stop)) return false; }
       else { leaf(type, data, stop); if (bad) return false; }
       p = stop;

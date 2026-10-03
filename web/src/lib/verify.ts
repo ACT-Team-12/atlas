@@ -87,10 +87,71 @@ export function findSpan(source: string, quote: string): { start: number; end: n
   return { start: starts[first], end: ends[lastEnd - 1] };
 }
 
-/** Checks one item. `index` is its place in the model's full list, which sets its id. */
+const LINE_END = /[\r\n\v\f\u0085\u2028\u2029]/;
+const CLOSERS = /["'”’)\]]/;
+/** A period after one of these does not end a sentence ("Dr. Lee", "7 a.m. the morning of", "1. Take"). */
+const ABBREVIATION = /(?:^|[^\p{L}\p{N}.])(?:dr|mr|mrs|ms|st|sr|jr|no|vs|etc|approx|apt|ste|ave|rd|blvd|mt|ft|oz|tbsp|tsp|e\.g|i\.e|a\.m|p\.m|[ap]|\d{1,2})$/iu;
+
+/** If a sentence ends at `i` (a . ! or ?), the index just past it and any closing quote or bracket; otherwise -1. */
+function sentenceEndAt(src: string, i: number, lineEnd: number): number {
+  if (!/[.!?]/.test(src[i])) return -1;
+  let k = i + 1;
+  while (k < lineEnd && CLOSERS.test(src[k])) k++;
+  if (k < lineEnd && !/\s/.test(src[k])) return -1;
+  let n = k;
+  while (n < lineEnd && /\s/.test(src[n])) n++;
+  // A lowercase word next ("7 a.m. the morning of") means the sentence goes on.
+  if (n < lineEnd && /\p{Ll}/u.test(src[n])) return -1;
+  if (src[i] === "." && ABBREVIATION.test(src.slice(Math.max(0, i - 12), i))) return -1;
+  return k;
+}
+
+/**
+ * The whole sentence (or sentences) around a matched span: back to the start of the sentence the span starts in and
+ * on to the end of the sentence it ends in, never past a line break. A list marker ("- ", "1. ", "• ") at the start
+ * of the line is left out. Showing this, not the model's copy, means a quote can't leave out the words around it:
+ * "take it the morning of your procedure" is shown as "If you take insulin, do not take it the morning of your
+ * procedure." Sentence ends are read conservatively, so when in doubt more of the line is shown, never less.
+ */
+export function enclosingSentence(source: string, span: { start: number; end: number }): { start: number; end: number } {
+  let lineStart = span.start;
+  while (lineStart > 0 && !LINE_END.test(source[lineStart - 1])) lineStart--;
+  let start = lineStart;
+  for (let i = lineStart; i < span.start; i++) {
+    const after = sentenceEndAt(source, i, source.length);
+    if (after >= 0 && after <= span.start) start = after;
+  }
+  const lastChar = Math.max(span.start, span.end - 1);
+  let lineEnd = lastChar;
+  while (lineEnd < source.length && !LINE_END.test(source[lineEnd])) lineEnd++;
+  let end = lineEnd;
+  for (let i = lastChar; i < lineEnd; i++) {
+    const after = sentenceEndAt(source, i, lineEnd);
+    if (after >= 0) { end = after; break; }
+  }
+  while (start < end && /\s/.test(source[start])) start++;
+  if (start === lineStart) {
+    const marker = /^(?:[-•*·▪●]|\d{1,2}[.)])\s+/u.exec(source.slice(start, Math.min(end, start + 8)));
+    if (marker && start + marker[0].length <= span.start) start += marker[0].length;
+  }
+  while (end > start && /\s/.test(source[end - 1])) end--;
+  return { start: Math.min(start, span.start), end: Math.max(end, span.end) };
+}
+
+/** The care plan route's request limit for one quote (plan.ts, meaning.ts, understand.ts all cap source_quote at 800). */
+const MAX_QUOTE = 800;
+
+/**
+ * Checks one item. `index` is its place in the model's full list, which sets its id. A grounded item carries the
+ * whole sentence its quote sits in, from the paper itself (enclosingSentence), so a fragment can't drop a "do not".
+ * If that sentence is longer than the routes accept, the matched words themselves are kept.
+ */
 export function verifyItem(source: string, item: CareItem, index: number): VerifiedItem {
-  const span = findSpan(source, item.source_quote);
-  return { ...item, id: `item-${index}`, grounded: span !== null, span };
+  const found = findSpan(source, item.source_quote);
+  if (!found) return { ...item, id: `item-${index}`, grounded: false, span: null };
+  const whole = enclosingSentence(source, found);
+  const span = whole.end - whole.start <= MAX_QUOTE ? whole : found;
+  return { ...item, source_quote: source.slice(span.start, span.end), id: `item-${index}`, grounded: true, span };
 }
 
 export function verifyItems(source: string, items: CareItem[]): { kept: VerifiedItem[]; refused: VerifiedItem[] } {

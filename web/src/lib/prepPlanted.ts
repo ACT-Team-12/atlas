@@ -12,8 +12,9 @@ import type { MeaningResult } from "./meaning";
  * would give: each instruction, its exact line, and the slot a person reading that line would put it in (or "ask"
  * when the line itself doesn't say when). Then we plant the mistakes a wrong AI could make: claiming a wrong time,
  * changing or adding time words in the quote, inventing a step, borrowing the time from the next line, cutting the
- * time words off the quote, skipping the line's "do not" with an ellipsis, changing a number (digits or words) in the
- * explanation, and reversing what the explanation says ("do not take insulin" explained as "take insulin"). Our code must catch each one.
+ * time words off the quote (the page must show the whole sentence instead), skipping the line's "do not" with an
+ * ellipsis, changing a number (digits or words) in the explanation, and reversing what the explanation says ("do not
+ * take insulin" explained as "take insulin"). Our code must catch each one.
  *
  * What this does NOT test: whether the second model (the meaning check) notices a reversal that keeps the line's
  * cue words. That needs the AI. It tests our gates: a dropped or added "do not" / "stop" / "until" is hidden by our
@@ -95,8 +96,8 @@ const certifiedState = (id: string): MeaningState => ({ status: "done", byId: { 
 type PlantKind = (typeof PREP_PLANT_KINDS)[number];
 
 /** "held back": the step must not be shown. "not placed": shown, but under Ask your clinic when (or held back). "placed right": in its true slot. "explanation hidden". */
-type Expect = "held back" | "not placed" | "placed right" | "explanation hidden" | "shown only if certified";
-type Plant = { kind: PlantKind; expect: Expect; item: PrepModelItem; truth: Slot | "ask"; what: string };
+type Expect = "held back" | "not placed" | "placed right" | "whole sentence shown" | "explanation hidden" | "shown only if certified";
+type Plant = { kind: PlantKind; expect: Expect; item: PrepModelItem; truth: Slot | "ask"; what: string; sentence?: string };
 
 export function prepPlants(paper = SAMPLE_PREP, truth = PREP_TRUTH): Plant[] {
   const out: Plant[] = [];
@@ -129,10 +130,12 @@ export function prepPlants(paper = SAMPLE_PREP, truth = PREP_TRUTH): Plant[] {
       p("time borrowed from the next line", "not placed", { source_quote: paper.slice(at, end) }, `"${short}" quoted together with the next line`);
     }
 
-    // The quote stops before the time words. The step is real, but it can no longer be placed.
+    // The quote stops before the time words (and can leave out a "do not" or an "until" with them). The page shows the
+    // whole sentence from the paper instead of the piece, so the step is placed from the sentence's own time words.
     const firstTime = t.quote.search(/\d|midnight|morning|evening|night|day|after your/i);
     if (t.truth !== "ask" && firstTime > 12) {
-      p("time words cut off the quote", "not placed", { source_quote: t.quote.slice(0, firstTime).trim() }, `quote cut to "${t.quote.slice(0, firstTime).trim()}"`);
+      const cut = t.quote.slice(0, firstTime).trim();
+      out.push({ kind: "time words cut off the quote", expect: "whole sentence shown", item: asModel(t, { source_quote: cut }), truth: t.truth, sentence: t.quote, what: `quote cut to "${cut}"` });
     }
 
     // The quote is right, but the AI's explanation says a different number than the line.
@@ -204,6 +207,7 @@ export function runPrepPlantedTest(paper = SAMPLE_PREP, truth = PREP_TRUTH): Pre
       pl.expect === "held back" ? !s :
       pl.expect === "not placed" ? !s || s.slot === null :
       pl.expect === "placed right" ? !!s && s.slot === pl.truth :
+      pl.expect === "whole sentence shown" ? !!s && s.source_quote === pl.sentence && s.slot === pl.truth :
       pl.expect === "explanation hidden" ? !!s && (s.numbers_blocked || s.negation_blocked) && s.plain_language === "" && shownExplanation(s, certifiedState(s.id)) === null :
       // The headline is the paper's own words, and the explanation never shows until certified.
       !!s && s.source_quote === pl.item.source_quote.trim() && neverShownUncertified;

@@ -75,7 +75,8 @@ describe("verifyItems", () => {
       item("metformin (GLUCOPHAGE) 500 mg tablet"),
       item("Increase insulin to 20 units"),
     ]);
-    expect(kept.map((k) => k.source_quote)).toEqual(["metformin (GLUCOPHAGE) 500 mg tablet"]);
+    // A grounded item carries the whole sentence from the paper (here, with its period).
+    expect(kept.map((k) => k.source_quote)).toEqual(["metformin (GLUCOPHAGE) 500 mg tablet."]);
     expect(refused).toHaveLength(1);
     expect(refused[0].grounded).toBe(false);
     expect(kept[0].span).not.toBeNull();
@@ -85,5 +86,24 @@ describe("verifyItems", () => {
 describe("dedupe", () => {
   it("removes repeated questions regardless of case and punctuation", () => {
     expect(dedupe(["Where do I get the A1c?", "where do I get the A1c", "Another?"])).toEqual(["Where do I get the A1c?", "Another?"]);
+  });
+});
+
+describe("Codex re-review: the care plan shows the whole sentence a quote came from", () => {
+  const paper = "Medicines:\n1. If you take insulin, do not take it the morning of your procedure.\n2. Dr. Lee says: stop aspirin 7 days before. Call us with questions.";
+  it.each([
+    ["take it the morning of your procedure", "If you take insulin, do not take it the morning of your procedure."],
+    ["aspirin 7 days before", "Dr. Lee says: stop aspirin 7 days before."],
+    ["If you take insulin ... the morning of your procedure", "If you take insulin, do not take it the morning of your procedure."],
+  ])("%s", (quote, sentence) => {
+    const { kept } = verifyItems(paper, [item(quote)]);
+    expect(kept).toHaveLength(1);
+    expect(kept[0].source_quote).toBe(sentence);
+    expect(paper.slice(kept[0].span!.start, kept[0].span!.end)).toBe(sentence);
+  });
+
+  it("a quote that is already a whole sentence is unchanged", () => {
+    const q = "Take 1 tablet by mouth 2 times a day with meals.";
+    expect(verifyItems(SAMPLE_AVS, [item(q)]).kept[0].source_quote).toBe(q);
   });
 });

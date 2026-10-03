@@ -270,7 +270,48 @@ describe("Codex review: an ellipsis quote can drop the paper's \"do not\"", () =
   it("an accepted quote is replaced by the paper's own text (case, quote marks, spacing)", () => {
     const r = buildPrepTimeline(paper, [item({ source_quote: "if you take INSULIN,   do not take it the morning of your procedure", plain_language: "" })]);
     const s = r.timeline[0].steps[0];
-    expect(s.source_quote).toBe("If you take insulin, do not take it the morning of your procedure");
-    expect(prepSpeechLines(r)).toContainEqual({ text: "If you take insulin, do not take it the morning of your procedure", voice: "paper" });
+    expect(s.source_quote).toBe("If you take insulin, do not take it the morning of your procedure.");
+    expect(prepSpeechLines(r)).toContainEqual({ text: "If you take insulin, do not take it the morning of your procedure.", voice: "paper" });
+  });
+});
+
+describe("Codex re-review: an exact fragment can leave out the line's \"do not\", \"stop\", \"until\" or \"unless\"", () => {
+  const paper = [
+    "PREP SHEET (sample)",
+    "- If you take insulin, do not take it the morning of your procedure.",
+    "- Stop taking aspirin 7 days before your procedure.",
+    "- Drink clear liquids until 2 hours before your procedure.",
+    "- Take metformin the morning of your procedure unless your doctor told you not to.",
+    "- Take your pill. Stop drinking 2 hours before your procedure.",
+  ].join("\n");
+  const shown = (quote: string) => {
+    const r = buildPrepTimeline(paper, [item({ source_quote: quote, plain_language: "" })]);
+    const steps = [...r.timeline.flatMap((g) => g.steps), ...r.ask];
+    expect(steps).toHaveLength(1);
+    return { s: steps[0], spoken: prepSpeechLines(r).filter((l) => l.voice === "paper").map((l) => l.text) };
+  };
+
+  it.each([
+    ["suffix fragment drops \"do not\"", "take it the morning of your procedure", "If you take insulin, do not take it the morning of your procedure."],
+    ["prefix-dropped \"Stop\"", "taking aspirin 7 days before your procedure", "Stop taking aspirin 7 days before your procedure."],
+    ["dropped \"until\" clause", "Drink clear liquids", "Drink clear liquids until 2 hours before your procedure."],
+    ["dropped \"unless\" clause", "Take metformin the morning of your procedure", "Take metformin the morning of your procedure unless your doctor told you not to."],
+  ])("%s: the whole sentence is shown and spoken", (_n, quote, sentence) => {
+    const { s, spoken } = shown(quote);
+    expect(s.source_quote).toBe(sentence);
+    expect(spoken).toContain(sentence);
+    expect(spoken).not.toContain(quote);
+  });
+
+  it("the sentence, not the whole line: a fragment of the first sentence never takes the next sentence's time", () => {
+    const { s } = shown("Take your pill");
+    expect(s.source_quote).toBe("Take your pill.");
+    expect(s.slot).toBeNull();
+  });
+
+  it("a fragment of a timed sentence is placed from the whole sentence", () => {
+    const { s } = shown("taking aspirin");
+    expect(s.source_quote).toBe("Stop taking aspirin 7 days before your procedure.");
+    expect(s.slot).toBe("days_before");
   });
 });

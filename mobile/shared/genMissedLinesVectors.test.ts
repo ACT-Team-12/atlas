@@ -218,6 +218,14 @@ it("writes the vectors", () => {
   addMalformed("critical outside its sentence", withSentence({ critical: [[s0.end, s0.end + 1]] }), L);
   addMalformed("group points forward", withSentence({ group: 1 }), L);
   addMalformed("group negative", withSentence({ group: -1 }), L);
+  addMalformed("unrelated line joined to the first line's group", { ...en0, sentences: en0.sentences.map((x, i) => (i === 1 ? { ...x, group: 0 } : x)) }, L);
+  // JSON shapes a typed client could misread: each must be hidden, never fail the response or be coerced.
+  addMalformed("fractional offset", withQuote([0.5, 10]), L);
+  addMalformed("string offsets", withQuote(["0", "10"]), L);
+  addMalformed("ranges not a list", { ...en0, quotes: { ...en0.quotes, [firstId]: "0-10" } }, L);
+  addMalformed("offset past 32 bits", withQuote([0, 4294967296]), L);
+  addMalformed("sentence missing its end", { ...en0, sentences: [{ text: s0.text, start: s0.start, reason: s0.reason, critical: s0.critical, group: 0 }, ...en0.sentences.slice(1)] }, L);
+  addMalformed("language that is not a string", { ...en0, languages: [1] }, L);
 
   const out = process.env.VECTORS_OUT;
   if (!out) throw new Error("set VECTORS_OUT");

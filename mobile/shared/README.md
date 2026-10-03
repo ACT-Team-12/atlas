@@ -11,7 +11,7 @@ of the paper, which every offset must stay within) and `cases`: a list of kept s
 Fixtures: the English, Spanish and bilingual papers, the six eval papers, the sample paper, the live 12-item
 `/api/extract` response, a number covered only by two quotes together, a line printed twice, the three hidden
 states, six seeded random papers (repeated lines, quotes across line ends, touching quotes, ellipsis quotes with
-more than one range, quotes that stop before a number), and twelve `malformed:` payloads that each break one
+more than one range, quotes that stop before a number), and nineteen `malformed:` payloads that each break one
 validation rule (`missedLinesPayloadValid`), which every client must hide as `invalid`. A plan with up to 7 steps
 has every kept subset; a larger one has all, none and 58 seeded random subsets (18 for the random papers).
 

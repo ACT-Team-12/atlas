@@ -50,10 +50,10 @@ class MissedLinesTest {
                 cases++
             }
         }
-        assertEquals(35, fixtures.size)
-        assertEquals(732, cases)
+        assertEquals(42, fixtures.size)
+        assertEquals(753, cases)
         assertTrue("too few cases with missed lines: $shownWithLines", shownWithLines > 600)
-        assertEquals("every malformed case, and only those, is hidden as invalid", 12 * 3, invalid)
+        assertEquals("every malformed case, and only those, is hidden as invalid", 19 * 3, invalid)
         println("missed_lines vectors: ${fixtures.size} fixtures, $cases kept sets, all equal to the web reference")
     }
 

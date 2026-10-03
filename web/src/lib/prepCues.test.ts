@@ -137,3 +137,22 @@ describe("end to end: a false \"same\" from the meaning check cannot show a reve
     expect(shownExplanation(s, falseSame([s]))).toBe(plain);
   });
 });
+
+describe("Codex round 9: fast and omit are do-not words too", () => {
+  it.each([
+    ["Fast after midnight the night before your procedure.", "Eat after midnight the night before."],
+    ["Omit metformin the morning of your procedure.", "Take metformin the morning of your procedure."],
+    ["Begin fasting 8 hours before your procedure.", "Eat a meal 8 hours before."],
+    ["Pause your water pill the day before your procedure.", "Take your water pill the day before."],
+  ])("%s / %s: the explanation is never shown, even on a false same", (quote, plain) => {
+    const paper = `PREP SHEET (sample)\n- ${quote}`;
+    const r = buildPrepTimeline(paper, [item(quote, plain)]);
+    const s = [...r.timeline.flatMap((g) => g.steps), ...r.ask][0];
+    expect(s).toMatchObject({ source_quote: quote, negation_blocked: true, plain_language: "" });
+    const m = falseSame([{ id: s.id, plain_language: plain, source_quote: quote }]);
+    expect(shownExplanation(s, m)).toBeNull();
+  });
+  it("breakfast is not fast", () => {
+    expect(cues("Eat breakfast at 7.").no).toBe(false);
+  });
+});

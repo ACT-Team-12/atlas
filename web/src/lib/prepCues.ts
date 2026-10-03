@@ -10,7 +10,7 @@ type Lang = (typeof LANGUAGES)[number];
  * keeps both the "not" and the "unless" of "do not take insulin unless your doctor told you to" and still reverses it.
  * So prep mode fails closed on two kinds of cue words:
  *
- * - "no": not, no, never, n't, nothing, without, stop, hold, avoid, skip, ... (a do-not or a stop);
+ * - "no": not, no, never, n't, nothing, without, stop, hold, avoid, skip, fast, omit, ... (a do-not or a stop);
  * - "limit": until, unless, except, only (a condition or a limit on the instruction).
  *
  * If the paper's sentence has any cue word, its explanation is never shown: the person reads the paper's own
@@ -35,13 +35,15 @@ const NO_WORDS = W([
   "not", "no", "never", "cannot", "nothing", "none", "nobody", "neither", "nor", "without",
   "stop", "stops", "stopped", "stopping", "hold", "holds", "holding", "held", "avoid", "avoids", "avoiding",
   "skip", "skips", "skipping", "skipped", "refrain", "discontinue", "discontinued", "quit", "cease", "withhold", "npo", "nil",
+  "fast", "fasts", "fasting", "fasted", "omit", "omits", "omitting", "omitted", "withheld", "withholding", "pause",
+  "pauses", "paused", "pausing", "suspend", "suspends", "suspended", "suspending", "abstain", "abstaining", "exclude",
   // Spanish
   "nunca", "jamás", "jamas", "ni", "nada", "nadie", "ningún", "ningun", "ninguno", "ninguna", "tampoco", "sin",
   "deje", "dejar", "deja", "dejen", "suspenda", "suspender", "suspende", "suspendan", "pare", "parar", "detenga", "detener",
-  "evite", "evitar", "evita", "eviten", "omita", "omitir", "omite",
+  "evite", "evitar", "evita", "eviten", "omita", "omitir", "omite", "ayuno", "ayunas", "ayunar", "ayune",
   // French
   "ne", "pas", "jamais", "rien", "aucun", "aucune", "sans", "arrêtez", "arrêter", "arrête", "cessez", "cesser",
-  "évitez", "éviter", "évite", "interrompez", "interrompre",
+  "évitez", "éviter", "évite", "interrompez", "interrompre", "jeûne", "jeûner", "jeûnez", "à jeun", "omettez", "omettre",
   // Vietnamese
   "không", "đừng", "chớ", "ngừng", "ngưng", "dừng", "tránh", "cấm", "chưa", "bỏ", "nhịn",
 ]);

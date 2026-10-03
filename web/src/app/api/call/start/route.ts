@@ -2,27 +2,13 @@ import { clientIp, guard } from "@/lib/guard";
 import { callerId } from "@/lib/call/caller";
 import { callConfig } from "@/lib/call/config";
 import { startCall } from "@/lib/call/flow";
+import { startRefusal } from "@/lib/call/messages";
 import { callStore } from "@/lib/call/store";
 
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
 const NO_STORE = { "cache-control": "no-store" };
-const REFUSED: Record<string, [number, string]> = {
-  "no-consent": [400, "Tick the box to say ATLAS may call this number."],
-  language: [422, "Phone calls aren't available in this language yet. Use Read it out loud or Print instead."],
-  token: [403, "This plan can't be read on a call. Make the plan again, then try."],
-  "token-used": [403, "This plan already called a different number. To call another number, make the plan again."],
-  phone: [400, "Enter a US phone number (10 digits). Toll-free, premium and non-US numbers can't be called."],
-  "in-flight": [409, "A code call to this number is already on its way. Enter that code, or try again in 10 minutes."],
-  "too-soon": [429, "A code call went to this number in the last 10 minutes. Wait a few minutes, then try again."],
-  "capped-caller": [429, "Too many calls were started from here today. Try again tomorrow."],
-  "capped-code": [429, "This number already got 3 code calls today. Try again tomorrow."],
-  "capped-plan": [429, "This number already got 3 plan calls today. Try again tomorrow."],
-  "capped-site": [429, "ATLAS has made as many calls as it can for now. Try again later."],
-  "no-db": [503, "Calls are not available right now. Nothing was saved and no call was placed."],
-  failed: [502, "The code call could not be placed. Check the number and try again."],
-};
 
 /** POST { phone, consent, text, language, token }: step 1, a short call that speaks a 4-digit code. */
 export async function POST(request: Request) {
@@ -38,6 +24,6 @@ export async function POST(request: Request) {
     caller: callerId(cfg.secret, clientIp(request)),
   });
   if (r.state === "calling") return Response.json({ id: r.id, last4: r.last4, uncertain: r.uncertain === true }, { headers: NO_STORE });
-  const [status, error] = REFUSED[r.state];
+  const [status, error] = startRefusal(r.state);
   return Response.json({ error }, { status, headers: NO_STORE });
 }

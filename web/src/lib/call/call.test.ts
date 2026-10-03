@@ -4,7 +4,7 @@ import { issueSpeakToken } from "../speakToken";
 import { callConfig, normalizePem, strongSecret, publicBaseUrl, signTicket, verifyTicket, type CallConfig } from "./config";
 import { audioFor, CODE_CALL_GAP_MS, CODE_CALLS_PER_HOUR, CODE_CALLS_PER_IP, CODE_CALLS_PER_NUMBER, handleEvent, handleInput, publicStatus, startCall, verifyAndCall, type Deps } from "./flow";
 import { MemoryCallStore } from "./memoryStore";
-import { verifyRefusal } from "./messages";
+import { startRefusal, verifyRefusal } from "./messages";
 import { canCallIn, codeNcco, gateNcco, MAX_REPLAYS, planLengthSeconds, planNcco, talkChunks, TALK_CHUNK, VONAGE_TTS } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
@@ -196,6 +196,15 @@ describe("encryption at rest", () => {
     const edited = Buffer.from(s);
     edited.writeBigUInt64BE(BigInt(NOW + 10 * 60_000), 2);
     expect(open(SECRET, "audio", "sess", edited, NOW + 61_000)).toBeNull();
+  });
+});
+
+describe("start refusals before the code", () => {
+  it("answer the same for every reason that depends on the number's history, so a stranger's number reveals nothing", () => {
+    const same = (["in-flight", "too-soon", "capped-code", "capped-plan"] as const).map((s) => JSON.stringify(startRefusal(s)));
+    expect(new Set(same).size).toBe(1);
+    expect(same[0]).not.toMatch(/already on its way|last 10 minutes|3 code calls|3 plan calls/);
+    expect(startRefusal("capped-caller")).not.toEqual(startRefusal("in-flight")); // reasons not about the number stay specific
   });
 });
 

@@ -20,7 +20,9 @@ import { getCall, placeCall } from "./vonage";
  * Accepted risk (a team decision, not an oversight): nothing proves the number is the person's own before the CODE
  * call, so someone can make ATLAS place a short call that says only a 4-digit code to another number. There is no
  * inbound opt-in and no captcha; the caps below bound it instead, and the page and /privacy say "Only enter your own
- * number". The plan itself is never spoken to anyone who cannot enter the code.
+ * number". The plan itself is never spoken to anyone who cannot enter the code. Refusals that depend on the number's
+ * history all get one answer before the code (messages.ts startRefusal); what remains observable is whether a call
+ * was placed at all, which the number's owner also sees, as a ringing phone.
  * Caps, each reserved before a call and never given back once a call was attempted: 3 code calls and 3 plan calls per
  * number per day, at most 1 code call per number per 10 minutes, 4 code calls per caller (IP) per day, 10 code calls
  * per hour site-wide, a site-wide daily cap (ATLAS_CALL_DAILY_CAP, default 40), and one live code per number.

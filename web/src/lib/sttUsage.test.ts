@@ -2,9 +2,11 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { Pool } from "pg";
 import { readFileSync } from "node:fs";
 import {
-  clientKey, CLIENT_HOURLY_SECONDS, memoryUsageStore, normalizeIp, pgUsageStore, SITE_HOURLY_SECONDS, sweepSttUsage, type UsageStore,
+  budgetReady, clientKey, CLIENT_HOURLY_SECONDS, memoryUsageStore, normalizeIp, pgUsageStore, retentionReady, SITE_HOURLY_SECONDS,
+  sweepSttUsage, usageStore, type UsageStore,
 } from "./sttUsage";
 import { GET as sweepRoute } from "@/app/api/transcribe/sweep/route";
+import { GET as transcribeGET, POST as transcribePOST } from "@/app/api/transcribe/route";
 import { answerAloud, issueQuizToken, usesFor } from "./transcribe";
 
 const SECRET = "s3cret";
@@ -208,5 +210,43 @@ describe("database unreachable", () => {
     down = false;
     await expect(go()).resolves.toBe("ok");
     vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks();
+  });
+});
+
+describe("deletion is guaranteed before anything is written (Codex round 2, 2026-10-02)", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+
+  it("on a database without CRON_SECRET the feature is off: no mic, no row, no provider call", async () => {
+    vi.stubEnv("DEEPGRAM_API_KEY", "dg-test");
+    vi.stubEnv("FEEDBACK_SECRET", SECRET);
+    vi.stubEnv("DATABASE_URL", PG ?? "postgres://nobody@127.0.0.1:1/none");
+    vi.stubEnv("CRON_SECRET", "");
+    const fetchMock = vi.fn(async () => dg("ok", 2));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(retentionReady()).toBe(false);
+    expect(usageStore()).toBeNull();
+    expect(await budgetReady()).toBe(false);
+    const config = await (await transcribeGET()).json();
+    expect(config.enabled).toBe(false);
+    const token = issueQuizToken("English", 5, SECRET)!;
+    const r = await transcribePOST(new Request(`http://x/api/transcribe?language=English&token=${encodeURIComponent(token)}`, {
+      method: "POST", headers: { "content-type": "audio/webm" }, body: audio(),
+    }));
+    expect(r.status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("with CRON_SECRET set the sweep can run, so the database store is allowed", () => {
+    vi.stubEnv("DATABASE_URL", PG ?? "postgres://nobody@127.0.0.1:1/none");
+    vi.stubEnv("CRON_SECRET", "cron-s3cret");
+    expect(retentionReady()).toBe(true);
+    expect(usageStore()).not.toBeNull();
+  });
+
+  it("without a database (local runs, memory only) no sweep is needed", () => {
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("CRON_SECRET", "");
+    vi.stubEnv("VERCEL", "");
+    expect(retentionReady()).toBe(true);
   });
 });

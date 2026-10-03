@@ -117,12 +117,23 @@ export async function sweepSttUsage(pool: Pool): Promise<number> {
   return r.rowCount ?? 0;
 }
 
+/**
+ * The two-day deletion is guaranteed only when the hourly sweep can run, and the sweep refuses everyone without
+ * CRON_SECRET. So on a database, no CRON_SECRET means no rows are ever written: the feature stays off (no mic).
+ * Memory (local runs only) needs no sweep: its rows expire in the process and vanish with it.
+ */
+export function retentionReady(): boolean {
+  return getPool() === null || Boolean(process.env.CRON_SECRET);
+}
+
 let ready: { at: number; ok: boolean } | null = null;
 /**
- * Whether the shared budget can be used here: memory locally; on a database, its table must exist (migration 005).
+ * Whether the shared budget can be used here: memory locally; on a database, its table must exist (migration 005)
+ * and the deletion sweep must be configured (retentionReady).
  * Checked at most once a minute per instance, so a missing migration hides the mic instead of failing every answer.
  */
 export async function budgetReady(now = Date.now()): Promise<boolean> {
+  if (!retentionReady()) return false;
   const pool = getPool();
   if (!pool) return process.env.VERCEL !== "1";
   if (ready && now - ready.at < 60_000) return ready.ok;
@@ -137,8 +148,12 @@ export async function budgetReady(now = Date.now()): Promise<boolean> {
 let mem: ReturnType<typeof memoryUsageStore> | null = null;
 /** Tests: the local memory store the route uses, emptied. */
 export function localUsageForTests() { mem ??= memoryUsageStore(); mem.reset(); ready = null; return mem; }
-/** Postgres when DATABASE_URL is set; memory only off Vercel (local dev); none on Vercel without a database. */
+/**
+ * Postgres when DATABASE_URL is set and the deletion sweep is configured; memory only off Vercel (local dev);
+ * none on Vercel without a database, and none on a database without CRON_SECRET (nothing written it cannot delete).
+ */
 export function usageStore(): UsageStore | null {
+  if (!retentionReady()) return null;
   const pool = getPool();
   if (pool) return pgUsageStore(pool);
   if (process.env.VERCEL === "1") return null;

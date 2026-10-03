@@ -85,6 +85,8 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     /** What `care` was read from and what `plan` was built from (StaleGuard). Null when unknown. */
     private var readFp by mutableStateOf<String?>(null)
     private var planFp by mutableStateOf<String?>(null)
+    /** When the steps or the plan last changed (SavedSession.savedAt). Input changes and helper links keep it. */
+    private var planChangedAt: Long? = null
 
     // Helper link: the banner, and whether the next plan counts as one built from the link. Never saved.
     var helperBanner by mutableStateOf<HelperBanner?>(null)
@@ -160,9 +162,9 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         if (barriers.contains(b)) barriers.remove(b) else barriers.add(b)
         persist()
     }
-    fun setDone(id: String, value: Boolean) { done[id] = value; persist() }
-    fun remove(id: String) { removed[id] = true; persist() }
-    fun undoRemove(id: String) { removed.remove(id); persist() }
+    fun setDone(id: String, value: Boolean) { done[id] = value; persist(planChanged = true) }
+    fun remove(id: String) { removed[id] = true; persist(planChanged = true) }
+    fun undoRemove(id: String) { removed.remove(id); persist(planChanged = true) }
 
     // ---- Navigation
 
@@ -229,7 +231,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
                 restoredAt = null
                 busy = null
                 startMeaningCheck(result, language)
-                persist()
+                persist(planChanged = true)
                 push(Route.Steps)
             } catch (e: CancellationException) {
                 throw e
@@ -264,7 +266,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
                 // One link counts at most one plan (helperLink.ts consumeHelperSession).
                 if (viaHelper) fromHelperLink = false
                 busy = null
-                persist()
+                persist(planChanged = true)
                 push(Route.Plan)
             } catch (e: CancellationException) {
                 throw e
@@ -318,6 +320,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         zip = saved.zip; note = saved.note; plan = saved.plan
         done.clear(); done.putAll(saved.done); removed.clear(); removed.putAll(saved.removed)
         readFp = saved.readFingerprint; planFp = saved.planFingerprint
+        planChangedAt = saved.savedAt
         meaning = if (saved.meaning.status == MeaningStatus.done) saved.meaning else MeaningState.IDLE
         restoring = false
         if (saved.care != null || saved.plan != null) restoredAt = saved.savedAt
@@ -326,13 +329,16 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         if (c != null && saved.meaning.status == MeaningStatus.loading) startMeaningCheck(c, saved.language)
     }
 
-    private fun persist() {
+    /** `planChanged`: a read, a plan, or a step done or removed, which moves the saved time "Welcome back" shows. */
+    private fun persist(planChanged: Boolean = false) {
         if (restoring || (care == null && plan == null)) return
+        val at = planChangedAt.takeUnless { planChanged } ?: System.currentTimeMillis()
+        planChangedAt = at
         val session = SavedSession(
             text = text, language = language, level = level, care = care, barriers = barriers.toList(),
             zip = zip, note = note, plan = plan, done = done.toMap(), removed = removed.toMap(),
             meaning = meaning, readFingerprint = readFp, planFingerprint = planFp,
-            savedAt = System.currentTimeMillis(),
+            savedAt = at,
         )
         try {
             store.save(session)
@@ -352,7 +358,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         cancel()
         cancelMeaning()
         meaning = MeaningState.IDLE
-        readFp = null; planFp = null
+        readFp = null; planFp = null; planChangedAt = null
         helperBanner = null; fromHelperLink = false
         store.clear()
         restoring = true

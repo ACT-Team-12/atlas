@@ -21,7 +21,8 @@ data class SavedSession(
     /** What the steps were read from and what the plan was built from (StaleGuard). Null in older files. */
     val readFingerprint: String? = null,
     val planFingerprint: String? = null,
-    /** Epoch milliseconds. */
+    /** Epoch milliseconds: when the steps or the plan last changed (a read, a plan, a step done or removed). Changing the
+     *  language, reading level, ZIP or note, or opening a helper link, keeps it, so "Welcome back" shows when the plan was made. */
     val savedAt: Long,
 ) {
     /**

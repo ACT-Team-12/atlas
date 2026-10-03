@@ -84,6 +84,30 @@ class SessionFixesTest {
         assertEquals(empty, empty.upgraded())
     }
 
+    // ---- Bug 2: opening a helper link moved the saved time
+
+    @Test fun helperLinkAndInputChangesKeepTheSavedTime() {
+        val dir = tempDir(); legacyFile(dir, savedAt = 1_000L)
+        val model = AppModel(TestApp(dir))
+        assertEquals(1_000L, model.restoredAt)
+        model.applyHelperLink(HelperPresets(language = Language.Vietnamese, level = ReadingLevel.standard, zip = "30310"))
+        model.updateNote("bring my list")
+        model.toggle(com.stephensookra.atlas.data.Barrier.transport)
+        val saved = SessionStore(dir).load()!!
+        assertEquals("the presets were saved", Language.Vietnamese, saved.language)
+        assertEquals("but the plan's time was not touched", 1_000L, saved.savedAt)
+        assertEquals("the next launch still says when the plan was made", 1_000L, AppModel(TestApp(dir)).restoredAt)
+    }
+
+    @Test fun aRealPlanChangeMovesTheSavedTime() {
+        val dir = tempDir(); legacyFile(dir, savedAt = 1_000L)
+        val model = AppModel(TestApp(dir))
+        val id = model.items.first().id
+        val before = System.currentTimeMillis()
+        model.remove(id)
+        assertTrue(SessionStore(dir).load()!!.savedAt >= before)
+    }
+
     // ---- Missed lines follow Remove and Undo
 
     @Test fun missedLinesFollowRemoveAndUndo() {

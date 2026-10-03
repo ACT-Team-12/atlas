@@ -74,7 +74,8 @@ Rules:
 - Ids go ONLY in care_ids and resource_ids. Never write an id (like item-3 or a resource id) in summary, title, action, why or ask_a_person_reason; name the test, visit or program in words instead.
 - For a "schedule" barrier, prefer clinics with open_evenings or open_weekends true and you may say they list evening or weekend hours. Never state exact hours in your text (the app shows the listed hours), and suggest calling to confirm.
 - Write in the requested language, at a plain reading level, kind and direct. 3 to 7 steps.
-- Set ask_a_person true if a barrier has no matching verified resource, or the situation sounds urgent or unsafe, and say why.`;
+- Set ask_a_person true if a barrier has no matching verified resource, or the situation sounds urgent or unsafe, and say why.
+- Never write the patient's name or any personal detail about them (birth date, age, record or insurance number, phone, email, address). Speak to them as "you". Personal details on the paper are hidden as placeholders like ⟦NAME_A⟧: never write a placeholder, not even in brackets.`;
 
 /** Nearest first, one card per site: an Atlanta record and its HRSA row can describe the same place (same name and ZIP). */
 export function mergeNearest<T extends { clinic: Clinic; km: number }>(list: T[], n: number): T[] {

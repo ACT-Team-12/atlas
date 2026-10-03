@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { combine, fractionsIn, numberCheckAnyForm, numbersIn, unexpectedNumbers } from "./meaning";
+import { combine, fractionsIn, numberCheck, numberCheckAnyForm, numbersIn, unexpectedNumbers } from "./meaning";
 
 const lisinopril = "lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily. Previously 10 mg once daily.";
 
@@ -17,9 +17,10 @@ describe("meaning check: numbers (no AI)", () => {
 
   it("catches a changed dose or interval", () => {
     expect(unexpectedNumbers({ plain_language: "Take 4 pills (40 mg total) once a day.", source_quote: lisinopril })).toEqual(["4", "40"]);
-    // Known blind spot: "every 2 hours" passes because 2 appears elsewhere in the quote ("2 puffs").
-    // The second model is what catches this one; the meaning eval measures it.
-    expect(unexpectedNumbers({ plain_language: "Use 2 puffs every 2 hours.", source_quote: "Albuterol inhaler: 2 puffs with spacer every 4 hours as needed" })).toEqual([]);
+    // "every 2 hours" has no unexpected number (2 is in "2 puffs"), but 2 never goes with hours in the quote, so it is
+    // uncheckable and never certified (Codex round 6).
+    const albuterol = { plain_language: "Use 2 puffs every 2 hours.", source_quote: "Albuterol inhaler: 2 puffs with spacer every 4 hours as needed" };
+    expect(numberCheck(albuterol)).toEqual({ unexpected: [], uncheckable: true });
     expect(unexpectedNumbers({ plain_language: "Use 2 puffs every 6 hours.", source_quote: "Albuterol inhaler: 2 puffs with spacer every 4 hours as needed" })).toEqual(["6"]);
   });
 });
@@ -124,5 +125,47 @@ describe("Codex round 5: a fraction is one value, never two whole numbers", () =
     expect(caught("Do not eat after midnight.", "半夜以后不要吃东西。", "Chinese")).toEqual({ certified: true, prepBlocked: false });
     expect(caught("Take 2 tablets.", "반드시 두 알을 드세요.", "Korean")).toEqual({ certified: true, prepBlocked: false });
     expect(fractionsIn("Take 1/2 tablet and 1 1/2 cups.")).toMatchObject({ values: ["1/2"], mixed: true });
+  });
+});
+
+describe("Codex round 6: the same numbers on swapped units are never certified", () => {
+  const base = { id: "x", when: "" };
+  const albuterol = "Albuterol inhaler: 2 puffs with spacer every 4 hours as needed";
+  it.each([
+    [albuterol, "Use 4 puffs every 2 hours.", undefined],
+    [albuterol, "Use four puffs every two hours.", "English"],
+    [albuterol, "Use 4 puffs as needed.", undefined],
+    [albuterol, "Use 2 of them every 2 hours.", undefined],
+    [albuterol, "Use 4 inhalaciones cada 2 horas.", "Spanish"],
+    [albuterol, "Utilisez 4 bouffées toutes les 2 heures.", "French"],
+    [albuterol, "Dùng 4 nhát mỗi 2 giờ.", "Vietnamese"],
+    [albuterol, "每2小时吸4次。", "Chinese"],
+    ["Take 1 tablet 3 times a day for 7 days.", "Take 3 tablets once a day for 7 days.", undefined],
+    ["Drink 8 ounces every 15 minutes.", "Drink 15 ounces every 8 minutes.", undefined],
+  ] as const)("paper %j, explanation %j: never certified, blocked in prep", (paper, plain, lang) => {
+    expect(combine("x", { ...base, source_quote: paper, plain_language: plain }, "same", "", lang).certified).toBe(false);
+    const any = numberCheckAnyForm({ source_quote: paper, plain_language: plain }, lang ?? "English");
+    expect(any.unexpected.length > 0 || any.uncheckable).toBe(true);
+  });
+  it.each([
+    [albuterol, "Use 2 puffs every 4 hours when you need it.", undefined],
+    [albuterol, "Every 4 hours, use 2 puffs.", undefined],
+    [albuterol, "Use two puffs every four hours.", "English"],
+    [albuterol, "Use 2 inhalaciones cada 4 horas.", "Spanish"],
+    ["Take 2 bisacodyl tablets at 3 PM.", "Take 2 bisacodyl tablets at 3 PM.", undefined],
+    ["Arrive at 7:00 AM at Midtown Endoscopy Center, 2nd floor, 100 Sample Street.", "Get there at 7:00 AM, 2nd floor.", undefined],
+    ["Call 404-555-0199 if you cannot finish the prep.", "Call 404-555-0199 if you can't finish.", undefined],
+  ] as const)("paper %j, explanation %j: still certified and shown", (paper, plain, lang) => {
+    expect(combine("x", { ...base, source_quote: paper, plain_language: plain }, "same", "", lang).certified).toBe(true);
+    expect(numberCheckAnyForm({ source_quote: paper, plain_language: plain }, lang ?? "English")).toEqual({ unexpected: [], uncheckable: false });
+  });
+});
+
+describe("Codex round 6: an English number word with a unit is a quantity on the care-plan path", () => {
+  const base = { id: "x", when: "" };
+  it("\"three tablets\" against \"Take 2 tablets\" is never certified; \"two tablets\" still is", () => {
+    expect(combine("x", { ...base, source_quote: "Take 2 tablets.", plain_language: "Take three tablets." }, "same", "").certified).toBe(false);
+    expect(combine("x", { ...base, source_quote: "Take 2 tablets.", plain_language: "Take two tablets." }, "same", "").certified).toBe(true);
+    expect(combine("x", { ...base, source_quote: "Go to any lab location.", plain_language: "Go to one of the lab locations." }, "same", "").certified).toBe(true);
   });
 });

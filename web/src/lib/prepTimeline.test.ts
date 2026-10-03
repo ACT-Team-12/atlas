@@ -442,3 +442,12 @@ describe("Codex round 6: a step never borrows the time of another part of its se
     expect([...r.timeline.flatMap((g) => g.steps), ...r.ask][0]).toMatchObject({ slot: null, reason: "repeated" });
   });
 });
+
+describe("Codex round 6: swapped dose and interval never reach the page", () => {
+  it("\"4 puffs every 2 hours\" against \"2 puffs every 4 hours\" is blocked and shows the paper's sentence", () => {
+    const line = "Use your inhaler, 2 puffs every 4 hours, the day before your procedure.";
+    const r = buildPrepTimeline(`PREP SHEET (sample)\n- ${line}`, [item({ kind: "medicine", source_quote: line, plain_language: "Use 4 puffs every 2 hours the day before." })]);
+    const [s] = [...r.timeline.flatMap((g) => g.steps), ...r.ask];
+    expect(s).toMatchObject({ source_quote: line, numbers_blocked: true, plain_language: "" });
+  });
+});

@@ -115,6 +115,120 @@ function quoteNumbers(item: { when?: string; source_quote: string }, language?: 
   return { allowed, uncheckable };
 }
 
+// ---------------------------------------------------------------- which number goes with which unit
+
+const UNIT_CLASSES: [string, RegExp][] = [
+  ["dose", /^(?:tablets?|pills?|capsules?|puffs?|drops?|doses?|patch(?:es)?|injections?|units?|sprays?|tabletas?|pastillas?|c[áa]psulas?|comprimidos?|gotas?|inhalaci[óo]n|inhalaciones|unidades|unidad|parches?|comprim[ée]s?|pilules?|g[ée]lules?|cachets?|gouttes?|bouff[ée]es?|unit[ée]s?|viên|giọt|nhát|liều|miếng)$/u],
+  ["mass", /^(?:mg|mcg|g|grams?|milligrams?|micrograms?|gramos?|miligramos?|grammes?|milligrammes?|gam)$/u],
+  ["volume", /^(?:ml|l|oz|ounces?|cups?|glass(?:es)?|liters?|litres?|teaspoons?|tablespoons?|tsp|tbsp|tazas?|vasos?|onzas?|litros?|cucharadas?|cucharaditas?|verres?|tasses?|onces?|cuill[èe]res?|cốc|ly|lít|muỗng|thìa)$/u],
+  ["minute", /^(?:minutes?|mins?|minutos?|phút)$/u],
+  ["hour", /^(?:hours?|hrs?|horas?|heures?|giờ)$/u],
+  ["day", /^(?:days?|d[íi]as?|jours?|ngày)$/u],
+  ["week", /^(?:weeks?|semanas?|semaines?|tuần)$/u],
+  ["month", /^(?:months?|mes|meses|mois|tháng)$/u],
+  ["times", /^(?:times?|x|vez|veces|fois|lần)$/u],
+  ["clock", /^(?:am|pm|a\.m\.?|p\.m\.?|o'clock|o’clock|h)$/u],
+];
+const CJK_UNIT_CLASSES: [string, RegExp][] = [
+  ["dose", /^(?:片|粒|颗|顆|알|정|캡슐|방울)/u],
+  ["mass", /^(?:毫克|밀리그램)/u],
+  ["volume", /^(?:毫升|杯|밀리리터|컵|잔)/u],
+  ["minute", /^(?:分钟|分鐘|분)/u],
+  ["hour", /^(?:小时|小時|시간)/u],
+  ["day", /^(?:天|日|일)/u],
+  ["week", /^(?:周|週|星期|주)/u],
+  ["month", /^(?:个月|個月|개월|달)/u],
+  ["times", /^(?:次|회|번)/u],
+  ["clock", /^(?:点|點|시)/u],
+];
+function unitClass(word: string | undefined): string | null {
+  if (!word) return null;
+  const w = word.toLowerCase();
+  for (const [c, re] of UNIT_CLASSES) if (re.test(w)) return c;
+  for (const [c, re] of CJK_UNIT_CLASSES) if (re.test(w)) return c;
+  return null;
+}
+
+/**
+ * Each number in `text` with the kind of unit right after it ("2 puffs" is 2 dose, "every 4 hours" is 4 hour,
+ * "twice" is 2 times). `words` also reads number words in the given languages. `found` is every value read here.
+ */
+const HALF_WORD_ONE = /^(?:half|halves|medio|media|medias|mitad|demi|demie|demis|moitié|nửa|半|반)$/iu;
+const QUARTER_WORD_ONE = /^(?:quarter|quarters|cuarto|cuartos|cuarta|quart|quarts)$/iu;
+
+function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [string, string | null][]; found: Set<string> } {
+  const toks = [...text.matchAll(/\d{3}[-.]\d{3}[-.]\d{4}|\d{1,2}:\d{2}|\d+(?:st|nd|rd|th)(?![\p{L}\p{M}])|\d+(?:[.,]\d+)*(?:\s*[/⁄∕]\s*\d+)?|[ap]\.\s?m\.?|[\p{L}\p{M}]+/giu)].map((m) => m[0]);
+  const pairs: [string, string | null][] = [];
+  const found = new Set<string>();
+  const isNumberTok = (t: string | undefined) => !!t && (/^\d/.test(t) || languages.some((l) => readNumberWords(t, l).numbers.length > 0));
+  // The unit right after a number, or one or two words on ("2 bisacodyl tablets"), never past another number.
+  const unitAfter = (i: number): string | null => {
+    for (let k = i + 1; k <= i + 3 && k < toks.length; k++) {
+      const c = unitClass(toks[k]);
+      if (c) return c;
+      if (isNumberTok(toks[k])) return null;
+    }
+    return null;
+  };
+  for (let i = 0; i < toks.length; i++) {
+    const tok = toks[i];
+    const next = toks[i + 1];
+    if (/^\d{1,2}:\d{2}$/.test(tok) || /^\d{3}[-.]\d{3}[-.]\d{4}$/.test(tok)) {
+      const cls = tok.includes(":") ? "clock" : "phone";
+      for (const part of tok.split(/[:.-]/)) { found.add(part); pairs.push([part, cls]); }
+      continue;
+    }
+    if (HALF_WORD_ONE.test(tok) || QUARTER_WORD_ONE.test(tok)) {
+      const v = HALF_WORD_ONE.test(tok) ? "1/2" : "1/4";
+      found.add(v);
+      pairs.push([v, unitAfter(i) ?? "portion"]);
+      continue;
+    }
+    let value: string | null = null;
+    let cls: string | null = null;
+    if (/^\d+(?:st|nd|rd|th)$/i.test(tok)) {
+      value = tok.replace(/\D+$/, "");
+      cls = "ordinal";
+    } else if (/^\d/.test(tok)) {
+      value = tok.replace(/\s+/g, "").replace(/[⁄∕]/gu, "/").replace(/,(?=\d{3}\b)/g, "");
+      cls = unitAfter(i);
+    } else if (/^(?:once|twice)$/i.test(tok)) {
+      value = /^once$/i.test(tok) ? "1" : "2";
+      cls = "times";
+    } else {
+      for (const lang of languages) {
+        const both = readNumberWords(`${tok} ${next ?? ""}`, lang).numbers;
+        if (both.length === 1 && readNumberWords(next ?? "", lang).numbers.length === 0) { value = both[0]; break; }
+      }
+      if (value !== null) cls = unitAfter(i);
+    }
+    if (value === null) continue;
+    found.add(value);
+    pairs.push([value, cls]);
+  }
+  return { pairs, found };
+}
+
+/**
+ * True when the quote names two or more different numbers and the explanation's numbers can't each be matched to the
+ * same number WITH THE SAME UNIT in the quote. "2 puffs every 4 hours" read as "4 puffs every 2 hours" has the same
+ * set of numbers, so the set check alone passes it (Codex round 6). A number in the explanation with no unit we
+ * know, or one we could not place (a number word in Chinese or Korean, a compound like "twenty-four"), also counts:
+ * we can't tell which quantity it is, so the step is not certified.
+ */
+function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<string>, languages: NumberLanguage[]): boolean {
+  const q = quoteTexts.flatMap((t) => numberUnits(t, ["English", ...languages.filter((l) => l !== "English")]).pairs);
+  if (new Set(q.map(([n]) => n)).size < 2 || plainNumbers.size === 0) return false;
+  const p = numberUnits(plain, languages);
+  if ([...plainNumbers].some((n) => !p.found.has(n))) return true;
+  // Only the numbers the caller counts ("one of the lab locations" is not a quantity on the care-plan path).
+  p.pairs = p.pairs.filter(([n]) => plainNumbers.has(n));
+  const known = new Set(q.map(([n, c]) => `${n}|${c}`));
+  // A number with no unit is fine only where the quote never gives that number a unit either ("100 Sample Street").
+  const unitless = (n: string) => q.some(([m]) => m === n) && q.every(([m, c]) => m !== n || c === null);
+  return p.pairs.some(([n, c]) => (c === null ? !unitless(n) : !known.has(`${n}|${c}`)));
+}
+
 /**
  * Deterministic signal for the care plan: numbers in the explanation that the quote (or when) does not contain.
  * A total the paper states elsewhere in the same quote is fine; an invented dose or interval is not.
@@ -128,8 +242,17 @@ export function numberCheck(item: NumItem, language?: NumberLanguage): NumberChe
   const f = fractionsIn(item.plain_language);
   const plain = language && language !== "English" ? readNumberWords(f.rest, language) : null;
   const foreignDigits = readNumberWords(item.plain_language.replace(/\p{L}/gu, " "), "English").uncheckable;
-  const unexpected = [...new Set([...f.values, ...digitsIn(f.rest), ...(plain?.numbers ?? [])])].filter((n) => !q.allowed.has(n));
-  return { unexpected, uncheckable: language === "Amharic" || q.uncheckable || foreignDigits || !!plain?.uncheckable || f.mixed };
+  const counted = new Set([...f.values, ...digitsIn(f.rest), ...(plain?.numbers ?? [])]);
+  const unexpected = [...counted].filter((n) => !q.allowed.has(n));
+  // English number words stay out of `unexpected` (see above). But an English word WITH a unit after it ("four
+  // puffs", "twice") is a quantity: if the quote doesn't have that number, or it sits on another unit, the step is
+  // not certified (Codex round 6).
+  const english = !language || language === "English";
+  const langs: NumberLanguage[] = english ? ["English"] : language === "Amharic" ? [] : [language];
+  const wordQty = english ? numberUnits(f.rest, ["English"]).pairs.filter(([n, c]) => c !== null && !counted.has(n)).map(([n]) => n) : [];
+  const wordsOff = wordQty.some((n) => !q.allowed.has(n));
+  const swapped = unexpected.length === 0 && unitsSwapped([item.source_quote, item.when ?? ""], item.plain_language, new Set([...counted, ...wordQty]), langs);
+  return { unexpected, uncheckable: language === "Amharic" || q.uncheckable || foreignDigits || !!plain?.uncheckable || f.mixed || swapped || wordsOff };
 }
 export const unexpectedNumbers = (item: NumItem, language?: NumberLanguage): string[] => numberCheck(item, language).unexpected;
 
@@ -145,7 +268,10 @@ export function numberCheckAnyForm(item: NumItem, language: NumberLanguage = "En
   const en = readNumberWords(f.rest, "English");
   const own = language === "English" ? en : readNumberWords(f.rest, language);
   const inPlain = new Set([...f.values, ...numbersIn(f.rest), ...en.numbers, ...own.numbers]);
-  return { unexpected: [...inPlain].filter((n) => !q.allowed.has(n)), uncheckable: q.uncheckable || own.uncheckable || (language === "English" && en.uncheckable) || f.mixed };
+  const unexpected = [...inPlain].filter((n) => !q.allowed.has(n));
+  const langs: NumberLanguage[] = language === "English" || language === "Amharic" ? ["English"] : ["English", language];
+  const swapped = unexpected.length === 0 && unitsSwapped([item.source_quote, item.when ?? ""], item.plain_language, inPlain, langs);
+  return { unexpected, uncheckable: q.uncheckable || own.uncheckable || (language === "English" && en.uncheckable) || f.mixed || swapped };
 }
 export const unexpectedNumbersAnyForm = (item: NumItem, language: NumberLanguage = "English"): string[] => numberCheckAnyForm(item, language).unexpected;
 

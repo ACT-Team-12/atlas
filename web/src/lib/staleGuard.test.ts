@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { anchorHolds, ANCHOR_MS, isEditable, photoId, planFingerprint, planPlace, readFingerprint, shouldAutoScroll } from "./staleGuard";
 
 const read = { text: "paper one", photo: null, language: "English", level: "simple" };
-const plan = { careIds: ["c1", "c2"], barriers: ["transport", "cost"], language: "English", note: "", place: "30030" };
+const plan = { careIds: ["c1", "c2"], barriers: ["transport", "cost"], language: "English", note: "", place: "30030", location: null };
 
 describe("readFingerprint", () => {
   it("is the same for the same inputs", () => expect(readFingerprint(read)).toBe(readFingerprint({ ...read })));
@@ -25,6 +25,17 @@ describe("planFingerprint", () => {
     for (const change of [{ barriers: ["cost"] }, { note: "no car" }, { place: "30340" }, { place: "device" }, { language: "French" }, { careIds: ["c1"] }]) {
       expect(planFingerprint({ ...plan, ...change })).not.toBe(planFingerprint(plan));
     }
+  });
+  it("a new device position is a different request, even though place still says device", () => {
+    const a = { ...plan, place: "device", location: { lat: 33.75, lng: -84.39 } };
+    expect(planFingerprint(a)).toBe(planFingerprint({ ...a, location: { lat: 33.75, lng: -84.39 } }));
+    expect(planFingerprint(a)).not.toBe(planFingerprint({ ...a, location: { lat: 33.76, lng: -84.39 } }));
+    expect(planFingerprint(a)).not.toBe(planFingerprint({ ...a, location: { lat: 33.75, lng: -84.4 } }));
+    expect(planFingerprint(a)).not.toBe(planFingerprint({ ...a, location: null }));
+  });
+  it("normalizes -0 so the same position always matches", () => {
+    const a = { ...plan, place: "device", location: { lat: 0, lng: -84.39 } };
+    expect(planFingerprint(a)).toBe(planFingerprint({ ...a, location: { lat: -0, lng: -84.39 } }));
   });
 });
 

@@ -442,7 +442,7 @@ export function CarePlanTool() {
     pendingPlan.current?.abort.abort();
     const abort = new AbortController();
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
-    pendingPlan.current = { run, abort, at: performance.now(), fp: planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip) }) };
+    pendingPlan.current = { run, abort, at: performance.now(), fp: planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip), location: loc }) };
     setPlanning(true); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null);
     try {
       const body = {
@@ -606,7 +606,7 @@ export function CarePlanTool() {
     const p = pendingPlan.current;
     if (!p || p.run !== planRun.current) return;
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
-    if (planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip) }) === p.fp) return;
+    if (planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip), location: loc }) === p.fp) return;
     planRun.current++; p.abort.abort(); pendingPlan.current = null;
     setPlanning(false);
     setPlanNote("You changed your answers, so we stopped building the plan. Press Make my plan again when ready.");

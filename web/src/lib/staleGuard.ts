@@ -21,6 +21,8 @@ export type PlanInputs = {
   note: string;
   /** "device" when the device location is used, otherwise the ZIP sent (or ""). */
   place: string;
+  /** The device location sent, or null. A new position is a different request, so it counts. */
+  location: { lat: number; lng: number } | null;
 };
 
 /** Order-free where order means nothing (barriers), exact everywhere else. */
@@ -29,7 +31,14 @@ export function readFingerprint(r: ReadInputs): string {
 }
 
 export function planFingerprint(p: PlanInputs): string {
-  return JSON.stringify([p.careIds, [...p.barriers].sort(), p.language, p.note, p.place]);
+  return JSON.stringify([p.careIds, [...p.barriers].sort(), p.language, p.note, p.place, normalLocation(p.location)]);
+}
+
+/** The exact coordinates sent, in one canonical form (-0 is 0, anything not a finite number is null). */
+function normalLocation(l: { lat: number; lng: number } | null): [number | null, number | null] | null {
+  if (!l) return null;
+  const n = (x: number) => (Number.isFinite(x) ? x + 0 : null);
+  return [n(l.lat), n(l.lng)];
 }
 
 /** A stable name for a chosen photo file, so choosing a different photo counts as a change. */

@@ -48,6 +48,20 @@ describe("natural voice", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("never caches a phone call's audio (keep: false), and does not extend a cached entry's life for one", async () => {
+    fetchMock.mockImplementation(async () => new Response(mp3(), { status: 200 }));
+    const text = `Your plan ${Math.random()}`;
+    expect((await synthesize(text, "English", { keep: false })).cached).toBe(false);
+    // nothing was kept: the next request, of either kind, goes to the vendor again
+    expect((await synthesize(text, "English", { keep: false })).cached).toBe(false);
+    expect((await synthesize(text, "English")).cached).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // an entry read aloud on the page can serve a call, but the call does not refresh it: it is still evicted first
+    expect((await synthesize(text, "English", { keep: false })).cached).toBe(true);
+    for (let i = 0; i < 40; i++) await synthesize(`filler ${i} ${Math.random()}`, "English");
+    expect((await synthesize(text, "English", { keep: false })).cached).toBe(false);
+  });
+
   it("turns a vendor error or empty audio into a 502 the page answers with the phone's voice", async () => {
     fetchMock.mockResolvedValueOnce(new Response("quota", { status: 429 }));
     await expect(synthesize(`a ${Math.random()}`, "English")).rejects.toMatchObject({ status: 502 });

@@ -56,8 +56,9 @@ export type Deps = {
   speakSecret?: string;
 };
 
-const defaultVoice = async (text: string, language: Language) => {
-  try { return (await synthesize(text, language)).audio; } catch { return null; }
+export const defaultVoice = async (text: string, language: Language) => {
+  // keep: false: the call's audio must not outlive the call in the read-aloud cache (privacy page, "Phone calls").
+  try { return (await synthesize(text, language, { keep: false })).audio; } catch { return null; }
 };
 
 const codeHash = (secret: string, id: string, numberHash: string, code: string) =>

@@ -6,7 +6,8 @@ import { LANGUAGES } from "./schema";
  * Natural read-aloud voice (ElevenLabs), server only. Browser voices are missing or robotic for several of our
  * languages on many phones. Amharic has no ElevenLabs voice, so the page keeps the phone's own voice for it.
  * The text is never logged or stored; audio is cached in memory by a hash of language + text so a judge replaying
- * the sample does not spend the monthly character allowance twice.
+ * the sample does not spend the monthly character allowance twice. A phone call's audio is never put in (or kept
+ * longer in) that cache (`keep: false`): its only copy is the encrypted one deleted when the call ends (lib/call).
  */
 export const VOICE_ID = "EXAVITQu4vr4xnSDxMaL"; // "Sarah": warm, reassuring, premade
 export const VOICE_MODEL = "eleven_flash_v2_5";
@@ -46,7 +47,8 @@ export const resetVoiceStateForTests = () => { cache.clear(); inflight.clear(); 
 // Length-prefixed, never joined on a separator: free text can contain any separator and collide.
 export const cacheKey = (language: string, text: string) => createHash("sha256").update(`${language.length}:${language}${text.length}:${text}`).digest("hex");
 
-export async function synthesize(text: string, language: (typeof LANGUAGES)[number]): Promise<{ audio: ArrayBuffer; cached: boolean }> {
+export async function synthesize(text: string, language: (typeof LANGUAGES)[number], opts: { keep?: boolean } = {}): Promise<{ audio: ArrayBuffer; cached: boolean }> {
+  const keep = opts.keep ?? true;
   const code = VOICE_LANG[language];
   if (!code) throw new VoiceError(`No natural voice for ${language} yet. Using your phone's voice.`, 422);
   const key = process.env.ELEVENLABS_API_KEY;
@@ -54,7 +56,10 @@ export async function synthesize(text: string, language: (typeof LANGUAGES)[numb
 
   const k = cacheKey(language, text);
   const hit = cache.get(k);
-  if (hit) { cache.delete(k); cache.set(k, hit); return { audio: hit, cached: true }; } // refresh LRU order
+  if (hit) {
+    if (keep) { cache.delete(k); cache.set(k, hit); } // refresh LRU order; a call never extends an entry's life
+    return { audio: hit, cached: true };
+  }
   const pending = inflight.get(k);
   if (pending) return { audio: await pending, cached: true };
   if (!chargeBudget(text.length)) throw new VoiceError("Natural voice is resting for a bit. Using your phone's voice.", 429);
@@ -62,6 +67,7 @@ export async function synthesize(text: string, language: (typeof LANGUAGES)[numb
   const job = vendor(key, code, text).finally(() => inflight.delete(k));
   inflight.set(k, job);
   const audio = await job;
+  if (!keep) return { audio, cached: false };
   cache.set(k, audio);
   if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
   return { audio, cached: false };

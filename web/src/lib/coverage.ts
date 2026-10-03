@@ -340,21 +340,45 @@ export function classifySentence(text: string, options: CoverageOptions = {}): I
 /* Coverage.                                                                                  */
 /* ------------------------------------------------------------------------------------------ */
 
+const ELLIPSIS = /\.\.\.|…/;
+
+/**
+ * The exact stretches of the paper an item quotes. findSpan returns ONE envelope from the first ellipsis
+ * fragment to the last, which would also "cover" whatever the model skipped with "...". So a quote with an
+ * ellipsis is located fragment by fragment, in order, inside that envelope.
+ */
+function quotedRanges(source: string, it: CoverageItem): { start: number; end: number }[] {
+  const env = it.span ?? findSpan(source, it.source_quote);
+  if (!env || env.end <= env.start) return [];
+  if (!ELLIPSIS.test(it.source_quote)) return [env];
+  const out: { start: number; end: number }[] = [];
+  let cursor = env.start;
+  for (const frag of it.source_quote.split(ELLIPSIS)) {
+    if (!/[\p{L}\p{N}]/u.test(frag)) continue;
+    const at = findSpan(source.slice(cursor, env.end), frag);
+    if (!at) return []; // cannot place it: cover nothing rather than guess
+    out.push({ start: cursor + at.start, end: cursor + at.end });
+    cursor += at.end;
+  }
+  return out;
+}
+
+/** Words and numbers a partial quote must not drop: every one in a sentence has to sit inside a quote. */
+const CRITICAL = /\p{N}+(?:[.,]\p{N}+)*|\b(?:stop|not|don['’]t|dont|never|avoid|no)\b/giu;
+
 /**
  * Compares the paper's instruction-like sentences with the kept items' quotes.
  *
- * A sentence is covered when its [start, end) overlaps any kept item's span by at least one character.
+ * A sentence is covered when the kept quotes overlap it AND every number and every stop / not / never /
+ * avoid word in it lies inside a quote. So "Take 2 tablets" does not cover "Take 2 tablets for 10 days",
+ * and a quote "Take aspirin daily. ... Call clinic Monday." does not cover a line it skipped with "...".
  * Items use the span the verifier already found; an item without one is located with findSpan (the same
  * normalization the verifier uses). An item whose quote cannot be found covers nothing.
  * findSpan returns the FIRST occurrence only, so a sentence whose normalized text repeats a covered
  * sentence word for word ("Call 911 if ..." printed twice) is counted as covered too.
  */
 export function checkCoverage(source: string, items: CoverageItem[], options: CoverageOptions = {}): CoverageReport {
-  const spans: { start: number; end: number }[] = [];
-  for (const it of items) {
-    const span = it.span ?? findSpan(source, it.source_quote);
-    if (span && span.end > span.start) spans.push(span);
-  }
+  const spans = items.flatMap((it) => quotedRanges(source, it));
   spans.sort((a, b) => a.start - b.start);
   // Merge overlapping spans so the sweep below is a single pass.
   const merged: { start: number; end: number }[] = [];
@@ -370,7 +394,17 @@ export function checkCoverage(source: string, items: CoverageItem[], options: Co
     const reason = classifySentence(s.text, options);
     if (!reason) continue;
     while (p < merged.length && merged[p].end <= s.start) p++;
-    const covered = p < merged.length && merged[p].start < s.end;
+    let covered = p < merged.length && merged[p].start < s.end;
+    if (covered) {
+      // Every critical token must be inside one merged span. Tokens and spans are both in paper order.
+      let q = p;
+      CRITICAL.lastIndex = 0;
+      for (let m = CRITICAL.exec(s.text); m && covered; m = CRITICAL.exec(s.text)) {
+        const a = s.start + m.index, b = a + m[0].length;
+        while (q < merged.length && merged[q].end < b) q++;
+        covered = q < merged.length && merged[q].start <= a;
+      }
+    }
     instructions.push({ s, reason, covered });
   }
 

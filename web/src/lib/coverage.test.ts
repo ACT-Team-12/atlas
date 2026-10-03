@@ -202,7 +202,7 @@ describe("checkCoverage details", () => {
   const src = "Take 1 tablet daily.\nCall 911 if you cannot breathe.\nCall 911 if you cannot breathe.";
 
   it("uses a span already found by the verifier instead of searching again", () => {
-    const r = checkCoverage(src, [{ source_quote: "not in the paper at all", span: { start: 0, end: 4 } }]);
+    const r = checkCoverage(src, [{ source_quote: "not in the paper at all", span: { start: 0, end: 20 } }]);
     expect(r.uncovered.map((u) => u.text)).toEqual(["Call 911 if you cannot breathe.", "Call 911 if you cannot breathe."]);
   });
 
@@ -215,6 +215,27 @@ describe("checkCoverage details", () => {
   it("counts a word-for-word repeat of a covered sentence as covered", () => {
     const r = checkCoverage(src, [quote("Take 1 tablet daily."), quote("Call 911 if you cannot breathe.")]);
     expect(r).toEqual({ total: 3, covered: 3, uncovered: [] });
+  });
+
+  it("a partial quote that drops a number or a stop word does not cover the sentence", () => {
+    const paper = "Take 2 tablets for 10 days.\nDo not take ibuprofen with this medicine.";
+    const r = checkCoverage(paper, [quote("Take 2 tablets"), quote("take ibuprofen with this medicine.")]);
+    expect(r.uncovered.map((u) => u.text)).toEqual(["Take 2 tablets for 10 days.", "Do not take ibuprofen with this medicine."]);
+    const whole = checkCoverage(paper, [quote("Take 2 tablets for 10 days."), quote("Do not take ibuprofen with this medicine.")]);
+    expect(whole.uncovered).toEqual([]);
+  });
+
+  it("an ellipsis quote covers only its fragments, not the line it skipped", () => {
+    const paper = "Take aspirin daily.\nSTOP ibuprofen now.\nCall the clinic Monday.";
+    const r = checkCoverage(paper, [quote("Take aspirin daily. ... Call the clinic Monday.")]);
+    expect(r.uncovered.map((u) => u.text)).toEqual(["STOP ibuprofen now."]);
+    expect(r.covered).toBe(2);
+  });
+
+  it("an ellipsis quote whose fragments cannot be placed covers nothing", () => {
+    const paper = "Take aspirin daily.\nCall the clinic Monday.";
+    const r = checkCoverage(paper, [{ source_quote: "Take aspirin daily. ... Call the pharmacy.", span: { start: 0, end: paper.length } }]);
+    expect(r.covered).toBe(0);
   });
 
   it("reports the rule that fired", () => {

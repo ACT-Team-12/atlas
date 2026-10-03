@@ -63,7 +63,8 @@ fun CareStepsScreen(model: AppModel) {
     }
     ScreenBody {
         ScreenTitle("Your steps", "Each one is quoted from your paper.")
-        if (model.careOutdated) OutdatedNote("You changed the text, language or reading level since this was read. Read your paper again to update these steps.")
+        if (model.careProvenanceUnknown) OutdatedNote("These steps were saved by an older version of ATLAS, which did not keep what they were read from. Read your paper again to update them.")
+        else if (model.careOutdated) OutdatedNote("You changed the text, language or reading level since this was read. Read your paper again to update these steps.")
         if (care.has_warning_signs) WarningBanner()
         Text(
             "${care.stats.grounded} steps found in your paper · ${care.stats.refused} held back because we couldn't show their words from your paper · " +
@@ -78,9 +79,12 @@ fun CareStepsScreen(model: AppModel) {
             else -> {}
         }
         // Paper first: read aloud carries an explanation only when it was certified; otherwise the paper's words.
-        ReadAloudBar(speaker, model.language, items.flatMapIndexed { i, it ->
-            listOf("${i + 1}.") + PaperFirst.lines(PaperFirst.careStep(it, model.checkFor(it.id)))
-        })
+        // Not offered when the steps' language is unknown (an older saved file): never a guessed voice.
+        model.stepsLanguage?.let { stepsLanguage ->
+            ReadAloudBar(speaker, stepsLanguage, items.flatMapIndexed { i, it ->
+                listOf("${i + 1}.") + PaperFirst.lines(PaperFirst.careStep(it, model.checkFor(it.id)))
+            })
+        }
 
         items.forEach { item ->
             val check = model.checkFor(item.id)
@@ -126,6 +130,9 @@ fun CareStepsScreen(model: AppModel) {
                 care.refused.forEach { r -> Text("• ${r.title}", style = Type.sub.copy(fontWeight = FontWeight.Normal)) }
             }
         }
+
+        // Where the website puts it: after the steps and the removed, not-in-paper and held-back lists, before moving on.
+        MissedLinesSection(model.missedLines)
 
         if (model.careOutdated) {
             PillButton("Read my paper again", onClick = { speaker.stop(); model.readPaper() },

@@ -30,5 +30,13 @@ object StaleGuard {
     fun readFingerprint(text: String, language: Language, level: ReadingLevel): String =
         AtlasJson.encodeToString(ListSerializer(String.serializer()), listOf(text, language.name, level.name))
 
+    /** The language a read fingerprint records, or null when it is not a fingerprint this app wrote. */
+    fun languageOf(readFingerprint: String): Language? = try {
+        val parts = AtlasJson.decodeFromString(ListSerializer(String.serializer()), readFingerprint)
+        if (parts.size == 3) Language.entries.firstOrNull { it.name == parts[1] } else null
+    } catch (_: Exception) {
+        null
+    }
+
     private fun num(x: Double) = if (x.isFinite()) JsonPrimitive(x + 0.0) else JsonNull
 }

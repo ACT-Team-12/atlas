@@ -119,6 +119,22 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     expect([row?.phase, row?.sealed_phone, row?.sealed_text]).toEqual(["failed", null, null]);
   });
 
+  it("never holds a live plan call and a new code for one number, even when the code is typed while a new one starts", async () => {
+    await store.startCode(session("r1", "h9"), NOW);
+    // The code is typed (code -> calling) in a transaction that has not committed yet ...
+    const typing = await pool.connect();
+    await typing.query("begin");
+    await typing.query("update atlas_calls set phase = 'calling', code_hash = null where id = 'r1' and phase = 'code'");
+    // ... while a new code for the same number starts (it sees r1 still in 'code' and waits on it).
+    const starting = store.startCode(session("r2", "h9", { code_expires_at: new Date(NOW + 10 * 60_000) }), NOW);
+    await new Promise((r) => setTimeout(r, 200));
+    await typing.query("commit");
+    typing.release();
+    expect(await starting).toBe("in-flight");
+    const { rows } = await pool.query("select id, phase from atlas_calls where phone_hash = 'h9' order by id");
+    expect(rows).toEqual([{ id: "r1", phase: "calling" }]);
+  });
+
   it("sweeps expired sessions and counters", async () => {
     await store.sweep(NOW + 3 * 24 * 3600_000);
     const { rows } = await pool.query("select (select count(*) from atlas_calls)::int as s, (select count(*) from atlas_call_counters)::int as c");

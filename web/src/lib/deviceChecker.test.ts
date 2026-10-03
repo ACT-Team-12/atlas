@@ -53,7 +53,9 @@ describe("the checker the browser runs (public/atlas_verify.wasm)", () => {
     const got = device.findSpans(src, quotes);
     expect(got).toEqual(quotes.map((q) => findSpan(src, q)));
     expect(got.filter((s) => s !== null)).toHaveLength(20);
-  });
+    // About 1 s alone; under the full parallel suite on a loaded machine it has crossed vitest's 5 s default, which
+    // would be the time assertion this test says it does not make.
+  }, 30_000);
 
   it("the browser screens check a whole plan with findSpans, never findSpan per item", () => {
     // findSpan maps the paper on every call, so a loop of them re-maps it once per item on the main thread.

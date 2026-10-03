@@ -3,6 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 
 export const MAX_RECORD_SECONDS = 20;
+/** The automatic stop fires this early, so a timer that runs a little late still lands inside the 20 s. */
+const AUTO_STOP_MS = MAX_RECORD_SECONDS * 1000 - 250;
+const TOO_LONG = `That recording ran longer than ${MAX_RECORD_SECONDS} seconds, so we didn't send it. Try again, or tap your answer.`;
+
+/**
+ * Whether a recording ran past the 20 s the privacy page promises, from monotonic clock readings (performance.now)
+ * taken when it started and when it was told to stop. Timers in a background tab can fire very late, so this is
+ * checked before sending, whatever stopped the recording.
+ */
+export function recordedTooLong(startedAt: number, stoppedAt: number): boolean {
+  return stoppedAt - startedAt > MAX_RECORD_SECONDS * 1000;
+}
 
 /** The first recording format this browser can make: WebM/Opus on Chrome, Firefox and Android; MP4 on Safari. */
 export function pickMimeType(isSupported: (t: string) => boolean): string | null {
@@ -27,6 +39,8 @@ export function SayAnswer({ enabled, language, token, onTranscript }: Props) {
   const [seconds, setSeconds] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
+  /** Stops the current recording and notes when, so its length is known before sending. */
+  const halt = useRef<(() => void) | null>(null);
   /** Stops whatever this recording holds (its own stream and timer). Set per recording, so a late one can't leak. */
   const release = useRef<(() => void) | null>(null);
   /** Set synchronously on tap, before any await, so a second tap during the permission prompt does nothing. */
@@ -84,11 +98,17 @@ export function SayAnswer({ enabled, language, token, onTranscript }: Props) {
     }
     // Everything this recording holds, released exactly once on every path: stop, error, limit or unmount.
     let timer: ReturnType<typeof setInterval> | null = null;
+    let limit: ReturnType<typeof setTimeout> | null = null;
+    let onHidden: (() => void) | null = null;
+    let stopNow: (() => void) | null = null;
     let released = false;
     const free = () => {
       if (released) return;
       released = true;
       if (timer) clearInterval(timer);
+      if (limit) clearTimeout(limit);
+      if (onHidden) document.removeEventListener("visibilitychange", onHidden);
+      if (stopNow) window.removeEventListener("pagehide", stopNow);
       mic.getTracks().forEach((t) => t.stop());
       if (release.current === free) release.current = null;
     };
@@ -97,23 +117,44 @@ export function SayAnswer({ enabled, language, token, onTranscript }: Props) {
     try {
       const rec = new MediaRecorder(mic, { mimeType: type, audioBitsPerSecond: 32_000 });
       const chunks: Blob[] = [];
+      let startedAt = 0, stoppedAt: number | null = null;
+      const end = () => {
+        if (rec.state !== "recording") return;
+        stoppedAt ??= performance.now();
+        rec.stop();
+      };
       rec.ondataavailable = (ev) => { if (ev.data.size > 0) chunks.push(ev.data); };
       rec.onstop = () => {
         free();
         if (recorder.current === rec) recorder.current = null;
+        if (halt.current === end) halt.current = null;
         if (cancelled.current) { busy.current = false; return; }
+        // Never send more than the 20 s the privacy page promises, however late a throttled timer fired.
+        if (recordedTooLong(startedAt, stoppedAt ?? performance.now())) {
+          busy.current = false;
+          setState("idle");
+          setMessage(TOO_LONG);
+          return;
+        }
         const base = type.split(";")[0];
         void send(new Blob(chunks, { type: base }), base);
       };
       recorder.current = rec;
       rec.start();
+      startedAt = performance.now();
+      halt.current = end;
       setSeconds(0);
       setState("recording");
-      const startedAt = Date.now();
+      // Background tabs throttle timers, so also stop the moment the page is hidden or left.
+      onHidden = () => { if (document.visibilityState === "hidden") end(); };
+      stopNow = end;
+      document.addEventListener("visibilitychange", onHidden);
+      window.addEventListener("pagehide", stopNow);
+      limit = setTimeout(end, AUTO_STOP_MS);
       timer = setInterval(() => {
-        const s = Math.min(MAX_RECORD_SECONDS, Math.floor((Date.now() - startedAt) / 1000));
+        const s = Math.min(MAX_RECORD_SECONDS, Math.floor((performance.now() - startedAt) / 1000));
         setSeconds(s);
-        if (s >= MAX_RECORD_SECONDS && rec.state === "recording") rec.stop();
+        if (s >= MAX_RECORD_SECONDS) end();
       }, 250);
     } catch {
       free();
@@ -125,7 +166,7 @@ export function SayAnswer({ enabled, language, token, onTranscript }: Props) {
   }
 
   function stop() {
-    if (recorder.current?.state === "recording") recorder.current.stop();
+    halt.current?.();
   }
 
   return (

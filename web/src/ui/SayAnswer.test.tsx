@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SayAnswer } from "./SayAnswer";
+import { recordedTooLong, SayAnswer } from "./SayAnswer";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -131,5 +131,65 @@ describe("Say your answer: the microphone is always released (Codex review, 2026
     render();
     await act(async () => { button().click(); });
     expect(status()).toMatch(/microphone is blocked/);
+  });
+});
+
+describe("Say your answer never sends more than 20 seconds (review finding, 2026-10-03)", () => {
+  let clock = 0;
+  beforeEach(() => { clock = 0; vi.spyOn(performance, "now").mockImplementation(() => clock); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("the timing rule: up to 20 s is sent, anything longer is not", () => {
+    expect(recordedTooLong(1_000, 21_000)).toBe(false);
+    expect(recordedTooLong(1_000, 21_001)).toBe(true);
+    expect(recordedTooLong(0, 95_000)).toBe(true);
+  });
+
+  it("a recording that ran past 20 s (a throttled background timer) is refused with a plain message, not sent", async () => {
+    const { stream, track } = fakeStream();
+    getUserMedia.mockResolvedValue(stream);
+    render();
+    await act(async () => { button().click(); });
+    clock = 25_000; // the tab was in the background and the timer never fired
+    await act(async () => { button().click(); }); // Stop
+    expect(fetch).not.toHaveBeenCalled();
+    expect(track.stop).toHaveBeenCalled();
+    expect(status()).toMatch(/longer than 20 seconds/);
+    expect(button().textContent).toMatch(/Say your answer/);
+  });
+
+  it("a recording stopped inside 20 s is still sent", async () => {
+    getUserMedia.mockResolvedValue(fakeStream().stream);
+    render();
+    await act(async () => { button().click(); });
+    clock = 19_900;
+    await act(async () => { button().click(); });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops when the page is hidden", async () => {
+    const { stream, track } = fakeStream();
+    getUserMedia.mockResolvedValue(stream);
+    render();
+    await act(async () => { button().click(); });
+    expect(recorders.at(-1)?.state).toBe("recording");
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    try {
+      await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    } finally {
+      Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+    }
+    expect(recorders.at(-1)?.state).toBe("inactive");
+    expect(track.stop).toHaveBeenCalled();
+  });
+
+  it("stops when the page is left (pagehide)", async () => {
+    const { stream, track } = fakeStream();
+    getUserMedia.mockResolvedValue(stream);
+    render();
+    await act(async () => { button().click(); });
+    await act(async () => { window.dispatchEvent(new Event("pagehide")); });
+    expect(recorders.at(-1)?.state).toBe("inactive");
+    expect(track.stop).toHaveBeenCalled();
   });
 });

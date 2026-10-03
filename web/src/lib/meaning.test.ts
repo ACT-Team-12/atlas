@@ -191,3 +191,22 @@ describe("Codex round 7: doses swapped between two medicines are never certified
     expect(combine("x", { ...base, source_quote: lisinopril, plain_language: "Take 2 tablets (20 mg total) once a day." }, "same", "").certified).toBe(true);
   });
 });
+
+describe("Codex round 8: a shared word like \"insulin\" never lines up swapped doses", () => {
+  const base = { id: "x", when: "" };
+  const paper = "Inject insulin glargine 10 units and insulin lispro 5 units.";
+  const caught = (plain: string) => {
+    const any = numberCheckAnyForm({ source_quote: paper, plain_language: plain });
+    return { certified: combine("x", { ...base, source_quote: paper, plain_language: plain }, "same", "").certified, prepBlocked: any.unexpected.length > 0 || any.uncheckable };
+  };
+  it.each([
+    "Inject insulin glargine 5 units and insulin lispro 10 units.",
+    "Inject insulin 10 units.",
+    "Inject lispro insulin 10 units.",
+  ])("%j: never certified, blocked in prep", (plain) => {
+    expect(caught(plain)).toEqual({ certified: false, prepBlocked: true });
+  });
+  it("the right doses on the right insulins still certify", () => {
+    expect(caught("Inject insulin glargine 10 units and insulin lispro 5 units each day.")).toEqual({ certified: true, prepBlocked: false });
+  });
+});

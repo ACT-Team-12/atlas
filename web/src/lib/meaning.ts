@@ -156,7 +156,8 @@ function unitClass(word: string | undefined): string | null {
 const CONTEXT_STOP = new Set([
   "take", "use", "give", "apply", "inhale", "drink", "eat", "the", "a", "an", "and", "or", "of", "with", "by", "at", "to",
   "for", "your", "then", "also", "every", "each", "per", "total", "daily", "once", "twice", "mouth", "in", "on", "is",
-  "it", "you", "should", "please", "do", "not", "start", "stop", "continue", "keep",
+  "it", "you", "should", "please", "do", "not", "start", "stop", "continue", "keep", "inject", "swallow", "chew",
+  "spray", "insert", "place", "put", "mix", "dissolve", "measure", "now",
 ]);
 const HALF_WORD_ONE = /^(?:half|halves|medio|media|medias|mitad|demi|demie|demis|moitié|nửa|半|반)$/iu;
 const QUARTER_WORD_ONE = /^(?:quarter|quarters|cuarto|cuartos|cuarta|quart|quarts)$/iu;
@@ -255,8 +256,15 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
   // explanation must also share a naming word with the quote's same number, or the doses may have swapped places
   // between medicines (Codex round 7). Can't tell: not certified.
   const values = (c: string) => new Set(q.filter(([, qc]) => qc === c).map(([n]) => n));
-  const aligned = (n: string, c: string, ctx: string[]) =>
-    q.some(([qn, qc], k) => qn === n && qc === c && qCtx[k].some((w) => ctx.includes(w)));
+  // Only a word that names ONE value counts ("lispro", not the shared "insulin" of "insulin glargine 10 units and
+  // insulin lispro 5 units", Codex round 8), and the explanation's words must not name another value too.
+  const namesOf = (n: string, c: string) => new Set(q.flatMap(([qn, qc], k) => (qn === n && qc === c ? qCtx[k] : [])));
+  const aligned = (n: string, c: string, ctx: string[]) => {
+    const others = [...values(c)].filter((v) => v !== n).map((v) => namesOf(v, c));
+    const own = [...namesOf(n, c)].filter((w) => !others.some((o) => o.has(w)));
+    const pointsElsewhere = ctx.some((w) => others.some((o) => o.has(w)) && !namesOf(n, c).has(w));
+    return own.some((w) => ctx.includes(w)) && !pointsElsewhere;
+  };
   const free = new Set(["clockmin", "phone"]);
   if (p.pairs.some(([n, c], k) => c !== null && !free.has(c) && values(c).size >= 2 && !aligned(n, c, pCtx[k]))) return true;
   const known = new Set(q.map(([n, c]) => `${n}|${c}`));

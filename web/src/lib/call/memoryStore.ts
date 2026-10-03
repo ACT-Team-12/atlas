@@ -14,6 +14,8 @@ export class MemoryCallStore implements CallStore {
   failUpdates = false;
   /** While true, get, getAudio and takeAttempt throw CallStoreDown, as a database outage would. */
   failReads = false;
+  /** While true, takeSlot throws CallStoreDown, as a database outage would. */
+  failSlots = false;
   /** Fails (as "error") only the updates this picks out. */
   failWhen?: (patch: SessionPatch) => boolean;
 
@@ -101,6 +103,7 @@ export class MemoryCallStore implements CallStore {
   }
 
   async takeSlot(key: string, cap: number, now: number, ttlMs = COUNTER_TTL_MS) {
+    if (this.failSlots) throw new CallStoreDown();
     if (cap <= 0) return false;
     const ended = (this.counterEnds.get(key) ?? Infinity) <= now;
     const n = ended ? 0 : this.counters.get(key) ?? 0;

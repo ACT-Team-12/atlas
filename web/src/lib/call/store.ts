@@ -24,7 +24,7 @@ export const PLAN_CALL_MAX_MS = 17 * 60_000;
 export const COUNTER_TTL_MS = 2 * 24 * 60 * 60_000;
 
 /**
- * Thrown by get, getAudio and takeAttempt when the database cannot answer, so a caller can never mistake an outage for
+ * Thrown by get, getAudio, takeAttempt and takeSlot when the database cannot answer, so a caller can never mistake an outage for
  * "no such session". The call routes turn it into 503 (Vonage retries; the page says calls are unavailable).
  */
 export class CallStoreDown extends Error {
@@ -107,6 +107,7 @@ export interface CallStore {
   /**
    * Takes one slot of a counter capped at `cap`, atomically. The counter lives `ttlMs` from its first slot; once that
    * has passed it starts again from zero (so a short window such as "1 per 10 minutes" works without a sweep).
+   * false means the counter is full; a database error throws CallStoreDown, so an outage is never read as a cap.
    */
   takeSlot(key: string, cap: number, now: number, ttlMs?: number): Promise<boolean>;
   releaseSlot(key: string): Promise<void>;
@@ -360,7 +361,7 @@ export class PgCallStore implements CallStore {
       return (r.rowCount ?? 0) === 1;
     } catch (e) {
       logErr("call cap failed", e);
-      return false;
+      throw new CallStoreDown();
     }
   }
 
@@ -389,11 +390,17 @@ export async function callStore(): Promise<CallStore | null> {
 /**
  * Reserves every counter in order (most specific first) or none: when one refuses, the ones already taken are given
  * back, so a number at its own cap never spends the site's shared daily budget. Returns the index that refused.
+ * A database error gives back what was taken and rethrows CallStoreDown.
  */
 export async function reserveSlots(store: CallStore, slots: { key: string; cap: number; ttlMs?: number }[], now: number): Promise<{ ok: true } | { ok: false; refused: number }> {
   const taken: string[] = [];
   for (const [i, s] of slots.entries()) {
-    if (!(await store.takeSlot(s.key, s.cap, now, s.ttlMs))) {
+    let got: boolean;
+    try { got = await store.takeSlot(s.key, s.cap, now, s.ttlMs); } catch (e) {
+      for (const t of taken.reverse()) await store.releaseSlot(t);
+      throw e;
+    }
+    if (!got) {
       for (const t of taken.reverse()) await store.releaseSlot(t);
       return { ok: false, refused: i };
     }

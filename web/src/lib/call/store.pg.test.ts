@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { ensureSchema, PgCallStore, reserveSlots, WIPE, type NewSession } from "./store";
+import { CallStoreDown, ensureSchema, PgCallStore, reserveSlots, WIPE, type NewSession } from "./store";
 
 /**
  * The SQL of PgCallStore against a real Postgres. Runs only with CALL_TEST_DATABASE_URL pointing at a throwaway
@@ -112,6 +112,14 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     expect(await store.takeSlot("gap:z", 1, NOW + 60_000, 60_000)).toBe(true);
     expect(await store.counter("gap:z", NOW + 61_000)).toBe(1);
     expect(await store.counter("gap:z", NOW + 121_000)).toBe(0);
+  });
+
+  it("throws CallStoreDown when a counter cannot be reached, so an outage is never read as a full cap", async () => {
+    const down = new Pool({ connectionString: url, max: 1 });
+    await down.end();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(new PgCallStore(down).takeSlot("gap:down", 1, NOW)).rejects.toBeInstanceOf(CallStoreDown);
+    vi.restoreAllMocks();
   });
 
   it("refuses a new code while a plan call to the number is live, and records placing without overwriting an event", async () => {

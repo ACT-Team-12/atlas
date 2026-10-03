@@ -812,6 +812,39 @@ describe("the call flow", () => {
       store.failReads = false;
       expect(await store.get("no-such-session", NOW)).toBeNull(); // absent is still null
     });
+
+    it("a counter the database cannot reach is an outage, never a cap: starting says no-db and places no call", async () => {
+      store.failSlots = true;
+      expect((await startCall(deps(), input())).state).toBe("no-db");
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(store.rows.size).toBe(0); // nothing kept
+    });
+
+    it("an outage while reserving the plan call is a failure that wipes the session, not a cap, and places no plan call", async () => {
+      const id = await started();
+      store.failSlots = true;
+      expect(await verifyAndCall(deps(), { id, code: "4821" })).toEqual({ state: "failed", cleanup: "done" });
+      expect(store.rows.get(id)?.sealed_text).toBeNull();
+      expect(fetchImpl).toHaveBeenCalledTimes(1); // only the code call
+    });
+
+    it("an outage at the keypad step throws (the input route answers 503), never a goodbye as if the tries were used up", async () => {
+      const id = await started();
+      await verifyAndCall(deps(), { id, code: "4821" });
+      store.failSlots = true;
+      truth.set("call-2", { status: "answered" });
+      await expect(handleInput(hk(), { k: id, p: "input", g: 0, exp: NOW + 60_000 }, "4821", "call-2")).rejects.toBeInstanceOf(CallStoreDown);
+      store.failSlots = false;
+      expect((await handleInput(hk(), { k: id, p: "input", g: 0, exp: NOW + 60_000 }, "4821", "call-2")).map((a) => a.action)).toContain("stream");
+    });
+
+    it("reserveSlots gives back what it took when a later counter hits a database error", async () => {
+      let calls = 0;
+      const real = store.takeSlot.bind(store);
+      store.takeSlot = async (...a: Parameters<typeof store.takeSlot>) => { if (++calls === 2) throw new CallStoreDown(); return real(...a); };
+      await expect(reserveSlots(store, [{ key: "a", cap: 3 }, { key: "b", cap: 3 }], NOW)).rejects.toBeInstanceOf(CallStoreDown);
+      expect(store.counters.get("a")).toBe(0);
+    });
   });
 
   it("is gone after 30 minutes", async () => {

@@ -6,7 +6,7 @@ import { signTicket, subKey, type CallConfig, type CallTicket } from "./config";
 import { canCallIn, codeNcco, GATE_TRIES, gateNcco, goodbyeNcco, MAX_REPLAYS, planLengthSeconds, planNcco, type NccoAction } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
-import { CODE_ATTEMPTS, CODE_TTL_MS, dayKey, hourKey, reserveSlots, SESSION_TTL_MS, WIPE, type CallStore, type SessionRow } from "./store";
+import { CallStoreDown, CODE_ATTEMPTS, CODE_TTL_MS, dayKey, hourKey, reserveSlots, SESSION_TTL_MS, WIPE, type CallStore, type SessionRow } from "./store";
 import { getCall, placeCall } from "./vonage";
 
 /**
@@ -96,12 +96,17 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
   // for different numbers, exactly one wins); a later use works only for that same number, so "Call me again" still
   // works after a missed call while spraying many numbers needs a new plan for each.
   const tokenKey = createHash("sha256").update(token).digest("hex").slice(0, 32);
-  if (await store.takeSlot(`tok:${tokenKey}`, 1, now, TOKEN_BIND_MS)) {
-    if (!(await store.takeSlot(`tokn:${tokenKey}:${hash}`, 1, now, TOKEN_BIND_MS))) return { state: "no-db" };
-  } else {
-    const bound = await store.counter(`tokn:${tokenKey}:${hash}`, now);
-    if (bound === null) return { state: "no-db" };
-    if (bound < 1) return { state: "token-used" };
+  try {
+    if (await store.takeSlot(`tok:${tokenKey}`, 1, now, TOKEN_BIND_MS)) {
+      if (!(await store.takeSlot(`tokn:${tokenKey}:${hash}`, 1, now, TOKEN_BIND_MS))) return { state: "no-db" };
+    } else {
+      const bound = await store.counter(`tokn:${tokenKey}:${hash}`, now);
+      if (bound === null) return { state: "no-db" };
+      if (bound < 1) return { state: "token-used" };
+    }
+  } catch (e) {
+    if (e instanceof CallStoreDown) return { state: "no-db" };
+    throw e;
   }
 
   const id = randomBytes(16).toString("base64url");
@@ -125,7 +130,12 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
     { key: `sitehour:${hourKey(now)}`, cap: Math.min(CODE_CALLS_PER_HOUR, cfg.siteDailyCap), ttlMs: 2 * 60 * 60_000, why: "capped-site" as const },
     { key: `site:${day}`, cap: Math.floor(cfg.siteDailyCap * CODE_SHARE_OF_SITE_CAP), why: "capped-site" as const },
   ];
-  const r = await reserveSlots(store, slots, now);
+  let r: Awaited<ReturnType<typeof reserveSlots>>;
+  try { r = await reserveSlots(store, slots, now); } catch (e) {
+    if (!(e instanceof CallStoreDown)) throw e;
+    await store.drop(id); // no call was placed: nothing to keep
+    return { state: "no-db" };
+  }
   if (!r.ok) {
     await store.drop(id);
     return { state: slots[r.refused].why };
@@ -196,7 +206,11 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
   if (!verifySpeakToken(token, language, text, deps.speakSecret ?? process.env.FEEDBACK_SECRET, now)) return fail("token", "plan token no longer valid");
 
   const day = dayKey(now);
-  const r = await reserveSlots(store, [{ key: `plan:${row.phone_hash}:${day}`, cap: PLAN_CALLS_PER_NUMBER }, { key: `site:${day}`, cap: cfg.siteDailyCap }], now);
+  let r: Awaited<ReturnType<typeof reserveSlots>>;
+  try { r = await reserveSlots(store, [{ key: `plan:${row.phone_hash}:${day}`, cap: PLAN_CALLS_PER_NUMBER }, { key: `site:${day}`, cap: cfg.siteDailyCap }], now); } catch (e) {
+    if (!(e instanceof CallStoreDown)) throw e;
+    return fail("failed", "call store down while reserving the plan call");
+  }
   if (!r.ok) return fail(r.refused === 0 ? "capped-plan" : "capped-site", r.refused === 0 ? "number cap" : "site cap");
 
   const audio = await (deps.voice ?? defaultVoice)(text, language).catch(() => null);
@@ -343,7 +357,8 @@ async function gateInput(deps: Hook, t: CallTicket, digits: unknown, uuid: unkno
   const row = truth.kind === "ok" ? truth.row : null;
   const language = LANGUAGES.find((l) => l === row?.language) ?? "English";
   if (truth.kind !== "ok" || !row || row.phase !== "calling" || !row.code_hash || !row.phone_hash || (truth.status !== "answered" && truth.status !== "started")) return goodbyeNcco(language);
-  // Tries are counted in the store too, so replaying a first-try callback cannot keep guessing.
+  // Tries are counted in the store too, so replaying a first-try callback cannot keep guessing. A database error throws
+  // CallStoreDown (the input route answers 503), never a goodbye as if the tries were used up.
   if (!(await deps.store.takeSlot(`gate:${t.k}`, GATE_TRIES, now, SESSION_TTL_MS))) return goodbyeNcco(language);
   const base = urls(deps.cfg);
   const typed = typeof digits === "string" && /^\d{4}$/.test(digits) ? digits : "";

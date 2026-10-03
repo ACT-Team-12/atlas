@@ -11,7 +11,8 @@ const url = process.env.CALL_TEST_DATABASE_URL;
 const NOW = Date.UTC(2026, 9, 2, 15, 0, 0);
 if (!url) {
   // Not a silent pass: say what did not run. (CI has no Postgres yet; a later change adds one and makes this required.)
-  console.warn(`store.pg.test.ts SKIPPED: CALL_TEST_DATABASE_URL is not set${process.env.CI ? " (CI)" : ""}, so the call SQL was not run against Postgres.`);
+  // process.stderr, not console: vitest drops console output from a file whose tests are all skipped.
+  process.stderr.write(`\nstore.pg.test.ts SKIPPED: CALL_TEST_DATABASE_URL is not set${process.env.CI ? " (CI)" : ""}, so the call SQL was not run against Postgres.\n`);
 }
 
 describe.skipIf(!url)("PgCallStore (real Postgres)", () => {

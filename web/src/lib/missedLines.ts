@@ -227,7 +227,7 @@ export function missedLinesPayload(source: string, items: (CoverageItem & { id: 
   return { show: true, languages, quotes, sentences };
 }
 
-const isOffset = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 0;
+const isOffset = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 0 && n <= 0x7fffffff;
 
 /**
  * The rules every client checks before computing anything from a show:true payload (the Android app has the
@@ -235,8 +235,10 @@ const isOffset = (n: unknown): n is number => typeof n === "number" && Number.is
  *  - at least one sentence (with none, "every line is in a step" would be vacuous);
  *  - every range is two integers with 0 <= start < end, and end <= sourceLength when it is known;
  *  - each sentence's critical ranges sit inside that sentence;
- *  - each group points at an earlier-or-same sentence that is its own group's first (group(group) === group).
- * It takes `unknown` on purpose: the payload arrives as JSON, and a range like [-1, 2147483647] (which overlaps
+ *  - each group points at an earlier-or-same sentence that is its own group's first (group(group) === group);
+ *  - every sentence reads the same as its group's first once normalized: a covered line can only vouch for a
+ *    word-for-word repeat of itself, never for an unrelated line put in its group.
+ * Offsets also fit a 32-bit signed integer, the phone apps' type. It takes `unknown` on purpose: the payload arrives as JSON, and a range like [-1, 2147483647] (which overlaps
  * every sentence) would otherwise claim the whole paper is covered.
  */
 export function missedLinesPayloadValid(payload: unknown, sourceLength?: number): boolean {
@@ -246,6 +248,7 @@ export function missedLinesPayloadValid(payload: unknown, sourceLength?: number)
   if (typeof payload !== "object" || payload === null) return false;
   const p = payload as { show?: unknown; languages?: unknown; quotes?: unknown; sentences?: unknown };
   if (p.show !== true || !Array.isArray(p.languages) || !Array.isArray(p.sentences) || p.sentences.length === 0) return false;
+  if (!p.languages.every((l) => typeof l === "string")) return false;
   if (typeof p.quotes !== "object" || p.quotes === null || Array.isArray(p.quotes)) return false;
   const sentences = p.sentences as unknown[];
   for (let i = 0; i < sentences.length; i++) {
@@ -256,7 +259,9 @@ export function missedLinesPayloadValid(payload: unknown, sourceLength?: number)
     if (!Array.isArray(s.critical) || !s.critical.every((c) => range(c) && c[0] >= start && c[1] <= end)) return false;
     const g = s.group;
     if (typeof g !== "number" || !Number.isSafeInteger(g) || g < 0 || g > i) return false;
-    if ((sentences[g] as { group?: unknown }).group !== g) return false;
+    const first = sentences[g] as { group?: unknown; text?: unknown };
+    if (first.group !== g) return false;
+    if (g !== i && normalize(s.text) !== normalize(first.text as string)) return false;
   }
   return Object.values(p.quotes).every((rs) => Array.isArray(rs) && rs.every(range));
 }

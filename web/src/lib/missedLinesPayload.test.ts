@@ -230,7 +230,19 @@ describe("a malformed missed_lines payload is hidden, never shown as all covered
     "group negative": { ...good, sentences: [{ ...one, group: -1 }] },
     "group points forward": { ...good, sentences: [one, sentence("Call 911.", 27, 36, 2), sentence("Call 911.", 37, 40, 2)] },
     "group points at a non-first sentence": { ...good, sentences: [one, sentence("Call 911.", 27, 36, 0), sentence("Take 1 tablet for 10 days.", 37, 40, 1)] },
+    "an unrelated line put in another line's group": { ...good, sentences: [one, sentence("Call 911 if you have chest pain.", 27, 40, 0)] },
+    "a language that is not a string": { ...good, languages: [1] },
   };
+
+  it("a repeat that differs only by case, spacing or punctuation stays in its group", () => {
+    const repeat: Shown = { ...good, sentences: [one, sentence("TAKE 1 tablet  for 10 days. ", 27, 40, 0)] };
+    expect(missedLinesPayloadValid(repeat, 40)).toBe(true);
+  });
+
+  it("an offset that does not fit the phone apps' 32-bit integers is refused even without a paper length", () => {
+    expect(missedLinesPayloadValid({ ...good, quotes: { a: [[0, 4294967296]] } })).toBe(false);
+    expect(missedLinesPayloadValid({ ...good, quotes: { a: [[0, 2147483647]] } })).toBe(true);
+  });
 
   it.each(Object.keys(bad))("%s", (name) => {
     const p = bad[name] as MissedLinesPayload;

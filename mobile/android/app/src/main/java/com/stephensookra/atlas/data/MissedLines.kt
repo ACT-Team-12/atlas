@@ -101,7 +101,9 @@ object MissedLines {
      *  - at least one sentence (with none, "every line is in a step" would be vacuous);
      *  - every range is two integers with 0 <= start < end, and end <= sourceLength when it is known;
      *  - each sentence's critical ranges sit inside that sentence;
-     *  - each group points at an earlier-or-same sentence that is its own group's first (group(group) == group).
+     *  - each group points at an earlier-or-same sentence that is its own group's first (group(group) == group);
+     *  - every sentence reads the same as its group's first once normalized ([normalize]): a covered line can only
+     *    vouch for a word-for-word repeat of itself, never for an unrelated line put in its group.
      */
     fun valid(payload: MissedLinesPayload, sourceLength: Int? = null): Boolean {
         val limit = sourceLength ?: Int.MAX_VALUE
@@ -113,9 +115,28 @@ object MissedLines {
             if (!ok(s.start, s.end)) return false
             if (!s.critical.all { ok(it) && it[0] >= s.start && it[1] <= s.end }) return false
             if (s.group !in 0..i || sentences[s.group].group != s.group) return false
+            if (s.group != i && normalize(s.text) != normalize(sentences[s.group].text)) return false
         }
         return payload.quotes.values.all { ranges -> ranges.all { ok(it) } }
     }
+
+    // normalize in web/src/lib/verify.ts. JavaScript's \s, spelled out (Java's \s is ASCII only).
+    private val JS_SPACE = Regex("[\\t\\n\\u000B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]+")
+    private val SINGLE_QUOTES = Regex("[\\u2018\\u2019\\u201B\\u2032]")
+    private val DOUBLE_QUOTES = Regex("[\\u201C\\u201D\\u2033]")
+    private val DASHES = Regex("[\\u2010-\\u2015\\u2212]")
+    private val BULLETS = Regex("[\\u2022\\u25CF\\u25AA\\u00B7]")
+
+    /** The website's text normalization (verify.ts normalize), used to check that a group's lines really repeat. */
+    fun normalize(s: String): String = s
+        .lowercase(java.util.Locale.ROOT)
+        .replace('ς', 'σ')
+        .replace(SINGLE_QUOTES, "'")
+        .replace(DOUBLE_QUOTES, "\"")
+        .replace(DASHES, "-")
+        .replace(BULLETS, " ")
+        .replace(JS_SPACE, " ")
+        .trim(' ')
 
     /** missedLinesAnnouncement: what a screen reader hears (politely) when the result arrives or changes. */
     fun announcement(view: MissedLinesView): String {

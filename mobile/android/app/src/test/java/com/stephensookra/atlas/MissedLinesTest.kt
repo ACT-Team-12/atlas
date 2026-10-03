@@ -136,6 +136,7 @@ class MissedLinesTest {
             "group out of range" to good.copy(sentences = listOf(one.copy(group = 1))),
             "group negative" to good.copy(sentences = listOf(one.copy(group = -1))),
             "group points forward" to good.copy(sentences = listOf(one, s("Call 911.", 27, 36, 2), s("Call 911.", 37, 40, 2))),
+            "an unrelated line put in another line's group" to good.copy(sentences = listOf(one, s("Call 911 if you have chest pain.", 27, 40, 0))),
             "group points at a non-first sentence" to good.copy(sentences = listOf(one, s("Call 911.", 27, 36, 0), s("Take 1 tablet for 10 days.", 37, 40, 1))),
         )
         for ((name, p) in bad) {
@@ -161,6 +162,14 @@ class MissedLinesTest {
         assertEquals("Every instruction-like line on your paper is in a step.", MissedLines.announcement(one.copy(covered = 2, lines = emptyList())))
         assertEquals("1 line", MissedLines.lineCountLabel(1)); assertEquals("3 lines", MissedLines.lineCountLabel(3))
         assertEquals("", MissedLines.announcement(MissedLinesView.Hidden("empty")))
+    }
+
+    @Test fun aRepeatThatDiffersOnlyByCaseSpacingOrPunctuationStaysInItsGroup() {
+        val repeat = good.copy(sentences = listOf(good.sentences[0], s("TAKE 1 tablet  for 10 days. ", 27, 40, 0)))
+        assertTrue(MissedLines.valid(repeat, 40))
+        assertEquals("take 1 tablet for 10 days.", MissedLines.normalize("  TAKE 1 tablet for 10 days. "))
+        assertEquals("it's \"x\" - y", MissedLines.normalize("It’s “x” – y"))
+        assertEquals("οδοσ", MissedLines.normalize("ΟΔΟΣ"))
     }
 
     @Test fun aPayloadWithoutItsPaperIsHidden() {

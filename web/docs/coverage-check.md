@@ -42,6 +42,7 @@ Exclusions are checked first and always win:
 | Signatures | "Electronically signed by ...", "Attending: ...", "Sincerely" |
 | Boilerplate | "Page 1 of 2", "Printed on ...", "not a substitute for medical advice", "If you have questions, call our office" |
 | Phone-only lines | "Phone: 404-555-0177", "Clinic phone (404) 555-0100 \| Fax ..." |
+| Visit-reason labels | "Reason for visit: Follow-up for ...", "Chief complaint: ..." (says why they came, not what to do) |
 | Headers | ends with `:`, or has no closing punctuation, no digit, does not start with an action verb, and is 4 words or fewer or all capitals ("Medicines", "FOLLOW-UP APPOINTMENTS") |
 
 Anything left counts as an instruction if one of these fires (the first one becomes `reason`):

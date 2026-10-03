@@ -107,6 +107,8 @@ const EN: Lexicon = {
       String.raw`\bmychart\b`,
       String.raw`\bif you have (?:any )?questions\b`,
       String.raw`^(?:patient name|dob|date of birth|mrn|account)\s*:`,
+      // Why the visit happened, not what to do next ("Reason for visit: Follow-up for high blood sugar.").
+      String.raw`^(?:reason for (?:your |today's )?visit|visit reason|chief complaint)\s*:`,
     ].join("|"),
   ),
 };

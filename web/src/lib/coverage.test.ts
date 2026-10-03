@@ -58,6 +58,7 @@ describe("classifySentence", () => {
     "Please call 404-555-0177 to schedule.",
     "New medicine: amlodipine 5 mg, take 1 tablet every morning.",
     "Follow up with your doctor in 2 weeks.",
+    "Return for a follow-up visit, the reason for visit being your blood pressure.",
     "Your appointment is on Tuesday.",
     "Refill your inhaler before it runs out.",
     "Come back or go to the ER if you get a fever over 101 F.",
@@ -100,6 +101,9 @@ describe("classifySentence", () => {
     "ED attending reviewed chest x-ray: no pneumonia.",
     "Weeks pregnant: 28",
     "Diagnosis: urinary tract infection",
+    // The sample paper's visit-reason label: "follow-up" here names why they came, not a next step.
+    "Reason for visit: Follow-up for high blood sugar and blood pressure.",
+    "Chief complaint: follow-up appointment for cough",
     // Known misses, documented in docs/coverage-check.md: no signal word, so not counted.
     "Your sugar should stay under 180.",
     "Labs will be drawn next week.",

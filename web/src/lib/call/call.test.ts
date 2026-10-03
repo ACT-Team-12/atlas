@@ -384,7 +384,7 @@ describe("the call flow", () => {
     await store.sweep(NOW + 11 * 60_000);
     const row = store.rows.get(id)!;
     expect(row.phase).toBe("expired");
-    expect([row.sealed_phone, row.sealed_text, row.sealed_token]).toEqual([null, null, null]);
+    expect([row.sealed_phone, row.sealed_text, row.sealed_token, row.last4]).toEqual([null, null, null, null]);
   });
 
   it("logs and returns only the Vonage status, never its body", async () => {
@@ -500,7 +500,9 @@ describe("the call flow", () => {
     expect(row.phase).toBe("done");
     expect([row.sealed_phone, row.sealed_text, row.sealed_token, row.sealed_audio]).toEqual([null, null, null, null]);
     expect(await audioFor({ store, cfg, now: NOW }, { ...ev, p: "audio" })).toBeNull();
-    expect(publicStatus(row)).toMatchObject({ phase: "done", plan_status: "completed", last4: "2368" });
+    // even the last 4 digits go: the page keeps its own copy for display
+    expect(row.last4).toBeNull();
+    expect(publicStatus(row)).toMatchObject({ phase: "done", plan_status: "completed", last4: null });
   });
 
   it("ends a session whose code call nobody answered, freeing the number for a new code", async () => {

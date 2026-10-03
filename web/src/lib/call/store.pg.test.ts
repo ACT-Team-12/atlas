@@ -63,7 +63,7 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     expect(await store.getAudio("f", NOW)).toEqual(Buffer.from([7, 7]));
     expect(await store.update("f", { ...WIPE, phase: "done", plan_status: "completed" })).toBe(true);
     const row = await store.get("f", NOW);
-    expect([row?.sealed_phone, row?.sealed_text, row?.sealed_token, row?.has_audio, await store.getAudio("f", NOW), row?.phase]).toEqual([null, null, null, false, null, "done"]);
+    expect([row?.sealed_phone, row?.sealed_text, row?.sealed_token, row?.has_audio, await store.getAudio("f", NOW), row?.phase, row?.last4]).toEqual([null, null, null, false, null, "done", null]);
   });
 
   it("caps counters atomically under a race, and gives slots back", async () => {
@@ -82,7 +82,7 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     await store.update("h", { phase: "calling", code_hash: null }, ["code"]);
     await store.sweep(NOW + 11 * 60_000);
     const g = await store.get("g", NOW + 11 * 60_000);
-    expect([g?.phase, g?.sealed_phone, g?.sealed_text, g?.sealed_token]).toEqual(["expired", null, null, null]);
+    expect([g?.phase, g?.sealed_phone, g?.sealed_text, g?.sealed_token, g?.last4]).toEqual(["expired", null, null, null, null]);
     expect((await store.get("h", NOW + 11 * 60_000))?.sealed_phone).toEqual(Buffer.from([1, 2, 3]));
   });
 

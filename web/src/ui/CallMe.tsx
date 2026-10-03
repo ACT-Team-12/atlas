@@ -14,7 +14,8 @@ import { speechText } from "@/lib/speechText";
 type Language = (typeof LANGUAGES)[number];
 type Status = {
   phase: "code" | "code_missed" | "expired" | "calling" | "done" | "failed" | "gone";
-  last4?: string;
+  /** From the server only while the session is live; the page keeps its own copy (`suffix`) for display. */
+  last4?: string | null;
   code_status?: string | null;
   plan_status?: string | null;
   attempts_left?: number;
@@ -25,8 +26,8 @@ const MISSED = ["busy", "cancelled", "failed", "rejected", "timeout", "unanswere
 const post = (url: string, body: unknown) =>
   fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
 
-function line(s: Status): string {
-  const n = `...${s.last4 ?? ""}`;
+function line(s: Status, suffix: string): string {
+  const n = `...${suffix}`;
   switch (s.phase) {
     case "code":
       if (s.code_status === "ringing") return `Ringing ${n} with your code...`;
@@ -63,6 +64,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   const [st, setSt] = useState<Status | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [suffix, setSuffix] = useState(""); // the number's last 4 digits, kept here: the server clears its copy when the call ends
   const panelId = useId();
   const polls = useRef(0);
   const text = speechText(plan);
@@ -123,13 +125,14 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   const askCode = (e: FormEvent) => send(e, "/api/call/start", { phone, consent, text, language, token: plan.speak_token }, (j) => {
     polls.current = 0;
     setId(String(j.id));
-    setSt({ phase: "code", last4: String(j.last4), code_status: j.uncertain ? "unknown" : null });
+    setSuffix(typeof j.last4 === "string" ? j.last4 : "");
+    setSt({ phase: "code", code_status: j.uncertain ? "unknown" : null });
     setPhone("");
     setCode("");
   });
   const verify = (e: FormEvent) => send(e, "/api/call/verify", { id, code }, (j) => {
     polls.current = 0;
-    setSt((s) => ({ ...(s ?? {}), phase: "calling", last4: String(j.last4), plan_status: j.uncertain ? "unknown" : null }));
+    setSt((s) => ({ ...(s ?? {}), phase: "calling", plan_status: j.uncertain ? "unknown" : null }));
     setCode("");
   });
   const restart = () => { setId(null); setSt(null); setMsg(""); setConsent(false); };
@@ -154,7 +157,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
             <p className="mt-2 text-sm font-bold">This plan is too long for a phone call. Use Read it out loud or Print instead.</p>
           ) : (
             <>
-              {st && <p role="status" className="mt-2 font-bold">{line(st)}</p>}
+              {st && <p role="status" className="mt-2 font-bold">{line(st, suffix)}</p>}
               {st?.phase === "code" && (
                 <form onSubmit={verify} className="mt-3 grid gap-2">
                   <label className="text-sm font-bold">The 4-digit code from the call

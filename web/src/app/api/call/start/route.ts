@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     // Counted per caller in Postgres (every instance agrees), keyed by an HMAC so no IP is stored; IPv6 per /64.
     caller: callerId(cfg.secret, clientIp(request)),
   });
-  if (r.state === "calling") return Response.json({ id: r.id, last4: r.last4 , uncertain: r.uncertain === true }, { headers: NO_STORE });
+  if (r.state === "calling") return Response.json({ id: r.id, last4: r.last4, uncertain: r.uncertain === true }, { headers: NO_STORE });
   const [status, error] = REFUSED[r.state];
   return Response.json({ error }, { status, headers: NO_STORE });
 }

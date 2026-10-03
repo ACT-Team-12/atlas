@@ -146,7 +146,7 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
 }
 
 export type VerifyOutcome =
-  | { state: "calling"; last4: string; mode: "stream" | "talk"; /** Vonage did not confirm the call; it may still ring. */ uncertain?: true }
+  | { state: "calling"; last4: string | null; mode: "stream" | "talk"; /** Vonage did not confirm the call; it may still ring. */ uncertain?: true }
   | { state: "wrong"; attemptsLeft: number }
   | { state: "expired" | "token" | "capped-plan" | "capped-site" | "failed" };
 

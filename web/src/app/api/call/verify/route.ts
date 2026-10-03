@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   if (!body) return Response.json({ error: "Send JSON." }, { status: 400, headers: NO_STORE });
   await store.sweep(Date.now()); // opportunistic; the cron (/api/call/sweep) is the floor
   const r = await verifyAndCall({ store, cfg }, { id: body.id, code: body.code });
-  if (r.state === "calling") return Response.json({ last4: r.last4, mode: r.mode , uncertain: r.uncertain === true }, { headers: NO_STORE });
+  if (r.state === "calling") return Response.json({ last4: r.last4, mode: r.mode, uncertain: r.uncertain === true }, { headers: NO_STORE });
   if (r.state === "wrong") {
     const left = r.attemptsLeft;
     return Response.json({ error: `That code is not right. ${left} ${left === 1 ? "try" : "tries"} left.`, attempts_left: left }, { status: 400, headers: NO_STORE });

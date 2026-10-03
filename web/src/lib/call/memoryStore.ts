@@ -18,13 +18,13 @@ export class MemoryCallStore implements CallStore {
       if (r.expires_at.getTime() < now) { this.rows.delete(k); continue; }
       const stale = r.phase === "code" && (r.code_expires_at?.getTime() ?? 0) < now;
       if (stale || (["code_missed", "expired", "failed", "done"].includes(r.phase) && r.sealed_phone)) {
-        Object.assign(r, { phase: "expired", code_hash: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null });
+        Object.assign(r, { phase: "expired", code_hash: null, last4: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null });
       }
     }
     for (const r of this.rows.values()) {
       const at = r.placed_at?.getTime();
       if (r.phase === "calling" && at !== undefined && ((r.plan_status === "unknown" && at < now - UNCONFIRMED_PLAN_MS) || at < now - PLAN_CALL_MAX_MS)) {
-        Object.assign(r, { phase: "failed", note: "plan call not confirmed", code_hash: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null });
+        Object.assign(r, { phase: "failed", note: "plan call not confirmed", code_hash: null, last4: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null });
       }
     }
     for (const [k, end] of this.counterEnds) if (end < now) { this.counterEnds.delete(k); this.counters.delete(k); }

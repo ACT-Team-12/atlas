@@ -71,11 +71,11 @@ describe("helper session summary", () => {
     expect(cleanMinutes(99999)).toBe(600);
   });
 
-  it("quotes each grounded step with the person's own tick, and leaves out ungrounded ones", () => {
+  it("lists each grounded step with the person's own tick, and leaves out ungrounded ones", () => {
     const t = sessionSummary(state(), helper()).text;
-    expect(t).toContain('- [x] done: Lab test: Blood test (within 2 weeks). Paper says: "Return for basic metabolic panel within 2 weeks."');
-    expect(t).toContain('- [ ] not done yet: Referral: See a heart doctor (in 1 month). Paper says: "Follow up with cardiology in 1 month."');
-    expect(t).toContain('- Warning sign: Chest pain. Paper says: "Call 911 for chest pain."');
+    expect(t).toContain("- [x] done: Lab test: Blood test (within 2 weeks)");
+    expect(t).toContain("- [ ] not done yet: Referral: See a heart doctor (in 1 month)");
+    expect(t).toContain("- Warning sign: Chest pain");
     expect(t).not.toContain("Made up step");
     expect(t).toContain("  1. Get a ride to the lab");
   });
@@ -107,8 +107,22 @@ describe("helper session summary", () => {
     for (const leak of ["Jane", "Doe", "03/14/1961", "MRN", "00482913", "Peachtree", "30309", "30312", "30303", "Near 30309"]) {
       expect(t).not.toContain(leak);
     }
-    // Only the quoted lines from the paper, never the whole paper.
     expect(t).not.toContain(PAPER);
+    expect(t).not.toContain("Return for basic metabolic panel");
+  });
+
+  it("leaves out the paper's own words and masks ZIPs and long numbers in every field it exports", () => {
+    const leaky = [
+      item({ id: "z1", title: "Lab at 1450 Peachtree Rd 30309", when: "before visit, MRN 00482913", source_quote: "Patient Jane Q. Doe DOB 03/14/1961 return to 1450 Peachtree Rd, Atlanta GA 30309-1234" }),
+      item({ id: "z2", kind: "warning_sign", title: "Chest pain near 30312", when: "", source_quote: "Jane Doe: call 911 for chest pain" }),
+    ];
+    const p = plan({
+      steps: [{ title: "Ride from 30309", action: "", why: "", barrier: "transport", care_ids: ["z1"], resource_ids: [], dropped_refs: [] }],
+      ask_a_person: true, ask_a_person_reason: "Nothing verified near 30309",
+    });
+    const t = sessionSummary(state({ items: leaky, plan: p, questions: ["Is account 123456789 paid?"] }), helper()).text;
+    for (const leak of ["Jane", "Doe", "03/14/1961", "Peachtree Rd,", "30309", "30312", "00482913", "123456789"]) expect(t, leak).not.toContain(leak);
+    expect(t).toContain("Lab at 1450 Peachtree Rd [number removed]");
   });
 
   it("works with nothing filled in", () => {

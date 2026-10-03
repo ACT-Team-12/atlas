@@ -10,15 +10,16 @@ import { BARRIER_LABEL, type Barrier } from "./resources";
  * says anything is billable, and it carries no diagnosis codes (no ICD-10 Z code was checked against the official
  * FY2026 list, so none are added).
  *
- * Built on the device from what the screen already has. Pure: no network, no AI. By default it leaves out the full
- * paper text, the ZIP or location, clinic addresses, and anything else that could identify the person. Only the
- * helper's own free-text notes go in as typed.
+ * Built on the device from what the screen already has. Pure: no network, no AI. It leaves out the paper's own words
+ * (not even the quoted lines, which can carry a name, a date of birth or an address), the ZIP or location, and clinic
+ * addresses. Every other exported text (titles, times, plan steps, the reason to ask a person, questions) has ZIP
+ * codes and other runs of 5 or more digits masked. Only the helper's own free-text notes go in as typed.
  */
 
 /** The headings, in order. English only: the app has no translation table for helper-facing text. */
 export const SESSION_HEADINGS = [
   "Upstream drivers discussed",
-  "Action plan (steps quoted from the paper)",
+  "Action plan (steps from the paper)",
   "Community resources given",
   "Education given",
   "Appointment help",
@@ -80,6 +81,12 @@ export function cleanMinutes(v: number | string | null | undefined): number {
   return Math.min(600, Math.round(n));
 }
 
+/** ZIP codes (with or without +4), record and account numbers: any run of 5 or more digits. Phone numbers keep their separators. */
+const LONG_NUMBER = /\b\d{5,}(?:-\d{4})?\b/g;
+export function maskNumbers(s: string): string {
+  return s.replace(LONG_NUMBER, "[number removed]");
+}
+
 const tick = (on: boolean) => (on ? "[x] done" : "[ ] not done yet");
 
 export function sessionSummary(state: SessionPlanState, helper: HelperEntry): SessionSummary {
@@ -90,11 +97,11 @@ export function sessionSummary(state: SessionPlanState, helper: HelperEntry): Se
 
   const drivers = state.barriers.map((b) => `- ${BARRIER_LABEL[b] ?? b}`);
 
-  const action: string[] = grounded.map((i) =>
-    `- ${i.kind === "warning_sign" ? "" : `${tick(!!state.done[i.id])}: `}${KIND_LABEL[i.kind] ?? i.kind}: ${i.title}${i.when.trim() ? ` (${i.when.trim()})` : ""}. Paper says: "${i.source_quote}"`);
+  const title = (i: VerifiedItem) => `${KIND_LABEL[i.kind] ?? i.kind}: ${maskNumbers(i.title)}${i.when.trim() ? ` (${maskNumbers(i.when.trim())})` : ""}`;
+  const action: string[] = grounded.map((i) => `- ${i.kind === "warning_sign" ? "" : `${tick(!!state.done[i.id])}: `}${title(i)}`);
   if (steps.length) {
     action.push("Goals agreed (ATLAS plan, suggestions; the paper wins if they differ):");
-    steps.forEach((s, n) => action.push(`  ${n + 1}. ${s.title}`));
+    steps.forEach((s, n) => action.push(`  ${n + 1}. ${maskNumbers(s.title)}`));
   }
 
   // Only resources a plan step points to, with name and phone. No addresses: a clinic's ZIP can point to where the person lives.
@@ -104,20 +111,20 @@ export function sessionSummary(state: SessionPlanState, helper: HelperEntry): Se
     const a = r.program.access;
     return `- ${r.program.name}${a.phone ? `: ${a.phone}` : a.url ? `: ${a.url}` : ""} (program)`;
   });
-  if (state.plan?.ask_a_person) resources.push(`- Needs a person too: ${state.plan.ask_a_person_reason.trim().replace(/\.+$/, "") || "no verified resource for every need"}. ATLAS suggested calling 211.`);
+  if (state.plan?.ask_a_person) resources.push(`- Needs a person too: ${maskNumbers(state.plan.ask_a_person_reason.trim()).replace(/\.+$/, "") || "no verified resource for every need"}. ATLAS suggested calling 211.`);
 
   const education: string[] = [];
   if (grounded.length) education.push(`- Went over ${grounded.length} ${grounded.length === 1 ? "step" : "steps"} from the paper in plain words (${state.language}, ${state.readingLevel} reading level).`);
   const warnings = grounded.filter((i) => i.kind === "warning_sign");
-  if (warnings.length) education.push(`- Warning signs reviewed: ${warnings.map((w) => w.title).join("; ")}.`);
-  for (const s of steps) if (s.barrier) education.push(`- ${BARRIER_LABEL[s.barrier as Barrier] ?? s.barrier}: ${s.title}`);
+  if (warnings.length) education.push(`- Warning signs reviewed: ${warnings.map((w) => maskNumbers(w.title)).join("; ")}.`);
+  for (const s of steps) if (s.barrier) education.push(`- ${BARRIER_LABEL[s.barrier as Barrier] ?? s.barrier}: ${maskNumbers(s.title)}`);
   if (state.questions.length) {
     education.push("- Questions to ask at the next visit:");
-    state.questions.forEach((q) => education.push(`  - ${q}`));
+    state.questions.forEach((q) => education.push(`  - ${maskNumbers(q)}`));
   }
 
   const appointments = grounded.filter((i) => APPOINTMENT_KINDS.has(i.kind))
-    .map((i) => `- ${tick(!!state.done[i.id])}: ${KIND_LABEL[i.kind] ?? i.kind}: ${i.title}${i.when.trim() ? ` (${i.when.trim()})` : ""}`);
+    .map((i) => `- ${tick(!!state.done[i.id])}: ${title(i)}`);
 
   const time = ACTIVITIES.map((a) => `- ${ACTIVITY_LABEL[a]}: ${minutes[a]} min`);
   time.push(`- Total: ${totalMinutes} min`, "- Done by: helper (add your name and role)");

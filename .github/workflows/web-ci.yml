@@ -10,6 +10,18 @@ concurrency:
 jobs:
   web:
     runs-on: ubuntu-latest
+    # A throwaway Postgres for the call store's real-SQL tests (web/src/lib/call/store.pg.test.ts).
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: calltest
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      CALL_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/calltest
     defaults:
       run:
         working-directory: web

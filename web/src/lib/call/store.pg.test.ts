@@ -5,13 +5,19 @@ import { ensureSchema, PgCallStore, reserveSlots, WIPE, type NewSession } from "
 
 /**
  * The SQL of PgCallStore against a real Postgres. Runs only with CALL_TEST_DATABASE_URL pointing at a throwaway
- * database (it drops and recreates the call tables); CI has no Postgres, so there the flow is covered by
- * MemoryCallStore in call.test.ts and this file is skipped.
+ * database (it drops and recreates the call tables). CI provides one (.github/workflows/web-ci.yml), and under CI a
+ * missing URL fails this file instead of skipping it, so the SQL can never silently go untested there.
  */
 const url = process.env.CALL_TEST_DATABASE_URL;
 const NOW = Date.UTC(2026, 9, 2, 15, 0, 0);
-if (!url) {
-  // Not a silent pass: say what did not run. (CI has no Postgres yet; a later change adds one and makes this required.)
+if (!url && process.env.CI) {
+  describe("PgCallStore under CI", () => {
+    it("has CALL_TEST_DATABASE_URL (CI must run the call SQL against Postgres, never skip it)", () => {
+      expect(url, "CALL_TEST_DATABASE_URL").toBeTruthy();
+    });
+  });
+} else if (!url) {
+  // Not a silent pass: say what did not run locally.
   // process.stderr, not console: vitest drops console output from a file whose tests are all skipped.
   process.stderr.write(`\nstore.pg.test.ts SKIPPED: CALL_TEST_DATABASE_URL is not set${process.env.CI ? " (CI)" : ""}, so the call SQL was not run against Postgres.\n`);
 }

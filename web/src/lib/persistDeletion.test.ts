@@ -66,7 +66,9 @@ describe("the care-plan screen never shows a failed delete as done", () => {
   };
 
   it("Clear and Delete go through the checked delete, and stop before erasing when it failed", () => {
-    expect(body("deleteFromDevice")).toMatch(/if \(!persistDeletion\([^)]*\)[^)]*\)\) \{ setDeleteFailed\(true\); return false; \}/);
+    // deleteOnDevice (lib/tombstones.ts) records the delete for other tabs, then writes and reads back via persistDeletion.
+    expect(body("deleteFromDevice")).toMatch(/const r = deleteOnDevice\([^\n]*\);\s*if \(!r\) \{ setDeleteFailed\(true\); return false; \}/);
+    expect(readFileSync(new URL("./tombstones.ts", import.meta.url), "utf8")).toMatch(/if \(!persistDeletion\(getStorage, STORE_KEY, r\.store, id\)\) return null;/);
     expect(body("clearSaved")).toMatch(/!deleteFromDevice\(storeRef\.current\.active\)\) return;\s*eraseOpenPaper\(\);/);
     expect(body("deleteSaved")).toMatch(/if \(!deleteFromDevice\(id\)\) return false;/);
     for (const name of ["clearSaved", "deleteSaved"]) expect(body(name), name).not.toMatch(/writeStore\(deletePlan/);

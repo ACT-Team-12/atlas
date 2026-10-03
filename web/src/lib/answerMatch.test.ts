@@ -56,3 +56,64 @@ describe("Say your answer button", () => {
     expect(pickMimeType(() => false)).toBeNull();
   });
 });
+
+describe("polarity fails closed (Codex review, 2026-10-02)", () => {
+  const food = ["Take it with food", "Take it on an empty stomach", "Take it at bedtime"];
+  const pair = ["Take it with food", "Do not take it with food", "Take it at bedtime"];
+
+  it("a spoken negative never lands on the positive option", () => {
+    for (const said of [
+      "I cannot take it with food", "I can't take it with food", "I should avoid taking it with food", "never take it with food",
+      "I shouldn't take it with food", "you mustn't take it with food", "stop taking it with food", "skip it with food",
+      "I'm not allowed to take it with food", "hold it with food", "refrain from taking it with food",
+    ]) {
+      expect(matchOption(said, food), said).toBeNull();
+      expect(matchOption(said, pair), said).not.toBe(0);
+    }
+  });
+
+  it("an unclear polarity (double negative, leading 'no') returns null when options differ only by 'not'", () => {
+    expect(matchOption("No, take it with food", pair)).toBeNull();
+    expect(matchOption("I don't think you can't take it with food", pair)).toBeNull();
+  });
+
+  it("other languages: the negative never matches the positive", () => {
+    expect(matchOption("no lo tome con comida", ["Tómelo con comida", "No lo tome con comida", "Tómelo de noche"])).not.toBe(0);
+    expect(matchOption("evite tomarlo con comida", ["Tómelo con comida", "Tómelo de noche", "Tómelo en ayunas"])).toBeNull();
+    expect(matchOption("ne le prenez pas avec de la nourriture", ["Prenez-le avec de la nourriture", "Prenez-le le soir", "Prenez-le à jeun"])).toBeNull();
+    expect(matchOption("không uống thuốc với thức ăn", ["Uống thuốc với thức ăn", "Uống thuốc buổi tối", "Uống thuốc lúc đói"])).toBeNull();
+    expect(matchOption("음식과 함께 먹지 마세요", ["음식과 함께 드세요", "저녁에 드세요", "공복에 드세요"])).toBeNull();
+    expect(matchOption("避免和食物一起吃", ["和食物一起吃", "晚上吃", "空腹吃"])).toBeNull();
+  });
+});
+
+describe("quantities are exact (Codex review, 2026-10-02)", () => {
+  const mg = ["Take 0.5 mg", "Take 5 mg", "Take 10 mg"];
+
+  it("decimals, spoken decimals and halves are not 5", () => {
+    for (const said of ["point five mg", ".5 mg", "zero point five mg", "half a milligram", "0.5 milligrams", "0,5 mg", "one half mg", "1/2 mg"]) {
+      expect(matchOption(`take ${said}`, mg), said).not.toBe(1);
+      expect([0, null]).toContain(matchOption(`take ${said}`, mg));
+    }
+    expect(matchOption("take 0.5 mg", mg)).toBe(0);
+    expect(matchOption("take half a milligram", mg)).toBe(0);
+    expect(matchOption("take 5 mg", mg)).toBe(1);
+    expect(matchOption("take five milligrams", mg)).toBe(1);
+    expect(matchOption("take ten mg", mg)).toBe(2);
+    expect(matchOption("take one and a half tablets", ["Take 1 1/2 tablets", "Take 1 tablet", "Take 2 tablets"])).toBe(0);
+    expect(matchOption("take one and a half tablets", ["Take 1.5 tablets", "Take 1 tablet", "Take 2 tablets"])).toBe(0);
+    expect(matchOption("take 1 tablet", ["Take 1 1/2 tablets", "Take 1 tablet", "Take 2 tablets"])).toBe(1);
+  });
+
+  it("a number the option does not have, or an unreadable one, returns null", () => {
+    expect(matchOption("take 5 mg and 10 mg", mg)).toBeNull();
+    expect(matchOption("take point mg", mg)).toBeNull();
+    expect(matchOption("take 5.5.5 mg", mg)).toBeNull();
+    expect(matchOption("take 50 mg", mg)).toBeNull();
+  });
+
+  it("Spanish and French decimals", () => {
+    expect(matchOption("tome cero coma cinco mg", ["Tome 0,5 mg", "Tome 5 mg", "Tome 10 mg"])).toBe(0);
+    expect(matchOption("prenez un demi milligramme", ["Prenez 0,5 mg", "Prenez 5 mg", "Prenez 10 mg"])).toBe(0);
+  });
+});

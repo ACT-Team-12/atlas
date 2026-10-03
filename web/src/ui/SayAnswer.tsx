@@ -7,6 +7,7 @@ export const MAX_RECORD_SECONDS = 20;
 const AUTO_STOP_MS = MAX_RECORD_SECONDS * 1000 - 250;
 const TOO_LONG = `That recording ran longer than ${MAX_RECORD_SECONDS} seconds, so we didn't send it. Try again, or tap your answer.`;
 const LEFT = "Recording stopped when you left the page, so nothing was sent. Tap Say your answer to try again.";
+const AWAY = "The page was hidden while the microphone was being turned on, so recording did not start. Tap Say your answer to try again.";
 
 /**
  * Whether a recording ran past the 20 s the privacy page promises, from monotonic clock readings (performance.now)
@@ -88,10 +89,19 @@ export function SayAnswer({ enabled, language, token, onTranscript }: Props) {
       setMessage("This browser can't record. Tap your answer instead.");
       return;
     }
+    // Watch visibility from before the permission prompt opens: a hide or a page exit during the prompt must not be
+    // missed, or recording could start in a background tab where timers are throttled.
+    let away = document.visibilityState === "hidden";
+    const onVisibility = () => { away = document.visibilityState === "hidden"; };
+    const onLeave = () => { away = true; };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onLeave);
     let mic: MediaStream;
     try {
       mic = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onLeave);
       busy.current = false;
       const denied = e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError");
       if (!cancelled.current) setMessage(denied ? "The microphone is blocked. Allow it in your browser settings, or tap your answer instead." : "We couldn't find a microphone. Tap your answer instead.");
@@ -113,7 +123,15 @@ export function SayAnswer({ enabled, language, token, onTranscript }: Props) {
       mic.getTracks().forEach((t) => t.stop());
       if (release.current === free) release.current = null;
     };
+    document.removeEventListener("visibilitychange", onVisibility);
+    window.removeEventListener("pagehide", onLeave);
     if (cancelled.current) { free(); busy.current = false; return; } // gone while the permission prompt was open
+    if (away || document.visibilityState === "hidden") { // hidden or left while the prompt was open: never record
+      free();
+      busy.current = false;
+      setMessage(AWAY);
+      return;
+    }
     release.current = free;
     try {
       const rec = new MediaRecorder(mic, { mimeType: type, audioBitsPerSecond: 32_000 });

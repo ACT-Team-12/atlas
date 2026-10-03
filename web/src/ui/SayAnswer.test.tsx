@@ -200,3 +200,48 @@ describe("Say your answer never sends more than 20 seconds (review finding, 2026
     expect(recorders.at(-1)?.state).toBe("recording");
   });
 });
+
+describe("Say your answer does not start in a hidden page (Codex review, 2026-10-03)", () => {
+  const hide = (v: "hidden" | "visible") => Object.defineProperty(document, "visibilityState", { value: v, configurable: true });
+  afterEach(() => hide("visible"));
+
+  it("the page is hidden while the permission prompt is open: the stream is stopped and nothing records", async () => {
+    let resolve!: (s: MediaStream) => void;
+    getUserMedia.mockImplementation(() => new Promise((r) => { resolve = r; }));
+    render();
+    await act(async () => { button().click(); });
+    hide("hidden");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    const { stream, track } = fakeStream();
+    await act(async () => { resolve(stream); });
+    expect(track.stop).toHaveBeenCalled();
+    expect(recorders).toHaveLength(0);
+    expect(status()).toMatch(/recording did not start/);
+  });
+
+  it("the page is left (pagehide) during the prompt, even if visible again by the time it resolves", async () => {
+    let resolve!: (s: MediaStream) => void;
+    getUserMedia.mockImplementation(() => new Promise((r) => { resolve = r; }));
+    render();
+    await act(async () => { button().click(); });
+    await act(async () => { window.dispatchEvent(new Event("pagehide")); });
+    const { stream, track } = fakeStream();
+    await act(async () => { resolve(stream); });
+    expect(track.stop).toHaveBeenCalled();
+    expect(recorders).toHaveLength(0);
+  });
+
+  it("hidden and visible again before the prompt resolves still records", async () => {
+    let resolve!: (s: MediaStream) => void;
+    getUserMedia.mockImplementation(() => new Promise((r) => { resolve = r; }));
+    render();
+    await act(async () => { button().click(); });
+    hide("hidden");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    hide("visible");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    await act(async () => { resolve(fakeStream().stream); });
+    expect(recorders).toHaveLength(1);
+    expect(recorders[0].state).toBe("recording");
+  });
+});

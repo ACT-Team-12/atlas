@@ -23,13 +23,8 @@ export async function load(source) {
   return wrap(instance.exports);
 }
 
-function wrap(x) {
-  const put = (s) => {
-    const bytes = enc.encode(s);
-    const ptr = x.atlas_alloc(bytes.length);
-    new Uint8Array(x.memory.buffer, ptr, bytes.length).set(bytes);
-    return [ptr, bytes.length];
-  };
+/** Wraps an instantiated module's exports (exported so tests can inject faults). */
+export function wrap(x) {
   // The paper and quotes must not stay readable in linear memory (the instance outlives the call): zero what we
   // wrote before freeing it (Rust also zeroes every block it frees), and clear the output buffer once read.
   const wipeFree = (p, l) => {
@@ -42,23 +37,41 @@ function wrap(x) {
     x.atlas_clear_out();
     return text;
   };
-  // Quotes cross as frames: a little-endian u32 byte length, then the UTF-8 bytes.
-  const putFrames = (strings) => {
+  // Allocates `len` bytes, lets `write` fill them, and frees them (zeroed) if the write throws.
+  const alloc = (len, write) => {
+    const ptr = x.atlas_alloc(len);
+    try {
+      write(ptr);
+    } catch (e) {
+      wipeFree(ptr, len);
+      throw e;
+    }
+    return [ptr, len];
+  };
+  /** Runs `fn` with `s` copied into memory, and always zeroes and frees the copy afterwards. */
+  const withString = (s, fn) => {
+    const bytes = enc.encode(s);
+    const [p, l] = alloc(bytes.length, (ptr) => new Uint8Array(x.memory.buffer, ptr, bytes.length).set(bytes));
+    try {
+      return fn(p, l);
+    } finally {
+      wipeFree(p, l);
+    }
+  };
+  /** The same for a list of quotes, as frames: a little-endian u32 byte length, then the UTF-8 bytes. */
+  const withFrames = (strings, fn) => {
     const parts = strings.map((s) => enc.encode(s));
     const total = parts.reduce((n, b) => n + 4 + b.length, 0);
-    const ptr = x.atlas_alloc(total);
-    const view = new DataView(x.memory.buffer, ptr, total);
-    const bytes = new Uint8Array(x.memory.buffer, ptr, total);
-    let at = 0;
-    for (const b of parts) {
-      view.setUint32(at, b.length, true);
-      bytes.set(b, at + 4);
-      at += 4 + b.length;
-    }
-    return [ptr, total];
-  };
-  const withString = (s, fn) => {
-    const [p, l] = put(s);
+    const [p, l] = alloc(total, (ptr) => {
+      const view = new DataView(x.memory.buffer, ptr, total);
+      const bytes = new Uint8Array(x.memory.buffer, ptr, total);
+      let at = 0;
+      for (const b of parts) {
+        view.setUint32(at, b.length, true);
+        bytes.set(b, at + 4);
+        at += 4 + b.length;
+      }
+    });
     try {
       return fn(p, l);
     } finally {
@@ -80,14 +93,12 @@ function wrap(x) {
     },
     /** findSpan for every quote, in order, with the source mapped once. */
     findSpans(source, quotes) {
-      return withString(source, (sp, sl) => {
-        const [qp, ql] = putFrames(quotes);
-        try {
-          return JSON.parse(out(x.atlas_find_spans(sp, sl, qp, ql))).map((r) => (r === null ? null : { start: r[0], end: r[1] }));
-        } finally {
-          wipeFree(qp, ql);
-        }
-      });
+      // Nested, so the source copy is freed even when copying the quotes fails.
+      return withString(source, (sp, sl) =>
+        withFrames(quotes, (qp, ql) =>
+          JSON.parse(out(x.atlas_find_spans(sp, sl, qp, ql))).map((r) => (r === null ? null : { start: r[0], end: r[1] })),
+        ),
+      );
     },
     normalize(s) {
       return withString(s, (p, l) => out(x.atlas_normalize(p, l)));

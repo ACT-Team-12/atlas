@@ -559,6 +559,7 @@ export function CarePlanTool() {
     import("@/lib/deviceChecker")
       .then(async ({ loadDeviceChecker, sameSpan }) => {
         const checker = await loadDeviceChecker();
+        if (!live) return; // cleared or changed while the checker loaded: never hand it this paper
         const byId: Record<string, DeviceVerdict> = {};
         // One call for the whole plan: the paper is mapped once, not once per step.
         const spans = checker.findSpans(care.source_text, care.items.map((it) => it.source_quote));

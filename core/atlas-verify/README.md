@@ -79,7 +79,9 @@ a global allocator that zeroes every block before freeing it (volatile writes; r
 same way), the JS loaders zero the input buffers they wrote before `atlas_free` and call `atlas_clear_out` once a
 result is read, and Clear drops the cached instance. `web/src/lib/deviceChecker.test.ts` runs the real
 `public/atlas_verify.wasm` on a 10 KB marker and scans linear memory for its raw UTF-8, normalized UTF-8 and UTF-16
-forms after `findSpans`, after `findSpan` and after Clear: none may be found.
+forms after `findSpans`, after `findSpan` and after Clear: none may be found. The loaders free the source copy even
+when copying the quotes fails (fault-injection tests make the second allocation, or its write, throw), and a Clear
+while the checker is still loading makes that load reject instead of handing a fresh instance to the cleared screen.
 
 Known input class the two cannot be compared on: a JS string with a lone surrogate. Rust `&str` cannot hold one and
 `TextEncoder` turns it into U+FFFD at the WebAssembly boundary. The parity corpus does not include them.

@@ -52,7 +52,13 @@ export class MemoryCallStore implements CallStore {
     return "ok" as const;
   }
 
-  async drop(id: string) { this.rows.delete(id); }
+  /** While true, drop fails as a database outage would (returns false, keeps the row). */
+  failDrops = false;
+  async drop(id: string) {
+    if (this.failDrops) return false;
+    this.rows.delete(id);
+    return true;
+  }
 
   async markPlaced(id: string, leg: "code" | "plan", status: "placed" | "unknown", uuid: string | null, now: number) {
     const r = this.rows.get(id);

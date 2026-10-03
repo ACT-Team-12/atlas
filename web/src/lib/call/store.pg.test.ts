@@ -106,6 +106,12 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     expect(await store.claimUuid("nope", "plan", won, NOW)).toBe("gone");
   });
 
+  it("drop deletes the session and confirms it", async () => {
+    expect(await store.startCode(session("dropme", "h-drop"), NOW)).toBe("ok");
+    expect(await store.drop("dropme")).toBe(true);
+    expect(await store.get("dropme", NOW)).toBeNull();
+  });
+
   it("restarts a windowed counter once its window has passed", async () => {
     expect(await store.takeSlot("gap:z", 1, NOW, 60_000)).toBe(true);
     expect(await store.takeSlot("gap:z", 1, NOW + 30_000, 60_000)).toBe(false);
@@ -119,6 +125,7 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     await down.end();
     vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(new PgCallStore(down).takeSlot("gap:down", 1, NOW)).rejects.toBeInstanceOf(CallStoreDown);
+    expect(await new PgCallStore(down).drop("anything")).toBe(false); // a delete that did not happen says so
     vi.restoreAllMocks();
   });
 

@@ -72,7 +72,9 @@ const urls = (cfg: CallConfig) => `${cfg.baseUrl}/api/call`;
 export type StartInput = { phone: unknown; consent: unknown; text: unknown; language: unknown; token: unknown; /** HMAC of the caller's IP. */ caller?: string };
 export type StartOutcome =
   | { state: "calling"; id: string; last4: string; /** Vonage did not confirm the call; it may still ring. */ uncertain?: true }
-  | { state: "no-consent" | "language" | "token" | "token-used" | "phone" | "in-flight" | "too-soon" | "capped-caller" | "capped-code" | "capped-plan" | "capped-site" | "no-db" | "failed" };
+  | { state: "no-consent" | "language" | "token" | "token-used" | "phone" | "in-flight" | "too-soon" | "capped-caller" | "capped-code" | "capped-plan" | "capped-site" | "failed" }
+  /** `kept`: the session (encrypted number and plan) was saved and its delete could not be confirmed. */
+  | { state: "no-db"; kept?: true };
 
 export async function startCall(deps: Deps, input: StartInput): Promise<StartOutcome> {
   const { store, cfg } = deps;
@@ -135,8 +137,8 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
   let r: Awaited<ReturnType<typeof reserveSlots>>;
   try { r = await reserveSlots(store, slots, now); } catch (e) {
     if (!(e instanceof CallStoreDown)) throw e;
-    await store.drop(id); // no call was placed: nothing to keep
-    return { state: "no-db" };
+    // No call was placed: nothing to keep. Say it was kept only when the delete could not be confirmed.
+    return (await store.drop(id)) ? { state: "no-db" } : { state: "no-db", kept: true };
   }
   if (!r.ok) {
     await store.drop(id);

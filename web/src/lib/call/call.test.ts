@@ -838,6 +838,22 @@ describe("the call flow", () => {
       expect(await store.get("no-such-session", NOW)).toBeNull(); // absent is still null
     });
 
+    it("when the counters and then the delete both fail, start says the number and plan were kept, never 'nothing was saved'", async () => {
+      // the token binding works; the counters taken after the session is saved fail, and so does deleting it
+      const real = store.takeSlot.bind(store);
+      store.takeSlot = async (...a: Parameters<typeof store.takeSlot>) => { if (a[0].startsWith("gap:")) throw new CallStoreDown(); return real(...a); };
+      store.failDrops = true;
+      const r = await startCall(deps(), input());
+      expect(r).toEqual({ state: "no-db", kept: true });
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(store.rows.size).toBe(1); // the row really is still there
+      const [status, msg] = startRefusal("no-db", true);
+      expect(status).toBe(503);
+      expect(msg).not.toContain("Nothing was saved");
+      expect(msg).toContain("couldn't confirm they were deleted");
+      expect(startRefusal("no-db")[1]).toContain("Nothing was saved"); // only when the delete was confirmed
+    });
+
     it("a counter the database cannot reach is an outage, never a cap: starting says no-db and places no call", async () => {
       store.failSlots = true;
       expect((await startCall(deps(), input())).state).toBe("no-db");

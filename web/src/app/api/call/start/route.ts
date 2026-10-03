@@ -24,6 +24,6 @@ export async function POST(request: Request) {
     caller: callerId(cfg.secret, clientIp(request)),
   });
   if (r.state === "calling") return Response.json({ id: r.id, last4: r.last4, uncertain: r.uncertain === true }, { headers: NO_STORE });
-  const [status, error] = startRefusal(r.state);
+  const [status, error] = startRefusal(r.state, "kept" in r && r.kept === true);
   return Response.json({ error }, { status, headers: NO_STORE });
 }

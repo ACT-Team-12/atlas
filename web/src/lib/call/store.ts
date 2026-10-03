@@ -81,7 +81,8 @@ export interface CallStore {
   sweep(now: number): Promise<boolean>;
   /** Inserts a session in phase "code", unless this number already has a live code ("in-flight"). */
   startCode(s: NewSession, now: number): Promise<"ok" | "in-flight" | "error">;
-  drop(id: string): Promise<void>;
+  /** Deletes a session that never got a call. True only when the delete was confirmed; false on a database error. */
+  drop(id: string): Promise<boolean>;
   /**
    * Records that one of a session's calls was placed: `status` ("placed", or "unknown" when Vonage did not confirm) is
    * written only if no event has set one already, `uuid` (when known) always wins. Only while the session is in `phase`.
@@ -258,7 +259,13 @@ export class PgCallStore implements CallStore {
   }
 
   async drop(id: string) {
-    try { await this.db.query("delete from atlas_calls where id = $1", [id]); } catch (e) { logErr("call drop failed", e); }
+    try {
+      await this.db.query("delete from atlas_calls where id = $1", [id]);
+      return true;
+    } catch (e) {
+      logErr("call drop failed", e);
+      return false;
+    }
   }
 
   async markPlaced(id: string, leg: "code" | "plan", status: "placed" | "unknown", uuid: string | null, now: number) {

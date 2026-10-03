@@ -134,6 +134,17 @@ export function missedLineTexts(view: MissedLinesView): string[] {
   return view.show ? view.lines.map((l) => l.text) : [];
 }
 
+/**
+ * What a screen reader hears when the result arrives or changes (a polite live status in the UI).
+ * Empty when the section is hidden, so nothing is announced for a paper the check could not read.
+ */
+export function missedLinesAnnouncement(view: MissedLinesView): string {
+  if (!view.show) return "";
+  const n = view.lines.length;
+  if (n === 0) return "Every instruction-like line on your paper is in a step.";
+  return `${n === 1 ? "1 line" : `${n} lines`} on your paper ${n === 1 ? "looks" : "look"} like instructions but ${n === 1 ? "is" : "are"} not in a step. Open "Lines on your paper we didn't turn into steps" to read ${n === 1 ? "it" : "them"}.`;
+}
+
 /** "1 line" / "3 lines", for the collapsed heading's badge. */
 export function lineCountLabel(n: number): string {
   return `${n} ${n === 1 ? "line" : "lines"}`;

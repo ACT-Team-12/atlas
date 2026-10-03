@@ -8,7 +8,7 @@ vi.mock("./verify", async (importOriginal) => {
 });
 
 import { findSpan, verifyItems } from "./verify";
-import { lineCountLabel, missedLinesView, missedLineTexts, paperLanguages } from "./missedLines";
+import { lineCountLabel, missedLinesAnnouncement, missedLinesView, missedLineTexts, paperLanguages } from "./missedLines";
 import { SAMPLE_AVS } from "./sample";
 import type { CareItem } from "./schema";
 import papersFile from "../data/eval/papers.json";
@@ -189,6 +189,18 @@ describe("missedLinesView", () => {
     const v = missedLinesView(EN_PAPER, [{ source_quote: "STOP ibuprofen 200 mg tablet." }]);
     expect(spy).toHaveBeenCalledTimes(1);
     expect(missedLineTexts(v)).not.toContain("STOP ibuprofen 200 mg tablet.");
+  });
+});
+
+describe("missedLinesAnnouncement", () => {
+  it("announces the count, the all-covered state, and nothing when hidden", () => {
+    const some = missedLinesView(EN_PAPER, kept(EN_PAPER, ["Take 1 tablet of metformin 500 mg by mouth two times a day with meals."]));
+    expect(missedLinesAnnouncement(some)).toMatch(/^3 lines on your paper look like instructions but are not in a step\./);
+    const one = missedLinesView(EN_PAPER, kept(EN_PAPER, EN_PAPER.split("\n").slice(2)));
+    expect(missedLinesAnnouncement(one)).toMatch(/^1 line on your paper looks like instructions but is not in a step\./);
+    const all = missedLinesView(EN_PAPER, kept(EN_PAPER, EN_PAPER.split("\n").slice(1)));
+    expect(missedLinesAnnouncement(all)).toBe("Every instruction-like line on your paper is in a step.");
+    expect(missedLinesAnnouncement(missedLinesView(FR_PAPER, []))).toBe("");
   });
 });
 

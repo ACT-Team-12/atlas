@@ -1,8 +1,8 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { CarePlanResponse } from "@/lib/schema";
-import { lineCountLabel, missedLinesView, type MissedLinesView } from "@/lib/missedLines";
+import { lineCountLabel, missedLinesAnnouncement, missedLinesView, type MissedLinesView } from "@/lib/missedLines";
 
 /**
  * The coverage check for one plan, computed once per paper and per set of removed steps.
@@ -22,6 +22,23 @@ export function useMissedLines(care: CarePlanResponse | null, removed: Record<st
  * language, so it never claims "all covered" for a paper it could not check.
  */
 export function MissedLines({ view }: { view: MissedLinesView }) {
+  const message = missedLinesAnnouncement(view);
+  // A live region only speaks when its text CHANGES after it is on the page, so the region is always
+  // mounted and the message lands a moment later. It also speaks again when a removed step changes the count.
+  const [spoken, setSpoken] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setSpoken(message), 400);
+    return () => clearTimeout(t);
+  }, [message]);
+  return (
+    <>
+      <p role="status" aria-live="polite" className="sr-only" data-missed-lines-status>{spoken}</p>
+      <MissedLinesBody view={view} />
+    </>
+  );
+}
+
+function MissedLinesBody({ view }: { view: MissedLinesView }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   if (!view.show) return null;

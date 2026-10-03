@@ -74,6 +74,58 @@ SSN: 123-45-6789`;
   });
 });
 
+describe("every identifier format is replaced IN FULL: no leftover digits or name parts", () => {
+  // [paper, the exact value that must become one placeholder]
+  const CASES: [string, string][] = [
+    ["Patient: Maria Lopez", "Maria Lopez"],
+    ["PATIENT: MARIA LOPEZ", "MARIA LOPEZ"],
+    ["patient:maria lopez", "maria lopez"],
+    ["Patient Name - Maria J. Lopez", "Maria J. Lopez"],
+    ["Patient Name Maria Lopez-Garcia", "Maria Lopez-Garcia"],
+    ["Pt: Sean O'Neil", "Sean O'Neil"],
+    ["Pt Name: Ana María Ruiz", "Ana María Ruiz"],
+    ["Name: Lopez, Maria", "Lopez, Maria"],
+    ["Name : Mr. James Carter Jr", "Mr. James Carter Jr"],
+    ["DOB: 01/01/1970", "01/01/1970"],
+    ["DOB 1970-01-01", "1970-01-01"],
+    ["D.O.B.: Jan 1 1970", "Jan 1 1970"],
+    ["Date of Birth: January 1st, 1970", "January 1st, 1970"],
+    ["Birth date: 1 Jan 1970", "1 Jan 1970"],
+    ["DOB: 1/1/70", "1/1/70"],
+    ["MRN: 88412907", "88412907"],
+    ["MRN# 0041-7733-21", "0041-7733-21"],
+    ["Medical Record Number: A1209938", "A1209938"],
+    ["Acct #: 55120934", "55120934"],
+    ["Member ID: XJH 4421 9087", "XJH 4421 9087"],
+    ["Insurance ID: GA-0098-1123", "GA-0098-1123"],
+    ["SSN: 123-45-6789", "123-45-6789"],
+    ["SSN: 123 45 6789", "123 45 6789"],
+    ["SSN: XXX-XX-6789", "XXX-XX-6789"],
+    ["Patient: Ana Ruiz\nPhone: +1 (404) 555-0182 ext 12", "+1 (404) 555-0182 ext 12"],
+    ["Patient: Ana Ruiz\nPhone: 404.555.0182", "404.555.0182"],
+    ["Patient: Ana Ruiz\nEmail: ana.ruiz+care@mail.example.org", "ana.ruiz+care@mail.example.org"],
+    ["Home address: 1427 Pine St NW, Apt 4B, Atlanta, GA 30318", "1427 Pine St NW, Apt 4B, Atlanta, GA 30318"],
+    ["Age: 104", "104"],
+  ];
+  test.each(CASES)("%s", (paper, value) => {
+    const r = shield(paper);
+    expect([...r.tokens.values()]).toContain(value);
+    // No piece of the value survives: every run of letters or digits in it is gone from the redacted text.
+    const rest = r.text.replace(new RegExp(TOKEN_RE.source, "g"), " ");
+    for (const piece of value.match(/[\p{L}\p{N}]{2,}/gu) ?? []) {
+      if (/^(?:mr|jr|apt|nw|st|ga|ext)$/i.test(piece) && !paper.replace(value, "").toLowerCase().includes(piece.toLowerCase())) continue;
+      expect(rest.toLowerCase().split(/[^\p{L}\p{N}]+/u)).not.toContain(piece.toLowerCase());
+    }
+  });
+
+  test("a later use of each format's name is hidden in full too, including inside a hyphenated or possessive word", () => {
+    const r = shield("Patient: Maria J. Lopez-Garcia\n\nMaria, take this. Ms. Lopez-Garcia's ride. MARIA LOPEZ-GARCIA called.");
+    expect(r.text).not.toMatch(/maria|lopez|garcia/i);
+    const r2 = shield("Patient: Ana Lopez\n\nThe Lopez-Smith family and Lopez's car.");
+    expect(r2.text).not.toMatch(/Lopez/);
+  });
+});
+
 describe("rule 3: a date is hidden only when labeled as a birth date", () => {
   test.each([
     ["DOB: 04/12/1961", "04/12/1961"],

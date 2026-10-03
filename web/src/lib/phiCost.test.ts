@@ -26,6 +26,8 @@ export const ADVERSARIAL: Record<string, string> = {
   "honorifics with distinct surnames": W.map((w) => `Ms. Q${w} `).join("").slice(0, N),
 };
 
+// Letter-only names (a digit ends a name word, so "Zed12" is not a name).
+const alpha = (i: number) => i.toString(26).replace(/[0-9]/g, (d) => "qrstuvwxyz"[Number(d)]);
 const time = (f: () => void) => {
   f(); // warm up the regexes once
   const t = performance.now();
@@ -42,11 +44,32 @@ describe("worst-case cost of the shield on a 20,000-character paper", () => {
     });
   }
 
-  it("names and ids a session spreads are capped", () => {
+  it("fails closed: with far more identifiers than any cap, every later use is still hidden, under 100 ms", () => {
+    // 600 patients' headers, then every name, and MRN again unlabeled in the body. A capped spread (the first
+    // cost fix kept 48) would let the later uses through; there is no cap now.
+    const people = Array.from({ length: 600 }, (_, i) => ({ name: `Zed${alpha(i)}`, mrn: String(10_000_000 + i * 7) }));
+    const header = people.map((p) => `Patient: ${p.name}   MRN: ${p.mrn}`).join("\n");
+    const body = people.map((p) => `${p.name}, call about ${p.mrn}.`).join(" ");
+    const text = `${header}\n\n${body}`.slice(0, N);
     const s = new PhiShield();
-    s.learn(ADVERSARIAL["thousands of Name: labels, each a different name"]);
-    s.learn(ADVERSARIAL["honorifics with distinct surnames"]);
-    expect(s.spreadCount).toBeLessThanOrEqual(PhiShield.MAX_SPREAD);
+    const t = performance.now();
+    const r = s.shield(text);
+    expect(performance.now() - t).toBeLessThan(100);
+    expect(s.spreadCount).toBeGreaterThan(48);
+    const leftBody = r.text.slice(r.text.indexOf("\n\n"));
+    for (const p of people) {
+      if (!text.includes(`${p.name}, call about ${p.mrn}.`)) continue; // cut off by the 20,000-character limit
+      expect(leftBody).not.toMatch(new RegExp(`(?<![\\w])${p.name}(?![\\w])`));
+      expect(leftBody).not.toContain(p.mrn);
+    }
+  });
+
+  it("fails closed across requests too: a later text in the session hides every learned name", () => {
+    const s = new PhiShield();
+    const names = Array.from({ length: 300 }, (_, i) => `Quinn${alpha(i)}`);
+    s.learn(names.map((n) => `Name: ${n}`).join("\n"));
+    const later = s.shield(names.map((n) => `${n}, take your pills.`).join(" ")).text;
+    for (const n of names) expect(later).not.toContain(n);
   });
 
   it("many fields with many names (the meaning and quiz routes) stay under 100 ms", async () => {

@@ -129,7 +129,10 @@ const ORG_WORDS = ["clinic", "hospital", "medical", "medicine", "health", "healt
 const ORG_AFTER = new RegExp(String.raw`^\s+(?:\p{Lu}[\p{L}'’.-]*\s+){0,2}(?:${caps(ORG_WORDS)})\.?(?![\p{L}])`, "u");
 const HONORIFIC = /(?<![\p{L}])(?:Mr|Mrs|Ms|Miss|Mx)\.?\s+([\p{Lu}][\p{L}'’-]+)/gu;
 const AGE_PHRASE = /(?<![\p{L}\p{N}])(\d{2,3})(?:[\s-]*(?:years?|yrs?)[\s-]*old|[\s-]*y\.?\s?\/?\s?o\.?(?![\p{L}]))/giu;
-const CITY_STATE_ZIP = /^[ \t]*[\p{L}][\p{L} .'’-]*,?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?[ \t]*$/u;
+// Tested on the line with whitespace collapsed to single spaces and trimmed (cityLine), so it cannot backtrack across a long
+// run of spaces, with no length cutoff.
+const CITY_STATE_ZIP = /^[\p{L}][\p{L}.'’-]*(?: [\p{L}.'’-]+)*,? [A-Z]{2}\.? \d{5}(?:-\d{4})?$/u;
+const cityLine = (s: string) => CITY_STATE_ZIP.test(s.replace(/\s+/g, " ").trim());
 
 const isSpace = (c: string | undefined) => c === " " || c === "\t";
 
@@ -188,37 +191,34 @@ export class PhiShield {
   }
 
   /**
-   * Most names and ids one session spreads through later text. A real paper has one patient (a few name parts, a
-   * handful of ids); the cap keeps a crafted paper with thousands of "Name:" labels from making every later text pay
-   * once per name. Each labeled occurrence is still hidden where it stands; only the spreading stops growing.
+   * How many names and ids this session spreads (for tests). There is NO cap: every learned identifier is hidden
+   * everywhere it repeats. Spreading costs one pass over the text whatever the number of identifiers (a word scan with
+   * set lookups for names, an Aho-Corasick scan for exact values), so no cap is needed to bound the cost, and a cap
+   * would let a long or crafted paper push real identifiers past it.
    */
-  static readonly MAX_SPREAD = 48;
-  /** Longest name or id value that is spread (a real name or id is short; a run-on "value" is not one). */
-  static readonly MAX_SPREAD_LEN = 80;
-
-  /** How many names and ids this session spreads (for tests). */
   get spreadCount(): number {
     return this.names.size + this.values.size;
   }
 
   private remember(value: string, kind: PhiKind): void {
     const v = value.trim();
-    if (!v || v.length > PhiShield.MAX_SPREAD_LEN) return;
-    const room = () => this.names.size + this.values.size < PhiShield.MAX_SPREAD;
+    if (!v) return;
     if (kind === "NAME") {
-      if (room()) this.names.set(v, true);
+      const whole = nameKey(v);
+      if (whole) this.names.set(whole, true);
       for (const part of v.split(/[\s,]+/)) {
         const p = part.replace(/^[.'’-]+|[.'’-]+$/g, "");
-        if (p.length >= 2 && !NO_SPREAD.has(p.toLowerCase()) && !NOT_NAME.has(p.toLowerCase()) && room()) this.names.set(p, true);
+        if (p.length >= 2 && !NO_SPREAD.has(p.toLowerCase()) && !NOT_NAME.has(p.toLowerCase())) this.names.set(nameKey(p), true);
       }
-    } else if (!room()) {
-      return;
     } else if ((kind === "MRN" || kind === "ACCT" || kind === "ID" || kind === "SSN") && v.replace(/[^A-Za-z0-9]/g, "").length >= 5) {
-      this.values.set(v, kind);
+      if (!this.values.has(v)) { this.values.set(v, kind); this.matcher = null; }
     } else if (kind === "PHONE" || kind === "EMAIL") {
-      this.values.set(v, kind);
+      if (!this.values.has(v)) { this.values.set(v, kind); this.matcher = null; }
     }
   }
+
+  /** Built once per set of values, rebuilt only when a new value is learned. */
+  private matcher: AhoCorasick | null = null;
 
   private tokenFor(original: string, kind: PhiKind): string {
     const key = `${kind}\u0000${original}`;
@@ -268,23 +268,47 @@ export class PhiShield {
   /** Every later use of a learned name or id, anywhere in the text. */
   private spread(text: string): Hit[] {
     const out: Hit[] = [];
-    // One pass over the text for all names (at most MAX_SPREAD of them), longest first in the alternation, so
-    // "Maria Lopez" wins over "Maria" where both match.
-    const names = [...this.names.keys()].sort((a, b) => b.length - a.length);
-    if (names.length) {
-      const re = new RegExp(`(?<![\\p{L}\\p{N}])(?:${names.map((n) => escapeRe(n).replace(/\s+/g, "[ \\t]+")).join("|")})(?![\\p{L}\\p{N}])`, "giu");
-      for (const m of text.matchAll(re)) {
-        const start = m.index, end = start + m[0].length;
-        if (!/\p{Lu}/u.test(m[0][0])) continue; // "may", "will", "rose" in a sentence are words, not the patient
+    if (this.names.size) {
+      // Names: one scan of the words. At each word, the longest learned name (up to MAX_NAME_WORDS words, joined by
+      // spaces, a comma or an initial's period) wins. A hyphenated or possessive word ("Lopez-Garcia", "Lopez's") is
+      // also checked piece by piece, as a word-boundary match would have found "Lopez" in it.
+      const words = [...text.matchAll(WORD)].map((m) => ({ start: m.index, end: m.index + m[0].length, key: m[0].toLowerCase() }));
+      const ok = (start: number, end: number) => {
+        if (!/\p{Lu}/u.test(text[start])) return false; // "may", "will", "rose" in a sentence are words, not the patient
         const before = text.slice(Math.max(0, start - 40), start);
         const after = text.slice(end, end + 60);
-        if (PROVIDER_BEFORE.test(before) || PROVIDER_AFTER.test(after) || ORG_AFTER.test(after) || ORG_BEFORE.test(before)) continue;
-        out.push({ start, end, kind: "NAME" });
+        return !(PROVIDER_BEFORE.test(before) || PROVIDER_AFTER.test(after) || ORG_AFTER.test(after) || ORG_BEFORE.test(before));
+      };
+      for (let i = 0; i < words.length; i++) {
+        let key = "";
+        let found = 0;
+        for (let k = 0; k < MAX_NAME_WORDS && i + k < words.length; k++) {
+          if (k > 0 && !NAME_GAP.test(text.slice(words[i + k - 1].end, words[i + k].start))) break;
+          key = k === 0 ? words[i].key : `${key} ${words[i + k].key}`;
+          if (this.names.has(key) && ok(words[i].start, words[i + k].end)) found = k + 1;
+        }
+        if (found) {
+          out.push({ start: words[i].start, end: words[i + found - 1].end, kind: "NAME" });
+          i += found - 1;
+          continue;
+        }
+        const w = words[i];
+        if (!/['’.-]/.test(text.slice(w.start, w.end))) continue;
+        for (const p of text.slice(w.start, w.end).matchAll(/[\p{L}\p{N}]+/gu)) {
+          const s = w.start + p.index, e = s + p[0].length;
+          if (this.names.has(p[0].toLowerCase()) && ok(s, e)) out.push({ start: s, end: e, kind: "NAME" });
+        }
       }
     }
-    for (const [value, kind] of this.values) {
-      const re = new RegExp(`(?<![A-Za-z0-9])${escapeRe(value)}(?![A-Za-z0-9])`, "g");
-      for (const m of text.matchAll(re)) out.push({ start: m.index, end: m.index + m[0].length, kind });
+    if (this.values.size) {
+      // Ids, phones and emails: every exact occurrence, in one Aho-Corasick pass, with no letter or digit glued on.
+      this.matcher ??= new AhoCorasick([...this.values.keys()]);
+      const alnum = (c: string | undefined) => c !== undefined && /[A-Za-z0-9]/.test(c);
+      this.matcher.scan(text, (start, end, value) => {
+        if (alnum(text[start - 1]) || alnum(text[end])) return false;
+        out.push({ start, end, kind: this.values.get(value)! });
+        return true;
+      });
     }
     return out;
   }
@@ -293,7 +317,73 @@ export class PhiShield {
 /** "Lopez" in "Memorial Lopez" / "St. Lopez" style org names: a capitalized org word right before. */
 const ORG_BEFORE = new RegExp(String.raw`(?:^|[^\p{L}])(?:${caps(["clinic", "hospital", "medical", "health", "healthcare", "center", "pharmacy", "memorial", "university", "saint", "st"])})\.?\s+$`, "u");
 
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** A word for name spreading: letters and digits, with inner apostrophes, hyphens or periods ("O'Neil", "Smith-Jones"). */
+const WORD = /[\p{L}\p{N}]+(?:['’.-][\p{L}\p{N}]+)*/gu;
+/** What may sit between the words of one name: spaces, a comma ("Lopez, Maria") or an initial's period ("J. Lopez"). */
+const NAME_GAP = /^[.,]?[ \t]+$/;
+/** The longest name, in words, matched as one stretch (a name value is at most 4 words plus a title). */
+const MAX_NAME_WORDS = 6;
+/** A name as the word scan sees it: its words, lower-cased, joined by single spaces. */
+const nameKey = (v: string) => [...v.matchAll(WORD)].map((m) => m[0].toLowerCase()).join(" ");
+
+/**
+ * Aho-Corasick over a set of exact strings: every occurrence of every string in one pass over the text, whatever the
+ * number of strings. At each position the longest string ending there is offered first; `accept` returns false to try
+ * the next shorter one (a boundary check failed).
+ */
+class AhoCorasick {
+  private readonly next: Map<string, number>[] = [new Map()];
+  private readonly fail: number[] = [0];
+  private readonly word: (string | null)[] = [null];
+  /** The nearest node on the fail chain that ends a string (or -1). */
+  private readonly dict: number[] = [-1];
+
+  constructor(patterns: string[]) {
+    for (const p of patterns) {
+      let n = 0;
+      for (const c of p) {
+        let to = this.next[n].get(c);
+        if (to === undefined) {
+          to = this.next.length;
+          this.next.push(new Map());
+          this.fail.push(0);
+          this.word.push(null);
+          this.dict.push(-1);
+          this.next[n].set(c, to);
+        }
+        n = to;
+      }
+      this.word[n] = p;
+    }
+    const queue: number[] = [];
+    for (const to of this.next[0].values()) queue.push(to);
+    for (let q = 0; q < queue.length; q++) {
+      const n = queue[q];
+      for (const [c, to] of this.next[n]) {
+        let f = this.fail[n];
+        while (f > 0 && !this.next[f].has(c)) f = this.fail[f];
+        const g = this.next[f].get(c);
+        this.fail[to] = g !== undefined && g !== to ? g : 0;
+        this.dict[to] = this.word[this.fail[to]] !== null ? this.fail[to] : this.dict[this.fail[to]];
+        queue.push(to);
+      }
+    }
+  }
+
+  scan(text: string, accept: (start: number, end: number, value: string) => boolean): void {
+    let n = 0;
+    let i = 0;
+    for (const c of text) {
+      i += c.length;
+      while (n > 0 && !this.next[n].has(c)) n = this.fail[n];
+      n = this.next[n].get(c) ?? 0;
+      for (let m = this.word[n] !== null ? n : this.dict[n]; m > 0; m = this.dict[m]) {
+        const w = this.word[m]!;
+        if (accept(i - w.length, i, w)) break;
+      }
+    }
+  }
+}
 
 function tokenRanges(text: string): { start: number; end: number }[] {
   return [...text.matchAll(new RegExp(TOKEN_RE.source, "g"))].map((m) => ({ start: m.index, end: m.index + m[0].length }));
@@ -352,8 +442,11 @@ function labelsOn(line: string): LabelHit[] {
 
 /** Drops label matches that are really part of a sentence or belong to a provider. */
 function accept(line: string, f: LabelHit): boolean {
-  // Only the words just before the label matter; a bounded slice keeps a line of thousands of labels linear.
-  const before = line.slice(Math.max(0, f.labelStart - 48), f.labelStart);
+  // Only the words just before the label matter; a bounded slice keeps a line of thousands of labels linear. The slice
+  // starts at a word boundary, so a cut word ("...nic") can never pass for a qualifier ("clinic") and wrongly drop a label.
+  let from = Math.max(0, f.labelStart - 48);
+  while (from > 0 && from < f.labelStart && /[\p{L}\p{N}.]/u.test(line[from - 1])) from++;
+  const before = line.slice(from, f.labelStart);
   const label = line.slice(f.labelStart, f.valueStart);
   const k = f.rule.kind;
   // A label inside a sentence ("the patient: take ...", "born on", "age 7") is kept only if a real value follows it:
@@ -370,7 +463,8 @@ function accept(line: string, f: LabelHit): boolean {
  */
 function lineStops(line: string): number[] {
   const stops: number[] = [];
-  for (const m of line.matchAll(/[ \t]{2,}|\t|[ \t]*\|[ \t]*|;/g)) stops.push(m.index);
+  // Same stops as before the cost fix (any whitespace, not only spaces and tabs), found in one pass.
+  for (const m of line.matchAll(/\s{2,}|\t|\s*\|\s*|;/g)) stops.push(m.index);
   for (const m of line.matchAll(OTHER_FIELD)) stops.push(m.index);
   return stops.sort((a, b) => a - b);
 }
@@ -469,7 +563,7 @@ export function detectPositional(text: string): Hit[] {
       hits.push({ start, end: start + f.len, kind: kindOf(k) });
       // An address can go on to a "City, ST 30310" line.
       // (Only a short line is tested: the pattern backtracks on a long run of spaces, and a city line is never long.)
-      if (k === "CONTACT_ADDR" && f.hit.valueStart + f.len >= trimmedLength && lines[li + 1] && lines[li + 1].text.length <= 120 && CITY_STATE_ZIP.test(lines[li + 1].text)) {
+      if (k === "CONTACT_ADDR" && f.hit.valueStart + f.len >= trimmedLength && lines[li + 1] && cityLine(lines[li + 1].text)) {
         const nx = lines[li + 1];
         const lead = nx.text.length - nx.text.trimStart().length;
         hits.push({ start: nx.start + lead, end: nx.start + nx.text.trimEnd().length, kind: "ADDR" });

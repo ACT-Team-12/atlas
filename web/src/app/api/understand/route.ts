@@ -2,6 +2,7 @@ import { guard } from "@/lib/guard";
 import { ExtractError } from "@/lib/extract";
 import { UnderstandRequestSchema, buildQuestions } from "@/lib/understand";
 import { issueQuizToken } from "@/lib/transcribe";
+import { guardUnderstand } from "@/lib/phiGuard";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -19,7 +20,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   try {
     // answer_token lets this quiz, and only a quiz this server wrote, use "Say your answer" (see transcribe.ts).
-    const quiz = await buildQuestions(parsed.data);
+    // Paper and steps are shielded for the AI; questions and proof spans come back on the original paper (phiGuard.ts).
+    const quiz = await guardUnderstand(parsed.data, buildQuestions);
     return Response.json({ ...quiz, answer_token: quiz.questions.length ? issueQuizToken(parsed.data.language, quiz.questions.length) : null });
   } catch (e) {
     if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status });

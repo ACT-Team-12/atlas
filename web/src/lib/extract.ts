@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { PLACEHOLDER_RULE } from "./phiShield";
 import { z } from "zod";
 import { ExtractionSchema, ITEM_KINDS, type CarePlanResponse, type ExtractRequest } from "./schema";
 import { verifyItems } from "./verify";
@@ -79,7 +80,7 @@ export function buildParams(req: ExtractRequest) {
   return {
     model: MODEL,
     max_tokens: 16000,
-    system: SYSTEM,
+    system: SYSTEM + PLACEHOLDER_RULE,
     output_config: { effort: "low" as const, format: zodOutputFormat(ModelOutput) },
     messages: [{ role: "user" as const, content: userContent }],
   };

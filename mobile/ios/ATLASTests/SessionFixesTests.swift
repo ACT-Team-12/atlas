@@ -4,7 +4,7 @@ import Testing
 
 /// Bugs found on Android's emulator in 1.1 and confirmed in the iPhone code, each run through the real AppModel against
 /// a saved file on disk (no network: a file without a running double-check starts none).
-@MainActor
+@MainActor @Suite(.serialized) // The URL stub is shared state.
 struct SessionFixesTests {
     static let legacySavedAt = "2026-09-01T12:00:00Z"
     static var legacyDate: Date { ISO8601DateFormatter().date(from: legacySavedAt)! }
@@ -83,12 +83,18 @@ struct SessionFixesTests {
         #expect(AppModel(store: store).careOutdated, "and the next launch still says so")
     }
 
-    @Test func readingAgainClearsIt() async throws {
+    static func stubbedAPI(delay: TimeInterval = 0) throws -> APIClient {
         StubProtocol.extract = try Fixture.data("extract_sample_live")
+        StubProtocol.plan = try Fixture.data("plan_sample_30303_live")
+        StubProtocol.delay = delay
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubProtocol.self]
+        return APIClient(session: URLSession(configuration: config))
+    }
+
+    @Test func readingAgainClearsIt() async throws {
         let store = try Self.legacyStore(withPlan: true)
-        let model = AppModel(api: APIClient(session: URLSession(configuration: config)), store: store)
+        let model = AppModel(api: try Self.stubbedAPI(), store: store)
         #expect(model.careOutdated)
         model.readPaper()
         for _ in 0..<400 where model.busy != nil { try await Task.sleep(for: .milliseconds(25)) }
@@ -99,6 +105,23 @@ struct SessionFixesTests {
         let saved = try #require(store.load())
         #expect(saved.readFingerprint == StaleGuard.readFingerprint(text: model.text, language: .Spanish, level: .simple))
         #expect(saved.care?.language == .Spanish)
+    }
+
+    /// A replaced request applies nothing: here the first read is stopped and a second started, and the first one's
+    /// cancellation must not clear `busy` (or set an error) while the second is still running.
+    @Test func aReplacedReadDoesNotTouchTheNewerOne() async throws {
+        let model = AppModel(api: try Self.stubbedAPI(delay: 0.4), store: try Self.currentStore())
+        model.readPaper()
+        try await Task.sleep(for: .milliseconds(100))
+        model.cancel() // the person stops the read (a new read is only offered when nothing is running)
+        model.text += " Drink water."
+        model.readPaper()
+        #expect(model.busy == .reading)
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(model.busy == .reading, "the first read's cancellation left the second one running")
+        for _ in 0..<400 where model.busy != nil { try await Task.sleep(for: .milliseconds(25)) }
+        #expect(model.error == nil)
+        #expect(!model.careOutdated, "the steps are from the second read, with its text")
     }
 
     @Test func aFileWithAReadFingerprintRecoversTheStepsLanguageFromIt() throws {
@@ -183,21 +206,34 @@ struct SessionFixesTests {
     }
 }
 
-/// Answers /api/extract with a captured live response and everything else (the double-check) with 503. No network.
+/// Answers /api/extract and /api/plan with captured live responses and everything else (the double-check) with 503,
+/// after `delay` seconds unless the request is cancelled first. No network.
 final class StubProtocol: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var extract = Data()
+    nonisolated(unsafe) static var plan = Data()
+    nonisolated(unsafe) static var delay: TimeInterval = 0
+    private let lock = NSLock()
+    private var stopped = false
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        let isExtract = request.url?.path == "/api/extract"
-        let response = HTTPURLResponse(url: request.url!, statusCode: isExtract ? 200 : 503, httpVersion: nil,
-                                       headerFields: ["Content-Type": "application/json"])!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: isExtract ? Self.extract : Data("{}".utf8))
-        client?.urlProtocolDidFinishLoading(self)
+        let path = request.url?.path ?? ""
+        let body: Data? = path == "/api/extract" ? Self.extract : path == "/api/plan" ? Self.plan : nil
+        let deliver = { [self] in
+            lock.lock(); let isStopped = stopped; lock.unlock()
+            guard !isStopped else { return }
+            let response = HTTPURLResponse(url: request.url!, statusCode: body == nil ? 503 : 200, httpVersion: nil,
+                                           headerFields: ["Content-Type": "application/json"])!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: body ?? Data("{}".utf8))
+            client?.urlProtocolDidFinishLoading(self)
+        }
+        if Self.delay > 0 { DispatchQueue.global().asyncAfter(deadline: .now() + Self.delay, execute: deliver) } else { deliver() }
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+        lock.lock(); stopped = true; lock.unlock()
+    }
 }

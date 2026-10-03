@@ -56,6 +56,9 @@ final class AppModel {
     enum Busy: Equatable { case recognizing, reading, planning }
 
     @ObservationIgnored private var task: Task<Void, Never>?
+    /// Moved by every cancel() (so by every new OCR, read or plan, and by Clear): a task whose await finished after it was
+    /// replaced applies nothing, not its result and not its error or `busy = nil` over the newer request.
+    @ObservationIgnored private var taskID = 0
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private let store: SessionStore
     @ObservationIgnored private var restoring = false
@@ -158,9 +161,11 @@ final class AppModel {
         cancel()
         error = nil
         busy = .recognizing
+        let run = taskID
         task = Task {
             do {
                 let result = try await TextRecognizer.recognize(pages: pages)
+                guard run == taskID else { return }
                 busy = nil
                 if result.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     error = "We could not find any words in that picture. Try again in good light, or type the text."
@@ -170,8 +175,10 @@ final class AppModel {
                 text = result
                 path = [.check]
             } catch is CancellationError {
+                guard run == taskID else { return }
                 busy = nil
             } catch {
+                guard run == taskID else { return }
                 busy = nil
                 self.error = "We could not read that picture. Try again, or type the text."
             }
@@ -186,9 +193,11 @@ final class AppModel {
         error = nil
         busy = .reading
         let text = self.text, level = self.level, language = self.language
+        let run = taskID
         task = Task {
             do {
                 var result = try await api.extract(text: text, level: level, language: language)
+                guard run == taskID else { return }
                 // An older server leaves out the language; the steps were still written in the one asked for.
                 if result.language == nil { result.language = language }
                 readFingerprint = StaleGuard.readFingerprint(text: text, language: language, level: level)
@@ -202,6 +211,7 @@ final class AppModel {
                 startMeaningCheck(for: result, language: result.language ?? language)
                 if path.last != .steps { path.append(.steps) }
             } catch {
+                guard run == taskID else { return }
                 busy = nil
                 if (error as? APIError) != .cancelled { self.error = error.localizedDescription }
             }
@@ -224,9 +234,11 @@ final class AppModel {
             language: language,
             note: note
         )
+        let run = taskID
         task = Task {
             do {
                 let result = try await api.plan(request, fromHelperLink: viaHelper)
+                guard run == taskID else { return }
                 planFingerprint = fingerprint
                 plan = result
                 // One link counts at most one plan (helperLink.ts consumeHelperSession).
@@ -234,6 +246,7 @@ final class AppModel {
                 busy = nil
                 if path.last != .plan { path.append(.plan) }
             } catch {
+                guard run == taskID else { return }
                 busy = nil
                 if (error as? APIError) != .cancelled { self.error = error.localizedDescription }
             }
@@ -271,6 +284,7 @@ final class AppModel {
     }
 
     func cancel() {
+        taskID += 1
         task?.cancel()
         task = nil
         busy = nil

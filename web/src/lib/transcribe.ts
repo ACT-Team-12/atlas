@@ -1,5 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { LANGUAGES } from "./schema";
+import {
+  CLIENT_DAILY_SECONDS, CLIENT_HOURLY_SECONDS, clientKey, envPrefix, SITE_DAILY_SECONDS, SITE_HOURLY_SECONDS, tokenKey, type Ask, type UsageStore,
+} from "./sttUsage";
 
 /**
  * "Say your answer" for the teach-back quiz: speech to text, server only.
@@ -16,8 +19,9 @@ import { LANGUAGES } from "./schema";
  *      correct text for WebM/Opus and MP4/AAC clips in English, Spanish, Vietnamese, Korean, Chinese and French.
  * ATLAS_STT_DISABLED=1 turns both off.
  *
- * Paid per second of audio, so the route only serves a quiz /api/understand issued (a signed quiz token), and
- * three fuses sit on top of the per-IP guard: uses per token, audio seconds per hour, audio seconds per day.
+ * Paid per second of audio, so the route only serves a quiz /api/understand issued (a signed quiz token), and every
+ * limit in sttUsage.ts (uses per token, audio-seconds per client and for the whole site, per hour and per day) is
+ * reserved in one shared all-or-nothing step BEFORE the provider is called, then settled to the length it reports.
  */
 export const STT_MODEL = "nova-3";
 export const GATEWAY_STT_MODEL = "spacexai/grok-stt";
@@ -40,20 +44,18 @@ export const MAX_AUDIO_BYTES = 512_000;
 /** The quiz records 20 s; anything the provider says is longer than this is refused, not returned. */
 export const MAX_AUDIO_SECONDS = 35;
 /**
- * The fuse never trusts a length it has not measured: each call reserves the most audio its byte count could hold
- * (Opus goes as low as 6 kbps), then settles to the length the provider reports. So a low-bitrate file cannot
- * carry hours of billable audio past the hourly or daily fuse.
+ * The budget never trusts a length it has not measured: each call reserves the most audio its byte count could
+ * hold at the lowest bitrate its codec goes (Opus 6 kbps, AAC 16 kbps), then settles to what the provider reports.
  */
-const MIN_BITS_PER_SECOND = 6_000;
-export const reserveFor = (bytes: number) => Math.max(30, Math.ceil((bytes * 8) / MIN_BITS_PER_SECOND));
+export function reserveFor(bytes: number, type: string): number {
+  const floor = type === "audio/mp4" ? 16_000 : 6_000;
+  return Math.max(30, Math.ceil((bytes * 8) / floor));
+}
 /** Browsers record WebM/Opus (Chrome, Firefox, Android) or MP4/AAC (Safari); both providers read both containers. */
 export const AUDIO_TYPES = ["audio/webm", "audio/mp4", "audio/ogg"] as const;
 export const QUIZ_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
-/** Three answers per question at most is plenty; a quiz has up to 20 questions. */
-export const USES_PER_TOKEN = 40;
-/** Per server instance. Each call reserves reserveFor(bytes) up front, then settles to the length the provider reports. */
-export const HOURLY_AUDIO_SECONDS = 1_800;
-export const DAILY_AUDIO_SECONDS = 9_000;
+/** Uses per quiz token: one answer per question plus a few retries. A quiz has 1 to 20 questions. */
+export const usesFor = (questions: number) => Math.min(20, Math.max(1, Math.floor(questions))) + 3;
 
 export class TranscribeError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -65,58 +67,28 @@ export function transcribeEnabled(): boolean {
 }
 export const transcribeLanguages = () => LANGUAGES.filter((l) => STT_LANG[l]);
 
-// ---- Quiz token: proves the recording belongs to a quiz this server wrote, in this language. ----
+// ---- Quiz token: proves the recording belongs to a quiz this server wrote, in this language, with this many questions. ----
 const b64 = (b: Buffer) => b.toString("base64url");
 const sign = (secret: string, payload: string) => b64(createHmac("sha256", secret).update(`quiz.${payload}`).digest());
 
-export function issueQuizToken(language: string, secret = process.env.FEEDBACK_SECRET, now = Date.now()): string | null {
+export function issueQuizToken(language: string, questions: number, secret = process.env.FEEDBACK_SECRET, now = Date.now()): string | null {
   if (!secret) return null;
-  const t = String(now);
-  return `${t}.${sign(secret, `${t}.${language.length}:${language}`)}`;
+  const t = String(now), n = String(Math.min(20, Math.max(1, Math.floor(questions))));
+  return `${t}.${n}.${sign(secret, `${t}.${n}.${language.length}:${language}`)}`;
 }
 
-export function verifyQuizToken(token: string, language: string, secret = process.env.FEEDBACK_SECRET, now = Date.now()): boolean {
-  if (!secret) return false;
+/** The question count the token was issued for, or null when it is not genuine, fresh, and for this language. */
+export function verifyQuizToken(token: string, language: string, secret = process.env.FEEDBACK_SECRET, now = Date.now()): number | null {
+  if (!secret) return null;
   const parts = token.split(".");
-  if (parts.length !== 2) return false;
-  const [t, sig] = parts;
+  if (parts.length !== 3) return null;
+  const [t, n, sig] = parts;
   const at = Number(t);
-  if (!/^\d+$/.test(t) || !Number.isFinite(at) || at > now + 60_000 || now - at > QUIZ_TOKEN_TTL_MS) return false;
-  const expected = Buffer.from(sign(secret, `${t}.${language.length}:${language}`));
+  if (!/^\d+$/.test(t) || !/^\d{1,2}$/.test(n) || !Number.isFinite(at) || at > now + 60_000 || now - at > QUIZ_TOKEN_TTL_MS) return null;
+  const expected = Buffer.from(sign(secret, `${t}.${n}.${language.length}:${language}`));
   const got = Buffer.from(sig);
-  return got.length === expected.length && timingSafeEqual(got, expected);
+  return got.length === expected.length && timingSafeEqual(got, expected) ? Number(n) : null;
 }
-
-// ---- Fuses (per server instance, in memory) ----
-const uses = new Map<string, number>();
-const USES_MAX_KEYS = 5000;
-let hourly = { hour: -1, used: 0 };
-let daily = { day: -1, used: 0 };
-
-/** Counts one use of this quiz token; false once it has been used USES_PER_TOKEN times. */
-export function chargeToken(token: string): boolean {
-  const n = uses.get(token) ?? 0;
-  if (n >= USES_PER_TOKEN) return false;
-  uses.delete(token);
-  uses.set(token, n + 1);
-  while (uses.size > USES_MAX_KEYS) uses.delete(uses.keys().next().value as string);
-  return true;
-}
-
-/**
- * Adds seconds to both windows; refuses (and adds nothing) if either would go over. A negative value refunds.
- * force records usage that already happened (a settle), even past the fuse, so the next call is refused.
- */
-export function chargeSeconds(seconds: number, now = Date.now(), force = false): boolean {
-  const hour = Math.floor(now / 3_600_000), day = Math.floor(now / 86_400_000);
-  if (hourly.hour !== hour) hourly = { hour, used: 0 };
-  if (daily.day !== day) daily = { day, used: 0 };
-  if (!force && seconds > 0 && (hourly.used + seconds > HOURLY_AUDIO_SECONDS || daily.used + seconds > DAILY_AUDIO_SECONDS)) return false;
-  hourly.used = Math.max(0, hourly.used + seconds);
-  daily.used = Math.max(0, daily.used + seconds);
-  return true;
-}
-export const resetTranscribeStateForTests = () => { uses.clear(); hourly = { hour: -1, used: 0 }; daily = { day: -1, used: 0 }; };
 
 export function audioType(contentType: string | null): (typeof AUDIO_TYPES)[number] | null {
   const base = (contentType ?? "").split(";")[0].trim().toLowerCase();
@@ -145,24 +117,63 @@ export async function readCapped(body: ReadableStream<Uint8Array> | null, limit 
 const BUSY = "Speaking answers is busy. Tap your answer instead.";
 const UNHEARD = "We couldn't hear that. Try again, or tap your answer.";
 
-/** Sends the recording to the provider and returns only the transcript text. */
-export async function transcribe(audio: Uint8Array, type: string, language: (typeof LANGUAGES)[number], now = Date.now()): Promise<string> {
-  const code = STT_LANG[language];
-  if (!code) throw new TranscribeError(`Speaking your answer isn't available in ${language} yet. Tap your answer instead.`, 422);
+const TOO_LONG = "That recording is too long. Keep it under 20 seconds.";
+
+/**
+ * One spoken answer: reserve every limit at once (shared, before any paid call), transcribe, settle.
+ * Who pays for a failure: the provider rejecting the audio or timing out costs the site nothing (its reservation is
+ * returned), but stays on that client's own count, so bad input from one client cannot drain everyone's budget.
+ */
+export async function answerAloud(req: {
+  audio: Uint8Array; type: string; language: (typeof LANGUAGES)[number]; token: string; ip: string; now?: number; store: UsageStore;
+}): Promise<string> {
+  const now = req.now ?? Date.now();
+  const code = STT_LANG[req.language];
+  if (!code) throw new TranscribeError(`Speaking your answer isn't available in ${req.language} yet. Tap your answer instead.`, 422);
   const provider = sttProvider();
   if (!provider) throw new TranscribeError("Speaking your answer is off right now. Tap your answer instead.", 503);
-  const reserved = reserveFor(audio.byteLength);
-  if (!chargeSeconds(reserved, now)) throw new TranscribeError("Speaking answers is resting for a bit. Tap your answer instead.", 429);
+  const questions = verifyQuizToken(req.token, req.language, undefined, now);
+  if (questions === null) throw new TranscribeError("Start the quiz again to answer out loud.", 403);
+
+  const p = envPrefix(), hour = Math.floor(now / 3_600_000), day = Math.floor(now / 86_400_000);
+  const client = clientKey(req.ip), reserved = reserveFor(req.audio.byteLength, req.type);
+  const site = [{ bucket: `${p}gh`, win: hour }, { bucket: `${p}gd`, win: day }];
+  const mine = [{ bucket: `${p}ch:${client}`, win: hour }, { bucket: `${p}cd:${client}`, win: day }];
+  const asks: Ask[] = [
+    { bucket: `${p}t:${tokenKey(req.token)}`, win: 0, amount: 1, cap: usesFor(questions), ttlSec: QUIZ_TOKEN_TTL_MS / 1000 + 3600 },
+    { ...mine[0], amount: reserved, cap: CLIENT_HOURLY_SECONDS, ttlSec: 7_200 },
+    { ...mine[1], amount: reserved, cap: CLIENT_DAILY_SECONDS, ttlSec: 172_800 },
+    { ...site[0], amount: reserved, cap: SITE_HOURLY_SECONDS, ttlSec: 7_200 },
+    { ...site[1], amount: reserved, cap: SITE_DAILY_SECONDS, ttlSec: 172_800 },
+  ];
+  let held;
+  try {
+    held = await req.store.reserve(asks, now);
+  } catch (e) {
+    // Fail closed for this request only: nothing was reserved, so nothing is left locked.
+    console.error("stt budget unavailable", e instanceof Error ? e.name : typeof e);
+    throw new TranscribeError("Speaking answers is busy. Tap your answer instead.", 503);
+  }
+  if (!held.ok) {
+    const why = held.bucket.startsWith(`${p}t:`) ? "You've answered out loud a lot on this quiz. Tap your answer instead."
+      : held.bucket.startsWith(`${p}c`) ? "You've used a lot of speaking time. Tap your answer instead, or try again later."
+      : "Speaking answers is resting for a bit. Tap your answer instead.";
+    throw new TranscribeError(why, 429);
+  }
 
   const settle = { seconds: reserved };
-  let text: string;
+  let text: string, failed = true;
   try {
-    text = provider === "deepgram" ? await viaDeepgram(audio, type, code, settle) : await viaGateway(audio, settle);
+    text = provider === "deepgram" ? await viaDeepgram(req.audio, req.type, code, settle) : await viaGateway(req.audio, settle);
+    failed = false;
   } finally {
-    // Settle to what the provider actually heard. Forced: it already happened, so it counts even past the fuse.
-    chargeSeconds(settle.seconds - reserved, now, true);
+    const delta = settle.seconds - reserved;
+    const fix = failed
+      ? site.map((b) => ({ ...b, delta: -reserved })) // not billed, or the input was bad: the site gets it back
+      : [...site, ...mine].map((b) => ({ ...b, delta })); // what the provider actually heard, even past a cap
+    await req.store.adjust(fix).catch((e) => console.error("stt budget settle failed", e instanceof Error ? e.name : typeof e));
   }
-  if (settle.seconds > MAX_AUDIO_SECONDS) throw new TranscribeError("That recording is too long. Keep it under 20 seconds.", 413);
+  if (settle.seconds > MAX_AUDIO_SECONDS) throw new TranscribeError(TOO_LONG, 413);
   return text;
 }
 
@@ -179,7 +190,6 @@ async function viaDeepgram(audio: Uint8Array, type: string, code: string, settle
   // Status only, never the audio or words.
   if (!res.ok) {
     console.error("deepgram failed", res.status);
-    settle.seconds = 0;
     throw new TranscribeError(res.status === 401 || res.status === 402 || res.status === 429 ? BUSY : UNHEARD, 502);
   }
   const json = (await res.json()) as { metadata?: { duration?: number }; results?: { channels?: { alternatives?: { transcript?: string }[] }[] } };

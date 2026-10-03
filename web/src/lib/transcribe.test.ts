@@ -4,9 +4,13 @@ vi.mock("ai", () => ({ gateway: { transcription: (id: string) => ({ id }) }, tra
 import { GET, POST } from "@/app/api/transcribe/route";
 import { LANGUAGES } from "./schema";
 import {
-  chargeSeconds, DAILY_AUDIO_SECONDS, MAX_AUDIO_SECONDS, reserveFor, GATEWAY_STT_MODEL, sttProvider, HOURLY_AUDIO_SECONDS, issueQuizToken, MAX_AUDIO_BYTES, QUIZ_TOKEN_TTL_MS, resetTranscribeStateForTests,
-  STT_LANG, transcribe, USES_PER_TOKEN, verifyQuizToken,
+  answerAloud, GATEWAY_STT_MODEL, issueQuizToken, MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS, QUIZ_TOKEN_TTL_MS, reserveFor, STT_LANG, sttProvider, usesFor,
+  verifyQuizToken,
 } from "./transcribe";
+import { localUsageForTests, SITE_HOURLY_SECONDS } from "./sttUsage";
+
+let store = localUsageForTests();
+const resetTranscribeStateForTests = () => { store = localUsageForTests(); };
 
 const SECRET = "s3cret";
 const audio = (n = 4000) => new Uint8Array(n).fill(3);
@@ -16,7 +20,7 @@ const dg = (transcript: string, duration = 4) =>
 let ip = 0;
 function post(opts: { token?: string | null; language?: string; body?: Uint8Array; type?: string; headers?: Record<string, string> } = {}) {
   const language = opts.language ?? "English";
-  const token = opts.token === undefined ? issueQuizToken(language, SECRET) : opts.token;
+  const token = opts.token === undefined ? issueQuizToken(language, 5, SECRET) : opts.token;
   const qs = new URLSearchParams({ language, ...(token ? { token } : {}) });
   return POST(new Request(`http://localhost/api/transcribe?${qs}`, {
     method: "POST",
@@ -46,14 +50,14 @@ describe("say your answer (speech to text)", () => {
     vi.stubEnv("VERCEL", "");
     vi.stubEnv("VERCEL_OIDC_TOKEN", "");
     vi.stubEnv("AI_GATEWAY_API_KEY", "");
-    expect(await GET().json()).toEqual({ enabled: false, languages: [], provider: null });
+    expect(await (await GET()).json()).toEqual({ enabled: false, languages: [], provider: null });
     vi.stubEnv("DEEPGRAM_API_KEY", "dg-test");
     vi.stubEnv("FEEDBACK_SECRET", "");
-    expect((await GET().json()).enabled).toBe(false);
+    expect((await (await GET()).json()).enabled).toBe(false);
   });
 
   it("config is on with the key and lists the supported languages", async () => {
-    const j = await GET().json();
+    const j = await (await GET()).json();
     expect(j.enabled).toBe(true);
     expect(j.languages).toContain("Spanish");
     expect(j.languages).not.toContain("Amharic");
@@ -71,17 +75,18 @@ describe("say your answer (speech to text)", () => {
 
   it("refuses without a quiz token, with a forged one, or one for another language", async () => {
     expect((await post({ token: null })).status).toBe(403);
-    expect((await post({ token: "123.forged" })).status).toBe(403);
-    expect((await post({ language: "English", token: issueQuizToken("Spanish", SECRET) })).status).toBe(403);
-    expect((await post({ token: issueQuizToken("English", "other-secret") })).status).toBe(403);
+    expect((await post({ token: "123.5.forged" })).status).toBe(403);
+    expect((await post({ language: "English", token: issueQuizToken("Spanish", 5, SECRET) })).status).toBe(403);
+    expect((await post({ token: issueQuizToken("English", 5, "other-secret") })).status).toBe(403);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("quiz tokens expire", () => {
-    const tok = issueQuizToken("English", SECRET, 1_000)!;
-    expect(verifyQuizToken(tok, "English", SECRET, 2_000)).toBe(true);
-    expect(verifyQuizToken(tok, "English", SECRET, 1_000 + QUIZ_TOKEN_TTL_MS + 1)).toBe(false);
-    expect(issueQuizToken("English", "")).toBeNull();
+    const tok = issueQuizToken("English", 7, SECRET, 1_000)!;
+    expect(verifyQuizToken(tok, "English", SECRET, 2_000)).toBe(7);
+    expect(verifyQuizToken(tok, "English", SECRET, 1_000 + QUIZ_TOKEN_TTL_MS + 1)).toBeNull();
+    expect(verifyQuizToken(tok.replace(".7.", ".20."), "English", SECRET, 2_000)).toBeNull(); // the count is signed
+    expect(issueQuizToken("English", 7, "")).toBeNull();
   });
 
   it("refuses oversize audio (413) without calling out, whether or not it declares its length", async () => {
@@ -119,32 +124,21 @@ describe("say your answer (speech to text)", () => {
   });
 
   it("refuses Amharic with 422 without calling out", async () => {
-    await expect(transcribe(audio(), "audio/webm", "Amharic")).rejects.toMatchObject({ status: 422 });
+    const token = issueQuizToken("Amharic", 5, SECRET)!;
+    await expect(answerAloud({ audio: audio(), type: "audio/webm", language: "Amharic", token, ip: "1.1.1.1", store })).rejects.toMatchObject({ status: 422 });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("limits uses per quiz token", async () => {
+  it("limits uses per quiz token to about one per question", async () => {
     fetchMock.mockImplementation(async () => dg("ok", 1));
-    const token = issueQuizToken("English", SECRET)!;
-    for (let i = 0; i < USES_PER_TOKEN; i++) expect((await post({ token })).status).toBe(200);
+    const token = issueQuizToken("English", 5, SECRET)!;
+    for (let i = 0; i < usesFor(5); i++) expect((await post({ token })).status).toBe(200);
     expect((await post({ token })).status).toBe(429);
   });
 
-  it("has an hourly and a daily fuse on audio seconds, settled to the real length", () => {
-    const t = Date.UTC(2026, 9, 2, 12);
-    expect(chargeSeconds(HOURLY_AUDIO_SECONDS, t)).toBe(true);
-    expect(chargeSeconds(1, t)).toBe(false);
-    expect(chargeSeconds(-10, t)).toBe(true); // a refund
-    expect(chargeSeconds(10, t)).toBe(true);
-    resetTranscribeStateForTests();
-    let hour = t;
-    let used = 0;
-    while (used + HOURLY_AUDIO_SECONDS <= DAILY_AUDIO_SECONDS) { expect(chargeSeconds(HOURLY_AUDIO_SECONDS, hour)).toBe(true); used += HOURLY_AUDIO_SECONDS; hour += 3_600_000; }
-    if (Math.floor(hour / 86_400_000) === Math.floor(t / 86_400_000)) expect(chargeSeconds(HOURLY_AUDIO_SECONDS, hour)).toBe(false);
-  });
-
-  it("a tripped fuse answers 429 without calling out", async () => {
-    chargeSeconds(HOURLY_AUDIO_SECONDS);
+  it("a spent site budget answers 429 without calling out", async () => {
+    const hour = Math.floor(Date.now() / 3_600_000);
+    await store.reserve([{ bucket: "lgh", win: hour, amount: SITE_HOURLY_SECONDS, cap: SITE_HOURLY_SECONDS, ttlSec: 7200 }], Date.now());
     expect((await post()).status).toBe(429);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -172,7 +166,7 @@ describe("gateway path (no Deepgram key)", () => {
   afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
   it("config is on and names the gateway provider", async () => {
-    const j = await GET().json();
+    const j = await (await GET()).json();
     expect(j.enabled).toBe(true);
     expect(j.provider).toMatch(/Vercel AI Gateway/);
   });
@@ -196,7 +190,7 @@ describe("gateway path (no Deepgram key)", () => {
 
   it("the kill switch turns it off (503, no call)", async () => {
     vi.stubEnv("ATLAS_STT_DISABLED", "1");
-    expect((await GET().json()).enabled).toBe(false);
+    expect((await (await GET()).json()).enabled).toBe(false);
     expect((await post()).status).toBe(503);
     expect(aiMock.transcribe).not.toHaveBeenCalled();
   });
@@ -204,6 +198,8 @@ describe("gateway path (no Deepgram key)", () => {
 
 describe("caps cannot be slipped (security review lead, 2026-10-02)", () => {
   const fetchMock = vi.fn();
+  const T = Date.UTC(2026, 9, 2, 12);
+  const go = (bytes: number) => answerAloud({ audio: audio(bytes), type: "audio/webm", language: "English", token: issueQuizToken("English", 5, SECRET, T)!, ip: "2.2.2.2", now: T, store });
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("DEEPGRAM_API_KEY", "dg-test");
@@ -214,25 +210,15 @@ describe("caps cannot be slipped (security review lead, 2026-10-02)", () => {
   });
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
-  it("counts the real length even when it pushes past the hourly fuse", async () => {
-    const t = Date.UTC(2026, 9, 2, 12);
-    chargeSeconds(1_000, t);
-    fetchMock.mockResolvedValue(dg("long", 1_000));
-    await transcribe(audio(4000), "audio/webm", "English", t).catch(() => {});
-    // 1,000 + 1,000 real seconds is past the 1,800 s fuse: it must all be on the books, so even 500 more is refused.
-    expect(chargeSeconds(500, t)).toBe(false);
-    expect(reserveFor(4000)).toBe(30);
-  });
-
-  it("reserves an upper bound from the byte count, so a low-bitrate file cannot sneak hours past the fuse", async () => {
-    const t = Date.UTC(2026, 9, 2, 12);
-    chargeSeconds(HOURLY_AUDIO_SECONDS - 100, t);
-    await expect(transcribe(audio(MAX_AUDIO_BYTES), "audio/webm", "English", t)).rejects.toMatchObject({ status: 429 });
+  it("reserves an upper bound from the byte count, so a low-bitrate file cannot sneak hours past the budget", async () => {
+    expect(reserveFor(4000, "audio/webm")).toBe(30);
+    expect(reserveFor(MAX_AUDIO_BYTES, "audio/webm")).toBeGreaterThan(600);
+    await expect(go(MAX_AUDIO_BYTES)).rejects.toMatchObject({ status: 429 });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("refuses a recording longer than the quiz allows instead of returning its words", async () => {
     fetchMock.mockResolvedValue(dg("a very long speech", MAX_AUDIO_SECONDS + 10));
-    await expect(transcribe(audio(), "audio/webm", "English")).rejects.toMatchObject({ status: 413 });
+    await expect(go(4000)).rejects.toMatchObject({ status: 413 });
   });
 });

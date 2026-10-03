@@ -19,7 +19,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   try {
     // answer_token lets this quiz, and only a quiz this server wrote, use "Say your answer" (see transcribe.ts).
-    return Response.json({ ...(await buildQuestions(parsed.data)), answer_token: issueQuizToken(parsed.data.language) });
+    const quiz = await buildQuestions(parsed.data);
+    return Response.json({ ...quiz, answer_token: quiz.questions.length ? issueQuizToken(parsed.data.language, quiz.questions.length) : null });
   } catch (e) {
     if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status });
     // Log the kind of error only, never the request or message, so a paper can never land in the host logs.

@@ -21,14 +21,15 @@ describe("call routes keep 'database down' apart from 'no such session'", () => 
     store.get.mockRejectedValueOnce(new CallStoreDown());
     expect((await status.POST(post({ id: "x" }))).status).toBe(503);
   });
-  it("status: a pending end is re-checked with Vonage, and when Vonage cannot confirm it the call stays as it was (#54)", async () => {
+  it("status: a pending end Vonage cannot be asked about answers 503 (status unavailable), never the stale row as if known (#54)", async () => {
     const row = { id: "x", phase: "calling", note: "end_pending", plan_uuid: "v-1", plan_status: "answered", last4: "2368", attempts: 1, sealed_phone: null };
     store.get.mockReset();
     store.get.mockResolvedValue(row);
     vi.spyOn(console, "error").mockImplementation(() => {});
+    // The test config's private key cannot sign a Vonage JWT, so the re-check fails as a Vonage outage would.
     const r = await status.POST(post({ id: "x" }));
-    expect([r.status, await r.json()]).toEqual([200, expect.objectContaining({ phase: "calling", plan_status: "answered" })]);
-    expect(store.get).toHaveBeenCalledTimes(4); // read; the re-check's own read and its callback check; read again after
+    expect(r.status).toBe(503);
+    expect(store.get).toHaveBeenCalledTimes(3); // read; then the re-check's own read and its callback check
     store.get.mockReset();
     store.get.mockResolvedValue(null);
   });

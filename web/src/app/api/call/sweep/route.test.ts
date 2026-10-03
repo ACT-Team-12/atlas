@@ -44,4 +44,16 @@ describe("/api/call/sweep (Vercel Cron)", () => {
     expect(settlePendingEnds).toHaveBeenCalledTimes(1);
     expect(sweep).toHaveBeenCalledTimes(1);
   });
+
+  it("answers 503 when pending ends could not be listed or checked, so the cron does not stay green (#54)", async () => {
+    vi.stubEnv("CRON_SECRET", "s3cret");
+    cfg = { applicationId: "a" };
+    settlePendingEnds.mockResolvedValueOnce(null); // the database could not list them
+    expect((await GET(req({ authorization: "Bearer s3cret" }))).status).toBe(503);
+    settlePendingEnds.mockResolvedValueOnce({ checked: 2, ended: 1, failed: 1 }); // Vonage failed for one
+    const r = await GET(req({ authorization: "Bearer s3cret" }));
+    expect([r.status, await r.json()]).toEqual([503, { swept: true, pending: { checked: 2, ended: 1, failed: 1 } }]);
+    settlePendingEnds.mockResolvedValueOnce({ checked: 1, ended: 0, failed: 0 }); // still live: not a failure
+    expect((await GET(req({ authorization: "Bearer s3cret" }))).status).toBe(200);
+  });
 });

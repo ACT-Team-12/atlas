@@ -38,8 +38,11 @@ export async function GET(request: Request) {
   const store = await callStore();
   if (!store) return Response.json({ swept: false, reason: "no database" }, { status: 503 });
   const ok = await store.sweep(Date.now());
-  // Counts only, never ids. A call Vonage still reports live (or a Vonage failure) keeps its marker for the next run.
+  // Counts only, never ids. A call Vonage still reports live keeps its marker for the next run. When the pending ends
+  // could not be listed or checked (database or Vonage failing), the run answers 503 so the cron shows as failed
+  // instead of green while encrypted data waits for the 17-minute backstop.
   const cfg = callConfig();
   const pending = cfg ? await settlePendingEnds({ store, cfg }) : null;
-  return Response.json({ swept: ok, pending }, { status: ok ? 200 : 503, headers: { "cache-control": "no-store" } });
+  const pendingOk = !cfg || (pending !== null && pending.failed === 0);
+  return Response.json({ swept: ok, pending }, { status: ok && pendingOk ? 200 : 503, headers: { "cache-control": "no-store" } });
 }

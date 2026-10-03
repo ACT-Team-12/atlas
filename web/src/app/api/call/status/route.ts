@@ -24,7 +24,12 @@ export async function POST(request: Request) {
     // A plan call whose end is pending (END_PENDING in lib/call/store.ts): ask Vonage again now, so the page shows the
     // end and the data goes as soon as Vonage reports it, not only at the next sweep. Wipes only on Vonage's own word.
     if (row?.phase === "calling" && row.note === END_PENDING) {
-      await settlePendingEnds({ store, cfg, now }, id);
+      // When the end could not be checked, say status is unavailable (503, the panel shows it and backs off) rather
+      // than answer the stale "calling" row as if it were known.
+      const settled = await settlePendingEnds({ store, cfg, now }, id);
+      if (!settled || settled.failed > 0) {
+        return Response.json({ error: "Call status is not available right now." }, { status: 503, headers: NO_STORE });
+      }
       row = await store.get(id, now);
     }
     return Response.json(publicStatus(row), { headers: NO_STORE });

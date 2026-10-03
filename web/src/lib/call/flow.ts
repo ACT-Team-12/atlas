@@ -367,7 +367,9 @@ export async function settlePendingEnds(deps: Hook, id?: string): Promise<{ chec
   const results = await Promise.all(pending.map(async (p) => {
     try {
       const r = await handleEvent(deps, { k: p.id, p: "event", c: "plan", exp: now + 60_000 }, p.plan_uuid);
-      if (r === "error") return "failed" as const;
+      // "error": Vonage or the database could not answer. "ignored": Vonage's answer could not be matched to this call
+      // (another number, an unknown status). Neither settles the end, so both count as failed, never as "still live".
+      if (r !== "ok") return "failed" as const;
       return (await deps.store.get(p.id, now))?.phase === "done" ? "ended" as const : "live" as const;
     } catch (e) {
       if (e instanceof CallStoreDown) return "failed" as const;

@@ -664,11 +664,12 @@ describe("the call flow", () => {
       const down = vi.fn(async () => new Response("", { status: 500 }));
       const err = quiet();
       expect(await settlePendingEnds({ store, cfg, fetchImpl: down as unknown as typeof fetch, now: NOW })).toEqual({ checked: 1, ended: 0, failed: 1 });
-      // Vonage reports an end, but for a call to another number: refused, nothing wiped.
+      // Vonage reports an end, but for a call to another number: refused, nothing wiped, and counted as a failed check
+      // (it settled nothing), never as "still live".
       truth.set("call-2", { status: "completed", to: "14045550000" });
       const other = await settlePendingEnds(hk());
       err.mockRestore();
-      expect(other).toEqual({ checked: 1, ended: 0, failed: 0 });
+      expect(other).toEqual({ checked: 1, ended: 0, failed: 1 });
       truth.set("call-2", { status: "answered" });
       // The sweep's own retention rules leave a live, marked call alone until its longest possible length.
       await store.sweep(NOW + 6 * 60_000);

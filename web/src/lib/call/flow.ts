@@ -148,7 +148,7 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
 export type VerifyOutcome =
   | { state: "calling"; last4: string | null; mode: "stream" | "talk"; /** Vonage did not confirm the call; it may still ring. */ uncertain?: true }
   | { state: "wrong"; attemptsLeft: number }
-  | { state: "expired" | "token" | "capped-plan" | "capped-site" | "failed" };
+  | { state: "expired" | "token" | "capped-plan" | "capped-site" | "failed" | "no-db" };
 
 export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unknown }): Promise<VerifyOutcome> {
   const { store, cfg } = deps;
@@ -167,7 +167,9 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
     return left > 0 ? { state: "wrong", attemptsLeft: left } : { state: "expired" };
   }
   // Exactly one request moves a session past its code.
-  if (!(await store.update(id, { phase: "calling", code_hash: null }, ["code"]))) return { state: "expired" };
+  const moved = await store.update(id, { phase: "calling", code_hash: null }, ["code"]);
+  if (moved === "error") return { state: "no-db" };
+  if (moved !== "updated") return { state: "expired" };
   const fail = async (state: "token" | "capped-plan" | "capped-site" | "failed", note: string) => {
     await store.update(id, { ...WIPE, phase: "failed", note }, ["calling"]);
     return { state } as const;
@@ -188,7 +190,7 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
   const audio = await (deps.voice ?? defaultVoice)(text, language).catch(() => null);
   const bytes = audio && audio.byteLength > 1000 ? Buffer.from(audio) : null;
   const exp = row.expires_at.getTime();
-  if (bytes && !(await store.update(id, { sealed_audio: seal(cfg.secret, "audio", id, exp, bytes), plan_mode: "stream" }, ["calling"]))) {
+  if (bytes && (await store.update(id, { sealed_audio: seal(cfg.secret, "audio", id, exp, bytes), plan_mode: "stream" }, ["calling"])) !== "updated") {
     return fail("failed", "audio could not be stored");
   }
   const mode = bytes ? "stream" : "talk";
@@ -280,16 +282,17 @@ export async function handleEvent(deps: Hook, t: CallTicket, uuid: unknown): Pro
   const current = row[field];
   if (current && (RANK[current] ?? -1) >= RANK[status]) return "ok";
   if (t.c === "code") {
-    // A code call nobody picked up ends the session; the person can ask for a new one. Both writes are phase-gated, so
-    // false only means the session has moved on (code typed), not a failure.
-    if (MISSED.has(status)) await deps.store.update(t.k, { ...WIPE, code_status: status, phase: "code_missed" }, ["code"]);
-    else await deps.store.update(t.k, { code_status: status }, ["code"]);
-    return "ok";
+    // A code call nobody picked up ends the session; the person can ask for a new one. Only a database error is a
+    // failure (503, Vonage retries); "phase_changed" means the session has moved on.
+    const r = MISSED.has(status)
+      ? await deps.store.update(t.k, { ...WIPE, code_status: status, phase: "code_missed" }, ["code"])
+      : await deps.store.update(t.k, { code_status: status }, ["code"]);
+    return r === "error" ? "error" : "ok"; // "phase_changed": the code was typed meanwhile, nothing to record
   }
-  const saved = RANK[status] === 4
+  const r = RANK[status] === 4
     ? await deps.store.update(t.k, { ...WIPE, plan_status: status, phase: "done" })
     : await deps.store.update(t.k, { plan_status: status });
-  return saved ? "ok" : "error";
+  return r === "error" ? "error" : "ok"; // "phase_changed": the session is gone (swept), nothing left to record
 }
 
 /**

@@ -12,6 +12,7 @@ const REFUSED: Record<string, [number, string]> = {
   token: [403, "This plan can't be read on a call any more. Make the plan again, then try."],
   "capped-plan": [429, "This number already got 3 plan calls today. Try again tomorrow."],
   "capped-site": [429, "ATLAS has made all of today's calls. Try again tomorrow."],
+  "no-db": [503, "Calls are not available right now. Try again in a minute."],
   failed: [502, "The plan call could not be placed. Your number and plan were deleted. Try again."],
 };
 

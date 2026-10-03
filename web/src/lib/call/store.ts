@@ -18,6 +18,7 @@ export const UNCONFIRMED_PLAN_MS = 5 * 60_000;
 export const PLAN_CALL_MAX_MS = 17 * 60_000;
 export const COUNTER_TTL_MS = 2 * 24 * 60 * 60_000;
 
+export type UpdateResult = "updated" | "phase_changed" | "error";
 export type Phase = "code" | "code_missed" | "expired" | "calling" | "done" | "failed";
 
 export type SessionRow = {
@@ -70,8 +71,11 @@ export interface CallStore {
   getAudio(id: string, now: number): Promise<Buffer | null>;
   /** Spends one code attempt atomically; null when there is no live code left to try. */
   takeAttempt(id: string, now: number): Promise<SessionRow | null>;
-  /** True when the row was updated (and, with onlyIf, only when its phase was one of those). */
-  update(id: string, patch: SessionPatch, onlyIf?: Phase[]): Promise<boolean>;
+  /**
+   * "updated" when the row was written; "phase_changed" when no live row matched (gone, or, with onlyIf, its phase is
+   * no longer one of those); "error" when the database could not be reached. Only "updated" confirms the write.
+   */
+  update(id: string, patch: SessionPatch, onlyIf?: Phase[]): Promise<UpdateResult>;
   /**
    * Binds a Vonage call UUID to one of a session's calls when none is stored yet: "bound" when this call bound it,
    * "match" when it already was this UUID, "mismatch" when another UUID is stored, "gone" when there is no live
@@ -281,16 +285,16 @@ export class PgCallStore implements CallStore {
 
   async update(id: string, patch: SessionPatch, onlyIf?: Phase[]) {
     const keys = Object.keys(patch).filter((k) => PATCHABLE.has(k)) as (keyof SessionPatch)[];
-    if (!keys.length) return false;
+    if (!keys.length) return "phase_changed" as const;
     const params: unknown[] = [id, ...keys.map((k) => patch[k] ?? null)];
     let sql = `update atlas_calls set ${keys.map((k, i) => `${k} = $${i + 2}`).join(", ")} where id = $1`;
     if (onlyIf?.length) { params.push(onlyIf); sql += ` and phase = any($${params.length}::text[])`; }
     try {
       const r = await this.db.query(sql, params);
-      return (r.rowCount ?? 0) === 1;
+      return (r.rowCount ?? 0) === 1 ? "updated" as const : "phase_changed" as const;
     } catch (e) {
       logErr("call update failed", e);
-      return false;
+      return "error" as const;
     }
   }
 

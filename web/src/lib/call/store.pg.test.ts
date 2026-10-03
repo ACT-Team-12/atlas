@@ -58,11 +58,12 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
   it("moves a session past its code exactly once, and wipes", async () => {
     await store.startCode(session("f", "h4"), NOW);
     const r = await Promise.all(Array.from({ length: 6 }, () => store.update("f", { phase: "calling", code_hash: null }, ["code"])));
-    expect(r.filter(Boolean).length).toBe(1);
-    expect(await store.update("f", { sealed_audio: Buffer.from([7, 7]) })).toBe(true);
+    expect(r.filter((v) => v === "updated").length).toBe(1);
+    expect(await store.update("f", { sealed_audio: Buffer.from([7, 7]) })).toBe("updated");
     expect((await store.get("f", NOW))?.has_audio).toBe(true);
     expect(await store.getAudio("f", NOW)).toEqual(Buffer.from([7, 7]));
-    expect(await store.update("f", { ...WIPE, phase: "done", plan_status: "completed" })).toBe(true);
+    expect(await store.update("f", { ...WIPE, phase: "done", plan_status: "completed" })).toBe("updated");
+    expect(await store.update("f", { plan_status: "x" }, ["code"])).toBe("phase_changed");
     const row = await store.get("f", NOW);
     expect([row?.sealed_phone, row?.sealed_text, row?.sealed_token, row?.has_audio, await store.getAudio("f", NOW), row?.phase, row?.last4]).toEqual([null, null, null, false, null, "done", null]);
   });

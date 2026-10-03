@@ -10,6 +10,8 @@ export class MemoryCallStore implements CallStore {
   /** When each counter's window ends (absent: never, for counters a test set by hand). */
   counterEnds = new Map<string, number>();
   failNext = false;
+  /** While true, every update fails as a database outage would ("error"). */
+  failUpdates = false;
 
   private boom() { if (this.failNext) { this.failNext = false; throw new Error("db down"); } }
 
@@ -75,10 +77,11 @@ export class MemoryCallStore implements CallStore {
   }
 
   async update(id: string, patch: SessionPatch, onlyIf?: Phase[]) {
+    if (this.failUpdates) return "error" as const;
     const r = this.rows.get(id);
-    if (!r || (onlyIf?.length && !onlyIf.includes(r.phase))) return false;
+    if (!r || (onlyIf?.length && !onlyIf.includes(r.phase))) return "phase_changed" as const;
     Object.assign(r, patch);
-    return true;
+    return "updated" as const;
   }
 
   async claimUuid(id: string, leg: "code" | "plan", uuid: string, now: number) {

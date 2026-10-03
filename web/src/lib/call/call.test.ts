@@ -563,6 +563,27 @@ describe("the call flow", () => {
       spy.mockRestore();
     });
 
+    it("answers 'error' (503, Vonage retries) when a code-call event cannot be saved, instead of acknowledging it", async () => {
+      const id = await started();
+      truth.set("call-1", { status: "unanswered" });
+      store.failUpdates = true;
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      expect(await handleEvent(hk(), { k: id, p: "event", c: "code", exp: NOW + 60_000 }, "call-1")).toBe("error");
+      truth.set("call-1", { status: "ringing" });
+      expect(await handleEvent(hk(), { k: id, p: "event", c: "code", exp: NOW + 60_000 }, "call-1")).toBe("error");
+      store.failUpdates = false;
+      truth.set("call-1", { status: "unanswered" });
+      expect(await handleEvent(hk(), { k: id, p: "event", c: "code", exp: NOW + 60_000 }, "call-1")).toBe("ok");
+      expect(store.rows.get(id)!.phase).toBe("code_missed");
+    });
+
+    it("acknowledges an event for a session that has moved on (phase changed), without an error", async () => {
+      const id = await started();
+      await verifyAndCall(deps(), { id, code: "4821" }); // now 'calling'
+      truth.set("call-1", { status: "completed" });
+      expect(await handleEvent(hk(), { k: id, p: "event", c: "code", exp: NOW + 60_000 }, "call-1")).toBe("ok");
+    });
+
     it("never returns the plan text on keypad input for a call Vonage says has ended, or cannot confirm", async () => {
       const { inp } = await plan();
       truth.set("call-2", { status: "completed" });

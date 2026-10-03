@@ -17,6 +17,9 @@ struct SavedSession: Codable, Equatable, Sendable {
     /// What the steps were read from and what the plan was built from (StaleGuard). Nil in older files.
     var readFingerprint: String?
     var planFingerprint: String?
+    /// When the steps or the plan last changed (a read, a plan, a step done, removed or restored). Changing the language,
+    /// reading level, ZIP, note or barriers, or opening a helper link, keeps it, so "Welcome back" shows when the plan
+    /// was made.
     var savedAt: Date
 
     /// A file saved by the 1.0 app has no fingerprints and its steps carry no language, so the outdated note could never

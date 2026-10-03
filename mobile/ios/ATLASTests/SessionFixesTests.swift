@@ -79,4 +79,35 @@ struct SessionFixesTests {
                                  plan: nil, done: [:], removed: [:], savedAt: Date(timeIntervalSince1970: 1))
         #expect(empty.upgraded() == empty)
     }
+
+    // MARK: Bug 2: opening a helper link moved the saved time
+
+    @Test func helperLinkAndInputChangesKeepTheSavedTime() throws {
+        let store = try Self.legacyStore()
+        let model = AppModel(store: store)
+        #expect(model.restoredAt == Self.legacyDate)
+        model.applyHelperLink(HelperPresets(language: .Vietnamese, level: .standard, zip: "30310"))
+        model.note = "bring my list"
+        model.toggle(.transport)
+        let saved = try #require(store.load())
+        #expect(saved.language == .Vietnamese, "the presets were saved")
+        #expect(saved.zip == "30310" && saved.note == "bring my list" && saved.barriers.contains(.transport))
+        #expect(saved.savedAt == Self.legacyDate, "but the plan's time was not touched")
+        #expect(AppModel(store: store).restoredAt == Self.legacyDate, "the next launch still says when the plan was made")
+    }
+
+    @Test func aRealPlanChangeMovesTheSavedTime() throws {
+        let store = try Self.legacyStore()
+        let model = AppModel(store: store)
+        let id = try #require(model.items.first?.id)
+        model.removed[id] = true
+        let afterRemove = try #require(store.load()).savedAt
+        #expect(afterRemove > Self.legacyDate, "removing a step moves it")
+        model.removed[id] = nil
+        #expect(try #require(store.load()).savedAt >= afterRemove, "restoring it moves it too")
+        let other = try #require(model.items.last?.id)
+        let doneStore = try Self.legacyStore()
+        AppModel(store: doneStore).done[other] = true
+        #expect(try #require(doneStore.load()).savedAt > Self.legacyDate, "marking a step done moves it")
+    }
 }

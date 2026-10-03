@@ -25,17 +25,19 @@ final class AppModel {
     /// Device location for the plan request only. Never saved.
     var location: LatLng?
 
-    // Results
-    var care: CarePlanResponse? { didSet { persist() } }
-    var plan: PlanResponse? { didSet { persist() } }
-    var done: [String: Bool] = [:] { didSet { persist() } }
-    var removed: [String: Bool] = [:] { didSet { persist() } }
+    // Results. A read, a plan, or a step done, removed or restored moves the saved time "Welcome back" shows.
+    var care: CarePlanResponse? { didSet { persist(planChanged: true) } }
+    var plan: PlanResponse? { didSet { persist(planChanged: true) } }
+    var done: [String: Bool] = [:] { didSet { persist(planChanged: true) } }
+    var removed: [String: Bool] = [:] { didSet { persist(planChanged: true) } }
     var restoredAt: Date?
     /// The second-model double-check of `care` (paper first: only a certified explanation may lead).
     private(set) var meaning: MeaningState = .idle { didSet { persist() } }
     /// What `care` was read from and what `plan` was built from (StaleGuard). Nil when unknown (older saved files).
     private(set) var readFingerprint: String?
     private(set) var planFingerprint: String?
+    /// When the steps or the plan last changed (SavedSession.savedAt). Input changes and helper links keep it.
+    @ObservationIgnored private var planChangedAt: Date?
 
     // Helper link: the banner, and whether the next plan counts as one built from the link. Never saved.
     private(set) var helperBanner: HelperBanner?
@@ -266,6 +268,7 @@ final class AppModel {
         care = saved.care; barriers = saved.barriers; zip = saved.zip; note = saved.note
         plan = saved.plan; done = saved.done; removed = saved.removed
         readFingerprint = saved.readFingerprint; planFingerprint = saved.planFingerprint
+        planChangedAt = saved.savedAt
         let savedMeaning = saved.meaning ?? .idle
         meaning = savedMeaning.status == .done ? savedMeaning : .idle
         restoring = false
@@ -274,12 +277,16 @@ final class AppModel {
         if let c = saved.care, savedMeaning.status == .loading { startMeaningCheck(for: c, language: c.language ?? saved.language) }
     }
 
-    private func persist() {
+    /// `planChanged`: a read, a plan, or a step done, removed or restored, which moves the saved time "Welcome back"
+    /// shows. Everything else (language, level, ZIP, note, barriers, a helper link, the double-check) is saved but keeps it.
+    private func persist(planChanged: Bool = false) {
         guard !restoring, care != nil || plan != nil else { return }
+        let at = planChanged ? Date() : (planChangedAt ?? Date())
+        planChangedAt = at
         let session = SavedSession(text: text, language: language, level: level, care: care, barriers: barriers,
                                    zip: zip, note: note, plan: plan, done: done, removed: removed,
                                    meaning: meaning, readFingerprint: readFingerprint, planFingerprint: planFingerprint,
-                                   savedAt: Date())
+                                   savedAt: at)
         try? store.save(session)
     }
 
@@ -294,7 +301,7 @@ final class AppModel {
         helperBanner = nil; fromHelperLink = false
         store.clear()
         restoring = true
-        meaning = .idle; readFingerprint = nil; planFingerprint = nil
+        meaning = .idle; readFingerprint = nil; planFingerprint = nil; planChangedAt = nil
         text = ""; care = nil; plan = nil; barriers = []; zip = ""; note = ""; done = [:]; removed = [:]
         restoring = false
         location = nil

@@ -4,7 +4,9 @@ import { Footer } from "@/ui/Footer";
 import { PAPERS, runCheckerTest } from "@/lib/checkerTest";
 import results from "@/data/eval/results.json";
 import meaningRaw from "@/data/eval/meaning.json";
-import { liveStats } from "@/lib/db";
+import { helperFunnel, liveStats } from "@/lib/db";
+import { publicStats, type PublicStats } from "@/lib/publicStats";
+import type { Count } from "@/lib/helperFunnel";
 import labEvalRaw from "@/data/eval/lab-eval.json";
 import labPlantedRaw from "@/data/eval/lab-planted.json";
 import type { LabPlantedReport } from "@/lib/labPlanted";
@@ -38,6 +40,10 @@ export const metadata: Metadata = {
 const T = results.totals;
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "n/a");
 const sec = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+// Live counts arrive through publicStats(): under 10 is "<10", and a count that would give one away is "hidden".
+const show = (n: Count) => (typeof n === "number" ? n.toLocaleString("en-US") : n);
+// A breakdown leaves out values nobody picked, and none is the same as under 10.
+const pick = (m: Record<string, Count>, k: string): Count => m[k] ?? "<10";
 
 function Stat({ big, label, note, tone = "bg-paper" }: { big: string; label: string; note?: string; tone?: string }) {
   return (
@@ -52,7 +58,8 @@ function Stat({ big, label, note, tone = "bg-paper" }: { big: string; label: str
 export default async function TestsPage() {
   const c = runCheckerTest();
   const prep = runPrepPlantedTest();
-  const live = await liveStats();
+  const [raw, funnel] = await Promise.all([liveStats(), helperFunnel()]);
+  const live: PublicStats | null = raw ? publicStats(raw, funnel) : null;
   const promoted = results.rows.flatMap((r) => r.distractors_promoted.map((d) => ({ id: r.id, d })));
   const missed = results.rows.flatMap((r) => r.missed.map((m) => ({ id: r.id, m })));
   return (
@@ -293,13 +300,14 @@ export default async function TestsPage() {
             {live ? (
               <>
                 <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                  <Stat big={`${live.reads}`} label="papers read" note={live.median_read_ms ? `median ${sec(live.median_read_ms)}` : undefined} />
-                  <Stat big={`${live.plans}`} label="plans built" note={live.median_plan_ms ? `median ${sec(live.median_plan_ms)}` : undefined} />
-                  <Stat big={`${live.feedback}`} label="people told us how it went" note={live.avg_rating ? `average ${live.avg_rating.toFixed(1)} of 5` : "no ratings yet"} />
-                  <Stat big={live.feedback ? `${live.would_use.yes ?? 0}/${live.feedback}` : "0"} label="would use it again" note={live.feedback ? `${live.would_use.maybe ?? 0} maybe, ${live.would_use.no ?? 0} no` : undefined} />
+                  <Stat big={show(live.reads)} label="papers read" note={live.median_read_ms ? `median ${sec(live.median_read_ms)}` : undefined} />
+                  <Stat big={show(live.plans)} label="plans built" note={live.median_plan_ms ? `median ${sec(live.median_plan_ms)}` : undefined} />
+                  <Stat big={show(live.feedback)} label="people told us how it went" note={live.avg_rating ? `average ${live.avg_rating.toFixed(1)} of 5` : undefined} />
+                  <Stat big={`${show(pick(live.would_use, "yes"))} of ${show(live.feedback)}`} label="would use it again" note={`${show(pick(live.would_use, "maybe"))} maybe, ${show(pick(live.would_use, "no"))} no`} />
                 </div>
                 <p className="mt-6 text-sm font-semibold">
-                  {live.feedback ? `Who answered: ${Object.entries(live.roles).map(([k, v]) => `${v} ${k}`).join(", ")}. ` : ""}
+                  {Object.keys(live.roles).length ? `Who answered: ${Object.entries(live.roles).map(([k, v]) => `${show(v)} ${k}`).join(", ")}. ` : ""}
+                  Counts under 10 show as &lt;10, and a count that would let a small one be worked out by subtracting shows as hidden. Averages from fewer than 10 answers are left out.{" "}
                   {live.since ? `Counting since ${new Date(live.since).toLocaleDateString("en-US", { month: "long", day: "numeric" })}. ` : "Nothing counted yet. "}
                   Raw numbers: <a className="underline decoration-2 underline-offset-4" href="/api/stats">/api/stats</a>.
                 </p>

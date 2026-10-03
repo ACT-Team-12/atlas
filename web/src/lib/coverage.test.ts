@@ -111,6 +111,15 @@ describe("classifySentence", () => {
     expect(classifySentence(t)).toBeNull();
   });
 
+  it.each([
+    "If you have questions or chest pain, call 911.",
+    "If you have any questions, call us; do not stop taking metformin.",
+    "Confidential: take 2 tablets of furosemide 40 mg every morning.",
+    "Check MyChart, and go to the emergency room if your leg swells.",
+  ])("a boilerplate phrase does not hide a real instruction: %s", (t) => {
+    expect(classifySentence(t)).not.toBeNull();
+  });
+
   it("applies the Spanish lexicon only when asked", () => {
     const es = ["Tome 1 tableta 2 veces al día.", "Llame al 911 si tiene dolor de pecho.", "No tome ibuprofeno.", "Su cita de seguimiento es en 2 semanas."];
     for (const t of es) expect(classifySentence(t, { languages: ["en", "es"] })).not.toBeNull();

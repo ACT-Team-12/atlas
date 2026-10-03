@@ -63,7 +63,25 @@ type Lexicon = {
   leadIn: RegExp;
   /** Lines that are never patient instructions, whatever else they contain. */
   exclude: RegExp;
+  /**
+   * Boilerplate phrases ("if you have questions", "MyChart"). They exclude a line only when it carries no
+   * strong signal (STRONG below), so "If you have questions or chest pain, call 911." still counts.
+   */
+  soft: RegExp;
 };
+
+/** Signals that make a line count even when it also contains a soft boilerplate phrase. Applied to normalized text. */
+const STRONG = new RegExp(
+  [
+    String.raw`\b911\b`,
+    String.raw`emergenc`,
+    String.raw`\b(?:stop|do not|don't|dont|never|avoid)\b`,
+    String.raw`(?:^|[^\p{L}])no (?:tome|coma|beba|use)(?![\p{L}])`,
+    String.raw`\b(?:chest pain|trouble breathing|dolor de pecho)\b`,
+    String.raw`\d+(?:[.,]\d+)?\s*(?:mg|mcg|ml|units?|tablets?|tabs?|capsules?|pills?|puffs?|drops?|tabletas?|pastillas?)(?![\p{L}])`,
+  ].join("|"),
+  "u",
+);
 
 const EN: Lexicon = {
   imperativeStart:
@@ -96,9 +114,16 @@ const EN: Lexicon = {
       String.raw`^signature\b`,
       String.raw`^sincerely\b`,
       String.raw`^(?:attending|provider|physician|doctor|nurse|clinician)(?: name)?\s*:`,
-      // Boilerplate that no care plan turns into a step.
+      // Page furniture.
       String.raw`^page \d+(?: of \d+)?$`,
       String.raw`^printed (?:on|by|at)\b`,
+      String.raw`^(?:patient name|dob|date of birth|mrn|account)\s*:`,
+      // Why the visit happened, not what to do next ("Reason for visit: Follow-up for high blood sugar.").
+      String.raw`^(?:reason for (?:your |today's )?visit|visit reason|chief complaint)\s*:`,
+    ].join("|"),
+  ),
+  soft: new RegExp(
+    [
       String.raw`\bnot (?:a substitute|intended)\b`,
       String.raw`\bthank you for choosing\b`,
       String.raw`\ball rights reserved\b`,
@@ -106,9 +131,6 @@ const EN: Lexicon = {
       String.raw`\bconfidential\b`,
       String.raw`\bmychart\b`,
       String.raw`\bif you have (?:any )?questions\b`,
-      String.raw`^(?:patient name|dob|date of birth|mrn|account)\s*:`,
-      // Why the visit happened, not what to do next ("Reason for visit: Follow-up for high blood sugar.").
-      String.raw`^(?:reason for (?:your |today's )?visit|visit reason|chief complaint)\s*:`,
     ].join("|"),
   ),
 };
@@ -134,7 +156,8 @@ const ES: Lexicon = {
     "u",
   ),
   leadIn: /^(?:por favor|y|luego|también|tambien)\s+/u,
-  exclude: /(?:^|[^\p{L}])(?:no es para el paciente|firmado|uso interno|página \d+|si tiene preguntas)(?![\p{L}])/u,
+  exclude: /(?:^|[^\p{L}])(?:no es para el paciente|firmado|uso interno|página \d+)(?![\p{L}])/u,
+  soft: /(?:^|[^\p{L}])si tiene preguntas(?![\p{L}])/u,
 };
 
 const LEXICONS: Record<CoverageLang, Lexicon> = { en: EN, es: ES };
@@ -284,6 +307,7 @@ export function classifySentence(text: string, options: CoverageOptions = {}): I
   if (!norm) return null;
 
   for (const lex of lexes) if (lex.exclude.test(norm)) return null;
+  if (!STRONG.test(norm)) for (const lex of lexes) if (lex.soft.test(norm)) return null;
   if (isPhoneOnly(norm)) return null;
 
   const imperative = lexes.some((lex) => startsImperative(norm, lex));

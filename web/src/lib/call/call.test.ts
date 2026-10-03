@@ -2,7 +2,7 @@ import { createVerify, generateKeyPairSync } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { issueSpeakToken } from "../speakToken";
 import { callConfig, normalizePem, publicBaseUrl, signTicket, verifyTicket, type CallConfig } from "./config";
-import { audioFor, CODE_CALLS_PER_NUMBER, handleEvent, handleInput, publicStatus, startCall, verifyAndCall, type Deps } from "./flow";
+import { audioFor, CODE_CALL_GAP_MS, CODE_CALLS_PER_HOUR, CODE_CALLS_PER_IP, CODE_CALLS_PER_NUMBER, handleEvent, handleInput, publicStatus, startCall, verifyAndCall, type Deps } from "./flow";
 import { MemoryCallStore } from "./memoryStore";
 import { canCallIn, codeNcco, MAX_REPLAYS, planLengthSeconds, planNcco, talkChunks, TALK_CHUNK, VONAGE_TTS } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
@@ -167,6 +167,14 @@ describe("NCCO", () => {
 });
 
 describe("caps", () => {
+  it("restarts a windowed counter once its window has passed", async () => {
+    const store = new MemoryCallStore();
+    expect(await store.takeSlot("gap", 1, NOW, 60_000)).toBe(true);
+    expect(await store.takeSlot("gap", 1, NOW + 59_000, 60_000)).toBe(false);
+    expect(await store.takeSlot("gap", 1, NOW + 60_000, 60_000)).toBe(true);
+    expect(await store.counter("gap", NOW + 60_000)).toBe(1);
+    expect(await store.counter("gap", NOW + 120_000)).toBe(0);
+  });
   it("reserves every counter or none", async () => {
     const store = new MemoryCallStore();
     store.counters.set("site", 40);
@@ -237,11 +245,13 @@ describe("the call flow", () => {
   });
 
   it("caps code calls per number per day, and the site per day", async () => {
+    const gap = CODE_CALL_GAP_MS + 60_000;
     for (let i = 0; i < CODE_CALLS_PER_NUMBER; i++) {
-      const id = await started();
-      await store.update(id, { phase: "code_missed" });
+      const r = await startCall(deps({ now: NOW + i * gap }), input());
+      if (r.state !== "calling") throw new Error(r.state);
+      await store.update(r.id, { phase: "code_missed" });
     }
-    expect((await startCall(deps(), input())).state).toBe("capped-code");
+    expect((await startCall(deps({ now: NOW + 3 * gap }), input())).state).toBe("capped-code");
     expect(fetchImpl).toHaveBeenCalledTimes(CODE_CALLS_PER_NUMBER);
     // the next UTC day starts fresh
     const tomorrow = NOW + 24 * 3600_000;
@@ -253,17 +263,52 @@ describe("the call flow", () => {
     expect(site.counters.get(`code:${phoneHash(SECRET, "+14045552368")}:2026-10-02`)).toBe(0); // the number's slot was given back
   });
 
+  // A distinct plan token (one per built plan) for each number.
+  const fresh = (i: number) => issueSpeakToken("English", TEXT, SPEAK, NOW - 1000 - i)!;
+
   it("caps code calls per caller across numbers, counted in the store", async () => {
-    const numbers = ["404-555-2301", "404-555-2302", "404-555-2303", "404-555-2304", "404-555-2305", "404-555-2306", "404-555-2307", "404-555-2308"];
-    for (const phone of numbers) expect((await startCall(deps(), input({ phone, caller: "ip1" }))).state).toBe("calling");
-    expect((await startCall(deps(), input({ phone: "404-555-2309", caller: "ip1" }))).state).toBe("capped-caller");
-    expect((await startCall(deps(), input({ phone: "404-555-2309", caller: "ip2" }))).state).toBe("calling");
+    for (let i = 0; i < CODE_CALLS_PER_IP; i++) {
+      expect((await startCall(deps(), input({ phone: `404-555-23${10 + i}`, caller: "ip1", token: fresh(i) }))).state).toBe("calling");
+    }
+    expect((await startCall(deps(), input({ phone: "404-555-2399", caller: "ip1", token: fresh(50) }))).state).toBe("capped-caller");
+    expect((await startCall(deps(), input({ phone: "404-555-2399", caller: "ip2", token: fresh(51) }))).state).toBe("calling");
+  });
+
+  it("binds a plan token to the first number it calls: another number needs a new plan", async () => {
+    const id = await started();
+    expect((await startCall(deps(), input({ phone: "404-555-2399" }))).state).toBe("token-used");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    // the same number may be called again with the same plan (after a missed call and the 10-minute gap)
+    await store.update(id, { phase: "code_missed" });
+    expect((await startCall(deps({ now: NOW + CODE_CALL_GAP_MS + 1 }), input())).state).toBe("calling");
+  });
+
+  it("lets exactly one of two racing first uses of a token bind it", async () => {
+    const r = await Promise.all([startCall(deps(), input({ phone: "404-555-2391" })), startCall(deps(), input({ phone: "404-555-2392" }))]);
+    expect(r.map((x) => x.state).sort()).toEqual(["calling", "token-used"]);
+  });
+
+  it("places at most one code call per number per 10 minutes, whatever happened to the last one", async () => {
+    const id = await started();
+    await store.update(id, { phase: "code_missed" });
+    expect((await startCall(deps({ now: NOW + 60_000 }), input())).state).toBe("too-soon");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect((await startCall(deps({ now: NOW + CODE_CALL_GAP_MS + 1 }), input())).state).toBe("calling");
+  });
+
+  it("caps code calls per hour site-wide", async () => {
+    for (let i = 0; i < CODE_CALLS_PER_HOUR; i++) {
+      expect((await startCall(deps(), input({ phone: `404-555-24${10 + i}`, caller: `ip${i}`, token: fresh(i) }))).state).toBe("calling");
+    }
+    expect((await startCall(deps(), input({ phone: "404-555-2499", caller: "ipx", token: fresh(99) }))).state).toBe("capped-site");
+    const nextHour = NOW + 60 * 60_000;
+    expect((await startCall(deps({ now: nextHour }), input({ phone: "404-555-2499", caller: "ipx", token: issueSpeakToken("English", TEXT, SPEAK, nextHour) }))).state).toBe("calling");
   });
 
   it("keeps a quarter of the site cap for plan calls, so code calls alone cannot use it up", async () => {
     const id = await started();
     store.counters.set("site:2026-10-02", 30); // 75% of 40, counting this session's code call
-    expect((await startCall(deps(), input({ phone: "404-555-2399" }))).state).toBe("capped-site");
+    expect((await startCall(deps(), input({ phone: "404-555-2399", token: fresh(7) }))).state).toBe("capped-site");
     expect((await verifyAndCall(deps(), { id, code: "4821" })).state).toBe("calling");
     expect(store.counters.get("site:2026-10-02")).toBe(31);
   });
@@ -392,7 +437,7 @@ describe("the call flow", () => {
     const id = await started();
     await handleEvent({ store, now: NOW }, { k: id, p: "event", c: "code", exp: NOW + 60_000 }, "unanswered");
     expect(store.rows.get(id)!.phase).toBe("code_missed");
-    expect((await startCall(deps(), input())).state).toBe("calling");
+    expect((await startCall(deps({ now: NOW + CODE_CALL_GAP_MS + 1 }), input())).state).toBe("calling");
   });
 
   it("is gone after 30 minutes", async () => {

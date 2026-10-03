@@ -1,4 +1,4 @@
-import { CODE_ATTEMPTS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
+import { CODE_ATTEMPTS, COUNTER_TTL_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
 
 /**
  * An in-memory CallStore with the same rules as PgCallStore (one live code per number, atomic attempts, capped
@@ -7,6 +7,8 @@ import { CODE_ATTEMPTS, type CallStore, type NewSession, type Phase, type Sessio
 export class MemoryCallStore implements CallStore {
   rows = new Map<string, SessionRow & { sealed_audio: Buffer | null }>();
   counters = new Map<string, number>();
+  /** When each counter's window ends (absent: never, for counters a test set by hand). */
+  counterEnds = new Map<string, number>();
   failNext = false;
 
   private boom() { if (this.failNext) { this.failNext = false; throw new Error("db down"); } }
@@ -19,6 +21,7 @@ export class MemoryCallStore implements CallStore {
         Object.assign(r, { phase: "expired", code_hash: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null });
       }
     }
+    for (const [k, end] of this.counterEnds) if (end < now) { this.counterEnds.delete(k); this.counters.delete(k); }
   }
 
   async startCode(s: NewSession, now: number) {
@@ -62,15 +65,19 @@ export class MemoryCallStore implements CallStore {
     return true;
   }
 
-  async takeSlot(key: string, cap: number) {
+  async takeSlot(key: string, cap: number, now: number, ttlMs = COUNTER_TTL_MS) {
     if (cap <= 0) return false;
-    const n = this.counters.get(key) ?? 0;
+    const ended = (this.counterEnds.get(key) ?? Infinity) <= now;
+    const n = ended ? 0 : this.counters.get(key) ?? 0;
     if (n >= cap) return false;
     this.counters.set(key, n + 1);
+    if (n === 0) this.counterEnds.set(key, now + ttlMs);
     return true;
   }
 
   async releaseSlot(key: string) { const n = this.counters.get(key) ?? 0; if (n > 0) this.counters.set(key, n - 1); }
 
-  async counter(key: string) { return this.counters.get(key) ?? 0; }
+  async counter(key: string, now = Date.now()) {
+    return (this.counterEnds.get(key) ?? Infinity) <= now ? 0 : this.counters.get(key) ?? 0;
+  }
 }

@@ -12,7 +12,7 @@ import { getPool } from "../db";
 export const SESSION_TTL_MS = 30 * 60_000;
 export const CODE_TTL_MS = 10 * 60_000;
 export const CODE_ATTEMPTS = 3;
-const COUNTER_TTL_MS = 2 * 24 * 60 * 60_000;
+export const COUNTER_TTL_MS = 2 * 24 * 60 * 60_000;
 
 export type Phase = "code" | "code_missed" | "expired" | "calling" | "done" | "failed";
 
@@ -57,10 +57,14 @@ export interface CallStore {
   takeAttempt(id: string, now: number): Promise<SessionRow | null>;
   /** True when the row was updated (and, with onlyIf, only when its phase was one of those). */
   update(id: string, patch: SessionPatch, onlyIf?: Phase[]): Promise<boolean>;
-  /** Takes one slot of a counter capped at `cap`, atomically. */
-  takeSlot(key: string, cap: number, now: number): Promise<boolean>;
+  /**
+   * Takes one slot of a counter capped at `cap`, atomically. The counter lives `ttlMs` from its first slot; once that
+   * has passed it starts again from zero (so a short window such as "1 per 10 minutes" works without a sweep).
+   */
+  takeSlot(key: string, cap: number, now: number, ttlMs?: number): Promise<boolean>;
   releaseSlot(key: string): Promise<void>;
-  counter(key: string): Promise<number | null>;
+  /** A counter's value inside its window (0 when absent or past it); null on a database error. */
+  counter(key: string, now?: number): Promise<number | null>;
 }
 
 export const SCHEMA_SQL = `
@@ -202,15 +206,19 @@ export class PgCallStore implements CallStore {
     }
   }
 
-  async takeSlot(key: string, cap: number, now: number) {
+  async takeSlot(key: string, cap: number, now: number, ttlMs = COUNTER_TTL_MS) {
     if (cap <= 0) return false;
     try {
-      // The conflict update only applies while n < cap; at the cap no row is returned.
+      // The conflict update only applies while n < cap or the window has passed; at the cap no row is returned.
+      // A counter whose window has passed (not swept yet) starts again at 1 with a fresh window.
       const r = await this.db.query(
         `insert into atlas_call_counters (id, n, expires_at) values ($1, 1, $3)
-         on conflict (id) do update set n = atlas_call_counters.n + 1 where atlas_call_counters.n < $2
+         on conflict (id) do update set
+           n = case when atlas_call_counters.expires_at <= $4 then 1 else atlas_call_counters.n + 1 end,
+           expires_at = case when atlas_call_counters.expires_at <= $4 then excluded.expires_at else atlas_call_counters.expires_at end
+         where atlas_call_counters.n < $2 or atlas_call_counters.expires_at <= $4
          returning n`,
-        [key, cap, new Date(now + COUNTER_TTL_MS)],
+        [key, cap, new Date(now + ttlMs), new Date(now)],
       );
       return (r.rowCount ?? 0) === 1;
     } catch (e) {
@@ -223,9 +231,9 @@ export class PgCallStore implements CallStore {
     try { await this.db.query("update atlas_call_counters set n = n - 1 where id = $1 and n > 0", [key]); } catch (e) { logErr("call release failed", e); }
   }
 
-  async counter(key: string) {
+  async counter(key: string, now = Date.now()) {
     try {
-      const r = await this.db.query("select n from atlas_call_counters where id = $1", [key]);
+      const r = await this.db.query("select n from atlas_call_counters where id = $1 and expires_at > $2", [key, new Date(now)]);
       return (r.rows[0]?.n as number | undefined) ?? 0;
     } catch (e) {
       logErr("call counter failed", e);
@@ -245,10 +253,10 @@ export async function callStore(): Promise<CallStore | null> {
  * Reserves every counter in order (most specific first) or none: when one refuses, the ones already taken are given
  * back, so a number at its own cap never spends the site's shared daily budget. Returns the index that refused.
  */
-export async function reserveSlots(store: CallStore, slots: { key: string; cap: number }[], now: number): Promise<{ ok: true } | { ok: false; refused: number }> {
+export async function reserveSlots(store: CallStore, slots: { key: string; cap: number; ttlMs?: number }[], now: number): Promise<{ ok: true } | { ok: false; refused: number }> {
   const taken: string[] = [];
   for (const [i, s] of slots.entries()) {
-    if (!(await store.takeSlot(s.key, s.cap, now))) {
+    if (!(await store.takeSlot(s.key, s.cap, now, s.ttlMs))) {
       for (const t of taken.reverse()) await store.releaseSlot(t);
       return { ok: false, refused: i };
     }
@@ -258,3 +266,4 @@ export async function reserveSlots(store: CallStore, slots: { key: string; cap: 
 }
 
 export const dayKey = (now: number) => new Date(now).toISOString().slice(0, 10);
+export const hourKey = (now: number) => new Date(now).toISOString().slice(0, 13);

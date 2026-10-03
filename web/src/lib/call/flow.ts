@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { LANGUAGES } from "../schema";
 import { verifySpeakToken } from "../speakToken";
 import { MAX_SPEAK_CHARS, synthesize } from "../voice";
@@ -6,7 +6,7 @@ import { signTicket, subKey, type CallConfig, type CallTicket } from "./config";
 import { canCallIn, codeNcco, goodbyeNcco, MAX_REPLAYS, planLengthSeconds, planNcco, type NccoAction } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
-import { CODE_ATTEMPTS, CODE_TTL_MS, dayKey, reserveSlots, SESSION_TTL_MS, WIPE, type CallStore, type SessionRow } from "./store";
+import { CODE_ATTEMPTS, CODE_TTL_MS, dayKey, hourKey, reserveSlots, SESSION_TTL_MS, WIPE, type CallStore, type SessionRow } from "./store";
 import { placeCall } from "./vonage";
 
 /**
@@ -17,14 +17,23 @@ import { placeCall } from "./vonage";
  *     natural-voice MP3 of the plan's read-aloud text (Vonage's own voice when that is unavailable), with
  *     "press 1 to hear it again" up to twice.
  * Caps, each reserved before a call and never given back once a call was attempted: 3 code calls and 3 plan calls per
- * number per day, a site-wide daily cap (ATLAS_CALL_DAILY_CAP, default 40), and one live code per number.
+ * number per day, at most 1 code call per number per 10 minutes, 4 code calls per caller (IP) per day, 10 code calls
+ * per hour site-wide, a site-wide daily cap (ATLAS_CALL_DAILY_CAP, default 40), and one live code per number.
+ * A plan's token can start code calls to ONE number only: the first number it calls is bound to it, so calling a
+ * different number needs a new plan (a rate-limited, paid model call), never a replay of the same token.
  */
 type Language = (typeof LANGUAGES)[number];
 
 export const CODE_CALLS_PER_NUMBER = 3;
 export const PLAN_CALLS_PER_NUMBER = 3;
 /** Code calls one caller (by IP, counted in Postgres so every server instance agrees) may start per day. */
-export const CODE_CALLS_PER_IP = 8;
+export const CODE_CALLS_PER_IP = 4;
+/** At most one code call per number in this window, whatever happened to the last one. */
+export const CODE_CALL_GAP_MS = 10 * 60_000;
+/** Code calls the whole site may place in one UTC hour (a burst fuse below the daily cap). */
+export const CODE_CALLS_PER_HOUR = 10;
+/** How long a plan token's number binding is kept: longer than the token itself lives (6 hours). */
+const TOKEN_BIND_MS = 7 * 60 * 60_000;
 /** Code calls may use only this share of the site cap, so verified people can still get their plan call. */
 export const CODE_SHARE_OF_SITE_CAP = 0.75;
 const CODE_CALL_SECONDS = 60;
@@ -55,7 +64,7 @@ const urls = (cfg: CallConfig) => `${cfg.baseUrl}/api/call`;
 export type StartInput = { phone: unknown; consent: unknown; text: unknown; language: unknown; token: unknown; /** HMAC of the caller's IP. */ caller?: string };
 export type StartOutcome =
   | { state: "calling"; id: string; last4: string }
-  | { state: "no-consent" | "language" | "token" | "phone" | "in-flight" | "capped-caller" | "capped-code" | "capped-plan" | "capped-site" | "no-db" | "failed" };
+  | { state: "no-consent" | "language" | "token" | "token-used" | "phone" | "in-flight" | "too-soon" | "capped-caller" | "capped-code" | "capped-plan" | "capped-site" | "no-db" | "failed" };
 
 export async function startCall(deps: Deps, input: StartInput): Promise<StartOutcome> {
   const { store, cfg } = deps;
@@ -77,6 +86,18 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
   if (planUsed === null) return { state: "no-db" };
   if (planUsed >= PLAN_CALLS_PER_NUMBER) return { state: "capped-plan" };
 
+  // One plan token, one number. The first use binds the token to this number (atomically: of two racing first uses
+  // for different numbers, exactly one wins); a later use works only for that same number, so "Call me again" still
+  // works after a missed call while spraying many numbers needs a new plan for each.
+  const tokenKey = createHash("sha256").update(token).digest("hex").slice(0, 32);
+  if (await store.takeSlot(`tok:${tokenKey}`, 1, now, TOKEN_BIND_MS)) {
+    if (!(await store.takeSlot(`tokn:${tokenKey}:${hash}`, 1, now, TOKEN_BIND_MS))) return { state: "no-db" };
+  } else {
+    const bound = await store.counter(`tokn:${tokenKey}:${hash}`, now);
+    if (bound === null) return { state: "no-db" };
+    if (bound < 1) return { state: "token-used" };
+  }
+
   const id = randomBytes(16).toString("base64url");
   const exp = now + SESSION_TTL_MS;
   const code = deps.code ?? String(randomInt(0, 10_000)).padStart(4, "0");
@@ -92,8 +113,10 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
   if (started === "error") return { state: "no-db" };
 
   const slots = [
+    { key: `gap:${hash}`, cap: 1, ttlMs: CODE_CALL_GAP_MS, why: "too-soon" as const },
     ...(input.caller ? [{ key: `ip:${input.caller}:${day}`, cap: CODE_CALLS_PER_IP, why: "capped-caller" as const }] : []),
     { key: `code:${hash}:${day}`, cap: CODE_CALLS_PER_NUMBER, why: "capped-code" as const },
+    { key: `sitehour:${hourKey(now)}`, cap: Math.min(CODE_CALLS_PER_HOUR, cfg.siteDailyCap), ttlMs: 2 * 60 * 60_000, why: "capped-site" as const },
     { key: `site:${day}`, cap: Math.floor(cfg.siteDailyCap * CODE_SHARE_OF_SITE_CAP), why: "capped-site" as const },
   ];
   const r = await reserveSlots(store, slots, now);

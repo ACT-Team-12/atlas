@@ -26,6 +26,7 @@ import {
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
 import { SPEECH_LANG } from "@/lib/speechLang";
+import { ShowOnPaper } from "./ShowOnPaper";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -230,6 +231,8 @@ export function CarePlanTool() {
   // Photo reads: the quote check runs against the AI's own reading of the photo, so the person checks that reading first.
   const [transcript, setTranscript] = useState<string | null>(null);
   const [photoChecked, setPhotoChecked] = useState(false);
+  // The photo a reading came from, kept with that reading so "Show on my paper" never boxes a different photo.
+  const [readPhoto, setReadPhoto] = useState<{ for: CarePlanResponse; file: File } | null>(null);
   // Second-model meaning check: does each explanation say the same thing as its quoted line?
   const [meaning, setMeaning] = useState<{ status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult> }>({ status: "idle", byId: {} });
   const meaningFor = useRef("");
@@ -384,6 +387,7 @@ export function CarePlanTool() {
       if (readRun.current !== run) return;
       setPartial([]);
       setCare(json);
+      if (json.source_kind === "image" && photo) setReadPhoto({ for: json, file: photo });
       setReadLevel(usedLevel);
       if (json.source_kind === "image") { setTranscript(json.source_text); return; }
       void checkMeaningFor(json);
@@ -733,6 +737,7 @@ export function CarePlanTool() {
                           <p className="mt-1">{it.plain_language}</p>
                           {it.needs_clarification && it.question_for_clinic && <p className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">Ask your clinic: {it.question_for_clinic}</p>}
                           <p className="mt-2 border-l-4 border-sun pl-2 text-xs italic text-ink/70">From your paper: &ldquo;{it.source_quote}&rdquo;</p>
+                          <ShowOnPaper care={care} item={it} photo={readPhoto?.for === care ? readPhoto.file : null} />
                           {deviceStatus === "done" && deviceRun.byId[it.id] === "match" && (
                             <p className="mt-1 text-[11px] font-bold text-teal-deep" data-device-check="match">✓ Checked on this device: same words, same place in your paper</p>
                           )}

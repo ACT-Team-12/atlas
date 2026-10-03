@@ -177,3 +177,26 @@ describe("Codex review: \"before your arrival\" is a time, not an arrival", () =
     ["Check in 30 minutes before you arrive at the desk.", "arrival"],
   ])("a genuine arrival stays an arrival: %s", (q, slot) => expect(placed(q)).toBe(slot));
 });
+
+describe("Codex re-review: a conditional mention of arriving is not the arrival step", () => {
+  it.each([
+    "If you cannot arrive by 7:00 AM, call the clinic.",
+    "Call us if check-in at 7:00 AM is impossible.",
+    "If you will arrive after 7:30 AM, call the front desk.",
+    "Call the clinic if you can't check in at 6:45 AM.",
+    "Unless you arrive by 7:00 AM, your procedure may be canceled.",
+    "When you arrive at 7:00 AM, the nurse will check your prep.",
+  ])("%s goes under Ask your clinic when", (q) => {
+    const r = readWhen(q);
+    expect(r.slot).toBeNull();
+    expect(r.reason).toBe("clock_without_day");
+  });
+
+  it.each<[string, Slot]>([
+    ["You must arrive at 7:00 AM.", "arrival"],
+    ["Please check in at 6:45 AM at the front desk.", "arrival"],
+    ["Plan to arrive 1 hour before your procedure.", "arrival"],
+    ["Your check-in time is 6:30 AM.", "arrival"],
+    ["On the day of your procedure, arrive at 7:00 AM.", "arrival"],
+  ])("an instruction or a stated arrival time is still arrival: %s", (q, slot) => expect(placed(q)).toBe(slot));
+});

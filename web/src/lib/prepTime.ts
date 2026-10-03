@@ -65,11 +65,20 @@ const BEFORE = String.raw`(?:before|prior\s+to)`;
 const CLOCK = /(?<![\w:])(?:\d{1,2}(?::\d{2})?\s?(?:[ap]\.\s?m\.|[ap]\s?m)(?![a-z])|noon)/gi;
 const MIDNIGHT = /\bmidnight\b/gi;
 /**
- * An arrival is a step whose action is to arrive or check in ("Arrive at 7:30 AM", "Check in 1 hour before your
- * procedure", "Your arrival time is 7:30 AM"). "Stop drinking 2 hours before your arrival" or "before you arrive" uses the
- * arrival only as the moment it counts back from, so those words are taken out (ARRIVAL_AS_TIME) before this is tested.
+ * An arrival is a step whose action is to arrive or check in: an instruction that starts a clause ("Arrive at 7:30 AM",
+ * "Please check in 1 hour before your procedure", "On the day of your procedure, arrive at 7:00 AM"), or a stated
+ * arrival time ("Your arrival time is 7:30 AM"). "Stop drinking 2 hours before your arrival" or "before you arrive" uses
+ * the arrival only as the moment it counts back from, so those words are taken out (ARRIVAL_AS_TIME) first. A line
+ * that only mentions arriving under a condition ("If you cannot arrive by 7:00 AM, call", "Call us if check-in at
+ * 7:00 AM is impossible") is not the arrival step (ARRIVAL_CONDITION).
  */
-const ARRIVE = /\b(?:arrive|check[- ]?in)\b|\barrival\s+(?:time|is|at)\b/i;
+const ARRIVE_INSTRUCTION = /(?:^|[,;:]\s*)(?:(?:please|you\s+(?:must|should|need\s+to|will\s+need\s+to|have\s+to)|plan\s+to|be\s+sure\s+to|make\s+sure\s+to)\s+)?(?:arrive|check[- ]?in)\b/i;
+const ARRIVAL_STATED = /\b(?:arrival|check[- ]?in)\s+(?:time\s+)?(?:is|will\s+be)\b/i;
+const ARRIVAL_CONDITION = /\b(?:if|unless|when|whenever|whether|in\s+case|cannot|can['’]?t|can\s+not|unable|impossible|late|miss|missed)\b/i;
+const isArrival = (t: string) => {
+  const s = t.replace(ARRIVAL_AS_TIME, " ");
+  return !ARRIVAL_CONDITION.test(s) && (ARRIVE_INSTRUCTION.test(s.trim()) || ARRIVAL_STATED.test(s));
+};
 const ARRIVAL_AS_TIME = new RegExp(
   String.raw`\b(?:${BEFORE}|after|until|till|by)\s+(?:you\s+(?:arrive|check[- ]?in)|(?:your|the)\s+(?:arrival|check[- ]?in)(?:\s+time)?)\b`,
   "gi",
@@ -142,7 +151,7 @@ export function readWhen(quote: string, multiLine = false): WhenRead {
   let slots = new Set(days.map((h) => h.slot));
   // "Arrive at 7:00 AM", "Check in 1 hour before": an arrival with its own time. It happens on the day itself.
   // Only when arriving is the action: "Stop drinking 2 hours before your arrival" stays "in the hours before".
-  const arrivalTimed = ARRIVE.test(t.replace(ARRIVAL_AS_TIME, " ")) && (clocks.length > 0 || slots.has("hours_before"));
+  const arrivalTimed = isArrival(t) && (clocks.length > 0 || slots.has("hours_before"));
   if (arrivalTimed) {
     const rest = [...slots].filter((s) => s !== "day_of" && s !== "morning_of" && s !== "hours_before");
     return rest.length ? { slot: null, reason: "conflict", words } : { slot: "arrival", reason: "placed", words };

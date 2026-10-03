@@ -29,6 +29,9 @@ export type SessionRow = {
   plan_status: string | null;
   plan_mode: "stream" | "talk" | null;
   note: string | null;
+  /** The Vonage call UUIDs returned by POST /v1/calls (or bound by the call's first event); callbacks must match. */
+  code_uuid: string | null;
+  plan_uuid: string | null;
   sealed_phone: Buffer | null;
   sealed_text: Buffer | null;
   sealed_token: Buffer | null;
@@ -39,7 +42,7 @@ export type SessionRow = {
 };
 
 export type NewSession = Pick<SessionRow, "id" | "phone_hash" | "last4" | "language" | "code_hash" | "code_expires_at" | "sealed_phone" | "sealed_text" | "sealed_token" | "expires_at">;
-export type SessionPatch = Partial<Pick<SessionRow, "phase" | "code_hash" | "code_status" | "plan_status" | "plan_mode" | "note" | "sealed_phone" | "sealed_text" | "sealed_token">> & { sealed_audio?: Buffer | null };
+export type SessionPatch = Partial<Pick<SessionRow, "phase" | "code_hash" | "code_status" | "plan_status" | "plan_mode" | "note" | "code_uuid" | "plan_uuid" | "sealed_phone" | "sealed_text" | "sealed_token">> & { sealed_audio?: Buffer | null };
 
 /** Clears everything sensitive a session holds. Used when a call ends or a session can go no further. */
 export const WIPE: SessionPatch = { sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null, code_hash: null };
@@ -57,6 +60,12 @@ export interface CallStore {
   takeAttempt(id: string, now: number): Promise<SessionRow | null>;
   /** True when the row was updated (and, with onlyIf, only when its phase was one of those). */
   update(id: string, patch: SessionPatch, onlyIf?: Phase[]): Promise<boolean>;
+  /**
+   * Binds a Vonage call UUID to one of a session's calls when none is stored yet: "bound" when this call bound it,
+   * "match" when it already was this UUID, "mismatch" when another UUID is stored, "gone" when there is no live
+   * session, "error" on a database error.
+   */
+  claimUuid(id: string, leg: "code" | "plan", uuid: string, now: number): Promise<"match" | "bound" | "mismatch" | "gone" | "error">;
   /**
    * Takes one slot of a counter capped at `cap`, atomically. The counter lives `ttlMs` from its first slot; once that
    * has passed it starts again from zero (so a short window such as "1 per 10 minutes" works without a sweep).
@@ -88,6 +97,8 @@ create table if not exists atlas_calls (
   created_at      timestamptz not null default now(),
   expires_at      timestamptz not null
 );
+alter table atlas_calls add column if not exists code_uuid text;
+alter table atlas_calls add column if not exists plan_uuid text;
 create unique index if not exists atlas_calls_one_code_uq on atlas_calls (phone_hash) where phase = 'code';
 create index if not exists atlas_calls_expires_idx on atlas_calls (expires_at);
 create table if not exists atlas_call_counters (
@@ -114,8 +125,8 @@ export async function ensureSchema(db: Q): Promise<boolean> {
   }
 }
 
-const COLS = "id, phone_hash, last4, language, phase, code_hash, attempts, code_expires_at, code_status, plan_status, plan_mode, note, sealed_phone, sealed_text, sealed_token, (sealed_audio is not null) as has_audio, created_at, expires_at";
-const PATCHABLE = new Set(["phase", "code_hash", "code_status", "plan_status", "plan_mode", "note", "sealed_phone", "sealed_text", "sealed_token", "sealed_audio"]);
+const COLS = "id, phone_hash, last4, language, phase, code_hash, attempts, code_expires_at, code_status, plan_status, plan_mode, note, code_uuid, plan_uuid, sealed_phone, sealed_text, sealed_token, (sealed_audio is not null) as has_audio, created_at, expires_at";
+const PATCHABLE = new Set(["phase", "code_hash", "code_status", "plan_status", "plan_mode", "note", "code_uuid", "plan_uuid", "sealed_phone", "sealed_text", "sealed_token", "sealed_audio"]);
 const logErr = (what: string, e: unknown) => console.error(what, e instanceof Error ? e.name : typeof e); // never values
 
 export class PgCallStore implements CallStore {
@@ -203,6 +214,25 @@ export class PgCallStore implements CallStore {
     } catch (e) {
       logErr("call update failed", e);
       return false;
+    }
+  }
+
+  async claimUuid(id: string, leg: "code" | "plan", uuid: string, now: number) {
+    const col = leg === "code" ? "code_uuid" : "plan_uuid";
+    try {
+      // The outer select sees the row as it was before the update, so "bound" must win the coalesce.
+      const r = await this.db.query(
+        `with c as (update atlas_calls set ${col} = $2 where id = $1 and expires_at > $3 and ${col} is null returning 1)
+         select coalesce(
+           (select 'bound' from c),
+           (select case when ${col} = $2 then 'match' else 'mismatch' end from atlas_calls where id = $1 and expires_at > $3),
+           'gone') as r`,
+        [id, uuid, new Date(now)],
+      );
+      return r.rows[0]?.r as "match" | "bound" | "mismatch" | "gone";
+    } catch (e) {
+      logErr("call uuid failed", e);
+      return "error" as const;
     }
   }
 

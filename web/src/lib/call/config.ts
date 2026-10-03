@@ -17,6 +17,8 @@ export type CallConfig = {
   baseUrl: string;
   /** Calls (code and plan together) this whole site may place per UTC day. */
   siteDailyCap: number;
+  /** The Vonage account's webhook signature secret (ATLAS_VONAGE_SIGNATURE_SECRET); when set, callbacks must be signed. */
+  signatureSecret: string | null;
 };
 
 export const DEFAULT_SITE_DAILY_CAP = 40;
@@ -65,6 +67,7 @@ export function callConfig(src: Record<string, string | undefined> = process.env
   return {
     applicationId: v("ATLAS_VONAGE_APPLICATION_ID"), privateKey, from, secret: v("ATLAS_CALL_SECRET"), baseUrl,
     siteDailyCap: Number.isInteger(cap) && cap >= 0 ? Math.min(cap, 200) : DEFAULT_SITE_DAILY_CAP,
+    signatureSecret: v("ATLAS_VONAGE_SIGNATURE_SECRET") || null,
   };
 }
 

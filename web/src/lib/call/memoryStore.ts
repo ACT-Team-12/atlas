@@ -31,7 +31,7 @@ export class MemoryCallStore implements CallStore {
       if ((r.code_expires_at?.getTime() ?? 0) < now) { r.phase = "expired"; r.code_hash = null; } else return "in-flight" as const;
     }
     this.rows.set(s.id, {
-      ...s, phase: "code", attempts: 0, code_status: null, plan_status: null, plan_mode: null, note: null, sealed_audio: null, has_audio: false, created_at: new Date(now),
+      ...s, phase: "code", attempts: 0, code_status: null, plan_status: null, plan_mode: null, note: null, code_uuid: null, plan_uuid: null, sealed_audio: null, has_audio: false, created_at: new Date(now),
     });
     return "ok" as const;
   }
@@ -63,6 +63,15 @@ export class MemoryCallStore implements CallStore {
     if (!r || (onlyIf?.length && !onlyIf.includes(r.phase))) return false;
     Object.assign(r, patch);
     return true;
+  }
+
+  async claimUuid(id: string, leg: "code" | "plan", uuid: string, now: number) {
+    if (this.failNext) { this.failNext = false; return "error" as const; }
+    const r = this.rows.get(id);
+    if (!r || r.expires_at.getTime() <= now) return "gone" as const;
+    const col = leg === "code" ? "code_uuid" : "plan_uuid";
+    if (r[col] === null) { r[col] = uuid; return "bound" as const; }
+    return r[col] === uuid ? "match" as const : "mismatch" as const;
   }
 
   async takeSlot(key: string, cap: number, now: number, ttlMs = COUNTER_TTL_MS) {

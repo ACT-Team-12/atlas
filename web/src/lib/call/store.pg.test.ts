@@ -81,6 +81,24 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     expect((await store.get("h", NOW + 11 * 60_000))?.sealed_phone).toEqual(Buffer.from([1, 2, 3]));
   });
 
+  it("binds a call UUID once, atomically, and reports match, mismatch and gone", async () => {
+    await store.startCode(session("u", "h7"), NOW);
+    const r = await Promise.all(["x1", "x2", "x3"].map((u) => store.claimUuid("u", "plan", u, NOW)));
+    expect(r.filter((v) => v === "bound").length).toBe(1);
+    const won = (await store.get("u", NOW))!.plan_uuid!;
+    expect(await store.claimUuid("u", "plan", won, NOW)).toBe("match");
+    expect(await store.claimUuid("u", "plan", "other", NOW)).toBe("mismatch");
+    expect(await store.claimUuid("nope", "plan", won, NOW)).toBe("gone");
+  });
+
+  it("restarts a windowed counter once its window has passed", async () => {
+    expect(await store.takeSlot("gap:z", 1, NOW, 60_000)).toBe(true);
+    expect(await store.takeSlot("gap:z", 1, NOW + 30_000, 60_000)).toBe(false);
+    expect(await store.takeSlot("gap:z", 1, NOW + 60_000, 60_000)).toBe(true);
+    expect(await store.counter("gap:z", NOW + 61_000)).toBe(1);
+    expect(await store.counter("gap:z", NOW + 121_000)).toBe(0);
+  });
+
   it("sweeps expired sessions and counters", async () => {
     await store.sweep(NOW + 3 * 24 * 3600_000);
     const { rows } = await pool.query("select (select count(*) from atlas_calls)::int as s, (select count(*) from atlas_call_counters)::int as c");

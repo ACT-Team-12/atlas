@@ -7,7 +7,7 @@ import { canCallIn, codeNcco, goodbyeNcco, MAX_REPLAYS, planLengthSeconds, planN
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
 import { CODE_ATTEMPTS, CODE_TTL_MS, dayKey, hourKey, reserveSlots, SESSION_TTL_MS, WIPE, type CallStore, type SessionRow } from "./store";
-import { placeCall } from "./vonage";
+import { getCall, placeCall } from "./vonage";
 
 /**
  * "ATLAS calls you": the person types their own number on the plan screen and ticks consent.
@@ -82,7 +82,7 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
   const hash = phoneHash(cfg.secret, phone);
   const day = dayKey(now);
   // Do not spend a code call on a number that could not get its plan call today anyway.
-  const planUsed = await store.counter(`plan:${hash}:${day}`);
+  const planUsed = await store.counter(`plan:${hash}:${day}`, now);
   if (planUsed === null) return { state: "no-db" };
   if (planUsed >= PLAN_CALLS_PER_NUMBER) return { state: "capped-plan" };
 
@@ -135,7 +135,7 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
     await store.drop(id);
     return { state: "failed" };
   }
-  await store.update(id, { code_status: "placed" }, ["code"]);
+  await store.update(id, { code_status: "placed", code_uuid: placed.uuid }, ["code"]);
   return { state: "calling", id, last4: last4(phone) };
 }
 
@@ -201,7 +201,7 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
     console.error("plan call failed", placed.error);
     return fail("failed", "the plan call could not be placed");
   }
-  await store.update(id, { plan_status: "placed", plan_mode: mode }, ["calling"]);
+  await store.update(id, { plan_status: "placed", plan_mode: mode, plan_uuid: placed.uuid }, ["calling"]);
   return { state: "calling", last4: row.last4, mode };
 }
 
@@ -209,32 +209,89 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
 const RANK: Record<string, number> = { placed: 0, started: 1, ringing: 2, answered: 3, completed: 4, busy: 4, cancelled: 4, failed: 4, rejected: 4, timeout: 4, unanswered: 4 };
 export const MISSED = new Set(["busy", "cancelled", "failed", "rejected", "timeout", "unanswered"]);
 
-/** A Vonage event for one of a session's two calls. Ending the plan call wipes everything sensitive. */
-export async function handleEvent(deps: Pick<Deps, "store" | "now">, t: CallTicket, status: unknown): Promise<void> {
-  if (typeof status !== "string" || !(status in RANK) || (t.c !== "code" && t.c !== "plan")) return;
-  const now = deps.now ?? Date.now();
-  const row = await deps.store.get(t.k, now);
-  if (!row) return;
-  const field = t.c === "code" ? "code_status" : "plan_status";
-  const current = row[field];
-  if (current && (RANK[current] ?? -1) >= RANK[status]) return;
-  if (t.c === "code") {
-    // A code call nobody picked up ends the session; the person can ask for a new one.
-    if (MISSED.has(status)) await deps.store.update(t.k, { ...WIPE, code_status: status, phase: "code_missed" }, ["code"]);
-    else await deps.store.update(t.k, { code_status: status });
-    return;
+type Hook = Pick<Deps, "store" | "cfg" | "now" | "fetchImpl">;
+type Truth = { kind: "ok"; row: SessionRow; status: string } | { kind: "ignored" } | { kind: "error" };
+
+/**
+ * What is true about the call a callback names. The URL ticket says which session and which of its calls; the callback's
+ * `uuid` must be the call UUID stored for it (or, before ours is stored, a call Vonage confirms went out to this
+ * session's own number, which is then bound); and the STATUS comes from Vonage itself (GET /v1/calls/{uuid}), never
+ * from the callback body. So a replayed or forged callback can neither end a live call nor unlock its plan text.
+ * "error" means the answer could not be established (database or Vonage down): the caller should fail safe.
+ */
+async function callTruth(deps: Hook, k: string, leg: "code" | "plan", uuid: unknown, now: number): Promise<Truth> {
+  if (typeof uuid !== "string" || !/^[A-Za-z0-9-]{1,64}$/.test(uuid)) return { kind: "ignored" };
+  const row = await deps.store.get(k, now);
+  if (!row) return { kind: "ignored" };
+  const stored = leg === "code" ? row.code_uuid : row.plan_uuid;
+  if (stored && stored !== uuid) {
+    console.error("call callback refused: uuid does not match the call");
+    return { kind: "ignored" };
   }
-  if (RANK[status] === 4) await deps.store.update(t.k, { ...WIPE, plan_status: status, phase: "done" });
-  else await deps.store.update(t.k, { plan_status: status });
+  const truth = await getCall({ applicationId: deps.cfg.applicationId, privateKey: deps.cfg.privateKey, uuid }, deps.fetchImpl);
+  if (!truth.ok) {
+    console.error("call status check failed", truth.error);
+    return { kind: "error" };
+  }
+  if (truth.direction && truth.direction !== "outbound") return { kind: "ignored" };
+  const phone = openText(deps.cfg.secret, "phone", k, row.sealed_phone, now);
+  const digits = (v: string | null) => (v ?? "").replace(/\D/g, "");
+  if (phone && digits(truth.to) !== digits(phone)) {
+    console.error("call callback refused: the call is not to this session's number");
+    return { kind: "ignored" };
+  }
+  if (!stored) {
+    // Our own write of the UUID can land after the call's first event (or never, when placing timed out).
+    if (!phone) return { kind: "ignored" }; // nothing left to check the number against: do not bind blind
+    const c = await deps.store.claimUuid(k, leg, uuid, now);
+    if (c === "error") return { kind: "error" };
+    if (c !== "bound" && c !== "match") return { kind: "ignored" };
+  }
+  return { kind: "ok", row, status: truth.status };
 }
 
-/** Keypad input after the plan: "1" plays it again, at most MAX_REPLAYS times; anything else says goodbye. */
-export async function handleInput(deps: Pick<Deps, "store" | "cfg" | "now">, t: CallTicket, digits: unknown): Promise<NccoAction[]> {
+/**
+ * A Vonage event for one of a session's two calls. Ending the plan call wipes everything sensitive. Returns "error"
+ * when the event could not be checked or saved, so the route answers 5xx and Vonage retries it.
+ */
+export async function handleEvent(deps: Hook, t: CallTicket, uuid: unknown): Promise<"ok" | "ignored" | "error"> {
+  if (t.c !== "code" && t.c !== "plan") return "ignored";
   const now = deps.now ?? Date.now();
-  const row = await deps.store.get(t.k, now);
-  const language = LANGUAGES.find((l) => l === row?.language) ?? "English";
+  const truth = await callTruth(deps, t.k, t.c, uuid, now);
+  if (truth.kind !== "ok") return truth.kind;
+  const { row, status } = truth;
+  if (!(status in RANK)) return "ignored";
+  const field = t.c === "code" ? "code_status" : "plan_status";
+  const current = row[field];
+  if (current && (RANK[current] ?? -1) >= RANK[status]) return "ok";
+  if (t.c === "code") {
+    // A code call nobody picked up ends the session; the person can ask for a new one. Both writes are phase-gated, so
+    // false only means the session has moved on (code typed), not a failure.
+    if (MISSED.has(status)) await deps.store.update(t.k, { ...WIPE, code_status: status, phase: "code_missed" }, ["code"]);
+    else await deps.store.update(t.k, { code_status: status }, ["code"]);
+    return "ok";
+  }
+  const saved = RANK[status] === 4
+    ? await deps.store.update(t.k, { ...WIPE, plan_status: status, phase: "done" })
+    : await deps.store.update(t.k, { plan_status: status });
+  return saved ? "ok" : "error";
+}
+
+/**
+ * Keypad input after the plan: "1" plays it again, at most MAX_REPLAYS times; anything else says goodbye. The plan text
+ * is only ever returned for a call Vonage confirms is live right now; anything uncertain says goodbye.
+ */
+export async function handleInput(deps: Hook, t: CallTicket, digits: unknown, uuid: unknown): Promise<NccoAction[]> {
+  const now = deps.now ?? Date.now();
   const n = (t.n ?? 0) + 1;
-  if (digits !== "1" || n > MAX_REPLAYS || !row || row.phase !== "calling") return goodbyeNcco(language);
+  if (digits !== "1" || n > MAX_REPLAYS) {
+    const row = await deps.store.get(t.k, now);
+    return goodbyeNcco(LANGUAGES.find((l) => l === row?.language) ?? "English");
+  }
+  const truth = await callTruth(deps, t.k, "plan", uuid, now);
+  const row = truth.kind === "ok" ? truth.row : null;
+  const language = LANGUAGES.find((l) => l === row?.language) ?? "English";
+  if (truth.kind !== "ok" || !row || row.phase !== "calling" || (truth.status !== "answered" && truth.status !== "started")) return goodbyeNcco(language);
   const text = openText(deps.cfg.secret, "text", t.k, row.sealed_text, now);
   if (!text) return goodbyeNcco(language);
   const base = urls(deps.cfg);

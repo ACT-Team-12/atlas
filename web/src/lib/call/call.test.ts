@@ -1,4 +1,4 @@
-import { createVerify, generateKeyPairSync } from "node:crypto";
+import { createHash, createHmac, createVerify, generateKeyPairSync } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { issueSpeakToken } from "../speakToken";
 import { callConfig, normalizePem, publicBaseUrl, signTicket, verifyTicket, type CallConfig } from "./config";
@@ -9,6 +9,7 @@ import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
 import { reserveSlots } from "./store";
 import { vonageJwt } from "./vonage";
+import { verifyVonageJwt } from "./webhook";
 
 const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const PEM = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
@@ -18,13 +19,28 @@ const NOW = Date.UTC(2026, 9, 2, 15, 0, 0);
 const PHONE = "(404) 555-2368";
 const TEXT = "Take the blue pill.\n1. Call the clinic. Ask for Dr. Lee.";
 
-const cfg: CallConfig = { applicationId: "app-123", privateKey: PEM, from: "+19432445023", secret: SECRET, baseUrl: "https://atlas.example", siteDailyCap: 40 };
+const cfg: CallConfig = { applicationId: "app-123", privateKey: PEM, from: "+19432445023", secret: SECRET, baseUrl: "https://atlas.example", siteDailyCap: 40, signatureSecret: null };
 const b64json = (s: string) => JSON.parse(Buffer.from(s, "base64url").toString());
 
-function vonageOk(uuid = "call-uuid") {
-  return vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => new Response(JSON.stringify({ uuid }), { status: 201 }));
+/** What Vonage's GET /v1/calls/{uuid} reports for each call the mock placed (the truth the callbacks are checked against). */
+const truth = new Map<string, { status: string; to?: string; direction?: string }>();
+/** A mocked Vonage: POST /v1/calls places call-1, call-2, ...; GET /v1/calls/{uuid} answers from `truth`. */
+function vonageOk() {
+  let n = 0;
+  return vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async (url, init) => {
+    if ((init?.method ?? "GET") === "GET") {
+      const uuid = decodeURIComponent(url.split("/").pop() ?? "");
+      const t = truth.get(uuid);
+      if (!t) return new Response("{}", { status: 404 });
+      return new Response(JSON.stringify({ uuid, status: t.status, direction: t.direction ?? "outbound", to: { type: "phone", number: t.to ?? "14045552368" } }), { status: 200 });
+    }
+    const uuid = `call-${++n}`;
+    truth.set(uuid, { status: "started" });
+    return new Response(JSON.stringify({ uuid }), { status: 201 });
+  });
 }
-const sentBody = (f: ReturnType<typeof vonageOk>, i = 0) => JSON.parse(String(f.mock.calls[i][1]?.body));
+const posts = (f: ReturnType<typeof vonageOk>) => f.mock.calls.filter((c) => c[1]?.method === "POST");
+const sentBody = (f: ReturnType<typeof vonageOk>, i = 0) => JSON.parse(String(posts(f)[i][1]?.body));
 
 describe("Vonage application JWT", () => {
   it("is RS256, names the application, lives 5 minutes, and verifies with the public key", () => {
@@ -67,6 +83,30 @@ describe("wired-or-cut config", () => {
     expect(publicBaseUrl({ ATLAS_PUBLIC_URL: "http://localhost:3000" })).toBeNull();
     expect(publicBaseUrl({ VERCEL_URL: "atlas-team12-abc.vercel.app" })).toBe("https://atlas-team12-abc.vercel.app");
     expect(callConfig({ ...env, ATLAS_CALL_DAILY_CAP: "5" })?.siteDailyCap).toBe(5);
+  });
+});
+
+describe("Vonage signed webhooks (HS256 JWT, optional defense in depth)", () => {
+  const SIG = "sig-secret";
+  const jwt = (claims: Record<string, unknown>, secret = SIG, alg = "HS256") => {
+    const h = Buffer.from(JSON.stringify({ alg, typ: "JWT" })).toString("base64url");
+    const p = Buffer.from(JSON.stringify(claims)).toString("base64url");
+    return `Bearer ${h}.${p}.${createHmac("sha256", secret).update(`${h}.${p}`).digest("base64url")}`;
+  };
+  const body = JSON.stringify({ uuid: "call-1", status: "completed" });
+  const hash = createHash("sha256").update(body).digest("hex");
+  const good = { iat: NOW / 1000, jti: "j", iss: "Vonage", api_key: "k", application_id: "app-123", payload_hash: hash };
+
+  it("accepts a fresh, correctly signed token whose payload_hash matches the body", () => {
+    expect(verifyVonageJwt(jwt(good), body, SIG, NOW, "app-123")).toBe(true);
+  });
+  it("refuses another secret, a changed body, an old token, another application, alg none, or no token", () => {
+    expect(verifyVonageJwt(jwt(good, "other"), body, SIG, NOW)).toBe(false);
+    expect(verifyVonageJwt(jwt(good), body.replace("completed", "answered"), SIG, NOW)).toBe(false);
+    expect(verifyVonageJwt(jwt(good), body, SIG, NOW + 11 * 60_000)).toBe(false);
+    expect(verifyVonageJwt(jwt(good), body, SIG, NOW, "other-app")).toBe(false);
+    expect(verifyVonageJwt(jwt(good, SIG, "none"), body, SIG, NOW)).toBe(false);
+    expect(verifyVonageJwt(null, body, SIG, NOW)).toBe(false);
   });
 });
 
@@ -192,7 +232,10 @@ describe("the call flow", () => {
   const deps = (over: Partial<Deps> = {}): Deps => ({ store, cfg, fetchImpl: fetchImpl as unknown as typeof fetch, now: NOW, code: "4821", voice, speakSecret: SPEAK, ...over });
   const input = (over: Record<string, unknown> = {}) => ({ phone: PHONE, consent: true, text: TEXT, language: "English", token: issueSpeakToken("English", TEXT, SPEAK, NOW), ...over });
 
+  const hk = (over: { now?: number } = {}) => ({ store, cfg, fetchImpl: fetchImpl as unknown as typeof fetch, now: NOW, ...over });
+
   beforeEach(() => {
+    truth.clear();
     store = new MemoryCallStore();
     fetchImpl = vonageOk();
     voice.mockClear();
@@ -408,24 +451,28 @@ describe("the call flow", () => {
   it("replays on 1 at most twice, then says goodbye", async () => {
     const id = await started();
     await verifyAndCall(deps(), { id, code: "4821" });
+    truth.set("call-2", { status: "answered" });
     const tk = (n: number) => ({ k: id, p: "input" as const, n, exp: NOW + 60_000 });
-    const again = await handleInput({ store, cfg, now: NOW }, tk(0), "1");
+    const again = await handleInput(hk(), tk(0), "1", "call-2");
     expect(again.map((a) => a.action)).toEqual(["stream", "talk", "input"]);
     const next = verifyTicket(SECRET, new URL(String((again[2].eventUrl as string[])[0])).searchParams.get("t"), "input", NOW)!;
     expect(next.n).toBe(1);
-    expect((await handleInput({ store, cfg, now: NOW }, tk(1), "1")).map((a) => a.action)).toEqual(["stream", "talk"]);
-    expect((await handleInput({ store, cfg, now: NOW }, tk(2), "1")).map((a) => a.action)).toEqual(["talk"]);
-    expect((await handleInput({ store, cfg, now: NOW }, tk(0), "9")).map((a) => a.action)).toEqual(["talk"]);
+    expect((await handleInput(hk(), tk(1), "1", "call-2")).map((a) => a.action)).toEqual(["stream", "talk"]);
+    expect((await handleInput(hk(), tk(2), "1", "call-2")).map((a) => a.action)).toEqual(["talk"]);
+    expect((await handleInput(hk(), tk(0), "9", "call-2")).map((a) => a.action)).toEqual(["talk"]);
   });
 
   it("wipes the number, text and audio when the plan call ends, and never moves a status backwards", async () => {
     const id = await started();
     await verifyAndCall(deps(), { id, code: "4821" });
     const ev = { k: id, p: "event" as const, c: "plan" as const, exp: NOW + 60_000 };
-    await handleEvent({ store, now: NOW }, ev, "answered");
-    await handleEvent({ store, now: NOW }, ev, "ringing");
+    truth.set("call-2", { status: "answered" });
+    expect(await handleEvent(hk(), ev, "call-2")).toBe("ok");
+    truth.set("call-2", { status: "ringing" });
+    await handleEvent(hk(), ev, "call-2");
     expect(store.rows.get(id)!.plan_status).toBe("answered");
-    await handleEvent({ store, now: NOW }, ev, "completed");
+    truth.set("call-2", { status: "completed" });
+    await handleEvent(hk(), ev, "call-2");
     const row = store.rows.get(id)!;
     expect(row.phase).toBe("done");
     expect([row.sealed_phone, row.sealed_text, row.sealed_token, row.sealed_audio]).toEqual([null, null, null, null]);
@@ -435,9 +482,76 @@ describe("the call flow", () => {
 
   it("ends a session whose code call nobody answered, freeing the number for a new code", async () => {
     const id = await started();
-    await handleEvent({ store, now: NOW }, { k: id, p: "event", c: "code", exp: NOW + 60_000 }, "unanswered");
+    truth.set("call-1", { status: "unanswered" });
+    await handleEvent(hk(), { k: id, p: "event", c: "code", exp: NOW + 60_000 }, "call-1");
     expect(store.rows.get(id)!.phase).toBe("code_missed");
     expect((await startCall(deps({ now: NOW + CODE_CALL_GAP_MS + 1 }), input())).state).toBe("calling");
+  });
+
+  describe("callbacks are checked against Vonage, never trusted", () => {
+    const plan = async () => {
+      const id = await started();
+      await verifyAndCall(deps(), { id, code: "4821" });
+      return { id, ev: { k: id, p: "event" as const, c: "plan" as const, exp: NOW + 60_000 }, inp: { k: id, p: "input" as const, n: 0, exp: NOW + 60_000 } };
+    };
+
+    it("stores the call UUIDs Vonage returned", async () => {
+      const { id } = await plan();
+      expect([store.rows.get(id)!.code_uuid, store.rows.get(id)!.plan_uuid]).toEqual(["call-1", "call-2"]);
+    });
+
+    it("a replayed 'completed' event does not end a call Vonage says is still answered", async () => {
+      const { id, ev } = await plan();
+      truth.set("call-2", { status: "answered" });
+      // The route never passes the body's status on: whatever the forged body says, Vonage's answer is used.
+      expect(await handleEvent(hk(), ev, "call-2")).toBe("ok");
+      const row = store.rows.get(id)!;
+      expect([row.phase, row.plan_status]).toEqual(["calling", "answered"]);
+      expect(row.sealed_text).not.toBeNull();
+    });
+
+    it("ignores an event naming another call, and does not bind it", async () => {
+      const { id, ev } = await plan();
+      truth.set("call-x", { status: "completed" });
+      expect(await handleEvent(hk(), ev, "call-x")).toBe("ignored");
+      expect(store.rows.get(id)!.phase).toBe("calling");
+      expect(await handleEvent(hk(), ev, undefined)).toBe("ignored");
+    });
+
+    it("binds a UUID it did not store yet only when Vonage confirms the call went to this session's number", async () => {
+      const { id, ev } = await plan();
+      store.rows.get(id)!.plan_uuid = null; // e.g. the event beat our own write
+      truth.set("call-y", { status: "completed", to: "14045559999" });
+      expect(await handleEvent(hk(), ev, "call-y")).toBe("ignored");
+      expect(store.rows.get(id)!.plan_uuid).toBeNull();
+      truth.set("call-2", { status: "answered" });
+      expect(await handleEvent(hk(), ev, "call-2")).toBe("ok");
+      expect(store.rows.get(id)!.plan_uuid).toBe("call-2");
+    });
+
+    it("answers 'error' (so the route says 503 and Vonage retries) when Vonage cannot be asked", async () => {
+      const { id, ev } = await plan();
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      fetchImpl = vi.fn(async () => new Response("down", { status: 500 }));
+      expect(await handleEvent(hk(), ev, "call-2")).toBe("error");
+      expect(store.rows.get(id)!.phase).toBe("calling");
+      spy.mockRestore();
+    });
+
+    it("never returns the plan text on keypad input for a call Vonage says has ended, or cannot confirm", async () => {
+      const { inp } = await plan();
+      truth.set("call-2", { status: "completed" });
+      const ended = await handleInput(hk(), inp, "1", "call-2");
+      expect(ended.map((a) => a.action)).toEqual(["talk"]);
+      expect(JSON.stringify(ended)).not.toContain("blue pill");
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
+      expect((await handleInput(hk(), inp, "1", "call-2")).map((a) => a.action)).toEqual(["talk"]);
+      truth.set("call-2", { status: "answered" });
+      fetchImpl = vonageOk();
+      expect((await handleInput(hk(), inp, "1", "call-x")).map((a) => a.action)).toEqual(["talk"]);
+      spy.mockRestore();
+    });
   });
 
   it("is gone after 30 minutes", async () => {

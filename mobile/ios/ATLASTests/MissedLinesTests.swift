@@ -117,17 +117,54 @@ struct MissedLinesTests {
     @Test func touchingRangesMergeAndMalformedRangesNeverCoverALine() {
         // A number split across two quotes: only the two together hold it.
         let p = MissedLinesPayload(show: true, languages: ["en"],
-                                   quotes: ["a": [[0, 18]], "b": [[18, 25]], "bad": [[0]]],
+                                   quotes: ["a": [[0, 18]], "b": [[18, 25]]],
                                    sentences: [s("Take 1 tablet for 10 days.", 0, 26, group: 0, critical: [[17, 19]])])
         func missed(_ ids: String...) -> Int? { lineCount(MissedLines.view(p, keptIDs: ids)) }
         #expect(missed("a") == 1)
         #expect(missed("b") == 1)
         #expect(missed("a", "b") == 0)
-        #expect(missed("bad") == 1)
         #expect(missed("a", "b", "a", "nope") == 0)
-        var badCritical = p
-        badCritical.sentences = [s("Take 1 tablet for 10 days.", 0, 26, group: 0, critical: [[17]])]
-        #expect(lineCount(MissedLines.view(badCritical, keptIDs: ["a", "b"])) == 1)
+    }
+
+    /// Any bad coordinate anywhere in the payload hides the whole section: no lines, no all-covered claim, no announcement.
+    @Test func malformedCoordinatesHideTheSection() {
+        let line = s("Take 1 tablet for 10 days.", 0, 26, group: 0, critical: [[17, 19]])
+        let good = MissedLinesPayload(show: true, languages: ["en"], quotes: ["a": [[0, 26]]], sentences: [line])
+        #expect(MissedLines.view(good, keptIDs: ["a"], sourceLength: 30) == .shown(languages: ["en"], total: 1, covered: 1, lines: []))
+
+        func hidden(_ p: MissedLinesPayload, sourceLength: Int? = nil, _ note: Comment) {
+            for kept in [["a"], ["a", "x"], []] {
+                let v = MissedLines.view(p, keptIDs: kept, sourceLength: sourceLength)
+                #expect(v == .hidden(why: "invalid"), note)
+                #expect(MissedLines.announcement(v) == "", note)
+            }
+        }
+        var p = good
+        // The case from review: one kept range spanning everything must not claim every line is in a step.
+        p.quotes = ["a": [[-1, 2147483647]]]
+        hidden(p, "range [-1, Int32.max]")
+        p.quotes = ["a": [[0, 26]], "x": [[-1, 2147483647]]]
+        hidden(p, "a bad range on a step that is not kept still hides it")
+        p.quotes = ["a": [[0]]]; hidden(p, "one number")
+        p.quotes = ["a": [[0, 10, 20]]]; hidden(p, "three numbers")
+        p.quotes = ["a": [[5, 5]]]; hidden(p, "empty range")
+        p.quotes = ["a": [[10, 5]]]; hidden(p, "backwards range")
+        p.quotes = ["a": [[0, 27]]]; hidden(p, "past the last sentence end when the paper length is unknown")
+        p.quotes = ["a": [[0, 31]]]; hidden(p, sourceLength: 30, "past the paper's length")
+        p = good
+        p.sentences = [s(line.text, -1, 26, group: 0)]; hidden(p, "negative sentence start")
+        p.sentences = [s(line.text, 26, 26, group: 0)]; hidden(p, "empty sentence")
+        p.sentences = [s(line.text, 0, 40, group: 0)]; hidden(p, sourceLength: 30, "sentence past the paper's length")
+        p.sentences = [s(line.text, 0, 26, group: 0, critical: [[17]])]; hidden(p, "critical with one number")
+        p.sentences = [s(line.text, 0, 26, group: 0, critical: [[20, 30]])]; hidden(p, "critical outside its sentence")
+        p.sentences = [s(line.text, 0, 26, group: 0, critical: [[19, 17]])]; hidden(p, "backwards critical")
+        p.sentences = [s(line.text, 0, 26, group: 1)]; hidden(p, "group after itself")
+        p.sentences = [s(line.text, 0, 26, group: -1)]; hidden(p, "negative group")
+        // Out of range for Int (or not a number at all): the payload does not decode, so the section is hidden too.
+        let huge = try? JSONDecoder().decode(MissedLinesPayload.self, from: Data(#"""
+            {"show":true,"languages":["en"],"quotes":{"a":[[0,1e30]]},"sentences":[{"text":"x","start":0,"end":1,"group":0}]}
+            """#.utf8))
+        #expect(huge == nil)
     }
 
     @Test func announcementAndBadgeMatchTheWebsiteWording() {

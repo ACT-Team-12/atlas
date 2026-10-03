@@ -71,17 +71,21 @@ enum MissedLines {
     static let canMiss = "We check for lines that look like instructions; it can miss some."
 
     /// missedFromPayload in web/src/lib/missedLines.ts. `keptIDs`: the ids of the steps the person still has (not
-    /// removed). An id the payload does not know adds nothing; repeats count once.
-    static func view(_ payload: MissedLinesPayload?, keptIDs: [String]) -> MissedLinesView {
+    /// removed). An id the payload does not know adds nothing; repeats count once. `sourceLength`: the UTF-16 length
+    /// of the paper's text when known, the bound every offset must sit inside.
+    static func view(_ payload: MissedLinesPayload?, keptIDs: [String], sourceLength: Int? = nil) -> MissedLinesView {
         guard let payload else { return .hidden(why: "missing") }
         guard payload.show else { return .hidden(why: payload.why) }
         // The server never sends show:true without sentences; if it ever did, "every line is in a step" would be vacuous.
         guard !payload.sentences.isEmpty else { return .hidden(why: "no_instructions") }
+        // Every coordinate is checked before any is used: one bad range could otherwise "cover" every line and claim
+        // "Every instruction-like line on your paper is in a step." for a paper nobody checked.
+        guard isValid(payload, sourceLength: sourceLength) else { return .hidden(why: "invalid") }
 
         var ranges: [(start: Int, end: Int)] = []
         var seen = Set<String>()
         for id in keptIDs where seen.insert(id).inserted {
-            for r in payload.quotes[id] ?? [] where r.count == 2 { ranges.append((r[0], r[1])) }
+            for r in payload.quotes[id] ?? [] { ranges.append((r[0], r[1])) }
         }
         ranges.sort { $0.start < $1.start }
         var merged: [(start: Int, end: Int)] = []
@@ -96,15 +100,28 @@ enum MissedLines {
         var matchedGroups = Set<Int>()
         for s in payload.sentences {
             let overlaps = merged.contains { $0.start < s.end && $0.end > s.start }
-            // A malformed critical range can never be held, so its sentence stays on the list (fail toward showing it).
-            let criticalHeld = s.critical.allSatisfy { c in
-                c.count == 2 && merged.contains { $0.start <= c[0] && $0.end >= c[1] }
-            }
+            let criticalHeld = s.critical.allSatisfy { c in merged.contains { $0.start <= c[0] && $0.end >= c[1] } }
             if overlaps && criticalHeld { matchedGroups.insert(s.group) }
         }
         let lines = payload.sentences.filter { !matchedGroups.contains($0.group) }
         let total = payload.sentences.count
         return .shown(languages: payload.languages, total: total, covered: total - lines.count, lines: lines)
+    }
+
+    /// The whole payload is well formed: every range is two non-negative integers with start < end inside
+    /// [0, bound] (the paper's length when known, otherwise the last sentence end), every critical range lies inside its
+    /// sentence, and every group points at a sentence at or before its own. Anything else hides the section.
+    static func isValid(_ payload: MissedLinesPayload, sourceLength: Int? = nil) -> Bool {
+        let bound = sourceLength ?? payload.sentences.map(\.end).max() ?? 0
+        func ok(_ a: Int, _ b: Int) -> Bool { a >= 0 && a < b && b <= bound }
+        for ranges in payload.quotes.values {
+            for r in ranges where !(r.count == 2 && ok(r[0], r[1])) { return false }
+        }
+        for (i, s) in payload.sentences.enumerated() {
+            guard ok(s.start, s.end), (0...i).contains(s.group) else { return false }
+            for c in s.critical where !(c.count == 2 && c[0] >= s.start && c[0] < c[1] && c[1] <= s.end) { return false }
+        }
+        return true
     }
 
     /// missedLinesAnnouncement: what VoiceOver says (politely) when the result arrives or changes. Empty when hidden.

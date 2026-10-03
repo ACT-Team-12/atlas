@@ -79,7 +79,9 @@ final class AppModel {
     func check(for id: String) -> Check { meaning.check(for: id) }
 
     /// "Lines on your paper we didn't turn into steps", for the steps still kept: follows every Remove and Undo.
-    var missedLines: MissedLinesView { MissedLines.view(care?.missed_lines, keptIDs: items.map(\.id)) }
+    var missedLines: MissedLinesView {
+        MissedLines.view(care?.missed_lines, keptIDs: items.map(\.id), sourceLength: care?.source_text.utf16.count)
+    }
 
     /// The language the steps on screen were written in, for reading them aloud. While the steps are outdated it is still
     /// theirs, not the language just picked, so a Spanish plan is never read with a Vietnamese voice. Nil when it is not

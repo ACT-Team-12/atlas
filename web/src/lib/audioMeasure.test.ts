@@ -158,6 +158,22 @@ describe("parsing is bounded (Codex round 2, 2026-10-02)", () => {
     expect(performance.now() - t0).toBeLessThan(50);
   });
 
+  it("a fragment whose tfdt starts it far along the timeline is measured to that end (Codex round 4)", () => {
+    const b = fx("short-frag.mp4");
+    const before = measureAudio(fx("short-frag.mp4"))!.seconds;
+    const i = [...b].findIndex((_, k) => b[k] === 0x74 && b[k + 1] === 0x66 && b[k + 2] === 0x64 && b[k + 3] === 0x74); // "tfdt"
+    expect(i).toBeGreaterThan(0);
+    const v = b[i + 4], ts = (() => { // mdhd timescale
+      const m = [...b].findIndex((_, k) => b[k] === 0x6d && b[k + 1] === 0x64 && b[k + 2] === 0x68 && b[k + 3] === 0x64);
+      const d = m + 4, off = b[d] ? 20 : 12;
+      return ((b[d + off] << 24) >>> 0) + (b[d + off + 1] << 16) + (b[d + off + 2] << 8) + b[d + off + 3];
+    })();
+    const at = 600 * ts, p = i + 8 + (v ? 4 : 0); // low 32 bits of baseMediaDecodeTime
+    b.set([(at >>> 24) & 255, (at >>> 16) & 255, (at >>> 8) & 255, at & 255], p);
+    expect(before).toBeLessThan(35);
+    expect(measureAudio(b)!.seconds).toBeGreaterThan(600);
+  });
+
   it("a trun before its traf's tfhd is refused", () => {
     const box = (type: string, body: number[]) => { const n = body.length + 8; return [0, 0, n >> 8, n & 255, ...new TextEncoder().encode(type), ...body]; };
     const traf = box("traf", [...box("trun", [0, 0, 0, 0, 0, 0, 0, 1]), ...box("tfhd", [0, 0, 0, 0, 0, 0, 0, 1])]);

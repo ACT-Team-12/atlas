@@ -223,6 +223,12 @@ function mp4AacSeconds(b: Uint8Array): number | null {
       if (q + n * per > stop) { bad = true; return; }
       if (!(flags & 0x100)) trunSum += n * (tfhdDur || trexDur); // no per-sample durations: one multiplication
       else for (let i = 0; i < n; i++, q += per) trunSum += u32(b, q);
+      // Where the fragment says it starts on the timeline (tfdt) plus what it holds: a gap before it still plays.
+      if (tfdtBase !== null) timelineEnd = Math.max(timelineEnd, tfdtBase + (trunSum - trafStart));
+    } else if (type === "tfdt") {
+      if (tfdtBase !== null) { bad = true; return; } // one per traf
+      tfdtBase = v ? u64(b, data + 4) : u32(b, data + 4);
+      timelineEnd = Math.max(timelineEnd, tfdtBase);
     } else if (type === "tfhd") {
       const flags = u32(b, data) & 0xffffff;
       const q = data + 8 + (flags & 0x1 ? 8 : 0) + (flags & 0x2 ? 4 : 0);
@@ -230,7 +236,7 @@ function mp4AacSeconds(b: Uint8Array): number | null {
       tfhdSeen = true;
     }
   };
-  let tfhdDur = 0, tfhdSeen = false, steps = 0;
+  let tfhdDur = 0, tfhdSeen = false, steps = 0, tfdtBase: number | null = null, trafStart = 0, timelineEnd = 0;
 
   const walk = (parent: string, start: number, end: number): boolean => {
     let p = start;
@@ -245,7 +251,7 @@ function mp4AacSeconds(b: Uint8Array): number | null {
       const data = p + head, stop = p + size;
       if (++steps > MAX_STEPS) return false;
       if (type === "trak") traks++;
-      if (type === "traf") { tfhdSeen = false; tfhdDur = 0; }
+      if (type === "traf") { tfhdSeen = false; tfhdDur = 0; tfdtBase = null; trafStart = trunSum; }
       if (MP4_CHILDREN[type]) { if (!walk(type, data, stop)) return false; }
       else { leaf(type, data, stop); if (bad) return false; }
       p = stop;
@@ -256,7 +262,7 @@ function mp4AacSeconds(b: Uint8Array): number | null {
   // Where the sample entry and the codec config disagree, the lower rate (the longer playback) wins.
   const rate = ascRate && entryRate ? Math.min(ascRate, entryRate) : ascRate;
   if (traks !== 1 || !aac || !sound || !rate || !mdhdTs) return null;
-  const readings = [(frames * 1024) / rate, sttsSum / mdhdTs, trunSum / mdhdTs, ...mediaDurs.map((d) => d / mdhdTs)];
+  const readings = [(frames * 1024) / rate, sttsSum / mdhdTs, trunSum / mdhdTs, timelineEnd / mdhdTs, ...mediaDurs.map((d) => d / mdhdTs)];
   if (mvhdTs) readings.push(...movieDurs.map((d) => d / mvhdTs));
   return Math.max(...readings);
 }

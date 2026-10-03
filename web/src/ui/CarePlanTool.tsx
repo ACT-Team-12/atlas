@@ -11,6 +11,8 @@ import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
 import { HandoffSheet } from "./HandoffSheet";
+import { MissedLines, useMissedLines } from "./MissedLines";
+import { missedLineTexts } from "@/lib/missedLines";
 import { ShareFamily } from "./ShareFamily";
 import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
@@ -32,6 +34,8 @@ import { streamThenPlain } from "@/lib/readCancel";
 import { DeletedPlans, deleteOnDevice, dropDeleted, saveStore, watchDeletions } from "@/lib/tombstones";
 import { autosaveStore } from "@/lib/autosave";
 import { fetchMeaning, IDLE_MEANING, RunFence, runMeaningCheck, type MeaningState } from "@/lib/meaningRun";
+import { consumeHelperSession, entryHeaders } from "@/lib/helperLink";
+import { HelperBanner, useHelperArrival } from "./HelperArrival";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -321,6 +325,8 @@ export function CarePlanTool() {
     // Runs once on mount by design: applySession only calls setters and refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // A helper link (/helper) starts a fresh plan with its presets in the normal inputs. Runs after the restore above.
+  const helper = useHelperArrival((p) => { newPlan(); if (p.language) setLanguage(p.language); if (p.level) setLevel(p.level); if (p.zip) setZip(p.zip); });
 
   // Every change to the open plan is saved into it; the first read or plan of a new one creates it.
   useEffect(() => {
@@ -459,11 +465,12 @@ export function CarePlanTool() {
         barriers, language, note,
         ...(loc ? { location: loc } : /^\d{5}$/.test(zip) ? { zip } : {}),
       };
-      const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body) });
       const json = await res.json();
       if (planRun.current !== run) return; // a new read or a clear happened meanwhile
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
+      consumeHelperSession();
       setTab(3);
       // Step 3 only exists after this render, so scroll once it is on the page (desktop and phones).
       const target = scrollTargetAfter("plan", isPhoneNow());
@@ -642,6 +649,7 @@ export function CarePlanTool() {
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
+  const missed = useMissedLines(care, removed);
   const deviceStatus = deviceStatusOf(care, needsPhotoCheck, deviceRun);
   const flow = { hasCare: !!care, hasPlan: !!plan };
   const openName = store.plans.find((p) => p.id === store.active)?.name ?? null;
@@ -660,7 +668,7 @@ export function CarePlanTool() {
     <section id="try" className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="try-title">
       <div className="section-card bg-mint-soft px-4 sm:px-10 py-20">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 id="try-title" className="display text-[clamp(2.4rem,5vw,5rem)]">Try it</h2>
+          <h2 id="try-title" tabIndex={-1} className="display text-[clamp(2.4rem,5vw,5rem)]">Try it</h2>
           <p className="hand text-3xl text-teal-deep rotate-1 max-w-[16em]">use the sample, or a paper you&apos;re comfortable sharing</p>
         </div>
 
@@ -670,6 +678,8 @@ export function CarePlanTool() {
             <button type="button" onClick={clearSaved} className="rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold hover:bg-red-soft">Clear it from this device</button>
           </div>
         )}
+
+        <HelperBanner arrival={helper.arrival} onDismiss={helper.dismiss} />
 
         <SavedPlans plans={listPlans(store)} activeId={store.active} busy={reading || planning} saveFailed={saveFailed} deleteFailed={deleteFailed}
           onOpen={openSaved} onRename={(id, name) => writeStore(renamePlan(storeRef.current, id, name))} onDelete={deleteSaved} onNew={newPlan} />
@@ -846,6 +856,7 @@ export function CarePlanTool() {
                   )}
                 </div>
               </div>
+              <MissedLines view={missed} />
               <Understand key={`${care.source_text.length}:${items.map((i) => i.id).join(",")}:${language}`} care={care} items={items} language={language} />
               <button type="button" onClick={() => pickTab(2, false)}
                 className="md:hidden mt-8 w-full rounded-full border-2 border-ink bg-sun px-5 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
@@ -892,7 +903,7 @@ export function CarePlanTool() {
           </div>
         </div>
 
-        {plan && care && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} />}
+        {plan && care && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} alsoOnPaper={missedLineTexts(missed)} />}
 
         {/* Step 3 */}
         {plan && (
@@ -916,6 +927,7 @@ export function CarePlanTool() {
               <div className="mt-5 rounded-2xl border-2 border-peach-deep bg-peach p-4">
                 <p className="font-extrabold text-peach-deep">This needs a person too</p>
                 <p className="text-sm font-semibold">{plan.ask_a_person_reason} Call 211 (United Way of Greater Atlanta) or your community health worker.</p>
+                <p className="mt-2 text-xs font-semibold"><a className="underline decoration-2 underline-offset-4" href="/helper">Helping someone? Make them a link</a></p>
               </div>
             )}
             <ol className="mt-6 space-y-5">

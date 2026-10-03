@@ -1,5 +1,6 @@
 import { attachDatabasePool } from "@vercel/functions";
 import { Pool } from "pg";
+import { buildFunnel, type HelperFunnelResult, type PlanCounts } from "./helperFunnel";
 
 /**
  * Anonymous measurement. Columns are counts, timings, categories and ratings only:
@@ -38,12 +39,34 @@ export type AtlasEvent = {
   would_use?: "yes" | "maybe" | "no";
   /** Nonce of the one-time feedback token (unique), so one plan can be rated once. */
   feedback_nonce?: string;
+  /** How the person arrived. Only "helper-link" exists; unset means the normal site. Nothing from the link itself is kept. */
+  entry?: "helper-link";
 };
 
 const COLS = [
   "surface", "kind", "language", "reading_level", "source_kind", "steps", "held_back", "dropped_refs",
   "quiz_total", "quiz_first_try", "barriers", "ms", "role", "rating", "would_use", "feedback_nonce",
 ] as const;
+
+/**
+ * The plan came from a tab that was opened through a helper link (see lib/helperLink.ts). Exact match only.
+ * The browser says so itself, like the surface header, so this is a count of what clients report, not proof.
+ * The client sends it for the first plan after arriving only (consumeHelperSession), so one link counts at most once per tab.
+ */
+export function entryOf(req: Request): AtlasEvent["entry"] {
+  return req.headers.get("x-atlas-entry") === "helper-link" ? "helper-link" : undefined;
+}
+
+/** The insert for one event. Only allow-listed columns ever reach the database; `entry` is added only when set. */
+export function eventInsert(e: AtlasEvent, isTest: boolean, env: string, withEntry = true): { sql: string; values: unknown[] } {
+  const cols: string[] = [...COLS];
+  const values: unknown[] = COLS.map((c) => e[c] ?? null);
+  if (withEntry && e.entry === "helper-link") { cols.push("entry"); values.push("helper-link"); }
+  return {
+    sql: `insert into atlas_events (env, is_test, ${cols.join(", ")}) values ($1, $2, ${cols.map((_, i) => `$${i + 3}`).join(", ")})`,
+    values: [env, isTest, ...values],
+  };
+}
 
 /** Our own scripts and browser tests send this header so their runs never count as real use. */
 export function isTestRequest(req: Request) {
@@ -61,12 +84,16 @@ export type RecordResult = "ok" | "duplicate" | "failed";
 export async function recordEvent(e: AtlasEvent, isTest: boolean): Promise<RecordResult> {
   const p = getPool();
   if (!p) return "failed";
-  const values = COLS.map((c) => e[c] ?? null);
   try {
-    await p.query(
-      `insert into atlas_events (env, is_test, ${COLS.join(", ")}) values ($1, $2, ${COLS.map((_, i) => `$${i + 3}`).join(", ")})`,
-      [ENV, isTest, ...values],
-    );
+    const q = eventInsert(e, isTest, ENV);
+    try {
+      await p.query(q.sql, q.values);
+    } catch (err) {
+      // 42703 = undefined column: the database has not had migration 007 yet. Count the event without the tag.
+      if ((err as { code?: string })?.code !== "42703" || !e.entry) throw err;
+      const plain = eventInsert(e, isTest, ENV, false);
+      await p.query(plain.sql, plain.values);
+    }
     return "ok";
   } catch (err) {
     // 23505 = unique violation: this feedback token was already used.
@@ -90,6 +117,8 @@ export type LiveStats = {
   roles: Record<string, number>;
   surfaces: Record<string, number>;
   languages: Record<string, number>;
+  /** Plans built in a tab opened from a helper link. Null when the database does not have the column yet. */
+  helper_link_plans: number | null;
   since: string | null;
 };
 
@@ -99,7 +128,7 @@ export async function liveStats(): Promise<LiveStats | null> {
   if (!p) return null;
   try {
     const real = `env = 'production' and not is_test`;
-    const [totals, roles, uses, surfaces, langs] = await Promise.all([
+    const [totals, roles, uses, surfaces, langs, helper] = await Promise.all([
       p.query(`select
           count(*) filter (where kind = 'read')::int as reads,
           count(*) filter (where kind = 'plan')::int as plans,
@@ -115,6 +144,9 @@ export async function liveStats(): Promise<LiveStats | null> {
       p.query(`select would_use as k, count(*)::int as n from atlas_events where ${real} and kind = 'feedback' and would_use is not null group by would_use`),
       p.query(`select surface as k, count(*)::int as n from atlas_events where ${real} and kind = 'read' group by surface`),
       p.query(`select language as k, count(*)::int as n from atlas_events where ${real} and kind = 'read' and language is not null group by language`),
+      // Its own query: only a database without migration 007 (42703) gives null here; any other failure fails the stats as before.
+      p.query(`select count(*)::int as n from atlas_events where ${real} and kind = 'plan' and entry = 'helper-link'`)
+        .then((r) => r.rows[0].n as number, (err) => { if ((err as { code?: string })?.code === "42703") return null; throw err; }),
     ]);
     const t = totals.rows[0];
     const toMap = (r: { rows: { k: string; n: number }[] }) => Object.fromEntries(r.rows.map((x) => [x.k, x.n]));
@@ -124,10 +156,35 @@ export async function liveStats(): Promise<LiveStats | null> {
       median_read_ms: num(t.median_read_ms), median_plan_ms: num(t.median_plan_ms),
       quiz_first_try_rate: num(t.quiz_first_try_rate), avg_rating: num(t.avg_rating),
       would_use: toMap(uses), roles: toMap(roles), surfaces: toMap(surfaces), languages: toMap(langs),
+      helper_link_plans: helper,
       since: t.since ? new Date(t.since).toISOString() : null,
     };
   } catch (err) {
     console.error("liveStats failed", err instanceof Error ? err.name : typeof err);
     return null;
+  }
+}
+
+/**
+ * The helper-link funnel for /judge (see lib/helperFunnel.ts): production plans only, test runs excluded, counted by language.
+ * Not available (rather than zeros) when there is no database, migration 007 is missing, or the query fails.
+ */
+export async function helperFunnel(): Promise<HelperFunnelResult> {
+  const p = getPool();
+  if (!p) return { available: false, reason: "no-database" };
+  try {
+    const recent = `at >= now() - interval '7 days'`;
+    const r = await p.query<PlanCounts>(`select language,
+        count(*) filter (where entry = 'helper-link' and ${recent})::int as helper_7d,
+        count(*) filter (where ${recent})::int as all_7d,
+        count(*) filter (where entry = 'helper-link')::int as helper_all,
+        count(*)::int as all_all
+      from atlas_events where env = 'production' and not is_test and kind = 'plan' group by language`);
+    return { available: true, funnel: buildFunnel(r.rows) };
+  } catch (err) {
+    // 42703 = undefined column: migration 007 has not been applied, so there is no entry to count yet.
+    if ((err as { code?: string })?.code === "42703") return { available: false, reason: "not-migrated" };
+    console.error("helperFunnel failed", err instanceof Error ? err.name : typeof err);
+    return { available: false, reason: "error" };
   }
 }

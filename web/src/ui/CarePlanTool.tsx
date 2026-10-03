@@ -14,6 +14,8 @@ import { HandoffSheet } from "./HandoffSheet";
 import { MissedLines, useMissedLines } from "./MissedLines";
 import { missedLineTexts } from "@/lib/missedLines";
 import { ShareFamily } from "./ShareFamily";
+import { CallMe } from "./CallMe";
+import { callMeKey } from "@/lib/call/callKey";
 import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
@@ -1272,6 +1274,7 @@ export function CarePlanTool() {
               <button type="button" onClick={() => { if (!planOutdated) window.print(); }} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40">🖨️ Print for the next visit</button>
               <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40">📄 Print a handoff sheet</button>
               {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={meaning} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} />}
+              {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} />}
               <span className="self-center text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
             </div>
             {plan.ask_a_person && (

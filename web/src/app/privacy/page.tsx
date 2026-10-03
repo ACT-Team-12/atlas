@@ -68,7 +68,8 @@ export default function PrivacyPage() {
               <p>ATLAS explains your paper and helps you plan around what gets in the way. It does not diagnose or change your care. Check with your doctor or clinic before changing anything, and if you have a warning sign from your paper, call your clinic or 911.</p>
             </Block>
             <Block title="Questions or deletion">
-              <p>Because we do not keep your paper or plan, there is nothing on our side to delete. Your saved plan is removed with Clear it from this device. Questions: reach Team 12 through the ATL Innovation Cup organizers.</p>
+              <p>We do not keep your paper or your plan. The only thing we keep about each visitor for Say your answer is the usage counter described above, made from a keyed hash, never the network address. It is deleted automatically once it is two days old: the hourly cleanup deletes it, and every use of Say your answer also deletes counts that have expired.</p>
+              <p>Your saved plan is removed with Clear it from this device. Questions: ask the ATL Innovation Cup organizers to reach Team 12.</p>
             </Block>
           </div>
         </section>

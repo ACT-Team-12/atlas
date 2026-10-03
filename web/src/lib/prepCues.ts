@@ -75,10 +75,26 @@ const LIMIT_CJK = /直到|除|只|仅|僅|까지|제외|외에는/u;
 /** Ethiopic script (Amharic, Tigrinya): "not" is part of the verb, so no word list can find it. */
 const ETHIOPIC = /[ሀ-᎟ⶀ-⷟꬀-꬯]/u;
 
+/**
+ * Text as every word list here reads it: Unicode compatibility form, so fullwidth letters, decomposed accents and
+ * ligatures match the listed words (one reading for every way of writing the same text; security review of 9f2c70e).
+ */
+export const readable = (text: string) => text.normalize("NFKC");
+
+/**
+ * True when no word list here can be trusted to read the text: an invisible format character (zero-width space, soft
+ * hyphen, joiner) that can split a word, or a letter outside the scripts the lists cover (Latin, Chinese, Korean),
+ * such as Ethiopic, or a Cyrillic or Greek look-alike inside "evening". Checked on the text as written.
+ */
+export function unreadable(text: string): boolean {
+  return /[\p{Cf}]/u.test(text) || /(?![\p{Script=Latin}\p{Script=Han}\p{Script=Hangul}])\p{L}/u.test(text);
+}
+
 export function cues(text: string): Cues {
+  const t = readable(text);
   return {
-    no: NO_WORDS.test(text) || NO_CONTRACTIONS.test(text) || NO_CJK.test(text),
-    limit: LIMIT_WORDS.test(text) || LIMIT_CJK.test(text),
+    no: NO_WORDS.test(t) || NO_CONTRACTIONS.test(t) || NO_CJK.test(t),
+    limit: LIMIT_WORDS.test(t) || LIMIT_CJK.test(t),
   };
 }
 
@@ -87,7 +103,7 @@ export function cues(text: string): Cues {
  * read at all (Ethiopic script). Language-free, so the page can re-check any step it is about to show.
  */
 export function cuesDiffer(quote: string, plain: string): boolean {
-  if (ETHIOPIC.test(quote) || ETHIOPIC.test(plain)) return true;
+  if (ETHIOPIC.test(quote) || ETHIOPIC.test(plain) || unreadable(quote) || unreadable(plain)) return true;
   const q = cues(quote);
   const p = cues(plain);
   return q.no !== p.no || q.limit !== p.limit;
@@ -98,7 +114,7 @@ export function cuesDiffer(quote: string, plain: string): boolean {
  * Ethiopic script. Language-free, so the page re-checks every step it is about to show (prepView.ts).
  */
 export function cuesForbid(quote: string, plain: string): boolean {
-  if (ETHIOPIC.test(quote) || ETHIOPIC.test(plain)) return true;
+  if (ETHIOPIC.test(quote) || ETHIOPIC.test(plain) || unreadable(quote) || unreadable(plain)) return true;
   const q = cues(quote);
   const p = cues(plain);
   return q.no || q.limit || p.no || p.limit;

@@ -1,4 +1,4 @@
-import { cuesDiffer } from "./prepCues";
+import { cuesDiffer, readable, unreadable } from "./prepCues";
 
 /**
  * Deterministic guards a green check must pass, whatever the second model says (Codex round 13).
@@ -29,8 +29,9 @@ const CONCEPTS: Record<string, RegExp[]> = {
 
 /** The time, frequency and action concepts a text names. */
 export function conceptsIn(text: string): Set<string> {
+  const t = readable(text); // the same reading the cue lists use (prepCues.ts)
   const out = new Set<string>();
-  for (const [name, res] of Object.entries(CONCEPTS)) if (res.some((r) => r.test(text))) out.add(name);
+  for (const [name, res] of Object.entries(CONCEPTS)) if (res.some((r) => r.test(t))) out.add(name);
   return out;
 }
 
@@ -38,7 +39,10 @@ export function conceptsIn(text: string): Set<string> {
  * Why an explanation may not get a green check against its paper line (and "when" text), or null when nothing here
  * objects. `paper` is the line plus its "when" text.
  */
-export function certifyBlocker(paper: string, plain: string): "cue" | "concept" | null {
+export function certifyBlocker(paper: string, plain: string): "empty" | "unreadable" | "cue" | "concept" | null {
+  // Every branch that can't positively read both sides refuses (security review of 9f2c70e).
+  if (!paper.trim() || !plain.trim()) return "empty";
+  if (unreadable(paper) || unreadable(plain)) return "unreadable";
   if (cuesDiffer(paper, plain)) return "cue";
   const have = conceptsIn(paper);
   for (const c of conceptsIn(plain)) if (!have.has(c)) return "concept";

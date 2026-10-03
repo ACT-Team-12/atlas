@@ -15,13 +15,24 @@ report omission as the most common error, so a plan can pass the verifier and st
 `checkCoverage(sourceText, keptItems, { languages })` returns:
 
 - `total`: how many sentences on the paper read like instructions to the patient
-- `covered`: how many of them overlap the quote of at least one kept item
+- `covered`: how many of them the kept quotes cover (see "When a sentence counts as covered")
 - `uncovered`: the rest, in reading order, each with `start` / `end` offsets into the original text
   (the same UTF-16 offsets `findSpan` uses) and the `reason` the rule fired
 
 Items use the `span` the verifier already found. An item that has no span is located with `findSpan`,
 using the verifier's own normalization. A sentence that repeats a covered sentence word for word also
 counts as covered, because `findSpan` only returns the first match.
+
+### When a sentence counts as covered
+
+- The kept quotes must overlap the sentence, **and** every number and every stop / not / never / avoid /
+  no word in the sentence must sit inside a quote. So a step quoting "Take 2 tablets" does not cover
+  "Take 2 tablets for 10 days.", and one quoting "take ibuprofen with this medicine" does not cover
+  "Do not take ibuprofen with this medicine."
+- A quote with an ellipsis ("Take aspirin daily. ... Call the clinic Monday.") covers only its fragments,
+  located one by one inside the verifier's span. The line it skipped ("STOP ibuprofen now.") stays
+  uncovered. A fragment that cannot be placed makes the item cover nothing. This costs one `findSpan`
+  per fragment for ellipsis quotes only.
 
 ### Splitting into sentences
 
@@ -34,13 +45,16 @@ counts as covered, because `findSpan` only returns the first match.
 
 ### What counts as an instruction
 
-Exclusions are checked first and always win:
+Exclusions are checked first. All of them win, except the soft boilerplate row, which loses to a strong
+signal (911, emergency, stop / do not / never / avoid, chest pain, or a dose with a unit), so
+"If you have questions or chest pain, call 911." still counts:
 
 | Excluded | Examples |
 |---|---|
 | Staff-only lines | "Provider note (not for patient action)", "Billing code: 99214" |
 | Signatures | "Electronically signed by ...", "Attending: ...", "Sincerely" |
-| Boilerplate | "Page 1 of 2", "Printed on ...", "not a substitute for medical advice", "If you have questions, call our office" |
+| Page furniture | "Page 1 of 2", "Printed on ..." |
+| Soft boilerplate (only without a strong signal) | "not a substitute for medical advice", "If you have questions, call our office", "MyChart", "confidential" |
 | Phone-only lines | "Phone: 404-555-0177", "Clinic phone (404) 555-0100 \| Fax ..." |
 | Visit-reason labels | "Reason for visit: Follow-up for ...", "Chief complaint: ..." (says why they came, not what to do) |
 | Headers | ends with `:`, or has no closing punctuation, no digit, does not start with an action verb, and is 4 words or fewer or all capitals ("Medicines", "FOLLOW-UP APPOINTMENTS") |
@@ -78,14 +92,15 @@ and none of the `distractors` (provider notes, billing codes, past events) count
 - **Instructions with no signal words.** "Your sugar should stay under 180" has none of the cues, so
   it is not counted. The rules are kept narrow on purpose: a wrong "you missed this" makes people
   trust the warning less.
-- **Partial coverage.** Any overlap counts as covered. If an item quotes "Take 2 tablets" but drops
-  "for 10 days" from the same sentence, the sentence still counts as covered.
+- **Partial coverage of plain words.** Numbers and stop / not / never / avoid words must be quoted, but
+  other words need not: a quote of "Take 2 tablets" still covers "Take 2 tablets with food".
 - **Tables and lists split over many lines.** One row of a medicine table can turn into several
   sentences, and some pieces may not look like instructions.
 - **Facts written as orders**, or orders written as facts. "Labs were drawn today" is skipped, which
   is correct. "Labs will be drawn next week" is skipped too, which is a miss.
-- **Generic phrases.** "If you have questions, call ..." is treated as boilerplate even when a real
-  warning follows it in the same sentence.
+- **Generic phrases.** "If you have questions, call ..." is boilerplate unless the same sentence has a
+  strong signal. A warning in that sentence with none ("If you have questions or feel dizzy, call us")
+  is still skipped.
 - **Spanish and other languages** have only a starter word list. Other languages get no coverage until
   someone adds a lexicon.
 - **Speed.** The check itself is a single pass and handles a 20,000-character paper in well under 50 ms
@@ -103,8 +118,12 @@ Step 1 of the care plan, after the steps and the held-back list, shows
 - When every instruction-like line is in a step: "Every instruction-like line on your paper is in a
   step." with "(we check for lines that look like instructions; it can miss some)".
 - The steps that count are the ones the person still sees: a step they removed no longer covers its line.
-- Items are passed with the spans the server's verifier found, so the check never searches for a quote.
+- Items are passed with the spans the server's verifier found, so the check never searches for a quote
+  (except one search per fragment of a quote that contains an ellipsis).
 - The printed handoff sheet adds the same lines as "Also on your paper".
+- A polite live status (`role="status"`, visually hidden) announces the result when it arrives and
+  whenever removing or restoring a step changes it: "3 lines on your paper look like instructions but
+  are not in a step. ..." or "Every instruction-like line on your paper is in a step."
 
 ### When the section is hidden (the language rule)
 
@@ -114,8 +133,13 @@ because every step quotes the paper word for word. The section is hidden, and th
 no list, when:
 
 - the paper is mostly non-Latin script (Korean, Chinese, Amharic, ...), or uses Vietnamese letters;
-- French, Portuguese or Creole marker words are more than 20% of the recognized marker words, even on
-  a paper that is partly English;
+- French, Portuguese, Creole, German, Italian or Somali marker words are more than 20% of the
+  recognized marker words, even on a paper that is partly English;
+- any sentence of 5 words or more has more of those marker words than English or Spanish ones (one
+  German instruction line in an English paper is enough);
+- more than one sentence of 5 words or more, and more than 20% of them, has no English or Spanish
+  marker word at all (an unlisted language). One such sentence is allowed, because real English papers
+  have terse lines like "ED attending reviewed chest x-ray: no pneumonia.";
 - neither English nor Spanish marker words are frequent enough to tell (at least 3, and at least 6% of
   the words);
 - the check finds no instruction-like line at all (an "all covered" message would be true only vacuously).

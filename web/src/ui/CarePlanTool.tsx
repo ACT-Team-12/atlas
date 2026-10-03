@@ -775,10 +775,13 @@ export function CarePlanTool() {
     waitingTimer.current = setTimeout(() => {
       waitingTimer.current = null;
       if (!waitingScroll.current) return;
+      // Judge the page's scroll as it is now: re-aimed by a size change since, or a newer one (the anchor putting
+      // the card back), which is waited out in turn. No page scroll left means scrollend already judged it.
       const still = ownScroll.current;
-      if (still === own) {
+      if (still && performance.now() <= still.until) return waitForOwnScroll(waitingScroll.current, still);
+      if (still) {
         ownScroll.current = null;
-        if (!ownScrollArrived({ y: window.scrollY, own })) lastInteraction.current = performance.now();
+        if (!ownScrollArrived({ y: window.scrollY, own: still })) lastInteraction.current = performance.now();
       }
       releaseWaitingScroll();
     }, Math.max(0, own.until - performance.now()) + 20);

@@ -439,6 +439,39 @@ describe("the person scrolling while the page's own scroll is still moving", () 
       expect(scrolls).toEqual(["step-2"]);
     });
 
+    it("still stopped short after a size change re-aimed that scroll, the plan scroll stays dropped", async () => {
+      const observers: ResizeObserverCallback[] = [];
+      vi.stubGlobal("ResizeObserver", class { constructor(cb: ResizeObserverCallback) { observers.push(cb); } observe() {} unobserve() {} disconnect() {} });
+      act(() => root.unmount());
+      root = createRoot(host);
+      act(() => root.render(<CarePlanTool />));
+      // The page-size observer only (registered first); the card anchor's observer is left out so this is a pure re-aim.
+      const pageObserver = observers.slice(-2)[0];
+      const req = await readThenPressPlan(); // the page's own scroll: 0 -> 1_000
+      setScrollY(500);
+      window.dispatchEvent(new Event("scroll"));
+      await release(req, ready(planFor("The new plan"))); // waiting
+      act(() => pageObserver([], {} as ResizeObserver)); // late content: the scroll is re-aimed (500 -> 1_500)
+      await act(async () => { await new Promise((r) => setTimeout(r, 1_600)); }); // time is up, still at 500
+      expect(scrolls).toEqual(["step-2"]);
+    });
+
+    it("a newer page scroll meanwhile (the card anchor) is waited out and judged too", async () => {
+      const observers: ResizeObserverCallback[] = [];
+      vi.stubGlobal("ResizeObserver", class { constructor(cb: ResizeObserverCallback) { observers.push(cb); } observe() {} unobserve() {} disconnect() {} });
+      act(() => root.unmount());
+      root = createRoot(host);
+      act(() => root.render(<CarePlanTool />));
+      const both = observers.slice(-2);
+      const req = await readThenPressPlan(); // the page's own scroll: 0 -> 1_000
+      setScrollY(500);
+      window.dispatchEvent(new Event("scroll"));
+      await release(req, ready(planFor("The new plan"))); // waiting
+      act(() => both.forEach((cb) => cb([], {} as ResizeObserver))); // late content: the anchor starts its own scroll to the card
+      await act(async () => { await new Promise((r) => setTimeout(r, 1_600)); }); // time is up, still at 500
+      expect(scrolls).not.toContain("step-3"); // the anchor may put the card back; the plan scroll is dropped
+    });
+
     it("the page's scroll arriving at its target lets the plan scroll go", async () => {
       const req = await readThenPressPlan();
       setScrollY(1_000);

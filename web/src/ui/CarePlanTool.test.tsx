@@ -508,6 +508,8 @@ describe("an outdated plan cannot be acted on", () => {
     return p;
   }
   const ACTIONS = ["Read it out loud", "Print for the next visit", "Print a handoff sheet", "Send to family", "Book it now"];
+  /** Every place link the plan offers: 7 in the plan rows plus 3 in "Start with these 3" (was 7 before the top three). */
+  const PLACE_LINKS = 10;
   /** Every link out of the plan's place cards: calls, websites, directions, and their source pages. Scoped to the plan
    *  card (step 3), since each care step now has its own "Remind me" calendar link. */
   const placeLinks = () => [...host.querySelectorAll<HTMLAnchorElement>("#step-3 li a")].map((a) => a.getAttribute("href") ?? "");
@@ -549,7 +551,9 @@ describe("an outdated plan cannot be acted on", () => {
   for (const [what, change] of changes) {
     it(`after changing ${what}: read aloud, both prints, Send to family, Book it now and place links are off, with the reason`, async () => {
       await planReady();
-      expect(placeLinks()).toHaveLength(7); // clinic: call, website, directions, hours source; program: call, open, source
+      // Rows: clinic call, website, directions, hours source; program call, open; the program's source under "Why this?".
+      // "Start with these 3": the clinic's call button; the program's call button and its verified-page seal.
+      expect(placeLinks()).toHaveLength(PLACE_LINKS);
       expect(screenText()).toContain("Text RIDE to 404-555-0177");
       expect(screenText()).toContain("call 404-555-0188");
       act(change);
@@ -601,7 +605,7 @@ describe("an outdated plan cannot be acted on", () => {
     act(() => byText("Update plan").click());
     await release(req, ready(planWithLab("Updated plan")));
     expect(enabled()).toEqual(all(true));
-    expect(placeLinks()).toHaveLength(7);
+    expect(placeLinks()).toHaveLength(PLACE_LINKS);
     expect(host.querySelector(".plan-outdated, .outdated-print-note")).toBeNull();
   });
 });

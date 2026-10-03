@@ -254,3 +254,40 @@ html.js-motion [data-reveal] {
   body, .section-card, .card { background: #fff !important; box-shadow: none !important; }
   .section-card { border-radius: 0; padding: 0 !important; }
 }
+
+/* Plan screen ("Start with 3 calls"). Folded rows, other options and "Why this?" print in full; the action bar is screen only. */
+.plan-fold.plan-shut { display: none; }
+@media print {
+  .plan-fold.plan-shut { display: block !important; }
+  .plan-dock, .plan-chev { display: none !important; }
+  /* Each step's title lives in its disclosure button; print it even though #try buttons are hidden. */
+  #try .plan-rowhead > button { display: flex !important; }
+}
+/* The plan's action buttons stay together in one row; notes and an opened panel (Call me, Send) go under them. */
+.plan-dock > :not(button) { order: 1; }
+/* Phones: the plan's actions (Listen, Call me, Send, Print, Handoff) sit in one bar at the bottom while the plan is on screen. */
+@media not all and (min-width: 48rem) {
+  .plan-dock {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; margin: 0;
+    display: flex; flex-wrap: wrap; justify-content: space-around; align-items: start; gap: 4px 2px;
+    padding: 8px 8px calc(10px + env(safe-area-inset-bottom));
+    background: var(--paper); border-top: 2px solid var(--ink); box-shadow: 0 -4px 14px rgb(16 42 67 / 0.12);
+    max-height: 75vh; overflow-y: auto; overscroll-behavior: contain;
+  }
+  .plan-dock[data-away] { display: none; }
+  .plan-dock > button {
+    flex: 1 1 0; min-width: 3.6rem; display: grid; justify-items: center; gap: 3px;
+    border: 0; background: none; color: var(--ink); padding: 2px; font-size: 0.78rem; font-weight: 800; line-height: 1.1;
+  }
+  .plan-dock > button .dock-ic {
+    width: 2.6rem; height: 2.6rem; border-radius: 999px; display: grid; place-items: center;
+    background: var(--mint); font-size: 1.15rem; border: 2px solid var(--ink);
+  }
+  .plan-dock > button:first-child .dock-ic { background: var(--sun); }
+  .plan-dock > button[aria-pressed="true"] .dock-ic { background: var(--ink); color: var(--paper); }
+  .plan-dock > :is(div, span.basis-full, .dock-note) { flex-basis: 100%; text-align: center; font-size: 0.7rem; }
+  .plan-dock > div { text-align: left; font-size: 0.875rem; }
+}
+@media (min-width: 48rem) {
+  .plan-dock .dock-ic { margin-right: 0.35em; }
+}

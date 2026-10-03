@@ -1,7 +1,7 @@
 import { createHash, createHmac, createVerify, generateKeyPairSync } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { issueSpeakToken } from "../speakToken";
-import { callConfig, normalizePem, publicBaseUrl, signTicket, verifyTicket, type CallConfig } from "./config";
+import { callConfig, normalizePem, strongSecret, publicBaseUrl, signTicket, verifyTicket, type CallConfig } from "./config";
 import { audioFor, CODE_CALL_GAP_MS, CODE_CALLS_PER_HOUR, CODE_CALLS_PER_IP, CODE_CALLS_PER_NUMBER, handleEvent, handleInput, publicStatus, startCall, verifyAndCall, type Deps } from "./flow";
 import { MemoryCallStore } from "./memoryStore";
 import { verifyRefusal } from "./messages";
@@ -91,7 +91,7 @@ describe("placing a call when Vonage does not confirm it", () => {
 describe("wired-or-cut config", () => {
   const env = {
     ATLAS_VONAGE_APPLICATION_ID: "app", ATLAS_VONAGE_PRIVATE_KEY: Buffer.from(PEM).toString("base64"), ATLAS_VONAGE_FROM_NUMBER: "+19432445023",
-    ATLAS_CALL_SECRET: "s", DATABASE_URL: "postgres://x", VERCEL_ENV: "production", VERCEL_PROJECT_PRODUCTION_URL: "atlas-team12.vercel.app",
+    ATLAS_CALL_SECRET: "test-only-call-secret-0123456789abcdef", DATABASE_URL: "postgres://x", VERCEL_ENV: "production", VERCEL_PROJECT_PRODUCTION_URL: "atlas-team12.vercel.app",
   };
   it("is on with every variable, and off when any one is missing", () => {
     const c = callConfig(env);
@@ -101,6 +101,15 @@ describe("wired-or-cut config", () => {
     for (const k of ["ATLAS_VONAGE_APPLICATION_ID", "ATLAS_VONAGE_PRIVATE_KEY", "ATLAS_VONAGE_FROM_NUMBER", "ATLAS_CALL_SECRET", "DATABASE_URL"]) {
       expect(callConfig({ ...env, [k]: "" }), k).toBeNull();
     }
+  });
+  it("stays off with a short or placeholder ATLAS_CALL_SECRET, and never logs it", () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const weak of ["s", "changeme", "x".repeat(64), "0123456789".repeat(3), "abababababababababababababababab12"]) {
+      expect(callConfig({ ...env, ATLAS_CALL_SECRET: weak }), weak).toBeNull();
+    }
+    expect(JSON.stringify(err.mock.calls)).not.toContain("changeme");
+    err.mockRestore();
+    expect(strongSecret("test-only-call-secret-0123456789abcdef")).toBe(true);
   });
   it("needs an https origin Vonage can reach, and reads the daily cap", () => {
     expect(callConfig({ ...env, VERCEL_ENV: "", VERCEL_PROJECT_PRODUCTION_URL: "" })).toBeNull();

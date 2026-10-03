@@ -53,9 +53,21 @@ export function publicBaseUrl(src: Record<string, string | undefined>): string |
   }
 }
 
+/**
+ * ATLAS_CALL_SECRET keys the AES-GCM seal, the callback-ticket MACs and the number HMACs, so a guessable one would let
+ * someone open captured data or forge a callback. Calls stay off unless it is long and not a repeated placeholder:
+ * generate it with `openssl rand -base64 32` (44 characters).
+ */
+export const MIN_CALL_SECRET_CHARS = 32;
+export const strongSecret = (s: string) => s.length >= MIN_CALL_SECRET_CHARS && new Set(s).size >= 12;
+
 export function callConfig(src: Record<string, string | undefined> = process.env): CallConfig | null {
   const v = (k: string) => src[k]?.trim() || "";
   if (!CALL_ENV.every((k) => v(k))) return null;
+  if (!strongSecret(v("ATLAS_CALL_SECRET"))) {
+    console.error("calls off: ATLAS_CALL_SECRET is too short or too simple (see lib/call/config.ts)"); // never the value
+    return null;
+  }
   const from = parseUsPhone(v("ATLAS_VONAGE_FROM_NUMBER"));
   if (!from) return null;
   const baseUrl = publicBaseUrl(src);

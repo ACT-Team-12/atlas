@@ -43,8 +43,14 @@ export function sttProvider(env: Record<string, string | undefined> = process.en
 export const PROVIDER_NAME: Record<SttProvider, string> = { deepgram: "Deepgram", gateway: "xAI (Grok speech-to-text) through Vercel AI Gateway" };
 /** A 20 s browser recording is about 80 KB (WebM/Opus at 32 kbps) or up to about 320 KB (Safari MP4/AAC). */
 export const MAX_AUDIO_BYTES = 512_000;
-/** The quiz records 20 s; anything the provider says is longer than this is refused, not returned. */
+/**
+ * The parser's safety ceiling: nothing measured or reported past 35 s is ever sent or returned. It is NOT the product
+ * limit; MAX_RECORDING_SECONDS below is what the privacy page promises.
+ */
 export const MAX_AUDIO_SECONDS = 35;
+/** The product limit the privacy page states: 20 s of recording, plus 1 s of encoder slack. Checked before any reservation. */
+export const MAX_RECORDING_SECONDS = 21;
+export const OVER_PRODUCT_LIMIT = "That recording was longer than 20 seconds, so we didn't send it.";
 /** Opus can go as low as 6 kbps, so no honest file holds more seconds than bytes x 8 / 6,000. */
 const MIN_BITS_PER_SECOND = 6_000;
 /** Browsers record WebM/Opus (Chrome, Firefox, Android) or MP4/AAC (Safari); both providers read both containers. */
@@ -139,6 +145,8 @@ export async function answerAloud(req: {
   const measured = measureAudio(req.audio);
   if (!measured || measured.container !== req.type) throw new TranscribeError("We couldn't read that recording. Try again, or tap your answer.", 415);
   if (measured.seconds > MAX_AUDIO_SECONDS) throw new TranscribeError(TOO_LONG, 413);
+  // The 20 s the privacy page promises, enforced here too: refused before any reservation or provider call.
+  if (measured.seconds > MAX_RECORDING_SECONDS) throw new TranscribeError(OVER_PRODUCT_LIMIT, 413);
   // Backstop if the measurement and the provider's decoder ever disagree: also bound the length by what the bytes
   // could hold at Opus's lowest bitrate, and reserve the longer of the two, up to the 35 s the quiz allows.
   const byteBound = (req.audio.byteLength * 8) / MIN_BITS_PER_SECOND;

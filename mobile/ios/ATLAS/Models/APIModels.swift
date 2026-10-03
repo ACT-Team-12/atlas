@@ -116,8 +116,8 @@ struct CarePlanResponse: Codable, Hashable, Sendable {
     let not_in_document: [String]
     let has_warning_signs: Bool
     /// The language the explanations were written in (sent back to the meaning check). Missing from older servers
-    /// and from plans saved by older versions of the app.
-    let language: Language?
+    /// and from plans saved by older versions of the app (set from the saved language when such a plan is loaded).
+    var language: Language?
     let model: String
     let stats: CareStats
     /// The "Lines on your paper we didn't turn into steps" check (MissedLines). Missing from older servers and saved plans.

@@ -260,7 +260,7 @@ final class AppModel {
     // MARK: Saved on this phone
 
     private func restore() {
-        guard let saved = store.load() else { return }
+        guard let saved = store.load()?.upgraded() else { return }
         restoring = true
         text = saved.text; language = saved.language; level = saved.level
         care = saved.care; barriers = saved.barriers; zip = saved.zip; note = saved.note

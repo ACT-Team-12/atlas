@@ -208,3 +208,31 @@ fn oracle_every_highlighted_slice_normalizes_to_the_fragment_it_matched() {
     assert!(found > 500, "found {found}");
     assert!(bad.is_empty(), "{bad:?}");
 }
+
+#[test]
+fn adversarial_input_at_the_request_limits_stays_linear() {
+    // 20,000-character source, 600-character quote, 40 items (web/src/lib/schema.ts limits). Every odd normalized
+    // position starts an occurrence of the quote, each inside a U+0130 expansion, so none may count. Re-running the
+    // search from each rejected occurrence is O(source * quote) and took ~10 s for 40 items in the wasm build.
+    let source = "\u{0130}".repeat(20000);
+    let quote = "\u{0307}i".repeat(300);
+    let quotes: Vec<&str> = (0..40).map(|_| quote.as_str()).collect();
+    let t0 = std::time::Instant::now();
+    let (kept, refused) = verify_quotes(&source, &quotes);
+    let elapsed = t0.elapsed();
+    assert!(kept.is_empty());
+    assert_eq!(refused.len(), 40);
+    assert!(elapsed.as_millis() < 500, "40 items took {elapsed:?}");
+}
+
+#[test]
+fn finds_the_one_aligned_occurrence_after_twenty_thousand_unaligned_ones() {
+    // A standalone U+0307 then 299 U+0130: the quote begins on that mark and ends after the last full expansion.
+    let src = format!("{} \u{0307}{}", "\u{0130}".repeat(20000), "\u{0130}".repeat(299));
+    let q = format!("{}\u{0307}", "\u{0307}i".repeat(299));
+    let t0 = std::time::Instant::now();
+    let found = find_span(&src, &q);
+    assert!(t0.elapsed().as_millis() < 500, "took {:?}", t0.elapsed());
+    assert_eq!(src.encode_utf16().count(), 20301);
+    assert_eq!(found, span(20001, 20301));
+}

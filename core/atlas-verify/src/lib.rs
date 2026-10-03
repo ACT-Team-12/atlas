@@ -216,16 +216,55 @@ fn utf8_len(first: u8) -> usize {
     }
 }
 
-/// `String.prototype.indexOf(needle, from)` over UTF-16 units. `needle` is never empty here.
-fn index_of(hay: &[u16], needle: &[u16], from: usize) -> Option<usize> {
-    if needle.is_empty() || from > hay.len() || needle.len() > hay.len() - from {
+/// `indexOfAligned` from verify.ts: the first occurrence of `needle` in `hay` at or after `from` that starts AND ends
+/// on a boundary. Same answer as re-running `indexOf` from each rejected occurrence, but Knuth-Morris-Pratt over
+/// UTF-16 units enumerates every occurrence (overlapping ones included, in start order) in one O(hay + needle) pass,
+/// where re-running a search re-compares the whole needle at every rejected occurrence: O(hay * needle) on a run of
+/// U+0130 against a "U+0307 i" quote. `needle` is never empty here.
+fn index_of_aligned(hay: &[u16], needle: &[u16], from: usize, on_boundary: impl Fn(usize) -> bool) -> Option<usize> {
+    let m = needle.len();
+    if m == 0 {
         return None;
     }
-    (from..=hay.len() - needle.len()).find(|&i| &hay[i..i + needle.len()] == needle)
+    // pi[k]: length of the longest proper prefix of needle[..=k] that is also its suffix.
+    let mut pi = vec![0usize; m];
+    let mut j = 0;
+    for k in 1..m {
+        while j > 0 && needle[k] != needle[j] {
+            j = pi[j - 1];
+        }
+        if needle[k] == needle[j] {
+            j += 1;
+        }
+        pi[k] = j;
+    }
+    j = 0;
+    for (i, &c) in hay.iter().enumerate().skip(from) {
+        while j > 0 && c != needle[j] {
+            j = pi[j - 1];
+        }
+        if c == needle[j] {
+            j += 1;
+        }
+        if j == m {
+            let at = i + 1 - m;
+            if on_boundary(at) && on_boundary(i + 1) {
+                return Some(at);
+            }
+            j = pi[j - 1];
+        }
+    }
+    None
 }
 
 /// `findSpan` from verify.ts. `None` is the TS `null`: the quote is not in the paper and the step is refused.
 pub fn find_span(source: &str, quote: &str) -> Option<Span> {
+    find_span_in(&normalize_with_map(source), quote)
+}
+
+/// [`find_span`] against an already mapped source, so checking many quotes against one document maps it once (the
+/// TS side keeps the last mapped source for the same reason).
+fn find_span_in(mapped: &Mapped, quote: &str) -> Option<Span> {
     let frags = fragments(quote);
     if frags.is_empty() {
         return None;
@@ -235,7 +274,7 @@ pub fn find_span(source: &str, quote: &str) -> Option<Span> {
         starts,
         ends,
         boundary,
-    } = normalize_with_map(source);
+    } = mapped;
     let on_boundary = |k: usize| boundary.get(k).copied().unwrap_or(false);
     let mut cursor = 0;
     let mut first: Option<usize> = None;
@@ -243,10 +282,7 @@ pub fn find_span(source: &str, quote: &str) -> Option<Span> {
     for f in &frags {
         // The first occurrence that starts AND ends between source characters; one inside a case expansion is
         // skipped and the search goes on past it.
-        let mut at = index_of(&norm, f, cursor)?;
-        while !(on_boundary(at) && on_boundary(at + f.len())) {
-            at = index_of(&norm, f, at + 1)?;
-        }
+        let at = index_of_aligned(norm, f, cursor, on_boundary)?;
         if first.is_none() {
             first = Some(at);
         }
@@ -273,8 +309,9 @@ pub struct Verified {
 pub fn verify_quotes(source: &str, quotes: &[&str]) -> (Vec<Verified>, Vec<Verified>) {
     let mut kept = Vec::new();
     let mut refused = Vec::new();
+    let mapped = normalize_with_map(source);
     for (i, q) in quotes.iter().enumerate() {
-        let span = find_span(source, q);
+        let span = find_span_in(&mapped, q);
         let v = Verified {
             id: format!("item-{i}"),
             grounded: span.is_some(),

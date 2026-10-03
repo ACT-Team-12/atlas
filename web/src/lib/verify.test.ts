@@ -126,6 +126,35 @@ describe("oracle: every highlighted slice normalizes to the fragment it matched"
   });
 });
 
+describe("findSpan on adversarial input at the request limits", () => {
+  // 20,000-character source, 600-character quote, 40 items (schema.ts limits). Every odd normalized position starts
+  // an occurrence of the quote, and every one of them begins inside a U+0130 expansion, so none may count. A search
+  // that re-compares the whole quote at each such occurrence is O(source * quote) and took ~10 s for 40 items.
+  const source = "İ".repeat(20000);
+  const quote = "̇i".repeat(300);
+
+  it("refuses every item and stays linear (40 items under 500 ms)", () => {
+    const t0 = performance.now();
+    const { kept, refused } = verifyItems(source, Array.from({ length: 40 }, () => item(quote)));
+    const ms = performance.now() - t0;
+    expect(kept).toHaveLength(0);
+    expect(refused).toHaveLength(40);
+    expect(ms).toBeLessThan(500);
+  });
+
+  it("still finds the one aligned occurrence after ~20,000 unaligned ones", () => {
+    // The tail is a standalone U+0307 followed by 299 U+0130: the quote begins on that standalone mark (a boundary)
+    // and ends after the last U+0130's full expansion, so this is the first and only occurrence that may count.
+    const src = "İ".repeat(20000) + " ̇" + "İ".repeat(299);
+    const q = "̇i".repeat(299) + "̇";
+    const t0 = performance.now();
+    const span = findSpan(src, q);
+    expect(performance.now() - t0).toBeLessThan(500);
+    expect(span).toEqual({ start: 20001, end: src.length });
+    expect(src.length).toBe(20301);
+  });
+});
+
 describe("verifyItems", () => {
   it("splits grounded items from refused ones", () => {
     const { kept, refused } = verifyItems(SAMPLE_AVS, [

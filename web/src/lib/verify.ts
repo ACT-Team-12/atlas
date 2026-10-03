@@ -29,7 +29,26 @@ export function normalize(s: string): string {
  * `boundary[k]` is true when normalized position k is where one source character's output begins (or the end), so a
  * match can be required to start and end between source characters, never inside one character's expansion.
  */
-function normalizeWithMap(src: string): { norm: string; starts: number[]; ends: number[]; boundary: boolean[] } {
+type Mapped = {
+  readonly norm: string;
+  readonly starts: readonly number[];
+  readonly ends: readonly number[];
+  readonly boundary: readonly boolean[];
+};
+
+// One entry: every caller checks many quotes against the same document in a row (verifyItems, the streamed
+// verifyItem calls, understand.ts), and mapping a 20,000-character source costs ~20 ms, so without this 40 items at
+// the request limits spend most of a second re-mapping the same text. Nothing mutates a Mapped after it is built.
+let lastMapped: { src: string; mapped: Mapped } | null = null;
+
+function normalizeWithMap(src: string): Mapped {
+  if (lastMapped?.src === src) return lastMapped.mapped;
+  const mapped = buildMap(src);
+  lastMapped = { src, mapped };
+  return mapped;
+}
+
+function buildMap(src: string): Mapped {
   let norm = "";
   const starts: number[] = [];
   const ends: number[] = [];
@@ -77,6 +96,36 @@ function fragments(quote: string): string[] {
   return frags.some((f) => f.length < 3) ? [] : frags;
 }
 
+/**
+ * The first occurrence of `needle` in `hay` at or after `from` that starts AND ends on a boundary, or -1. Same answer
+ * as calling `indexOf` again from each rejected occurrence, but Knuth-Morris-Pratt over UTF-16 units enumerates every
+ * occurrence (overlapping ones included, in start order) in one O(hay + needle) pass. Re-running `indexOf` re-compares
+ * the whole needle at every rejected occurrence, which is O(hay * needle): a run of U+0130 against a "U+0307 i" quote
+ * has an unaligned occurrence at nearly every position.
+ */
+function indexOfAligned(hay: string, needle: string, from: number, boundary: readonly boolean[]): number {
+  const m = needle.length;
+  if (m === 0) return -1;
+  // pi[k]: length of the longest proper prefix of needle[0..k] that is also its suffix.
+  const pi = new Int32Array(m);
+  for (let k = 1, j = 0; k < m; k++) {
+    while (j > 0 && needle.charCodeAt(k) !== needle.charCodeAt(j)) j = pi[j - 1];
+    if (needle.charCodeAt(k) === needle.charCodeAt(j)) j++;
+    pi[k] = j;
+  }
+  for (let i = Math.max(from, 0), j = 0; i < hay.length; i++) {
+    const c = hay.charCodeAt(i);
+    while (j > 0 && c !== needle.charCodeAt(j)) j = pi[j - 1];
+    if (c === needle.charCodeAt(j)) j++;
+    if (j === m) {
+      const at = i + 1 - m;
+      if (boundary[at] && boundary[i + 1]) return at;
+      j = pi[j - 1];
+    }
+  }
+  return -1;
+}
+
 export function findSpan(source: string, quote: string): { start: number; end: number } | null {
   const frags = fragments(quote);
   if (frags.length === 0) return null;
@@ -87,8 +136,7 @@ export function findSpan(source: string, quote: string): { start: number; end: n
   for (const f of frags) {
     // The first occurrence that starts AND ends between source characters; an occurrence inside a case expansion
     // (e.g. starting at the U+0307 that "İ" lower-cases into) is skipped, and the search goes on past it.
-    let at = norm.indexOf(f, cursor);
-    while (at >= 0 && !(boundary[at] && boundary[at + f.length])) at = norm.indexOf(f, at + 1);
+    const at = indexOfAligned(norm, f, cursor, boundary);
     if (at < 0) return null;
     if (first < 0) first = at;
     lastEnd = at + f.length;

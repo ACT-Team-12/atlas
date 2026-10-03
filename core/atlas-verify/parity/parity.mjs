@@ -273,6 +273,9 @@ const MUST = [
   ["\u{10400}\u{10401} dose", "\u{10400}\u{10401} dose", true],
   ["Dose İ 5 mg", "̇ 5 mg", false],
   ["Dose İ 5 mg", "Dose i", false],
+  // At the request limits (20,000-character source, 600-character quote): an unaligned occurrence at every odd
+  // position and none aligned. The old search re-compared the whole quote at each one, O(source * quote).
+  ["\u0130".repeat(20000), "\u0307i".repeat(300), false],
 ];
 // Exact spans that must hold in both (the U+0130 map shift used to break these).
 const MUST_SPAN = [
@@ -280,6 +283,8 @@ const MUST_SPAN = [
   ["\u0130\u0130\u0130 abc", "abc", 4, 7],
   ["\u0130 take 1 tablet daily with food", "take 1 tablet", 2, 15],
   ["\u0130 5 mg, then \u0307 5 mg", "\u0307 5 mg", 13, 19],
+  // The one aligned occurrence comes after ~20,000 unaligned ones.
+  ["\u0130".repeat(20000) + " \u0307" + "\u0130".repeat(299), "\u0307i".repeat(299) + "\u0307", 20001, 20301],
 ];
 for (const [src, q, s0, e0] of MUST_SPAN) {
   for (const [name, impl] of [["ts", ts], ["rust", rust]]) {

@@ -60,6 +60,12 @@ quotes that are.
    `"Dose İ"`. The mapper now records where each source character's output begins, and a fragment is accepted only
    when it starts and ends on such a boundary; the search continues past unaligned occurrences. An oracle test
    (TS and Rust) checks that every highlighted slice normalizes to exactly the fragment it matched.
+5. **Fix 4's search was quadratic on adversarial input** (found by review of fix 4). Re-running the search from each
+   unaligned occurrence re-compared the whole quote every time: a 20,000 `"İ"` source against a 600-unit
+   `"̇i̇i…"` quote has an unaligned occurrence at every odd position, so 40 such items cost seconds. The search is now
+   one Knuth-Morris-Pratt pass that enumerates every occurrence and returns the first aligned one (same answer,
+   O(source + quote)), and a source is mapped once per batch of quotes. TS and Rust tests at the request limits hold
+   40 items under 500 ms, and parity checks both give the same answers there.
 
 Known input class the two cannot be compared on: a JS string with a lone surrogate. Rust `&str` cannot hold one and
 `TextEncoder` turns it into U+FFFD at the WebAssembly boundary. The parity corpus does not include them.

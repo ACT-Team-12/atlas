@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { PlanResponse } from "@/lib/plan";
 import type { LANGUAGES } from "@/lib/schema";
 import { speechText } from "@/lib/speechText";
+import { nextPoll, pollDelayMs, START_POLL, type PollState } from "@/lib/call/poll";
 
 /**
  * "Call me with my plan": ATLAS phones the person and reads the plan in its language. For someone who can't read or
@@ -67,7 +68,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   const [typed, setTyped] = useState(""); // the code the person typed: the plan call asks for it again before it plays
   const [suffix, setSuffix] = useState(""); // the number's last 4 digits, kept here: the server clears its copy when the call ends
   const panelId = useId();
-  const polls = useRef(0);
+  const [poll, setPoll] = useState<PollState>(START_POLL);
   const text = speechText(plan);
   // The plan this panel's call belongs to. A response that comes back after the plan changed (or the panel went away)
   // is dropped, so a call session can never carry over to another plan. The state reset itself comes from the parent
@@ -88,20 +89,24 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
     return () => { alive = false; };
   }, []);
 
-  // Follow the call while it is live; stop at the end, or after about 6 minutes.
+  // Follow the call while it is live. Every poll, failed or not, schedules the next (lib/call/poll.ts): a failure shows
+  // that status is unavailable and backs off, and the loop stops at the end of the call or at its bounds.
   const live = st && (st.phase === "code" || (st.phase === "calling" && !(st.plan_status && (st.plan_status === "completed" || MISSED.includes(st.plan_status)))));
   useEffect(() => {
-    if (!id || !live) return;
+    if (!id || !live || poll.stopped) return;
+    let alive = true;
     const timer = setTimeout(async () => {
-      if (++polls.current > 120) return;
+      let j: Status | null = null;
       try {
         const r = await post("/api/call/status", { id });
-        const j = r.ok ? ((await r.json()) as Status) : null;
-        if (j && current.current === owner) setSt(j);
-      } catch {}
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [id, live, st, owner]);
+        j = r.ok ? ((await r.json()) as Status) : null;
+      } catch { j = null; }
+      if (!alive || current.current !== owner) return;
+      if (j && typeof j.phase === "string") setSt(j);
+      setPoll((p) => nextPoll(p, j && typeof j.phase === "string" ? "ok" : "fail"));
+    }, pollDelayMs(poll));
+    return () => { alive = false; clearTimeout(timer); };
+  }, [id, live, poll, owner]);
 
   if (!cfg?.enabled || !plan.speak_token) return null;
 
@@ -124,7 +129,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   }
 
   const askCode = (e: FormEvent) => send(e, "/api/call/start", { phone, consent, text, language, token: plan.speak_token }, (j) => {
-    polls.current = 0;
+    setPoll(START_POLL);
     setId(String(j.id));
     setSuffix(typeof j.last4 === "string" ? j.last4 : "");
     setSt({ phase: "code", code_status: j.uncertain ? "unknown" : null });
@@ -132,7 +137,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
     setCode("");
   });
   const verify = (e: FormEvent) => send(e, "/api/call/verify", { id, code }, (j) => {
-    polls.current = 0;
+    setPoll(START_POLL);
     setSt((s) => ({ ...(s ?? {}), phase: "calling", plan_status: j.uncertain ? "unknown" : null }));
     setTyped(code);
     setCode("");
@@ -160,6 +165,11 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
           ) : (
             <>
               {st && <p role="status" className="mt-2 font-bold">{line(st, suffix, typed)}</p>}
+              {st && live && poll.trouble && (
+                <p className="mt-1 text-sm font-semibold">
+                  {poll.stopped ? "We can't get this call's status right now. If your phone rings, pick up." : "Call status is unavailable right now. Still trying..."}
+                </p>
+              )}
               {st?.phase === "code" && (
                 <form onSubmit={verify} className="mt-3 grid gap-2">
                   <label className="text-sm font-bold">The 4-digit code from the call

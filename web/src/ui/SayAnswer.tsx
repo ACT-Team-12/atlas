@@ -27,20 +27,19 @@ export function SayAnswer({ enabled, language, token, onTranscript }: Props) {
   const [seconds, setSeconds] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
-  const stream = useRef<MediaStream | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Stops whatever this recording holds (its own stream and timer). Set per recording, so a late one can't leak. */
+  const release = useRef<(() => void) | null>(null);
+  /** Set synchronously on tap, before any await, so a second tap during the permission prompt does nothing. */
+  const busy = useRef(false);
   const cancelled = useRef(false);
 
-  const release = () => {
-    if (timer.current) clearInterval(timer.current);
-    timer.current = null;
-    stream.current?.getTracks().forEach((t) => t.stop());
-    stream.current = null;
-  };
-  useEffect(() => () => {
-    cancelled.current = true;
-    if (recorder.current?.state === "recording") recorder.current.stop();
-    release();
+  useEffect(() => {
+    cancelled.current = false; // StrictMode remounts: the component is live again
+    return () => {
+      cancelled.current = true;
+      if (recorder.current?.state === "recording") recorder.current.stop();
+      release.current?.();
+    };
   }, []);
 
   if (!enabled) return null;
@@ -59,40 +58,70 @@ export function SayAnswer({ enabled, language, token, onTranscript }: Props) {
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "We couldn't hear that. Try again, or tap your answer.");
     } finally {
+      busy.current = false;
       if (!cancelled.current) setState("idle");
     }
   }
 
   async function start() {
+    if (busy.current) return;
+    busy.current = true;
     setMessage(null);
     const type = typeof MediaRecorder === "undefined" ? null : pickMimeType((t) => MediaRecorder.isTypeSupported(t));
-    if (!type || !navigator.mediaDevices?.getUserMedia) { setMessage("This browser can't record. Tap your answer instead."); return; }
-    try {
-      stream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (e) {
-      const denied = e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError");
-      setMessage(denied ? "The microphone is blocked. Allow it in your browser settings, or tap your answer instead." : "We couldn't find a microphone. Tap your answer instead.");
+    if (!type || !navigator.mediaDevices?.getUserMedia) {
+      busy.current = false;
+      setMessage("This browser can't record. Tap your answer instead.");
       return;
     }
-    const rec = new MediaRecorder(stream.current, { mimeType: type, audioBitsPerSecond: 32_000 });
-    const chunks: Blob[] = [];
-    rec.ondataavailable = (ev) => { if (ev.data.size > 0) chunks.push(ev.data); };
-    rec.onstop = () => {
-      release();
-      if (cancelled.current) return;
-      const base = type.split(";")[0];
-      void send(new Blob(chunks, { type: base }), base);
+    let mic: MediaStream;
+    try {
+      mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      busy.current = false;
+      const denied = e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError");
+      if (!cancelled.current) setMessage(denied ? "The microphone is blocked. Allow it in your browser settings, or tap your answer instead." : "We couldn't find a microphone. Tap your answer instead.");
+      return;
+    }
+    // Everything this recording holds, released exactly once on every path: stop, error, limit or unmount.
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let released = false;
+    const free = () => {
+      if (released) return;
+      released = true;
+      if (timer) clearInterval(timer);
+      mic.getTracks().forEach((t) => t.stop());
+      if (release.current === free) release.current = null;
     };
-    recorder.current = rec;
-    rec.start();
-    setSeconds(0);
-    setState("recording");
-    const startedAt = Date.now();
-    timer.current = setInterval(() => {
-      const s = Math.min(MAX_RECORD_SECONDS, Math.floor((Date.now() - startedAt) / 1000));
-      setSeconds(s);
-      if (s >= MAX_RECORD_SECONDS && rec.state === "recording") rec.stop();
-    }, 250);
+    if (cancelled.current) { free(); busy.current = false; return; } // gone while the permission prompt was open
+    release.current = free;
+    try {
+      const rec = new MediaRecorder(mic, { mimeType: type, audioBitsPerSecond: 32_000 });
+      const chunks: Blob[] = [];
+      rec.ondataavailable = (ev) => { if (ev.data.size > 0) chunks.push(ev.data); };
+      rec.onstop = () => {
+        free();
+        if (recorder.current === rec) recorder.current = null;
+        if (cancelled.current) { busy.current = false; return; }
+        const base = type.split(";")[0];
+        void send(new Blob(chunks, { type: base }), base);
+      };
+      recorder.current = rec;
+      rec.start();
+      setSeconds(0);
+      setState("recording");
+      const startedAt = Date.now();
+      timer = setInterval(() => {
+        const s = Math.min(MAX_RECORD_SECONDS, Math.floor((Date.now() - startedAt) / 1000));
+        setSeconds(s);
+        if (s >= MAX_RECORD_SECONDS && rec.state === "recording") rec.stop();
+      }, 250);
+    } catch {
+      free();
+      recorder.current = null;
+      busy.current = false;
+      setState("idle");
+      setMessage("We couldn't start recording. Tap your answer instead.");
+    }
   }
 
   function stop() {

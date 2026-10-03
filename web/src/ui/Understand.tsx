@@ -118,7 +118,7 @@ export function Understand({ care, items, language }: Props) {
             {voiceHere && !solved && (
               <div className="mt-3 rounded-xl border-2 border-ink/20 p-3">
                 <label htmlFor={`said-${q.item_id}`} className="font-bold">Or say it in your own words</label>
-                <SayAnswer enabled={voiceHere} language={language} token={data?.answer_token ?? ""}
+                <SayAnswer key={q.item_id} enabled={voiceHere} language={language} token={data?.answer_token ?? ""}
                   onTranscript={(text) => { setHint(null); setSaid((m) => ({ ...m, [q.item_id]: text })); }} />
                 <textarea id={`said-${q.item_id}`} rows={2} value={said[q.item_id] ?? ""} maxLength={500}
                   onChange={(e) => { const v = e.target.value; setSaid((m) => ({ ...m, [q.item_id]: v })); }}

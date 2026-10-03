@@ -20,7 +20,7 @@ import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
 import { speechLines } from "@/lib/speechText";
 import {
-  closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan, saveSession,
+  closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan,
   STORE_KEY, type Session, type Store,
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
@@ -30,6 +30,7 @@ import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun
 import { forgetDeviceChecker, loadDeviceChecker, sameSpan } from "@/lib/deviceChecker";
 import { streamThenPlain } from "@/lib/readCancel";
 import { persistDeletion } from "@/lib/persistDeletion";
+import { autosaveStore } from "@/lib/autosave";
 import { fetchMeaning, IDLE_MEANING, RunFence, runMeaningCheck, type MeaningState } from "@/lib/meaningRun";
 
 const KIND: Record<string, { label: string; cls: string }> = {
@@ -265,6 +266,11 @@ export function CarePlanTool() {
   const storeRef = useRef<Store>(emptyStore());
   const [saveFailed, setSaveFailed] = useState(false);
   const [deleteFailed, setDeleteFailed] = useState(false);
+  // Session epoch: bumped whenever the open session ends (deleted, cleared, another plan opened, a new plan), so a save
+  // scheduled by an earlier render never writes that session's paper back (lib/autosave.ts).
+  const sessionEpoch = useRef(0);
+  const [epoch, setEpoch] = useState(0);
+  function endSession() { setEpoch(++sessionEpoch.current); }
 
   function writeStore(next: Store) {
     if (next === storeRef.current) return;
@@ -275,6 +281,7 @@ export function CarePlanTool() {
 
   /** Puts a saved plan into the tool. Anything still running belongs to the plan being left, so it is dropped. */
   function applySession(v: Session) {
+    endSession();
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setLoc(null);
@@ -286,6 +293,7 @@ export function CarePlanTool() {
 
   /** Empties the tool for a new plan. Saved plans stay as they are. */
   function resetTool() {
+    endSession();
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setPhotoChecked(false); setReadLevel(null);
@@ -311,10 +319,12 @@ export function CarePlanTool() {
 
   // Every change to the open plan is saved into it; the first read or plan of a new one creates it.
   useEffect(() => {
-    if (!loaded.current) return;
-    if (!care && !plan) return;
-    writeStore(saveSession(storeRef.current, { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked }, new Date().toISOString(), newPlanId()));
-  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked]);
+    const next = autosaveStore({
+      loaded: loaded.current, epoch, currentEpoch: sessionEpoch.current, store: storeRef.current,
+      session: { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked }, now: new Date().toISOString(), newId: newPlanId(),
+    });
+    if (next) writeStore(next);
+  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, epoch]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /**

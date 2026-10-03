@@ -161,10 +161,33 @@ describe.skipIf(!PG)("postgres store", () => {
       { bucket: "lch:old", win: hr, amount: 5, cap: 600, ttlSec: 7_200 },
       { bucket: "lt:old", win: 0, amount: 1, cap: 8, ttlSec: 25_200 },
     ], twoDaysAgo);
-    await store.reserve([{ bucket: "lch:new", win: Math.floor(now / 3_600_000), amount: 5, cap: 600, ttlSec: 7_200 }], now);
     expect(await sweepSttUsage(pool)).toBe(3);
+    await store.reserve([{ bucket: "lch:new", win: Math.floor(now / 3_600_000), amount: 5, cap: 600, ttlSec: 7_200 }], now);
     const { rows } = await pool.query("select bucket from atlas_stt_usage order by bucket");
     expect(rows).toEqual([{ bucket: "lch:new" }, { bucket: SWEEP_HEARTBEAT }]);
+  });
+
+  it("deletion does not wait on the cron: every write and every readiness check delete expired counters (Codex round 4)", async () => {
+    const store = pgUsageStore(pool);
+    const old = Date.now() - 2 * 86_400_000 - 60_000;
+    const seed = async () => {
+      await pool.query("delete from atlas_stt_usage");
+      await store.reserve([{ bucket: "lch:old", win: 1, amount: 5, cap: 600, ttlSec: 7_200 }], old);
+      expect((await pool.query("select 1 from atlas_stt_usage where bucket = 'lch:old'")).rowCount).toBe(1);
+    };
+    await seed();
+    await store.reserve([{ bucket: "lch:new", win: 2, amount: 5, cap: 600, ttlSec: 7_200 }], Date.now());
+    expect((await pool.query("select bucket from atlas_stt_usage order by bucket")).rows).toEqual([{ bucket: "lch:new" }]);
+    // With the feature switched off (no CRON_SECRET), a visit still deletes them.
+    await seed();
+    vi.stubEnv("DATABASE_URL", PG!);
+    vi.stubEnv("CRON_SECRET", "");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      localUsageForTests();
+      expect(await budgetReady(5)).toBe(false);
+      expect((await pool.query("select count(*)::int as n from atlas_stt_usage")).rows[0].n).toBe(0);
+    } finally { vi.unstubAllEnvs(); vi.restoreAllMocks(); localUsageForTests(); }
   });
 
   it("the mic is on only while the sweep keeps succeeding (Codex round 3, 2026-10-03)", async () => {

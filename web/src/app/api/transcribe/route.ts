@@ -12,7 +12,9 @@ const off = () => Response.json({ error: "Speaking your answer is off right now.
 
 /** Whether "Say your answer" is on, for which languages, and who turns speech into text. Off means no mic anywhere. */
 export async function GET() {
-  const enabled = transcribeEnabled() && (await budgetReady());
+  // Readiness runs even when speech is off: it also deletes expired counters, whatever the cron is doing.
+  const ready = await budgetReady();
+  const enabled = transcribeEnabled() && ready;
   const provider = enabled ? sttProvider() : null;
   return Response.json(
     { enabled, languages: enabled ? transcribeLanguages() : [], provider: provider ? PROVIDER_NAME[provider] : null },

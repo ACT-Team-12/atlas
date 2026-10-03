@@ -22,24 +22,17 @@ struct SavedSession: Codable, Equatable, Sendable {
     /// was made.
     var savedAt: Date
 
-    /// A file saved by the 1.0 app has no fingerprints and its steps carry no language, so the outdated note could never
-    /// show. Rebuild both from what was saved: the steps were read from the saved text at the saved language and reading
-    /// level (1.0 saved the inputs every time they changed, so these are the last ones entered, the best record there
-    /// is), and the plan from the steps still kept, the barriers, the note and the ZIP (the device location is never
-    /// saved). Files that already carry fingerprints come back unchanged.
+    /// What a loaded file can honestly say about where its steps and plan came from. Provenance is never invented: a
+    /// file saved by the 1.0 app has no fingerprints, and 1.0 saved the text, language and reading level after every
+    /// edit, so the saved inputs may be later than the ones the steps were read with. Such a file keeps its missing
+    /// fingerprints, and AppModel treats missing provenance as outdated until the person reads (and plans) again.
+    /// The only thing recovered is the steps' language, and only from a read fingerprint that encodes it (a 1.1 file
+    /// whose server did not send the language). Otherwise it stays unknown, so the steps are never read in a wrong voice.
     func upgraded() -> SavedSession {
         var s = self
-        if var c = s.care, c.language == nil {
-            c.language = language
+        if var c = s.care, c.language == nil, let fp = readFingerprint, let lang = StaleGuard.language(inReadFingerprint: fp) {
+            c.language = lang
             s.care = c
-        }
-        if s.readFingerprint == nil, let c = s.care {
-            s.readFingerprint = StaleGuard.readFingerprint(text: text, language: c.language ?? language, level: level)
-        }
-        if s.planFingerprint == nil, s.plan != nil {
-            let kept = (s.care?.items ?? []).filter { removed[$0.id] != true }.map(\.id)
-            s.planFingerprint = StaleGuard.planFingerprint(careIds: kept, barriers: barriers, language: s.care?.language ?? language,
-                                                           note: note, place: StaleGuard.place(location: nil, zip: zip), location: nil)
         }
         return s
     }

@@ -23,6 +23,15 @@ enum StaleGuard {
         json([text, language.rawValue, level.rawValue])
     }
 
+    /// The language a read fingerprint was made with, when the fingerprint is one (`[text, language, level]`) and the
+    /// language is one this app knows. Nil otherwise.
+    static func language(inReadFingerprint fp: String) -> Language? {
+        guard let parts = (try? JSONSerialization.jsonObject(with: Data(fp.utf8))) as? [Any], parts.count == 3,
+              parts[0] is String, let raw = parts[1] as? String, let level = parts[2] as? String,
+              ReadingLevel(rawValue: level) != nil else { return nil }
+        return Language(rawValue: raw)
+    }
+
     /// -0 is 0 and anything not a finite number is null, like normalLocation in staleGuard.ts.
     private static func num(_ x: Double) -> Any { x.isFinite ? (x + 0.0) as Any : NSNull() }
 

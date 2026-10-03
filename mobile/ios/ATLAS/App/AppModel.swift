@@ -82,22 +82,31 @@ final class AppModel {
     var missedLines: MissedLinesView { MissedLines.view(care?.missed_lines, keptIDs: items.map(\.id)) }
 
     /// The language the steps on screen were written in, for reading them aloud. While the steps are outdated it is still
-    /// theirs, not the language just picked, so a Spanish plan is never read with a Vietnamese voice.
-    var stepsLanguage: Language { care?.language ?? language }
+    /// theirs, not the language just picked, so a Spanish plan is never read with a Vietnamese voice. Nil when it is not
+    /// known (a plan saved by 1.0): then the steps are not read aloud at all until they are read again.
+    var stepsLanguage: Language? { care?.language }
 
     /// Read aloud on the plan screen is off while the plan is outdated, like the website: the plan was built in a
     /// language that may no longer be the one picked.
     var planCanReadAloud: Bool { plan != nil && !planOutdated }
 
-    /// The steps on screen were read from different text, language or reading level than what is entered now.
+    /// The steps on screen were read from different text, language or reading level than what is entered now, or it is
+    /// not known what they were read from (a plan saved by 1.0): missing provenance counts as outdated.
     var careOutdated: Bool {
-        guard care != nil, let readFingerprint else { return false }
+        guard care != nil else { return false }
+        guard let readFingerprint else { return true }
         return readFingerprint != StaleGuard.readFingerprint(text: text, language: language, level: level)
     }
 
-    /// The plan on screen was built from different inputs than what is entered now; its actions are turned off.
+    /// Steps saved by 1.0, which kept no record of what they were read from (so neither they nor a plan built on them
+    /// can be shown as current).
+    var provenanceUnknown: Bool { care != nil && readFingerprint == nil }
+
+    /// The plan on screen was built from different inputs than what is entered now, or it is not known what it was built
+    /// from; its actions are turned off.
     var planOutdated: Bool {
-        guard plan != nil, let planFingerprint else { return false }
+        guard plan != nil else { return false }
+        guard let planFingerprint else { return true }
         return careOutdated || planFingerprint != currentPlanFingerprint()
     }
 

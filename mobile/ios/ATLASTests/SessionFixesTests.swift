@@ -36,48 +36,97 @@ struct SessionFixesTests {
         return store
     }
 
-    // MARK: Bug 1: a 1.0 plan never looked outdated
-
-    @Test func legacyPlanIsUpToDateUntilAHelperLinkChangesTheLanguage() throws {
-        let model = AppModel(store: try Self.legacyStore())
-        #expect(model.care != nil)
-        #expect(!model.careOutdated, "nothing changed yet")
-        model.applyHelperLink(HelperPresets(language: .Vietnamese))
-        #expect(model.careOutdated, "the helper link picked another language, so the Spanish steps are outdated")
+    /// What 1.1 and later write: fingerprints for the read and the plan, made from the inputs at that moment.
+    static func currentStore(withPlan: Bool = false, careLanguage: Language? = .Spanish, readFingerprint: String? = nil) throws -> SessionStore {
+        var careJSON = try legacyCare()
+        if let careLanguage { careJSON["language"] = careLanguage.rawValue }
+        let care = try JSONDecoder().decode(CarePlanResponse.self, from: JSONSerialization.data(withJSONObject: careJSON))
+        let text = "Take metformin 500 mg twice a day with meals. Call 911 for chest pain."
+        let plan = withPlan ? try JSONDecoder().decode(PlanResponse.self, from: Fixture.data("plan_sample_30303_live")) : nil
+        let session = SavedSession(
+            text: text, language: .Spanish, level: .simple, care: care, barriers: [.cost], zip: "30303", note: "",
+            plan: plan, done: [:], removed: [:], meaning: nil,
+            readFingerprint: readFingerprint ?? StaleGuard.readFingerprint(text: text, language: .Spanish, level: .simple),
+            planFingerprint: withPlan ? StaleGuard.planFingerprint(careIds: care.items.map(\.id), barriers: [.cost], language: .Spanish,
+                                                                   note: "", place: "30303", location: nil) : nil,
+            savedAt: legacyDate)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = SessionStore(directory: dir)
+        try store.save(session)
+        return store
     }
 
-    @Test func legacyPlanTurnsOutdatedOnAReadingLevelChangeToo() throws {
-        let model = AppModel(store: try Self.legacyStore())
-        model.applyHelperLink(HelperPresets(level: .detailed))
-        #expect(model.careOutdated)
-        model.applyHelperLink(HelperPresets(level: .simple))
-        #expect(!model.careOutdated, "back to what it was read at")
-    }
+    // MARK: Bug 1: a 1.0 plan never looked outdated. It now loads outdated: its provenance is unknown, never invented.
 
-    @Test func legacyPlanGetsAPlanFingerprintSoAChangedLanguageTurnsItsActionsOff() throws {
+    @Test func legacyFileLoadsOutdated() throws {
         let model = AppModel(store: try Self.legacyStore(withPlan: true))
-        #expect(model.plan != nil)
-        #expect(!model.planOutdated)
-        model.note = "bring my list"
-        #expect(model.planOutdated, "a plan input changed after the plan")
-        model.note = ""
-        #expect(!model.planOutdated)
-        model.language = .Korean
+        #expect(model.care != nil && model.plan != nil)
+        #expect(model.provenanceUnknown)
+        #expect(model.careOutdated, "1.0 kept no record of what the steps were read from")
         #expect(model.planOutdated)
+        #expect(!model.planCanReadAloud, "plan read aloud off")
+        #expect(!model.canPlan, "plan actions off until the paper is read again")
+        #expect(model.stepsLanguage == nil, "unknown language: no voice rather than a wrong one")
     }
 
-    @Test func upgradeLeavesNewFilesAloneAndRecordsTheLanguageOnTheSteps() throws {
-        let up = try #require(try Self.legacyStore().load()).upgraded()
-        #expect(up.care?.language == .Spanish)
-        #expect(up.readFingerprint == StaleGuard.readFingerprint(text: up.text, language: .Spanish, level: .simple))
-        #expect(up.planFingerprint == nil, "no plan was saved")
-        var already = up
-        already.readFingerprint = "kept as is"
-        already.planFingerprint = "this too"
-        #expect(already.upgraded() == already)
-        let empty = SavedSession(text: "", language: .English, level: .simple, care: nil, barriers: [], zip: "", note: "",
-                                 plan: nil, done: [:], removed: [:], savedAt: Date(timeIntervalSince1970: 1))
-        #expect(empty.upgraded() == empty)
+    @Test func legacyFileStaysOutdatedWhateverTheInputsBecome() throws {
+        let store = try Self.legacyStore(withPlan: true)
+        let model = AppModel(store: store)
+        model.applyHelperLink(HelperPresets(language: .Vietnamese, level: .detailed))
+        #expect(model.careOutdated && model.planOutdated)
+        model.language = .Spanish
+        model.level = .simple
+        #expect(model.careOutdated && model.planOutdated, "back to the saved inputs is still not proof of what was read")
+        let saved = try #require(store.load())
+        #expect(saved.readFingerprint == nil && saved.planFingerprint == nil, "no invented provenance is written to disk")
+        #expect(saved.care?.language == nil)
+        #expect(AppModel(store: store).careOutdated, "and the next launch still says so")
+    }
+
+    @Test func readingAgainClearsIt() async throws {
+        StubProtocol.extract = try Fixture.data("extract_sample_live")
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubProtocol.self]
+        let store = try Self.legacyStore(withPlan: true)
+        let model = AppModel(api: APIClient(session: URLSession(configuration: config)), store: store)
+        #expect(model.careOutdated)
+        model.readPaper()
+        for _ in 0..<400 where model.busy != nil { try await Task.sleep(for: .milliseconds(25)) }
+        #expect(model.busy == nil && model.error == nil)
+        #expect(!model.careOutdated && !model.provenanceUnknown)
+        #expect(model.plan == nil, "a new read clears the old plan")
+        #expect(model.stepsLanguage == .Spanish, "the language it was read in")
+        let saved = try #require(store.load())
+        #expect(saved.readFingerprint == StaleGuard.readFingerprint(text: model.text, language: .Spanish, level: .simple))
+        #expect(saved.care?.language == .Spanish)
+    }
+
+    @Test func aFileWithAReadFingerprintRecoversTheStepsLanguageFromIt() throws {
+        // A 1.1 file whose server sent no language; the person then picked Vietnamese (saved after the read).
+        let store = try Self.currentStore(careLanguage: nil)
+        var s = try #require(store.load())
+        s.language = .Vietnamese
+        try store.save(s)
+        let model = AppModel(store: store)
+        #expect(model.stepsLanguage == .Spanish, "from the fingerprint, not the later saved language")
+        #expect(model.careOutdated)
+        #expect(!model.provenanceUnknown)
+    }
+
+    @Test func aFingerprintThatEncodesNoKnownLanguageLeavesItUnknown() throws {
+        let model = AppModel(store: try Self.currentStore(careLanguage: nil, readFingerprint: "[\"x\",\"Klingon\",\"simple\"]"))
+        #expect(model.stepsLanguage == nil)
+        #expect(model.careOutdated)
+        #expect(StaleGuard.language(inReadFingerprint: "not json") == nil)
+        #expect(StaleGuard.language(inReadFingerprint: StaleGuard.readFingerprint(text: "t", language: .Korean, level: .detailed)) == .Korean)
+    }
+
+    @Test func upgradeNeverInventsFingerprints() throws {
+        let legacy = try #require(try Self.legacyStore(withPlan: true).load())
+        let up = legacy.upgraded()
+        #expect(up == legacy, "nothing is reconstructed from the latest saved inputs")
+        let current = try #require(try Self.currentStore(withPlan: true).load())
+        #expect(current.upgraded() == current)
     }
 
     // MARK: Bug 2: opening a helper link moved the saved time
@@ -114,7 +163,8 @@ struct SessionFixesTests {
     // MARK: Bug 3: read aloud followed the new language
 
     @Test func readAloudUsesTheLanguageTheStepsWereWrittenIn() throws {
-        let model = AppModel(store: try Self.legacyStore())
+        let model = AppModel(store: try Self.currentStore())
+        #expect(!model.careOutdated)
         #expect(model.stepsLanguage == .Spanish)
         model.applyHelperLink(HelperPresets(language: .Vietnamese))
         #expect(model.careOutdated)
@@ -123,7 +173,7 @@ struct SessionFixesTests {
     }
 
     @Test func planReadAloudIsOffWhileThePlanIsOutdated() throws {
-        let model = AppModel(store: try Self.legacyStore(withPlan: true))
+        let model = AppModel(store: try Self.currentStore(withPlan: true))
         #expect(model.planCanReadAloud)
         model.applyHelperLink(HelperPresets(language: .Vietnamese))
         #expect(model.planOutdated)
@@ -131,4 +181,23 @@ struct SessionFixesTests {
         model.language = .Spanish
         #expect(model.planCanReadAloud, "back to what it was built in")
     }
+}
+
+/// Answers /api/extract with a captured live response and everything else (the double-check) with 503. No network.
+final class StubProtocol: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var extract = Data()
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        let isExtract = request.url?.path == "/api/extract"
+        let response = HTTPURLResponse(url: request.url!, statusCode: isExtract ? 200 : 503, httpVersion: nil,
+                                       headerFields: ["Content-Type": "application/json"])!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: isExtract ? Self.extract : Data("{}".utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }

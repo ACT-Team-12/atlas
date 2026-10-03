@@ -17,7 +17,9 @@ struct PlanView: View {
                     ScreenTitle(title: "Your plan", note: plan.located.label)
                     MedicalNote()
                     if outdated {
-                        OutdatedNote(text: model.careOutdated
+                        OutdatedNote(text: model.provenanceUnknown
+                            ? "This plan was saved by an older version of ATLAS, so we can't tell what it was made from. Read your paper again first; until then reading aloud, sharing and reminders are off."
+                            : model.careOutdated
                             ? "You changed your paper's text, language or reading level since this plan was made. Read your paper again first; until then reading aloud, sharing and reminders are off."
                             : "You changed your steps, barriers, language, note or place since this plan was made. Update the plan; until then reading aloud, sharing and reminders are off.")
                         if !model.careOutdated {

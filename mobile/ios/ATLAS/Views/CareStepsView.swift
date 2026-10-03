@@ -13,7 +13,9 @@ struct CareStepsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     ScreenTitle(title: "Your steps", note: "Each one is quoted from your paper.")
                     if model.careOutdated {
-                        OutdatedNote(text: "You changed the text, language or reading level since this was read. Read your paper again to update these steps.")
+                        OutdatedNote(text: model.provenanceUnknown
+                            ? "These steps were saved by an older version of ATLAS, so we can't tell which text, language or reading level they were read with. Read your paper again to update them."
+                            : "You changed the text, language or reading level since this was read. Read your paper again to update these steps.")
                     }
                     if care.has_warning_signs { WarningBanner() }
 
@@ -33,7 +35,10 @@ struct CareStepsView: View {
 
                     // Paper first: read aloud carries an explanation only when it was certified; otherwise the paper's words.
                     // Always in the steps' own language, even while they are outdated.
-                    ReadAloudBar(speaker: speaker, language: model.stepsLanguage, lines: readLines)
+                    // Unknown language (a plan saved by 1.0): no voice at all rather than a wrong one.
+                    if let language = model.stepsLanguage {
+                        ReadAloudBar(speaker: speaker, language: language, lines: readLines)
+                    }
 
                     ForEach(model.items) { item in
                         let check = model.check(for: item.id)

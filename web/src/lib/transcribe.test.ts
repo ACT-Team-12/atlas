@@ -8,7 +8,7 @@ import {
   answerAloud, GATEWAY_STT_MODEL, issueQuizToken, MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS, QUIZ_TOKEN_TTL_MS, STT_LANG, sttProvider, usesFor,
   verifyQuizToken,
 } from "./transcribe";
-import { localUsageForTests, SITE_HOURLY_SECONDS } from "./sttUsage";
+import { CLIENT_DAILY_SECONDS, clientKey, localUsageForTests, SITE_HOURLY_SECONDS } from "./sttUsage";
 
 let store = localUsageForTests();
 const resetTranscribeStateForTests = () => { store = localUsageForTests(); };
@@ -223,11 +223,26 @@ describe("the file is measured, not the sender's word (Codex review, 2026-10-02)
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("reserves the measured length, not a guess from the byte count", async () => {
-    fetchMock.mockImplementation(async () => { const hour = Math.floor(Date.now() / 3_600_000); seen.push(store.used("lgh", hour)); return dg("ok", 1); });
+  it("reserves the longer of the measured length and a byte-rate bound, capped at 35 s", async () => {
+    const hour = Math.floor(Date.now() / 3_600_000);
     const seen: number[] = [];
+    fetchMock.mockImplementation(async () => { seen.push(store.used("lgh", hour)); return dg("ok", 1); });
+    // 3,790 bytes could hold at most about 5 s even at 6 kbps; 11,858 bytes about 16 s; both measure under 3 s.
     expect((await post({ body: fixture("short.webm") })).status).toBe(200);
-    expect(seen).toEqual([2]); // 1.04 s of audio, reserved as 2 s (rounded up) while the call ran
+    expect((await post({ body: fixture("chromium-mediarecorder.webm") })).status).toBe(200);
+    expect(seen).toEqual([6, 1 + 16]); // the first call settled to 1 s before the second reserved 16 s
+  });
+
+  it("a recording the provider says ran past 35 s is refused, and that client is out for the day", async () => {
+    fetchMock.mockResolvedValue(dg("a very long speech", 600));
+    const one = { body: fixture("short.webm"), headers: { "x-real-ip": "203.0.113.9" } };
+    expect((await post(one)).status).toBe(413);
+    fetchMock.mockResolvedValue(dg("ok", 1));
+    expect((await post(one)).status).toBe(429);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((await post({ body: fixture("short.webm"), headers: { "x-real-ip": "198.51.100.7" } })).status).toBe(200);
+    const day = Math.floor(Date.now() / 86_400_000);
+    expect(store.used(`lcd:${clientKey("203.0.113.9", SECRET)}`, day)).toBeGreaterThanOrEqual(CLIENT_DAILY_SECONDS);
   });
 });
 

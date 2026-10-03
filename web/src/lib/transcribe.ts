@@ -45,6 +45,8 @@ export const PROVIDER_NAME: Record<SttProvider, string> = { deepgram: "Deepgram"
 export const MAX_AUDIO_BYTES = 512_000;
 /** The quiz records 20 s; anything the provider says is longer than this is refused, not returned. */
 export const MAX_AUDIO_SECONDS = 35;
+/** Opus can go as low as 6 kbps, so no honest file holds more seconds than bytes x 8 / 6,000. */
+const MIN_BITS_PER_SECOND = 6_000;
 /** Browsers record WebM/Opus (Chrome, Firefox, Android) or MP4/AAC (Safari); both providers read both containers. */
 export const AUDIO_TYPES = ["audio/webm", "audio/mp4"] as const;
 export const QUIZ_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
@@ -134,7 +136,10 @@ export async function answerAloud(req: {
   const measured = measureAudio(req.audio);
   if (!measured || measured.container !== req.type) throw new TranscribeError("We couldn't read that recording. Try again, or tap your answer.", 415);
   if (measured.seconds > MAX_AUDIO_SECONDS) throw new TranscribeError(TOO_LONG, 413);
-  const client = clientKey(req.ip), reserved = Math.max(1, Math.ceil(measured.seconds));
+  // Backstop if the measurement and the provider's decoder ever disagree: also bound the length by what the bytes
+  // could hold at Opus's lowest bitrate, and reserve the longer of the two, up to the 35 s the quiz allows.
+  const byteBound = (req.audio.byteLength * 8) / MIN_BITS_PER_SECOND;
+  const client = clientKey(req.ip), reserved = Math.max(1, Math.ceil(Math.min(MAX_AUDIO_SECONDS, Math.max(measured.seconds, byteBound))));
   const site = [{ bucket: `${p}gh`, win: hour }, { bucket: `${p}gd`, win: day }];
   const mine = [{ bucket: `${p}ch:${client}`, win: hour }, { bucket: `${p}cd:${client}`, win: day }];
   const asks: Ask[] = [
@@ -171,7 +176,14 @@ export async function answerAloud(req: {
       : [...site, ...mine].map((b) => ({ ...b, delta })); // what the provider actually heard, even past a cap
     await req.store.adjust(fix).catch((e) => console.error("stt budget settle failed", e instanceof Error ? e.name : typeof e));
   }
-  if (settle.seconds > MAX_AUDIO_SECONDS) throw new TranscribeError(TOO_LONG, 413);
+  if (settle.seconds > MAX_AUDIO_SECONDS) {
+    // The provider heard more than we measured: a crafted file or a decoder difference. It is already counted above;
+    // also use up this client's hourly and daily allowance so it cannot happen again from them today, and say so.
+    console.error("stt overrun", provider, Math.round(settle.seconds));
+    await req.store.adjust(mine.map((b, i) => ({ ...b, delta: i === 0 ? CLIENT_HOURLY_SECONDS : CLIENT_DAILY_SECONDS })))
+      .catch((e) => console.error("stt budget settle failed", e instanceof Error ? e.name : typeof e));
+    throw new TranscribeError(TOO_LONG, 413);
+  }
   return text;
 }
 

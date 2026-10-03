@@ -67,7 +67,7 @@ function budgetRules(name: string, makeStore: () => Promise<{ store: UsageStore;
       fetchMock.mockResolvedValue(new Response("bad audio", { status: 400 }));
       await expect(ask()).rejects.toMatchObject({ status: 502 });
       expect(await s.used("lgh", hour)).toBe(0);
-      expect(await s.used(`lch:${clientKey("1.2.3.4", SECRET)}`, hour)).toBe(2); // the measured 1.04 s clip, rounded up
+      expect(await s.used(`lch:${clientKey("1.2.3.4", SECRET)}`, hour)).toBe(6); // 3,790 bytes could hold up to about 5.05 s at 6 kbps, so 6 s is reserved
     });
 
     it("a provider outage or timeout leaves no site budget behind (nothing sticks)", async () => {

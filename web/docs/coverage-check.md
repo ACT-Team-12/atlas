@@ -1,6 +1,7 @@
 # Coverage check: what on the paper did we not turn into a step?
 
-`src/lib/coverage.ts` is library code only. No route or screen calls it yet.
+`src/lib/coverage.ts` is the check. Step 1 of the care plan shows its result through
+`src/lib/missedLines.ts` (view logic) and `src/ui/MissedLines.tsx` (the section). See "In the app" below.
 
 ## Why
 
@@ -90,14 +91,39 @@ and none of the `distractors` (provider notes, billing codes, past events) count
   when items arrive with spans (as `verifyItems` returns them). An item without a span costs one
   `findSpan` call over the whole paper.
 
-## How the UI could use it later
+## In the app
 
-Under the plan, a collapsed section titled **"Lines on your paper we didn't turn into steps"**:
+Step 1 of the care plan, after the steps and the held-back list, shows
+**"Lines on your paper we didn't turn into steps"**:
 
-- Only show it when `uncovered.length > 0`. Use the count as the heading badge: "2 lines".
-- List each sentence word for word, in paper order. Use `start` / `end` to highlight it in the
-  "your paper" view, with the same mark the verified quotes use but a different color.
-- Next to each line: "Add as a step" (a reviewed, hand-confirmed item) and "Not for me" (hide it).
-- Never say these lines are wrong or dangerous. Say plainly: "These look like instructions, but we
-  did not turn them into steps. Read them on your paper or ask your clinic."
-- `covered / total` could also be logged as a quality number per plan, with no patient text.
+- When some lines are uncovered: a button with a count badge ("3 lines"), collapsed by default.
+  One tap opens the list (`aria-expanded` / `aria-controls`). Each line is shown word for word, in
+  paper order, under "Read these yourself or ask your helper. They might matter."
+- When every instruction-like line is in a step: "Every instruction-like line on your paper is in a
+  step." with "(we check for lines that look like instructions; it can miss some)".
+- The steps that count are the ones the person still sees: a step they removed no longer covers its line.
+- Items are passed with the spans the server's verifier found, so the check never searches for a quote.
+- The printed handoff sheet adds the same lines as "Also on your paper".
+
+### When the section is hidden (the language rule)
+
+The section never says "all covered" for a paper it could not check. `paperLanguages(source)` in
+`missedLines.ts` decides from the **paper's** text, not from the language the plan is written in,
+because every step quotes the paper word for word. The section is hidden, and the handoff sheet gets
+no list, when:
+
+- the paper is mostly non-Latin script (Korean, Chinese, Amharic, ...), or uses Vietnamese letters;
+- French, Portuguese or Creole marker words are more than 20% of the recognized marker words, even on
+  a paper that is partly English;
+- neither English nor Spanish marker words are frequent enough to tell (at least 3, and at least 6% of
+  the words);
+- the check finds no instruction-like line at all (an "all covered" message would be true only vacuously).
+
+A paper with enough of both English and Spanish gets both lexicons. Tests for every case are in
+`src/lib/missedLines.test.ts`.
+
+### Not built yet
+
+- Highlighting the uncovered lines in the "your paper" view (`start` / `end` are ready for it).
+- "Add as a step" and "Not for me" next to each line.
+- Logging `covered / total` per plan as a quality number, with no patient text.

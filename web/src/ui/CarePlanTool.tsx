@@ -27,6 +27,8 @@ import {
 import { SavedPlans } from "./SavedPlans";
 import { SPEECH_LANG } from "@/lib/speechLang";
 import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun, type DeviceVerdict } from "@/lib/deviceRun";
+// Static, so erasing never waits on a chunk download; the WebAssembly itself is still fetched only after a read.
+import { forgetDeviceChecker, loadDeviceChecker, sameSpan } from "@/lib/deviceChecker";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -309,12 +311,19 @@ export function CarePlanTool() {
   }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  /**
+   * Empties the tool after the open paper was deleted, and drops the on-device checker that re-checked it: a load still
+   * in flight is aborted, so nothing waiting on it keeps the paper. Every path that deletes the open plan calls this.
+   */
+  function eraseOpenPaper() {
+    resetTool();
+    forgetDeviceChecker();
+  }
+
   /** "Clear it from this device": deletes the open plan. Other saved plans stay. */
   function clearSaved() {
     if (storeRef.current.active) writeStore(deletePlan(storeRef.current, storeRef.current.active));
-    resetTool();
-    // Also drop the on-device checker that re-checked this paper.
-    void import("@/lib/deviceChecker").then((m) => m.forgetDeviceChecker(), () => {});
+    eraseOpenPaper();
   }
 
   function openSaved(id: string) {
@@ -328,7 +337,7 @@ export function CarePlanTool() {
   function deleteSaved(id: string) {
     const wasOpen = storeRef.current.active === id;
     writeStore(deletePlan(storeRef.current, id));
-    if (wasOpen) resetTool();
+    if (wasOpen) eraseOpenPaper();
   }
 
   function newPlan() {
@@ -557,9 +566,8 @@ export function CarePlanTool() {
   useEffect(() => {
     if (!care || !deviceWanted) return;
     let live = true;
-    import("@/lib/deviceChecker")
-      .then(async ({ loadDeviceChecker, sameSpan }) => {
-        const checker = await loadDeviceChecker();
+    loadDeviceChecker()
+      .then((checker) => {
         if (!live) return; // cleared or changed while the checker loaded: never hand it this paper
         const byId: Record<string, DeviceVerdict> = {};
         // One call for the whole plan: the paper is mapped once, not once per step.

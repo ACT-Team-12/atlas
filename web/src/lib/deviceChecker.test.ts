@@ -63,7 +63,24 @@ describe("the checker the browser runs (public/atlas_verify.wasm)", () => {
       expect(text).not.toMatch(/checker\.findSpan\(/);
     }
     // A Clear (or a new paper) while the checker loads must stop the old effect before it touches the paper.
-    expect(ui[0]).toMatch(/await loadDeviceChecker\(\);\s*if \(!live\) return;/);
+    expect(ui[0]).toMatch(/loadDeviceChecker\(\)\s*\.then\(\(checker\) => \{\s*if \(!live\) return;/);
+  });
+
+  it("every path that deletes the open paper also drops the checker, at once (no chunk to wait on)", () => {
+    const ui = readFileSync(new URL("../ui/CarePlanTool.tsx", import.meta.url), "utf8");
+    const body = (name: string) => {
+      const at = ui.indexOf(`function ${name}(`);
+      expect(at, name).toBeGreaterThanOrEqual(0);
+      return ui.slice(at, ui.indexOf("\n  }\n", at));
+    };
+    // A dynamic import would make Clear wait on a chunk download before it could abort the pending load.
+    expect(ui).not.toMatch(/import\(\s*["']@\/lib\/deviceChecker["']\s*\)/);
+    expect(ui).toMatch(/import \{[^}]*\bforgetDeviceChecker\b[^}]*\} from "@\/lib\/deviceChecker";/);
+    expect(body("eraseOpenPaper")).toMatch(/resetTool\(\);\s*forgetDeviceChecker\(\);/);
+    // "Clear it from this device", and Delete on the plan that is open.
+    expect(body("clearSaved")).toMatch(/eraseOpenPaper\(\)/);
+    expect(body("deleteSaved")).toMatch(/if \(wasOpen\) eraseOpenPaper\(\);/);
+    for (const name of ["clearSaved", "deleteSaved"]) expect(body(name), name).not.toMatch(/resetTool\(\)/);
   });
 
   it("leaves no copy of the paper or the quotes in WebAssembly memory after a check, or after Clear", async () => {

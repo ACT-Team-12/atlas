@@ -107,14 +107,35 @@ export function pgUsageStore(pool: Pool): UsageStore {
   };
 }
 
+/** The row a successful sweep leaves behind. budgetReady turns the feature off once it has gone stale. */
+export const SWEEP_HEARTBEAT = "sweep:ok";
+/** Hourly sweeps, so a heartbeat this old means at least two runs in a row failed or never ran. */
+export const SWEEP_HEARTBEAT_HOURS = 3;
+
 /**
  * Retention: deletes every row whose window has ended. Every row expires at most two days after it is first written
  * (the longest window is one day, kept one more for the daily cap's late settles). Run hourly by the Vercel cron
- * /api/transcribe/sweep, so no counter outlives its two days by more than about an hour.
+ * /api/transcribe/sweep. In the same transaction it writes a heartbeat that lasts SWEEP_HEARTBEAT_HOURS, so the
+ * feature stays on only while deletion is actually happening.
  */
 export async function sweepSttUsage(pool: Pool): Promise<number> {
-  const r = await pool.query("delete from atlas_stt_usage where expires_at < now()");
-  return r.rowCount ?? 0;
+  const c = await pool.connect();
+  try {
+    await c.query("begin");
+    const r = await c.query("delete from atlas_stt_usage where expires_at < now() and bucket <> $1", [SWEEP_HEARTBEAT]);
+    await c.query(
+      `insert into atlas_stt_usage (bucket, win, used, expires_at) values ($1, 0, 0, now() + make_interval(hours => $2))
+       on conflict (bucket, win) do update set expires_at = excluded.expires_at`,
+      [SWEEP_HEARTBEAT, SWEEP_HEARTBEAT_HOURS],
+    );
+    await c.query("commit");
+    return r.rowCount ?? 0;
+  } catch (e) {
+    await c.query("rollback").catch(() => {});
+    throw e;
+  } finally {
+    c.release();
+  }
 }
 
 /**
@@ -128,8 +149,9 @@ export function retentionReady(): boolean {
 
 let ready: { at: number; ok: boolean } | null = null;
 /**
- * Whether the shared budget can be used here: memory locally; on a database, its table must exist (migration 005)
- * and the deletion sweep must be configured (retentionReady).
+ * Whether the shared budget can be used here: memory locally; on a database, its table must exist (migration 005),
+ * the deletion sweep must be configured (retentionReady) AND have succeeded within SWEEP_HEARTBEAT_HOURS. A stalled
+ * or failing sweep (cron gone, DELETE refused) therefore turns the mic off instead of letting counters pile up.
  * Checked at most once a minute per instance, so a missing migration hides the mic instead of failing every answer.
  */
 export async function budgetReady(now = Date.now()): Promise<boolean> {
@@ -138,7 +160,11 @@ export async function budgetReady(now = Date.now()): Promise<boolean> {
   if (!pool) return process.env.VERCEL !== "1";
   if (ready && now - ready.at < 60_000) return ready.ok;
   let ok = false;
-  try { await pool.query("select 1 from atlas_stt_usage limit 1"); ok = true; } catch (e) {
+  try {
+    const r = await pool.query("select 1 from atlas_stt_usage where bucket = $1 and expires_at > now()", [SWEEP_HEARTBEAT]);
+    ok = (r.rowCount ?? 0) > 0;
+    if (!ok) console.error("stt off: no successful usage sweep in the last", SWEEP_HEARTBEAT_HOURS, "hours");
+  } catch (e) {
     console.error("stt budget table unavailable", e instanceof Error ? e.name : typeof e, (e as { code?: string })?.code ?? "");
   }
   ready = { at: now, ok };

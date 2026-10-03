@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { readFileSync } from "node:fs";
 import {
   budgetReady, clientKey, CLIENT_HOURLY_SECONDS, memoryUsageStore, normalizeIp, pgUsageStore, retentionReady, SITE_HOURLY_SECONDS,
-  sweepSttUsage, usageStore, type UsageStore,
+  localUsageForTests, sweepSttUsage, SWEEP_HEARTBEAT, usageStore, type UsageStore,
 } from "./sttUsage";
 import { GET as sweepRoute } from "@/app/api/transcribe/sweep/route";
 import { GET as transcribeGET, POST as transcribePOST } from "@/app/api/transcribe/route";
@@ -163,8 +163,30 @@ describe.skipIf(!PG)("postgres store", () => {
     ], twoDaysAgo);
     await store.reserve([{ bucket: "lch:new", win: Math.floor(now / 3_600_000), amount: 5, cap: 600, ttlSec: 7_200 }], now);
     expect(await sweepSttUsage(pool)).toBe(3);
-    const { rows } = await pool.query("select bucket from atlas_stt_usage");
-    expect(rows).toEqual([{ bucket: "lch:new" }]);
+    const { rows } = await pool.query("select bucket from atlas_stt_usage order by bucket");
+    expect(rows).toEqual([{ bucket: "lch:new" }, { bucket: SWEEP_HEARTBEAT }]);
+  });
+
+  it("the mic is on only while the sweep keeps succeeding (Codex round 3, 2026-10-03)", async () => {
+    vi.stubEnv("CRON_SECRET", "cron-s3cret");
+    vi.stubEnv("DATABASE_URL", PG!);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await pool.query("delete from atlas_stt_usage");
+      localUsageForTests(); // clears the once-a-minute readiness cache
+      expect(await budgetReady(1)).toBe(false); // configured, but no sweep has ever succeeded
+      await sweepSttUsage(pool);
+      expect(await budgetReady(1)).toBe(false); // cached for a minute
+      expect(await budgetReady(1 + 61_000)).toBe(true);
+      // The cron stops (or its DELETE is refused): the heartbeat goes stale and the feature turns off.
+      await pool.query("update atlas_stt_usage set expires_at = now() - interval '1 second' where bucket = $1", [SWEEP_HEARTBEAT]);
+      expect(await budgetReady(1 + 122_000)).toBe(false);
+      // A stale heartbeat is replaced by the next good sweep, never counted as a deleted counter.
+      expect(await sweepSttUsage(pool)).toBe(0);
+      expect(await budgetReady(1 + 183_000)).toBe(true);
+      const hb = await pool.query("select expires_at > now() + interval '2 hours' as fresh from atlas_stt_usage where bucket = $1", [SWEEP_HEARTBEAT]);
+      expect(hb.rows).toEqual([{ fresh: true }]);
+    } finally { vi.unstubAllEnvs(); vi.restoreAllMocks(); localUsageForTests(); }
   });
 
   it("the sweep route needs the cron secret and reports what it deleted", async () => {

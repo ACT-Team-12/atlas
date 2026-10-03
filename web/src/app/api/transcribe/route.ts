@@ -30,7 +30,8 @@ export async function POST(request: Request) {
   if (refused) return refused;
   if (!transcribeEnabled()) return off();
   const store = usageStore();
-  if (!store) return off();
+  // The same readiness the mic button uses: table present and the deletion sweep recently succeeded.
+  if (!store || !(await budgetReady())) return off();
 
   const url = new URL(request.url);
   const language = url.searchParams.get("language") ?? "";

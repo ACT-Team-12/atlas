@@ -1,4 +1,8 @@
-import { checkCoverage, splitSentences, type CoverageItem, type CoverageLang, type UncoveredSentence } from "./coverage";
+import {
+  checkCoverage, criticalRanges, instructionSentences, quotedRanges, splitSentences,
+  type CoverageItem, type CoverageLang, type UncoveredSentence,
+} from "./coverage";
+import { normalize } from "./verify";
 
 /**
  * View logic for the "Lines on your paper we didn't turn into steps" section (ui/MissedLines.tsx).
@@ -143,6 +147,111 @@ export function missedLinesAnnouncement(view: MissedLinesView): string {
   const n = view.lines.length;
   if (n === 0) return "Every instruction-like line on your paper is in a step.";
   return `${n === 1 ? "1 line" : `${n} lines`} on your paper ${n === 1 ? "looks" : "look"} like instructions but ${n === 1 ? "is" : "are"} not in a step. Open "Lines on your paper we didn't turn into steps" to read ${n === 1 ? "it" : "them"}.`;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The same check, returned by POST /api/extract so the phone apps never match text themselves. */
+/* ------------------------------------------------------------------------------------------ */
+
+/** A [start, end) pair of UTF-16 offsets into source_text. Clients only compare these numbers; they never slice with them. */
+export type OffsetRange = [number, number];
+
+/**
+ * `missed_lines` on the /api/extract response (and on the stream's final "done" plan). It lets a client
+ * rebuild missedLinesView for ANY set of removed steps with integer comparisons only: no text matching,
+ * no Unicode normalization.
+ *
+ * Coverage is NOT a per-item property. checkCoverage merges every kept item's quoted stretches first, so a
+ * number can be covered only by two items' quotes together (one ends where the next begins), and a line
+ * also counts as covered when a word-for-word repeat of it elsewhere is covered. So the payload carries
+ * the raw pieces, and the client runs the same small interval check:
+ *
+ *  show false: hide the section and announce nothing. `why` never depends on which steps are kept.
+ *  show true:
+ *   1. R = the `quotes[id]` ranges of every KEPT item id (an id missing from `quotes` adds nothing).
+ *   2. Sort R by start. Merge into M: walking in order, a range whose start <= the last merged end extends
+ *      it (end = max of the two ends); otherwise it starts a new merged range. Touching ranges merge.
+ *   3. Sentence s is matched when some range m in M has m.start < s.end and m.end > s.start, AND for every
+ *      [a, b] in s.critical some m in M has m.start <= a and m.end >= b.
+ *   4. A sentence is covered when ANY sentence with the same `group` is matched.
+ *   5. lines = the sentences that are not covered, in array order; covered = total - lines.length,
+ *      where total = sentences.length.
+ */
+export type MissedLinesPayload =
+  | { show: false; why: "empty" | "unsupported_language" | "no_instructions" }
+  | {
+      show: true;
+      languages: CoverageLang[];
+      /** Each item id's quoted stretches of the paper. Items that quote nothing locatable are left out. */
+      quotes: Record<string, OffsetRange[]>;
+      /** Every instruction-like sentence on the paper, in reading order. */
+      sentences: {
+        text: string;
+        start: number;
+        end: number;
+        reason: UncoveredSentence["reason"];
+        /** Numbers and stop / not / never / avoid words: each must sit inside ONE merged kept range. */
+        critical: OffsetRange[];
+        /** Index (into sentences) of the first sentence with the same normalized text. Its own index if none earlier. */
+        group: number;
+      }[];
+    };
+
+/**
+ * Builds `missed_lines` for a plan. `items` are ALL the kept items, with the spans the verifier found.
+ * Pure and deterministic; no model call.
+ */
+export function missedLinesPayload(source: string, items: (CoverageItem & { id: string })[]): MissedLinesPayload {
+  if (!source.trim()) return { show: false, why: "empty" };
+  const languages = paperLanguages(source);
+  if (!languages) return { show: false, why: "unsupported_language" };
+  const found = instructionSentences(source, { languages });
+  if (found.length === 0) return { show: false, why: "no_instructions" };
+
+  const quotes = Object.fromEntries(
+    items
+      .map((it) => [it.id, quotedRanges(source, it).map((r): OffsetRange => [r.start, r.end])] as const)
+      .filter(([, r]) => r.length > 0),
+  );
+  const firstByText = new Map<string, number>();
+  const sentences = found.map((s, i) => {
+    const key = normalize(s.text);
+    if (!firstByText.has(key)) firstByText.set(key, i);
+    return {
+      text: s.text, start: s.start, end: s.end, reason: s.reason,
+      critical: criticalRanges(s).map((r): OffsetRange => [r.start, r.end]),
+      group: firstByText.get(key)!,
+    };
+  });
+  return { show: true, languages, quotes, sentences };
+}
+
+/**
+ * The reference client: missedLinesView rebuilt from the payload and the ids of the steps still kept.
+ * Equal to missedLinesView(source, keptItems) for every removal set (see missedLines.test.ts).
+ */
+export function missedFromPayload(payload: MissedLinesPayload, keptIds: Iterable<string>): MissedLinesView {
+  if (!payload.show) return { show: false, why: payload.why };
+  const ranges: OffsetRange[] = [];
+  for (const id of new Set(keptIds)) if (Object.prototype.hasOwnProperty.call(payload.quotes, id)) ranges.push(...payload.quotes[id]);
+  ranges.sort((a, b) => a[0] - b[0]);
+  const merged: OffsetRange[] = [];
+  for (const [start, end] of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+
+  const matchedGroups = new Set<number>();
+  for (const s of payload.sentences) {
+    const overlaps = merged.some(([a, b]) => a < s.end && b > s.start);
+    if (overlaps && s.critical.every(([a, b]) => merged.some(([ms, me]) => ms <= a && me >= b))) matchedGroups.add(s.group);
+  }
+  const lines = payload.sentences
+    .filter((s) => !matchedGroups.has(s.group))
+    .map(({ text, start, end, reason }) => ({ text, start, end, reason }));
+  const total = payload.sentences.length;
+  return { show: true, languages: payload.languages, total, covered: total - lines.length, lines };
 }
 
 /** "1 line" / "3 lines", for the collapsed heading's badge. */

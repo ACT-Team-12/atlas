@@ -3,6 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { ExtractionSchema, ITEM_KINDS, type CarePlanResponse, type ExtractRequest } from "./schema";
 import { verifyItems } from "./verify";
+import { missedLinesPayload } from "./missedLines";
 
 export const MODEL = process.env.ATLAS_MODEL ?? "claude-opus-5-5";
 
@@ -113,6 +114,7 @@ export function finishCarePlan(req: ExtractRequest, raw: unknown, stopReason: st
     language: req.language,
     model: MODEL,
     stats: { extracted: parsed.data.items.length, grounded: kept.length, refused: refused.length, ms: Date.now() - t0 },
+    missed_lines: missedLinesPayload(source, kept),
   };
 }
 

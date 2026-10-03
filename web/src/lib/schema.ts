@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { MissedLinesPayload } from "./missedLines";
 
 export const ITEM_KINDS = [
   "medication",
@@ -53,6 +54,12 @@ export type CarePlanResponse = {
   language?: (typeof LANGUAGES)[number];
   model: string;
   stats: { extracted: number; grounded: number; refused: number; ms: number };
+  /**
+   * The "Lines on your paper we didn't turn into steps" check, precomputed so the phone apps can show it for any
+   * set of removed steps without matching text. Spec and client rule: MissedLinesPayload in missedLines.ts.
+   * Optional: older saved plans and older servers lack it.
+   */
+  missed_lines?: MissedLinesPayload;
 };
 
 export const READING_LEVELS = ["simple", "standard", "detailed"] as const;

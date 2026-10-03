@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { guard } from "@/lib/guard";
-import { isTestRequest, recordEvent, surfaceOf } from "@/lib/db";
+import { entryOf, isTestRequest, recordEvent, surfaceOf } from "@/lib/db";
 import { PlanRequestSchema, buildPlan } from "@/lib/plan";
 import { ExtractError } from "@/lib/extract";
 import { issueFeedbackToken } from "@/lib/feedbackToken";
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     // Barrier categories, counts and timing only; no ZIP, location or note is recorded.
     after(() => recordEvent({
       surface, kind: "plan", language: parsed.data.language, barriers: parsed.data.barriers,
-      steps: plan.stats.steps, dropped_refs: plan.stats.dropped_refs, ms: plan.stats.ms,
+      steps: plan.stats.steps, dropped_refs: plan.stats.dropped_refs, ms: plan.stats.ms, entry: entryOf(request),
     }, test));
     // A one-time token so the person who got this plan can rate it once (see feedbackToken.ts).
     // And one that lets this plan, and only this plan, be read in the natural voice (see speakToken.ts).

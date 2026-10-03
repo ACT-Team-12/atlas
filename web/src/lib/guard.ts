@@ -31,9 +31,9 @@ export function allowedOrigin(req: Request) {
   }
 }
 
-export function rateLimit(key: string, now = Date.now()): { ok: boolean; retryAfterSec: number } {
+export function rateLimit(key: string, now = Date.now(), max = MAX_PER_WINDOW): { ok: boolean; retryAfterSec: number } {
   const recent = (hits.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (recent.length >= MAX_PER_WINDOW) {
+  if (recent.length >= max) {
     hits.set(key, recent);
     return { ok: false, retryAfterSec: Math.ceil((WINDOW_MS - (now - recent[0])) / 1000) };
   }
@@ -48,10 +48,14 @@ export function rateLimit(key: string, now = Date.now()): { ok: boolean; retryAf
   return { ok: true, retryAfterSec: 0 };
 }
 
-/** Returns a Response to send back if the request should be refused, else null. */
-export function guard(req: Request, bucket: string): Response | null {
+/**
+ * Returns a Response to send back if the request should be refused, else null.
+ * `max` raises the window for routes polled by the page or called back by a phone carrier (the call status and
+ * Vonage webhooks); every other route keeps the default.
+ */
+export function guard(req: Request, bucket: string, max?: number): Response | null {
   if (!allowedOrigin(req)) return Response.json({ error: "Requests are only accepted from the ATLAS site." }, { status: 403 });
-  const r = rateLimit(`${bucket}:${clientIp(req)}`);
+  const r = rateLimit(`${bucket}:${clientIp(req)}`, Date.now(), max);
   if (!r.ok) {
     return Response.json(
       { error: `You've made a lot of requests. Try again in about ${Math.ceil(r.retryAfterSec / 60)} minutes.` },

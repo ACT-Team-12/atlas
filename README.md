@@ -10,11 +10,13 @@ Ideas, customer evidence, and team decisions live in [research/](research/).
 |---|---------|----------|--------|--------|--------|
 | 1 | Team Formation & Build Readiness | Sep 30, 2026 · 11:00 pm | 125 | Submitted, awaiting staff review | [01-team-formation](missions/01-team-formation/) |
 | 2 | Problem & Product Concept | Oct 1, 2026 · 11:59 pm | 125 | Submitted by Lilian 9:28 pm (+100 early bonus window), awaiting staff review | [02-problem-product-concept](missions/02-problem-product-concept/) |
-| 3 | Customer Research & User Personas | Oct 2 · 11:59 pm (packet drops 12:05 am) | 150 | Not released | — |
-| 4 | Business Model & Adoption | TBD | 150 | Not released | — |
-| 5 | Build & Ship a Code-Based MVP | TBD | 175 | Not released | — |
-| 6 | Brand Identity & Product Experience | TBD | 175 | Not released | — |
-| 7 | Product Demo & Pitch | TBD | 200 | Not released | — |
+| 3 | Customer Research & User Personas | Oct 2, 2026 · 11:59 pm | 150 | Submitted by Lilian ~8:48 pm (+100 window), awaiting staff review | [03-customer-research](missions/03-customer-research/) |
+| 4 | Business Model & Adoption | Oct 3, 2026 · 11:59 pm (+100 if in by 9:59 pm) | 150 | Drafting: packet draft + coded step (helper link, PR 51) | [04-business-model-adoption](missions/04-business-model-adoption/) |
+| 5 | Build & Ship a Code-Based MVP | Oct 4, 2026 · 11:59 pm | 175 | Brief saved; outreach to 10+ target customers starts Oct 3 | [05-build-ship-mvp](missions/05-build-ship-mvp/) |
+| 6 | Brand Identity & Product Experience | Oct 5, 2026 · 11:59 pm | 175 | Brief saved (8-16 slide deck draft due) | [06-brand-product-experience](missions/06-brand-product-experience/) |
+| 7 | Product Demo & Pitch | Oct 6, 2026 · 11:59 pm | 200 | Brief saved (deck + 3-4 min video + demo) | [07-demo-pitch](missions/07-demo-pitch/) |
+
+**Challenge-wide cutoff:** Oct 7, 2026 · 5:00 pm ET (not an eighth packet).
 
 **How to submit:** ATL Cup 2026 submission page (Airtable form). Upload one completed packet file with team name + mission title. **+100 points if Airtable receives it at least 2 hours before the deadline; -30 if late.**
 

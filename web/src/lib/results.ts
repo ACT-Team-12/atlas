@@ -3,7 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { ExtractError, MODEL } from "./extract";
 import { LANGUAGES } from "./schema";
-import { findSpan } from "./verify";
+import { findSpanIn, mapSource, type MappedSource } from "./verify";
 
 /**
  * "Explain my lab results": asked for by a real patient on Oct 2 ("a summary option that only highlights what I
@@ -185,8 +185,8 @@ export function judgeRow(r: ModelRow): Omit<ResultRow, keyof ModelRow> {
 }
 
 /** The whole printed line the quote sits on, or why it can't be used. */
-function lineOf(source: string, quote: string): { line: string } | { reason: DropReason } {
-  const span = findSpan(source, quote);
+function lineOf(source: string, paper: MappedSource, quote: string): { line: string } | { reason: DropReason } {
+  const span = findSpanIn(paper, quote);
   if (!span) return { reason: "not_in_report" };
   if (/[\r\n]/.test(source.slice(span.start, span.end))) return { reason: "not_one_line" };
   const start = source.lastIndexOf("\n", span.start - 1) + 1;
@@ -208,8 +208,9 @@ export function resultLines(source: string): string[] {
 export function checkRows(source: string, rows: ModelRow[]): Pick<ResultsResponse, "rows" | "dropped" | "counts" | "coverage"> {
   const out: ResultRow[] = [];
   const dropped: ResultsResponse["dropped"] = [];
+  const paper = mapSource(source);
   for (const r of rows) {
-    const at = lineOf(source, r.quote);
+    const at = lineOf(source, paper, r.quote);
     if ("reason" in at) { dropped.push({ test: r.test, reason: at.reason }); continue; }
     const { line } = at;
     // The test name must be printed on that line, so a real line can't be shown under another test's name.

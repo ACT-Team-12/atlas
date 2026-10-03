@@ -116,9 +116,14 @@ export function finishCarePlan(req: ExtractRequest, raw: unknown, stopReason: st
   };
 }
 
-export async function extractCarePlan(req: ExtractRequest): Promise<CarePlanResponse> {
+/**
+ * Reads a paper the plain way. `signal` is the request's own: when the person clears the paper (or leaves), the
+ * model call is cancelled instead of reading the whole paper for nobody.
+ */
+export async function extractCarePlan(req: ExtractRequest, signal?: AbortSignal): Promise<CarePlanResponse> {
   const client = makeClient();
   const t0 = Date.now();
-  const msg = await client.messages.parse(buildParams(req));
+  signal?.throwIfAborted();
+  const msg = await client.messages.parse(buildParams(req), { signal });
   return finishCarePlan(req, msg.parsed_output, msg.stop_reason, t0);
 }

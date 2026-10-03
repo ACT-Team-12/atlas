@@ -359,11 +359,16 @@ export function combine(id: string, item: MeaningRequest["items"][number], verdi
   };
 }
 
-export async function checkMeaning(req: MeaningRequest): Promise<MeaningResponse> {
+/**
+ * `signal` is the request's own: when the person clears the paper, deletes the plan or reads a new one, the model
+ * call is cancelled instead of reading the excerpts for nobody.
+ */
+export async function checkMeaning(req: MeaningRequest, signal?: AbortSignal): Promise<MeaningResponse> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
   const client = new Anthropic({ apiKey });
   const t0 = Date.now();
+  signal?.throwIfAborted();
   const msg = await client.messages.parse({
     model: CHECKER_MODEL,
     max_tokens: 6000,
@@ -373,7 +378,7 @@ export async function checkMeaning(req: MeaningRequest): Promise<MeaningResponse
       role: "user",
       content: JSON.stringify(req.items.map((i) => ({ id: i.id, line_from_paper: i.source_quote, when: i.when, explanation: i.plain_language }))),
     }],
-  });
+  }, { signal });
   if (msg.stop_reason === "refusal") throw new ExtractError("The checker declined this request.", 422);
   const parsed = ModelOutput.safeParse(msg.parsed_output);
   if (!parsed.success) throw new ExtractError("The checker returned a malformed answer. Try again.", 502);

@@ -2,7 +2,7 @@ import { INSTRUCTION_START, NEGATIVE_START } from "./sentences";
 import { z } from "zod";
 import { LANGUAGES } from "./schema";
 import { negationBlocked } from "./prepCues";
-import { crossesSentence, enclosingSentence, findSpan } from "./verify";
+import { crossesSentence, enclosingSentence, findSpan, findSpanIn, mapSource } from "./verify";
 import { numberCheckAnyForm } from "./meaning";
 import { LINE_BREAK, PREP_KINDS, readWhen, SLOTS, SLOT_LABEL, type PrepKind, type Slot, type WhenReason } from "./prepTime";
 
@@ -190,11 +190,12 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[], langua
   const kept: { step: PrepStep; at: number }[] = [];
   const heldKinds: PrepKind[] = [];
   let overridden = 0;
+  const paper = mapSource(source);
   items.slice(0, MAX_ITEMS).forEach((it, i) => {
     const asked = it.source_quote.trim();
     // An ellipsis lets a quote skip words ("If you take insulin ... take it the morning of", with "do not" dropped),
     // and findSpan accepts the pieces in order. In prep mode such a quote is held back like one not in the paper.
-    const found = asked && !ELLIPSIS.test(asked) ? findSpan(source, asked) : null;
+    const found = asked && !ELLIPSIS.test(asked) ? findSpanIn(paper, asked) : null;
     if (!found) { heldKinds.push(it.kind); return; }
     // From here on the quote is the paper's own text: the WHOLE sentence the model's words sit in, never the model's
     // copy and never a fragment of it ("take it the morning of your procedure" would drop "do not"). It is what the

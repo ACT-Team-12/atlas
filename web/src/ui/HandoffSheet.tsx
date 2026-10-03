@@ -19,7 +19,11 @@ const KIND_LABEL: Record<string, string> = {
  * the paper's own line under every step, verified numbers, and room for a helper's notes.
  * Rendered into <body> and shown only while printing it (see .atlas-sheet rules in globals.css).
  */
-type SheetProps = { items: VerifiedItem[]; plan: PlanResponse | null; questions: string[]; language: string; meaning?: ShareMeaning; planItems?: VerifiedItem[] };
+type SheetProps = {
+  items: VerifiedItem[]; plan: PlanResponse | null; questions: string[]; language: string; meaning?: ShareMeaning; planItems?: VerifiedItem[];
+  /** Instruction-like lines no step quotes (lib/missedLines). Empty when there are none or the check can't read the paper. */
+  alsoOnPaper?: string[];
+};
 
 export function HandoffSheet(props: SheetProps) {
   // true only in the browser, so the portal never renders on the server
@@ -32,7 +36,7 @@ export function HandoffSheet(props: SheetProps) {
  * The sheet itself. Paper first (lib/paperFirst.ts): a step's plain-words explanation is printed only when the second
  * check certified it; otherwise the sheet prints the paper's own words and says the explanation was left out.
  */
-export function HandoffSheetBody({ items, plan, questions, language, meaning, planItems }: SheetProps) {
+export function HandoffSheetBody({ items, plan, questions, language, meaning, planItems, alsoOnPaper = [] }: SheetProps) {
   const resources = plan ? Object.values(plan.resources) : [];
   const used = new Set(plan?.steps.flatMap((s) => s.resource_ids) ?? []);
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
@@ -58,6 +62,14 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
           );
         })}
       </ol>
+
+      {alsoOnPaper.length > 0 && (
+        <>
+          <h2>Also on your paper</h2>
+          <p className="meta">These look like instructions but are not steps above. Read them yourself or ask your helper.</p>
+          <ul>{alsoOnPaper.map((t, n) => <li key={n}>&ldquo;{t}&rdquo;</li>)}</ul>
+        </>
+      )}
 
       {plan && plan.steps.length > 0 && (
         <>

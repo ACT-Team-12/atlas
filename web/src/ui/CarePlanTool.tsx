@@ -1,5 +1,8 @@
 "use client";
 
+import { careStepView, checkOf, type Check } from "@/lib/paperFirst";
+import { PaperFirst } from "./PaperFirst";
+import { planStepQuotes } from "@/lib/planQuotes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
@@ -102,11 +105,9 @@ function StreamingSteps({ items }: { items: VerifiedItem[] }) {
           <li key={it.id} className={`step-in rounded-2xl border-2 p-4 ${it.kind === "warning_sign" ? "border-red bg-red-soft/50" : "border-ink/70 bg-paper"}`}>
             <div className="flex flex-wrap items-center gap-2">
               <span className={`chip ${KIND[it.kind]?.cls}`}>{KIND[it.kind]?.label}</span>
-              <span className="font-extrabold">{it.title}</span>
-              {it.when && <span className="text-xs font-bold text-ink/70">· {it.when}</span>}
             </div>
-            <p className="mt-1">{it.plain_language}</p>
-            <p className="mt-2 border-l-4 border-sun pl-2 text-xs italic text-ink/70">From your paper: &ldquo;{it.source_quote}&rdquo;</p>
+            {/* Not checked yet while streaming, so the paper's words lead (lib/paperFirst.ts). */}
+            <PaperFirst v={careStepView(it, "unchecked")} />
           </li>
         ))}
       </ul>
@@ -256,6 +257,24 @@ export function CarePlanTool() {
   const [store, setStore] = useState<Store>(emptyStore);
   const storeRef = useRef<Store>(emptyStore());
   const [saveFailed, setSaveFailed] = useState(false);
+
+  // One cleanup for every way reading ends: stop, finish, error, a new read, unmount. Safe to call twice.
+  function silence() {
+    speechRun.current++; // ignore end events from the run being cancelled
+    speechAbort.current?.abort();
+    speechAbort.current = null;
+    const a = speechAudio.current;
+    if (a) { a.onended = null; a.onerror = null; a.pause(); a.removeAttribute("src"); speechAudio.current = null; }
+    if (speechUrl.current) { URL.revokeObjectURL(speechUrl.current); speechUrl.current = null; }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    setTapToPlay(false);
+  }
+
+  function stopSpeaking() {
+    silence();
+    setSpeaking(false);
+    setVoiceNote("");
+  }
 
   function writeStore(next: Store) {
     if (next === storeRef.current) return;
@@ -434,24 +453,6 @@ export function CarePlanTool() {
     );
   }
 
-  // One cleanup for every way reading ends: stop, finish, error, a new read, unmount. Safe to call twice.
-  function silence() {
-    speechRun.current++; // ignore end events from the run being cancelled
-    speechAbort.current?.abort();
-    speechAbort.current = null;
-    const a = speechAudio.current;
-    if (a) { a.onended = null; a.onerror = null; a.pause(); a.removeAttribute("src"); speechAudio.current = null; }
-    if (speechUrl.current) { URL.revokeObjectURL(speechUrl.current); speechUrl.current = null; }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    setTapToPlay(false);
-  }
-
-  function stopSpeaking() {
-    silence();
-    setSpeaking(false);
-    setVoiceNote("");
-  }
-
   // The phone's own voice. One utterance per line: Chrome silently stops a single long utterance after about 15 seconds.
   // If the browser never starts (iPhone Safari can ignore speech that isn't started by a tap), give up after 5 seconds.
   function phoneVoice(lines: string[], run: number) {
@@ -506,7 +507,7 @@ export function CarePlanTool() {
     if (speaking) return stopSpeaking();
     silence();
     const run = speechRun.current;
-    const lines = speechLines(plan);
+    const lines = speechLines(plan, items);
     speechLinesRef.current = lines;
     setSpeaking(true);
     setVoiceNote("");
@@ -590,6 +591,17 @@ export function CarePlanTool() {
     if (b && !bookAt.has(b.id)) bookAt.set(b.id, i);
   });
   const items = (care?.items ?? []).filter((i) => !removed[i.id]);
+  // Paper first (lib/paperFirst.ts): only a step the second check certified, and this device's own check did not
+  // dispute, may lead with its explanation.
+  const checkFor = (id: string): Check => {
+    if (deviceRun.for === care && deviceRun.ok && deviceRun.byId[id] && deviceRun.byId[id] !== "match") return "flagged";
+    return meaning.status === "done" ? checkOf(meaning.byId[id]) : "unchecked";
+  };
+  // The same rule for what leaves the screen (share, print): a step this device disputed is never certified there.
+  const paperMeaning = {
+    status: meaning.status,
+    byId: Object.fromEntries(Object.entries(meaning.byId).map(([id, r]) => [id, checkFor(id) === "flagged" ? { ...r, certified: false, flagged: true } : r])),
+  };
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
@@ -727,12 +739,11 @@ export function CarePlanTool() {
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className={`chip ${KIND[it.kind]?.cls}`}>{KIND[it.kind]?.label}</span>
-                            <span className="font-extrabold">{it.title}</span>
-                            {it.when && <span className="text-xs font-bold text-ink/70">· {it.when}</span>}
+                            {checkFor(it.id) === "certified" && <span className="font-extrabold">{it.title}</span>}
+                            {checkFor(it.id) === "certified" && it.when && <span className="text-xs font-bold text-ink/70">· {it.when}</span>}
                           </div>
-                          <p className="mt-1">{it.plain_language}</p>
+                          <PaperFirst v={careStepView(it, checkFor(it.id))} />
                           {it.needs_clarification && it.question_for_clinic && <p className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">Ask your clinic: {it.question_for_clinic}</p>}
-                          <p className="mt-2 border-l-4 border-sun pl-2 text-xs italic text-ink/70">From your paper: &ldquo;{it.source_quote}&rdquo;</p>
                           {deviceStatus === "done" && deviceRun.byId[it.id] === "match" && (
                             <p className="mt-1 text-[11px] font-bold text-teal-deep" data-device-check="match">✓ Checked on this device: same words, same place in your paper</p>
                           )}
@@ -846,7 +857,7 @@ export function CarePlanTool() {
           </div>
         </div>
 
-        {plan && care && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} />}
+        {plan && care && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} meaning={paperMeaning} />}
 
         {/* Step 3 */}
         {plan && (
@@ -863,7 +874,7 @@ export function CarePlanTool() {
               <span role="status" className={voiceNote ? "self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
               <button type="button" onClick={() => window.print()} className="rounded-full border-2 border-ink px-4 py-2">🖨️ Print for the next visit</button>
               <button type="button" onClick={printSheet} className="rounded-full border-2 border-ink px-4 py-2">📄 Print a handoff sheet</button>
-              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={meaning} />}
+              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={paperMeaning} />}
               <span className="self-center text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
             </div>
             {plan.ask_a_person && (
@@ -882,11 +893,10 @@ export function CarePlanTool() {
                   </div>
                   <p className="mt-2 font-semibold">{s.action}</p>
                   {s.why && <p className="mt-1 text-sm text-ink/75">Why: {s.why}</p>}
-                  {s.care_ids.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {s.care_ids.map((id) => careById[id] && <span key={id} className="text-xs rounded-full bg-paper border border-ink/30 px-2 py-1">📄 {careById[id].title}</span>)}
-                    </div>
-                  )}
+                  {/* The plan step is a suggestion, never certified: the paper's own words for its steps go with it. */}
+                  {planStepQuotes(s, items).map((q, k) => (
+                    <p key={k} data-paper-quote="" className="mt-2 border-l-4 border-sun pl-2 text-sm font-semibold">📄 Your paper says: &ldquo;{q}&rdquo;</p>
+                  ))}
                   {s.resource_ids.length > 0 && (
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       {s.resource_ids.map((id) => plan.resources[id] && <Resource key={id} r={plan.resources[id]} />)}

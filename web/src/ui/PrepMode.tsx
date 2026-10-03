@@ -8,7 +8,7 @@ import { ASK_LABEL, PREP_KIND_LABEL, WHEN_REASON_TEXT } from "@/lib/prepTime";
 import { prepSpeechLines } from "@/lib/prepSpeech";
 import { SPEECH_LANG } from "@/lib/speechLang";
 import { SAMPLE_PREP, SAMPLE_PREP_LABEL } from "@/lib/samplePrep";
-import { EXPLAIN_NOTE, explainState, meaningItems, NO_MEANING, type MeaningState } from "@/lib/prepView";
+import { EXPLAIN_NOTE, explainState, meaningItems, NO_MEANING, shownExplanation, type MeaningState } from "@/lib/prepView";
 import { createRequestGate, type Ticket } from "@/lib/requestGate";
 
 type Inputs = { text: string; language: string };
@@ -231,6 +231,8 @@ export function PrepMode() {
 
 function Step({ s, meaning }: { s: PrepStep; meaning: MeaningState }) {
   const state = explainState(s, meaning);
+  // The only way the AI's words reach this card: the shared paper-first rule (prepView.ts, paperFirst.ts).
+  const shown = shownExplanation(s, meaning);
   return (
     <li className="min-w-0 rounded-2xl border-2 border-ink/30 bg-paper p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -246,9 +248,9 @@ function Step({ s, meaning }: { s: PrepStep; meaning: MeaningState }) {
           {WHEN_REASON_TEXT[s.reason]}{s.when_words.length > 0 ? ` It says: ${s.when_words.map((w) => `"${w}"`).join(", ")}.` : ""}
         </p>
       )}
-      {state === "certified" && (
+      {shown && (
         <p className="mt-2 text-sm [overflow-wrap:anywhere]">
-          <span className="font-bold">In plain words (double-checked against your paper):</span> {s.plain_language}
+          <span className="font-bold">In plain words (double-checked against your paper):</span> {shown}
         </p>
       )}
       {state !== "certified" && state !== "none" && (
@@ -267,7 +269,7 @@ function PrepSheet({ res, meaning }: { res: PrepResponse & { language: Lang }; m
       <span className="box" />
       <div>
         <p><b>{s.source_quote}</b></p>
-        {explainState(s, meaning) === "certified" && <p>In plain words: {s.plain_language}</p>}
+        {shownExplanation(s, meaning) && <p>In plain words: {shownExplanation(s, meaning)}</p>}
       </div>
     </li>
   );

@@ -1,5 +1,6 @@
 import type { MeaningResult } from "./meaning";
 import { cuesForbid } from "./prepCues";
+import { paperFirstView } from "./paperFirst";
 import type { PrepResponse, PrepStep } from "./prepTimeline";
 
 /**
@@ -43,7 +44,9 @@ export function explainState(step: PrepStep, m: MeaningState): ExplainState {
 
 /** The explanation text the page may show, or null. The only way an AI explanation reaches the screen. */
 export function shownExplanation(step: PrepStep, m: MeaningState): string | null {
-  return explainState(step, m) === "certified" ? step.plain_language : null;
+  // The shared paper-first rule (paperFirst.ts); prep is stricter still and hides, rather than demotes, the rest.
+  const v = paperFirstView({ quote: step.source_quote, explanation: [step.plain_language], check: explainState(step, m) === "certified" ? "certified" : "unchecked" });
+  return v.lead === "explanation" ? v.explanation : null;
 }
 
 export const allSteps = (res: Pick<PrepResponse, "timeline" | "ask">): PrepStep[] => [...res.timeline.flatMap((g) => g.steps), ...res.ask];

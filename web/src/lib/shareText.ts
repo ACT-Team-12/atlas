@@ -1,6 +1,8 @@
 import type { VerifiedItem } from "./schema";
 import type { PlanResponse } from "./plan";
 import type { MeaningResult } from "./meaning";
+import { careStepView, checkOf, paperFirstLines } from "./paperFirst";
+import { planStepQuotes } from "./planQuotes";
 
 /** The second-model double-check, as the screen has it. "done" carries one result per item id. */
 export type ShareMeaning = { status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult> };
@@ -14,8 +16,8 @@ const KIND_LABEL: Record<string, string> = {
  * Asked for by a family caregiver on Oct 2 whose parents live in another state. Same content as the printed handoff
  * sheet: only grounded steps, each with the line from the paper, and phone numbers only from verified records.
  * Built on the device and handed to the phone's own share sheet; ATLAS never sees or stores it.
- * The double-check travels with it: a flagged explanation is replaced by "follow the paper's own words", and anything
- * not certified says so, so a warning on screen can never disappear in the text message.
+ * The double-check travels with it: an explanation is sent only when the second check certified it; otherwise the
+ * paper's own words are sent in its place (paperFirst.ts), so a text message never carries an unchecked paraphrase.
  */
 export function planShareText({ items, plan, questions, meaning }: { items: VerifiedItem[]; plan: PlanResponse; questions: string[]; meaning?: ShareMeaning }): string {
   const out: string[] = ["Plan after the visit (from ATLAS)", "", plan.summary];
@@ -23,22 +25,21 @@ export function planShareText({ items, plan, questions, meaning }: { items: Veri
   const grounded = items.filter((i) => i.grounded);
   if (grounded.length) {
     out.push("", "WHAT THE PAPER SAYS TO DO");
+    // Paper first (paperFirst.ts): the explanation travels only when certified; otherwise the paper's words do.
     grounded.forEach((i, n) => {
-      out.push(`${n + 1}. ${KIND_LABEL[i.kind] ?? i.kind}: ${i.title}${i.when.trim() ? ` (${i.when.trim()})` : ""}`);
-      const m = meaning?.status === "done" ? meaning.byId[i.id] : undefined;
-      if (m?.flagged) {
-        out.push("   Double-check this one with your clinic: our second check found the explanation may not match the paper. Follow the paper's own words:");
-      } else {
-        if (i.plain_language.trim()) out.push(`   ${i.plain_language.trim()}`);
-        if (!m?.certified) out.push("   (Not double-checked. If this and the paper differ, follow the paper.)");
-      }
-      out.push(`   Paper says: "${i.source_quote}"`);
+      const check = checkOf(meaning?.status === "done" ? meaning.byId[i.id] : undefined);
+      out.push(`${n + 1}. ${KIND_LABEL[i.kind] ?? i.kind}${check === "certified" ? `: ${i.title}${i.when.trim() ? ` (${i.when.trim()})` : ""}` : ""}`);
+      if (check === "flagged") out.push("   Double-check this one with your clinic: our second check found the explanation may not match the paper.");
+      for (const l of paperFirstLines(careStepView(i, check))) out.push(`   ${l}`);
     });
   }
 
   if (plan.steps.length) {
     out.push("", "THE PLAN (suggestions from ATLAS; if anything differs from the paper, follow the paper)");
-    plan.steps.forEach((s, n) => out.push(`${n + 1}. ${s.title}. ${s.action}`));
+    plan.steps.forEach((s, n) => {
+      out.push(`${n + 1}. ${s.title}. ${s.action}`);
+      for (const q of planStepQuotes(s, grounded)) out.push(`   Your paper says: "${q}"`);
+    });
   }
 
   const used = new Set(plan.steps.flatMap((s) => s.resource_ids));

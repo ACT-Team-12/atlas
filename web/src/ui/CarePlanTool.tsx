@@ -228,6 +228,9 @@ export function CarePlanTool() {
   // Scrolls along that path, or caused by a size change, are not the person and do not cancel an automatic scroll.
   const ownScroll = useRef<OwnScroll | null>(null);
   const ownScrollEl = useRef<HTMLElement | null>(null);
+  // Device location requests: a generation so only the latest answer counts, and whether one is out.
+  const locGen = useRef(0);
+  const [locating, setLocating] = useState(false);
   const layoutChangedAt = useRef(-Infinity);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
@@ -324,7 +327,7 @@ export function CarePlanTool() {
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
-    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setLoc(null);
+    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setLoc(null); locGen.current++; setLocating(false);
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
     setPlan(v.plan); setDone(v.done); setRemoved(v.removed); setPhotoChecked(v.photoChecked ?? false);
@@ -347,7 +350,7 @@ export function CarePlanTool() {
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setPhotoChecked(false); setReadLevel(null);
-    setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
+    setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null); locGen.current++; setLocating(false);
     setCareFp(null); setPlanFp(null);
     setTab(1);
   }
@@ -554,11 +557,21 @@ export function CarePlanTool() {
     finally { if (planRun.current === run) setPlanning(false); }
   }
 
+  // Asking again drops the old position at once: a plan built from it is outdated until this request answers.
+  // Only the latest request counts (a typed ZIP also supersedes any request still out).
   function useMyLocation() {
     if (!navigator.geolocation) return setError("This browser can't share location. Type a ZIP instead.");
+    const gen = ++locGen.current;
+    setLoc(null); setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (p) => { setLoc({ lat: p.coords.latitude, lng: p.coords.longitude }); setZip(""); },
-      () => setError("Location wasn't shared. Type a ZIP instead."),
+      (p) => {
+        if (locGen.current !== gen) return;
+        setLocating(false); setLoc({ lat: p.coords.latitude, lng: p.coords.longitude }); setZip("");
+      },
+      () => {
+        if (locGen.current !== gen) return;
+        setLocating(false); setError("Location wasn't shared. Type a ZIP instead.");
+      },
       { timeout: 8000 },
     );
   }
@@ -1078,9 +1091,9 @@ export function CarePlanTool() {
             <div>
               <label className="text-sm font-bold" htmlFor="zip">Your ZIP</label>
               <input id="zip" inputMode="numeric" maxLength={5} className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5"
-                placeholder="e.g. 30340" value={zip} onChange={(e) => { setZip(e.target.value.replace(/\D/g, "")); setLoc(null); }} />
+                placeholder="e.g. 30340" value={zip} onChange={(e) => { setZip(e.target.value.replace(/\D/g, "")); setLoc(null); locGen.current++; setLocating(false); }} />
               <button type="button" onClick={useMyLocation} className="mt-2 text-sm font-bold underline decoration-2 underline-offset-4">
-                {loc ? "✓ Using your location (stays on this device)" : "Or use my location"}
+                {locating ? "Finding your location..." : loc ? "✓ Using your location (stays on this device)" : "Or use my location"}
               </button>
             </div>
             <label className="text-sm font-bold">Anything else we should know? (optional)

@@ -610,3 +610,80 @@ describe("a size change during the page's own scroll", () => {
     expect(scrolls).toEqual(["step-2", "step-3"]);
   });
 });
+
+describe("refreshing the device location", () => {
+  type Pos = { coords: { latitude: number; longitude: number } };
+  let calls: { ok: (p: Pos) => void; fail: () => void }[];
+  const controlledGeo = () => {
+    calls = [];
+    Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: (ok: (p: Pos) => void, fail: () => void) => { calls.push({ ok, fail }); } } });
+  };
+  const pos = (lat: number, lng: number): Pos => ({ coords: { latitude: lat, longitude: lng } });
+  const PLAN_OUTDATED = "You changed your answers after this plan was made";
+
+  async function devicePlan() {
+    act(() => byText("Getting there").click());
+    act(() => byText("Or use my location").click()); // default stub: answers at once with 33.75, -84.39
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    const p = planFor("Plan near the first position");
+    p.located = { by: "device", label: "Near your current location" };
+    await release(req, ready(p));
+    expect(byText("Read it out loud").disabled).toBe(false);
+    controlledGeo();
+  }
+
+  it("a refresh that fails leaves the plan outdated with its actions off, not current on the old position", async () => {
+    await devicePlan();
+    act(() => byText("Using your location").click());
+    act(() => calls[0].fail());
+    expect(screenText()).toContain("Plan near the first position");
+    expect(screenText()).toMatch(/Use my location again or enter a ZIP|You changed your answers after this plan was made/);
+    expect(byText("Read it out loud").disabled).toBe(true);
+    expect(screenText()).toContain("Location wasn't shared");
+  });
+
+  it("while a refresh is pending, the plan is outdated", async () => {
+    await devicePlan();
+    act(() => byText("Using your location").click());
+    expect(byText("Read it out loud").disabled).toBe(true);
+    expect(byText("Update plan").disabled).toBe(true); // no place to update with yet
+  });
+
+  it("overlapping requests: only the latest counts, a late answer to an earlier one is ignored", async () => {
+    await devicePlan();
+    act(() => byText("Using your location").click()); // request 1
+    act(() => byText("Finding your location").click()); // request 2
+    act(() => calls[0].ok(pos(40, -80))); // late answer to request 1
+    expect(byText("Update plan").disabled).toBe(true);
+    act(() => calls[1].ok(pos(34.05, -84.6)));
+    const req = hold("/api/plan");
+    act(() => byText("Update plan").click());
+    expect(fetchCalls.at(-1)?.body.location).toEqual({ lat: 34.05, lng: -84.6 });
+    await release(req, ready(planFor("Plan near the second position")));
+    expect(screenText()).not.toContain(PLAN_OUTDATED);
+  });
+
+  it("the latest request failing after an earlier one succeeded late still leaves no position", async () => {
+    await devicePlan();
+    act(() => byText("Using your location").click());
+    act(() => byText("Finding your location").click());
+    act(() => calls[0].ok(pos(40, -80)));
+    act(() => calls[1].fail());
+    expect(byText("Read it out loud").disabled).toBe(true);
+    expect(byText("Or use my location")).toBeTruthy();
+  });
+
+  it("a ZIP typed while a refresh is pending wins over its later answer", async () => {
+    await devicePlan();
+    act(() => byText("Using your location").click());
+    act(() => typeInto(host.querySelector<HTMLInputElement>("#zip")!, "30340"));
+    act(() => calls[0].ok(pos(40, -80)));
+    expect(host.querySelector<HTMLInputElement>("#zip")!.value).toBe("30340");
+    const req = hold("/api/plan");
+    act(() => byText("Update plan").click());
+    expect(fetchCalls.at(-1)?.body).toMatchObject({ zip: "30340" });
+    expect(fetchCalls.at(-1)?.body.location).toBeUndefined();
+    await release(req, ready(planFor("Plan near 30340")));
+  });
+});

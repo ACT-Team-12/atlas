@@ -1,5 +1,5 @@
 import type { MeaningResult } from "./meaning";
-import { cues, cuesForbid } from "./prepCues";
+import { cuesForbid } from "./prepCues";
 import { paperFirstView } from "./paperFirst";
 import type { PrepGroup, PrepResponse, PrepStep } from "./prepTimeline";
 import type { Slot } from "./prepTime";
@@ -58,8 +58,8 @@ export function shownExplanation(step: PrepStep, m: MeaningState): string | null
  * 911 or the emergency room. Its row stays visible in a closed group and keeps its whole sentence.
  */
 export function prepMustSee(s: Pick<PrepStep, "kind" | "source_quote">): boolean {
-  const c = cues(s.source_quote);
-  return s.kind === "call" || c.no || c.limit || cuesForbid(s.source_quote, "") ||
+  // cuesForbid with no explanation: a "no" or "limit" cue word in the sentence, or a sentence it can't read.
+  return s.kind === "call" || cuesForbid(s.source_quote, "") ||
     /(?<![\p{L}\p{N}])(?:911|emergency|emergencia|urgencias)(?![\p{L}\p{N}])/iu.test(s.source_quote);
 }
 

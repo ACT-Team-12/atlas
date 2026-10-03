@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { combine, numbersIn, unexpectedNumbers } from "./meaning";
+import { combine, fractionsIn, numberCheckAnyForm, numbersIn, unexpectedNumbers } from "./meaning";
 
 const lisinopril = "lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily. Previously 10 mg once daily.";
 
@@ -80,5 +80,49 @@ describe("Codex re-review: number words in every explanation language", () => {
     const am = { id: "x", plain_language: "ሁለት ጽላቶችን ይውሰዱ።", when: "", source_quote: two };
     expect(combine("x", am, "same", "", "Amharic").certified).toBe(false);
     expect(combine("x", { ...am, source_quote: "Take your tablets by mouth." }, "same", "", "Amharic").certified).toBe(false);
+  });
+});
+
+describe("Codex round 5: a fraction is one value, never two whole numbers", () => {
+  const base = { id: "x", when: "" };
+  const caught = (paper: string, plain: string, lang?: "English" | "Spanish" | "French" | "Vietnamese" | "Chinese" | "Korean") => {
+    const any = numberCheckAnyForm({ source_quote: paper, plain_language: plain }, lang);
+    return { certified: combine("x", { ...base, source_quote: paper, plain_language: plain }, "same", "", lang).certified, prepBlocked: any.unexpected.length > 0 || any.uncheckable };
+  };
+  it.each([
+    ["Take 1/2 tablet.", "Take 2 tablets."],
+    ["Take 1 / 2 tablet.", "Take 2 tablets."],
+    ["Take 1⁄2 tablet.", "Take 2 tablets."],
+    ["Take 1/2 tablet.", "Take 1 tablet."],
+    ["Take 1 1/2 tablets.", "Take 1 tablet."],
+    ["Take 1-1/2 tablets.", "Take 1 1/2 tablets."],
+    ["Take half a tablet.", "Take 1 tablet."],
+    ["Take 1 and a half tablets.", "Take 1 tablet."],
+    ["Take 2 tablets.", "Take 1/2 tablet."],
+    ["Take 2 tablets.", "Take half a tablet."],
+  ])("paper %j, explanation %j: never certified, blocked in prep", (paper, plain) => {
+    expect(caught(paper, plain)).toEqual({ certified: false, prepBlocked: true });
+  });
+  it.each([
+    ["Spanish", "Tome media tableta."],
+    ["French", "Prenez un demi comprimé."],
+    ["Vietnamese", "Uống nửa viên."],
+    ["Chinese", "服用半片。"],
+    ["Korean", "반 알을 드세요."],
+    ["Spanish", "Tome una tableta y media."],
+    ["Vietnamese", "Uống một viên rưỡi."],
+    ["Chinese", "服用一片半。"],
+    ["Korean", "한 알 반을 드세요."],
+  ] as const)("%s explanation %j against \"Take 2 tablets\": never certified, blocked in prep", (lang, plain) => {
+    expect(caught("Take 2 tablets.", plain, lang)).toEqual({ certified: false, prepBlocked: true });
+  });
+  it("the same fraction, in any form, still certifies", () => {
+    expect(caught("Take 1/2 tablet.", "Take 1/2 tablet.")).toEqual({ certified: true, prepBlocked: false });
+    expect(caught("Take 1/2 tablet.", "Take half a tablet.")).toEqual({ certified: true, prepBlocked: false });
+    expect(caught("Take 1/2 tablet.", "Tome media tableta.", "Spanish")).toEqual({ certified: true, prepBlocked: false });
+    expect(caught("5 hours before your procedure, drink the second half of the bowel prep.", "Drink the second half of the prep 5 hours before.")).toEqual({ certified: true, prepBlocked: false });
+    expect(caught("Do not eat after midnight.", "半夜以后不要吃东西。", "Chinese")).toEqual({ certified: true, prepBlocked: false });
+    expect(caught("Take 2 tablets.", "반드시 두 알을 드세요.", "Korean")).toEqual({ certified: true, prepBlocked: false });
+    expect(fractionsIn("Take 1/2 tablet and 1 1/2 cups.")).toMatchObject({ values: ["1/2"], mixed: true });
   });
 });

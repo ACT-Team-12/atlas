@@ -402,3 +402,15 @@ describe("Codex round 5: a unit abbreviation then a lowercase instruction is two
     expect(s).toMatchObject({ source_quote: "Arrive at 6:45 a.m. the morning of your procedure.", slot: "arrival" });
   });
 });
+
+describe("Codex round 5: a fraction in the paper never lets a whole-number explanation through", () => {
+  it.each([
+    ["Take 1/2 tablet of your water pill 3 days before your procedure.", "Take 2 tablets of your water pill."],
+    ["Take 1 1/2 tablets of your water pill 3 days before your procedure.", "Take 1 tablet of your water pill."],
+    ["Take half a tablet of your water pill 3 days before your procedure.", "Take 1 tablet of your water pill."],
+  ])("%j: explanation %j is blocked", (line, plain) => {
+    const r = buildPrepTimeline(`PREP SHEET (sample)\n- ${line}`, [item({ source_quote: line, plain_language: plain })]);
+    const [s] = [...r.timeline.flatMap((g) => g.steps), ...r.ask];
+    expect(s).toMatchObject({ source_quote: line, numbers_blocked: true });
+  });
+});

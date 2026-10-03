@@ -62,18 +62,55 @@ export type NumberCheck = { unexpected: string[]; uncheckable: boolean };
 const digitsIn = (t: string) => [...t.matchAll(/\d+(?:[.,]\d+)*/g)].map((m) => m[0].replace(/,(?=\d{3}\b)/g, ""));
 
 /**
- * What a quote (or its "when") allows: digits, English number words, and number words in the explanation's language.
- * `uncheckable` when the quote itself has numeral text that can't be read ("½ tablet").
+ * Fractions, read as one value each, never as whole numbers. Before this, "1/2" read as a 1 and a 2 and "half a
+ * tablet" as no number at all, so "Take 1/2 tablet" against "Take 2 tablets" passed the number check (Codex round 5).
+ * - "1/2", "1 / 2", "1⁄2" are the one value "1/2";
+ * - "half", "medio/media", "mitad", "demi/demie", "moitié", "nửa", "半", "반" are "1/2"; "quarter", "cuarto", "quart" "1/4";
+ * - a whole number plus a fraction ("1 1/2", "1-1/2", "1 and a half", "una y media", "un et demi", "một giờ rưỡi",
+ *   "一个半", "한 시간 반") is `mixed`: too easy to misread, so the step is uncheckable (never certified, held back).
+ * `rest` is the text with digit fractions blanked, for the whole-number readers.
+ */
+const DIGIT_FRACTION = /\d+(?:[.,]\d+)?(?:\s+|-)\d+\s*[/⁄∕]\s*\d+|\d+\s*[/⁄∕]\s*\d+/gu;
+const MIXED_DIGITS = /^\d+(?:[.,]\d+)?(?:\s+|-)\d/u;
+const HALF_WORD = /(?<![\p{L}\p{M}])(?:half|halves|medio|media|medias|mitad|demi|demie|demis|moitié|nửa)(?![\p{L}\p{M}])|半(?!夜)|(?<![가-힣])반(?![가-힣])/giu;
+const QUARTER_WORD = /(?<![\p{L}\p{M}])(?:quarter|quarters|cuarto|cuartos|cuarta|quart|quarts)(?![\p{L}\p{M}])/giu;
+const MIXED_WORDS = [
+  /(?<![\p{L}\p{M}])(?:and|&)\s+(?:a|one)\s+half(?![\p{L}\p{M}])/iu,
+  /(?<![\p{L}\p{M}])y\s+medi[oa](?![\p{L}\p{M}])/iu,
+  /(?<![\p{L}\p{M}])et\s+demie?(?![\p{L}\p{M}])/iu,
+  /rưỡi/iu,
+  /[一二两兩三四五六七八九十\d][^\s半]{1,2}半/u,
+  /(?:알|정|시간|개|잔|컵|스푼|숟가락|봉|포)\s*반(?![가-힣])/u,
+];
+
+export function fractionsIn(text: string): { values: string[]; rest: string; mixed: boolean } {
+  const values = new Set<string>();
+  let mixed = MIXED_WORDS.some((r) => r.test(text));
+  const rest = text.replace(DIGIT_FRACTION, (f) => {
+    if (MIXED_DIGITS.test(f)) mixed = true;
+    else values.add(f.replace(/\s+/g, "").replace(/[⁄∕]/gu, "/"));
+    return " ";
+  });
+  if (rest.match(HALF_WORD)) values.add("1/2");
+  if (rest.match(QUARTER_WORD)) values.add("1/4");
+  return { values: [...values], rest, mixed };
+}
+
+/**
+ * What a quote (or its "when") allows: digits, fractions, English number words, and number words in the explanation's
+ * language. `uncheckable` when the quote itself has numeral text that can't be read ("½ tablet", "1 1/2 tablets").
  */
 function quoteNumbers(item: { when?: string; source_quote: string }, language?: NumberLanguage): { allowed: Set<string>; uncheckable: boolean } {
   const allowed = new Set<string>();
   let uncheckable = false;
   for (const t of [item.source_quote, item.when ?? ""]) {
-    numbersIn(t).forEach((n) => allowed.add(n));
-    const en = readNumberWords(t, "English");
+    const f = fractionsIn(t);
+    f.values.forEach((n) => allowed.add(n));
+    numbersIn(f.rest).forEach((n) => allowed.add(n));
+    const en = readNumberWords(f.rest, "English");
     en.numbers.forEach((n) => allowed.add(n));
-    uncheckable ||= en.uncheckable;
-    if (language && language !== "English" && language !== "Amharic") readNumberWords(t, language).numbers.forEach((n) => allowed.add(n));
+    uncheckable ||= en.uncheckable || f.mixed;
+    if (language && language !== "English" && language !== "Amharic") readNumberWords(f.rest, language).numbers.forEach((n) => allowed.add(n));
   }
   return { allowed, uncheckable };
 }
@@ -81,31 +118,34 @@ function quoteNumbers(item: { when?: string; source_quote: string }, language?: 
 /**
  * Deterministic signal for the care plan: numbers in the explanation that the quote (or when) does not contain.
  * A total the paper states elsewhere in the same quote is fine; an invented dose or interval is not.
- * Digits always count. Number words count too when the explanation's language is given and is not English ("Tome
- * tres tabletas" against "Take 2 tablets"); English words stay out on this path, as before, because "one of the lab
- * locations" is not a dose (the second model covers English words). `uncheckable` (numeral text that can't be read,
- * or any Amharic explanation) means the explanation can never be certified.
+ * Digits and fractions always count. Number words count too when the explanation's language is given and is not
+ * English ("Tome tres tabletas" against "Take 2 tablets"); English words stay out on this path, as before, because
+ * "one of the lab locations" is not a dose (the second model covers English words). `uncheckable` (numeral text that
+ * can't be read, a whole number plus a fraction, or any Amharic explanation) means it can never be certified.
  */
 export function numberCheck(item: NumItem, language?: NumberLanguage): NumberCheck {
   const q = quoteNumbers(item, language);
-  const plain = language && language !== "English" ? readNumberWords(item.plain_language, language) : null;
+  const f = fractionsIn(item.plain_language);
+  const plain = language && language !== "English" ? readNumberWords(f.rest, language) : null;
   const foreignDigits = readNumberWords(item.plain_language.replace(/\p{L}/gu, " "), "English").uncheckable;
-  const unexpected = [...new Set([...digitsIn(item.plain_language), ...(plain?.numbers ?? [])])].filter((n) => !q.allowed.has(n));
-  return { unexpected, uncheckable: language === "Amharic" || q.uncheckable || foreignDigits || !!plain?.uncheckable };
+  const unexpected = [...new Set([...f.values, ...digitsIn(f.rest), ...(plain?.numbers ?? [])])].filter((n) => !q.allowed.has(n));
+  return { unexpected, uncheckable: language === "Amharic" || q.uncheckable || foreignDigits || !!plain?.uncheckable || f.mixed };
 }
 export const unexpectedNumbers = (item: NumItem, language?: NumberLanguage): string[] => numberCheck(item, language).unexpected;
 
 /**
- * Stricter form for prep mode: digits AND number words (English, and the explanation's language) in the explanation
- * must be in the quote, as digits or words. "Take four tablets" or "Tome cuatro tabletas" against "Take 2 tablets" is
- * caught; "two" or "dos" against "2" is fine. Numeral text that can't be read makes it uncheckable, which blocks it.
+ * Stricter form for prep mode: digits, fractions AND number words (English, and the explanation's language) in the
+ * explanation must be in the quote, as digits or words. "Take four tablets" or "Tome cuatro tabletas" against "Take 2
+ * tablets" is caught; "two" or "dos" against "2" is fine. Numeral text that can't be read makes it uncheckable, which
+ * blocks it.
  */
 export function numberCheckAnyForm(item: NumItem, language: NumberLanguage = "English"): NumberCheck {
   const q = quoteNumbers(item, language);
-  const en = readNumberWords(item.plain_language, "English");
-  const own = language === "English" ? en : readNumberWords(item.plain_language, language);
-  const inPlain = new Set([...numbersIn(item.plain_language), ...en.numbers, ...own.numbers]);
-  return { unexpected: [...inPlain].filter((n) => !q.allowed.has(n)), uncheckable: q.uncheckable || own.uncheckable || (language === "English" && en.uncheckable) };
+  const f = fractionsIn(item.plain_language);
+  const en = readNumberWords(f.rest, "English");
+  const own = language === "English" ? en : readNumberWords(f.rest, language);
+  const inPlain = new Set([...f.values, ...numbersIn(f.rest), ...en.numbers, ...own.numbers]);
+  return { unexpected: [...inPlain].filter((n) => !q.allowed.has(n)), uncheckable: q.uncheckable || own.uncheckable || (language === "English" && en.uncheckable) || f.mixed };
 }
 export const unexpectedNumbersAnyForm = (item: NumItem, language: NumberLanguage = "English"): string[] => numberCheckAnyForm(item, language).unexpected;
 

@@ -1,5 +1,5 @@
-import { createHmac } from "node:crypto";
 import { clientIp, guard } from "@/lib/guard";
+import { callerId } from "@/lib/call/caller";
 import { callConfig } from "@/lib/call/config";
 import { startCall } from "@/lib/call/flow";
 import { callStore } from "@/lib/call/store";
@@ -34,8 +34,8 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return Response.json({ error: "Send JSON." }, { status: 400, headers: NO_STORE });
   const r = await startCall({ store, cfg }, { phone: body.phone, consent: body.consent, text: body.text, language: body.language, token: body.token,
-    // Counted per caller in Postgres (every instance agrees), keyed by an HMAC so no IP is stored.
-    caller: createHmac("sha256", `atlas-call-ip:${cfg.secret}`).update(clientIp(request)).digest("hex").slice(0, 32),
+    // Counted per caller in Postgres (every instance agrees), keyed by an HMAC so no IP is stored; IPv6 per /64.
+    caller: callerId(cfg.secret, clientIp(request)),
   });
   if (r.state === "calling") return Response.json({ id: r.id, last4: r.last4 , uncertain: r.uncertain === true }, { headers: NO_STORE });
   const [status, error] = REFUSED[r.state];

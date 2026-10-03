@@ -1,5 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { guard } from "@/lib/guard";
+import { callConfig } from "@/lib/call/config";
+import { settlePendingEnds } from "@/lib/call/flow";
 import { callStore } from "@/lib/call/store";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +12,8 @@ export const dynamic = "force-dynamic";
  * With CRON_SECRET set (Vercel sends it as `Authorization: Bearer <CRON_SECRET>`), that header is required. Without it
  * the route still accepts Vercel's cron user agent, rate-limited: a sweep only removes data that is already expired, so
  * a spoofed trigger can do nothing but run the cleanup early. 503 when the sweep could not run, so it shows as failed.
+ * It also asks Vonage again about plan calls whose end a callback reported while Vonage still said live (END_PENDING in
+ * lib/call/store.ts) and wipes those Vonage now reports ended. The marker alone never wipes or ends anything.
  */
 let warned = false;
 
@@ -34,5 +38,8 @@ export async function GET(request: Request) {
   const store = await callStore();
   if (!store) return Response.json({ swept: false, reason: "no database" }, { status: 503 });
   const ok = await store.sweep(Date.now());
-  return Response.json({ swept: ok }, { status: ok ? 200 : 503, headers: { "cache-control": "no-store" } });
+  // Counts only, never ids. A call Vonage still reports live (or a Vonage failure) keeps its marker for the next run.
+  const cfg = callConfig();
+  const pending = cfg ? await settlePendingEnds({ store, cfg }) : null;
+  return Response.json({ swept: ok, pending }, { status: ok ? 200 : 503, headers: { "cache-control": "no-store" } });
 }

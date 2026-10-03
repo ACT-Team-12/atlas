@@ -6,7 +6,7 @@ import { signTicket, subKey, type CallConfig, type CallTicket } from "./config";
 import { canCallIn, codeNcco, GATE_TRIES, gateNcco, goodbyeNcco, MAX_REPLAYS, planLengthSeconds, planNcco, type NccoAction } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
-import { CallStoreDown, CODE_ATTEMPTS, CODE_TTL_MS, dayKey, hourKey, reserveSlots, SESSION_TTL_MS, WIPE, type CallStore, type SessionRow } from "./store";
+import { CallStoreDown, CODE_ATTEMPTS, CODE_TTL_MS, dayKey, END_PENDING, hourKey, reserveSlots, SESSION_TTL_MS, WIPE, type CallStore, type SessionRow } from "./store";
 import { getCall, placeCall } from "./vonage";
 
 /**
@@ -313,6 +313,13 @@ export async function handleEvent(deps: Hook, t: CallTicket, uuid: unknown, clai
   if (!(status in RANK)) return "ignored";
   if (typeof claimed === "string" && RANK[claimed] === 4 && RANK[status] < 4) {
     console.error("call event: the callback says ended but Vonage still reports it live; asking for a retry");
+    // If the retry reads stale too, or never comes, the end must not be lost: mark the session so the sweep (and the
+    // person's status poll) ask Vonage again and wipe once Vonage itself reports an end. The marker is written only
+    // here, after callTruth matched this UUID to the session's own call; on its own it never wipes or ends anything.
+    if (t.c === "plan" && row.phase === "calling") {
+      const marked = await deps.store.update(t.k, { note: END_PENDING }, ["calling"]);
+      if (marked !== "updated") console.error("call event: pending-end marker not written", marked);
+    }
     return "error";
   }
   const field = t.c === "code" ? "code_status" : "plan_status";
@@ -326,10 +333,48 @@ export async function handleEvent(deps: Hook, t: CallTicket, uuid: unknown, clai
       : await deps.store.update(t.k, { code_status: status }, ["code"]);
     return r === "error" ? "error" : "ok"; // "phase_changed": the code was typed meanwhile, nothing to record
   }
+  // A live status is written only while the call is live, so a check that read Vonage before a concurrent end (a
+  // webhook retry and the sweep racing) can never move a finished session's status back.
   const r = RANK[status] === 4
     ? await deps.store.update(t.k, { ...WIPE, plan_status: status, phase: "done" })
-    : await deps.store.update(t.k, { plan_status: status });
+    : await deps.store.update(t.k, { plan_status: status }, ["calling"]);
   return r === "error" ? "error" : "ok"; // "phase_changed": the session is gone (swept), nothing left to record
+}
+
+/** How many plan calls with a pending end settlePendingEnds checks per run. */
+export const PENDING_ENDS_PER_RUN = 20;
+
+/**
+ * Plan calls whose end a callback reported while Vonage's GET still said live (END_PENDING): asks Vonage again for each
+ * and, through handleEvent with no claimed status, wipes only those Vonage now reports ended. One still live keeps its
+ * marker and is checked on the next run. With `id`, checks only that session (the person's own status poll).
+ * null when the pending sessions could not be listed (database error).
+ */
+export async function settlePendingEnds(deps: Hook, id?: string): Promise<{ checked: number; ended: number; failed: number } | null> {
+  const now = deps.now ?? Date.now();
+  let pending: { id: string; plan_uuid: string }[] | null;
+  if (id !== undefined) {
+    let row: SessionRow | null;
+    try { row = await deps.store.get(id, now); } catch (e) {
+      if (e instanceof CallStoreDown) return null;
+      throw e;
+    }
+    pending = row && row.phase === "calling" && row.note === END_PENDING && row.plan_uuid ? [{ id, plan_uuid: row.plan_uuid }] : [];
+  } else {
+    pending = await deps.store.pendingEnds(now, PENDING_ENDS_PER_RUN);
+  }
+  if (!pending) return null;
+  const results = await Promise.all(pending.map(async (p) => {
+    try {
+      const r = await handleEvent(deps, { k: p.id, p: "event", c: "plan", exp: now + 60_000 }, p.plan_uuid);
+      if (r === "error") return "failed" as const;
+      return (await deps.store.get(p.id, now))?.phase === "done" ? "ended" as const : "live" as const;
+    } catch (e) {
+      if (e instanceof CallStoreDown) return "failed" as const;
+      throw e;
+    }
+  }));
+  return { checked: pending.length, ended: results.filter((r) => r === "ended").length, failed: results.filter((r) => r === "failed").length };
 }
 
 /**

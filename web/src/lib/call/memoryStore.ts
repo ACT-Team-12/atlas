@@ -1,4 +1,4 @@
-import { CallStoreDown, refuseStale, WIPE, CODE_ATTEMPTS, COUNTER_TTL_MS, PLAN_CALL_MAX_MS, PREPARING_MAX_MS, UNCONFIRMED_PLAN_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
+import { CallStoreDown, END_PENDING, refuseStale, WIPE, CODE_ATTEMPTS, COUNTER_TTL_MS, PLAN_CALL_MAX_MS, PREPARING_MAX_MS, UNCONFIRMED_PLAN_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
 
 /**
  * An in-memory CallStore with the same rules as PgCallStore (one live code per number, atomic attempts, capped
@@ -37,6 +37,14 @@ export class MemoryCallStore implements CallStore {
     }
     for (const [k, end] of this.counterEnds) if (end < now) { this.counterEnds.delete(k); this.counters.delete(k); }
     return true;
+  }
+
+  async pendingEnds(now: number, limit: number) {
+    if (this.failReads) return null;
+    return [...this.rows.values()]
+      .filter((r) => r.phase === "calling" && r.note === END_PENDING && r.plan_uuid !== null && r.expires_at.getTime() > now)
+      .slice(0, limit)
+      .map((r) => ({ id: r.id, plan_uuid: r.plan_uuid as string }));
   }
 
   /** While true, startCode saves the row and then reports "error", as a connection dropped after commit would. */

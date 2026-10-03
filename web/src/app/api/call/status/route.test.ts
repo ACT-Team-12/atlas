@@ -21,6 +21,17 @@ describe("call routes keep 'database down' apart from 'no such session'", () => 
     store.get.mockRejectedValueOnce(new CallStoreDown());
     expect((await status.POST(post({ id: "x" }))).status).toBe(503);
   });
+  it("status: a pending end is re-checked with Vonage, and when Vonage cannot confirm it the call stays as it was (#54)", async () => {
+    const row = { id: "x", phase: "calling", note: "end_pending", plan_uuid: "v-1", plan_status: "answered", last4: "2368", attempts: 1, sealed_phone: null };
+    store.get.mockReset();
+    store.get.mockResolvedValue(row);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const r = await status.POST(post({ id: "x" }));
+    expect([r.status, await r.json()]).toEqual([200, expect.objectContaining({ phase: "calling", plan_status: "answered" })]);
+    expect(store.get).toHaveBeenCalledTimes(4); // read; the re-check's own read and its callback check; read again after
+    store.get.mockReset();
+    store.get.mockResolvedValue(null);
+  });
   it("audio: absent is 404, a database error is 503", async () => {
     const t = encodeURIComponent(signTicket("s", { k: "x", p: "audio" }));
     const req = () => new Request(`https://atlas.example/api/call/audio?t=${t}`, { headers: { "x-real-ip": "10.1.1.2" } });

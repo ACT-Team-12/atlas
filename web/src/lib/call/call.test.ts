@@ -2,13 +2,13 @@ import { createHash, createHmac, createVerify, generateKeyPairSync } from "node:
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { issueSpeakToken } from "../speakToken";
 import { callConfig, normalizePem, strongSecret, publicBaseUrl, signTicket, verifyTicket, type CallConfig } from "./config";
-import { audioFor, CODE_CALL_GAP_MS, CODE_CALLS_PER_HOUR, CODE_CALLS_PER_IP, CODE_CALLS_PER_NUMBER, handleEvent, handleInput, publicStatus, startCall, verifyAndCall, type Deps } from "./flow";
+import { audioFor, CODE_CALL_GAP_MS, CODE_CALLS_PER_HOUR, CODE_CALLS_PER_IP, CODE_CALLS_PER_NUMBER, handleEvent, handleInput, publicStatus, settlePendingEnds, startCall, verifyAndCall, type Deps } from "./flow";
 import { MemoryCallStore } from "./memoryStore";
 import { startRefusal, verifyRefusal } from "./messages";
 import { canCallIn, codeNcco, gateNcco, MAX_REPLAYS, planLengthSeconds, planNcco, talkChunks, TALK_CHUNK, VONAGE_TTS } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
-import { CallStoreDown, PREPARING_MAX_MS, reserveSlots, UNCONFIRMED_PLAN_MS } from "./store";
+import { CallStoreDown, END_PENDING, PREPARING_MAX_MS, reserveSlots, UNCONFIRMED_PLAN_MS } from "./store";
 import { placeCall, vonageJwt } from "./vonage";
 import { verifyVonageJwt } from "./webhook";
 
@@ -609,6 +609,98 @@ describe("the call flow", () => {
     expect(await handleEvent(hk(), ev, "call-2", "completed")).toBe("ok");
     expect(store.rows.get(id)!.phase).toBe("done");
     expect(store.rows.get(id)!.sealed_text).toBeNull();
+  });
+
+  describe("a pending end the sweep re-checks with Vonage (#54)", () => {
+    const planLive = async () => {
+      const id = await started();
+      await verifyAndCall(deps(), { id, code: "4821" });
+      truth.set("call-2", { status: "answered" });
+      const ev = { k: id, p: "event" as const, c: "plan" as const, exp: NOW + 60_000 };
+      expect(await handleEvent(hk(), ev, "call-2", "answered")).toBe("ok");
+      return { id, ev };
+    };
+    const quiet = () => vi.spyOn(console, "error").mockImplementation(() => {});
+
+    it("a stale GET on the first delivery AND on the retry marks the end pending, keeps the call, and the sweep wipes once Vonage turns terminal", async () => {
+      const { id, ev } = await planLive();
+      const err = quiet();
+      expect(await handleEvent(hk(), ev, "call-2", "completed")).toBe("error"); // first delivery: stale
+      expect(store.rows.get(id)!.note).toBe(END_PENDING);
+      expect(await handleEvent(hk(), ev, "call-2", "completed")).toBe("error"); // the retry: stale again
+      err.mockRestore();
+      let row = store.rows.get(id)!;
+      expect([row.phase, row.note]).toEqual(["calling", END_PENDING]);
+      expect(row.sealed_text).not.toBeNull(); // nothing wiped on the callback's word
+      // The sweep asks Vonage again: still live, so it changes nothing.
+      expect(await settlePendingEnds(hk({ now: NOW + 5 * 60_000 }))).toEqual({ checked: 1, ended: 0, failed: 0 });
+      expect(store.rows.get(id)!.phase).toBe("calling");
+      // Vonage now reports the end: the next sweep wipes everything, the marker included.
+      truth.set("call-2", { status: "completed" });
+      expect(await settlePendingEnds(hk({ now: NOW + 10 * 60_000 }))).toEqual({ checked: 1, ended: 1, failed: 0 });
+      row = store.rows.get(id)!;
+      expect([row.phase, row.plan_status, row.note, row.sealed_phone, row.sealed_text, row.sealed_token, row.sealed_audio, row.plan_uuid])
+        .toEqual(["done", "completed", null, null, null, null, null, null]);
+      expect(await settlePendingEnds(hk({ now: NOW + 15 * 60_000 }))).toEqual({ checked: 0, ended: 0, failed: 0 });
+    });
+
+    it("the status poll re-checks only its own pending session, and wipes once Vonage reports the end", async () => {
+      const { id, ev } = await planLive();
+      const err = quiet();
+      await handleEvent(hk(), ev, "call-2", "completed");
+      err.mockRestore();
+      expect(await settlePendingEnds(hk(), "someone-else")).toEqual({ checked: 0, ended: 0, failed: 0 });
+      truth.set("call-2", { status: "unanswered" });
+      expect(await settlePendingEnds(hk(), id)).toEqual({ checked: 1, ended: 1, failed: 0 });
+      expect(store.rows.get(id)!.sealed_text).toBeNull();
+    });
+
+    it("the marker alone never wipes or ends the call: not while Vonage says live, not when Vonage cannot be reached, not for another call's UUID", async () => {
+      const { id } = await planLive();
+      store.rows.get(id)!.note = END_PENDING;
+      // Vonage still live.
+      expect(await settlePendingEnds(hk())).toEqual({ checked: 1, ended: 0, failed: 0 });
+      // Vonage down: the check fails and the marker stays for the next run.
+      const down = vi.fn(async () => new Response("", { status: 500 }));
+      const err = quiet();
+      expect(await settlePendingEnds({ store, cfg, fetchImpl: down as unknown as typeof fetch, now: NOW })).toEqual({ checked: 1, ended: 0, failed: 1 });
+      // Vonage reports an end, but for a call to another number: refused, nothing wiped.
+      truth.set("call-2", { status: "completed", to: "14045550000" });
+      const other = await settlePendingEnds(hk());
+      err.mockRestore();
+      expect(other).toEqual({ checked: 1, ended: 0, failed: 0 });
+      truth.set("call-2", { status: "answered" });
+      // The sweep's own retention rules leave a live, marked call alone until its longest possible length.
+      await store.sweep(NOW + 6 * 60_000);
+      const row = store.rows.get(id)!;
+      expect([row.phase, row.note, row.plan_status]).toEqual(["calling", END_PENDING, "answered"]);
+      expect([row.sealed_phone, row.sealed_text, row.sealed_token]).not.toContain(null);
+      expect(store.rows.get(id)!.sealed_audio).not.toBeNull();
+    });
+
+    it("does not mark a code call, nor a callback whose UUID is not the session's call", async () => {
+      const { id, ev } = await planLive();
+      const err = quiet();
+      truth.set("call-9", { status: "answered" });
+      expect(await handleEvent(hk(), ev, "call-9", "completed")).toBe("ignored");
+      expect(store.rows.get(id)!.note).toBeNull();
+      // A code call's stale end is still retried (503) but not marked: its code expiry already bounds it.
+      const code = await startCall(deps({ now: NOW }), input({ phone: "(404) 555-2399", text: "Other plan.", token: issueSpeakToken("English", "Other plan.", SPEAK, NOW) }));
+      if (code.state !== "calling") throw new Error(code.state);
+      truth.set("call-3", { status: "answered", to: "14045552399" });
+      expect(await handleEvent(hk(), { k: code.id, p: "event", c: "code", exp: NOW + 60_000 }, "call-3", "completed")).toBe("error");
+      err.mockRestore();
+      expect(store.rows.get(code.id)!.note).toBeNull();
+    });
+
+    it("a live status read before a concurrent end can never move the finished session back", async () => {
+      const { id, ev } = await planLive();
+      truth.set("call-2", { status: "completed" });
+      expect(await handleEvent(hk(), ev, "call-2")).toBe("ok");
+      // A check that read "answered" before the end landed now writes: only while the call is live.
+      expect(await store.update(id, { plan_status: "answered" }, ["calling"])).toBe("phase_changed");
+      expect(store.rows.get(id)!.plan_status).toBe("completed");
+    });
   });
 
   it("ends a session whose code call nobody answered, freeing the number for a new code", async () => {

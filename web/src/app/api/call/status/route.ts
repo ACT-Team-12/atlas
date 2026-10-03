@@ -1,7 +1,7 @@
 import { guard } from "@/lib/guard";
 import { callConfig } from "@/lib/call/config";
-import { publicStatus } from "@/lib/call/flow";
-import { CallStoreDown, callStore } from "@/lib/call/store";
+import { publicStatus, settlePendingEnds } from "@/lib/call/flow";
+import { CallStoreDown, callStore, END_PENDING } from "@/lib/call/store";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,14 @@ export async function POST(request: Request) {
   const now = Date.now();
   await store.sweep(now);
   try {
-    return Response.json(publicStatus(await store.get(id, now)), { headers: NO_STORE });
+    let row = await store.get(id, now);
+    // A plan call whose end is pending (END_PENDING in lib/call/store.ts): ask Vonage again now, so the page shows the
+    // end and the data goes as soon as Vonage reports it, not only at the next sweep. Wipes only on Vonage's own word.
+    if (row?.phase === "calling" && row.note === END_PENDING) {
+      await settlePendingEnds({ store, cfg, now }, id);
+      row = await store.get(id, now);
+    }
+    return Response.json(publicStatus(row), { headers: NO_STORE });
   } catch (e) {
     if (!(e instanceof CallStoreDown)) throw e;
     return Response.json({ error: "Call status is not available right now." }, { status: 503, headers: NO_STORE });

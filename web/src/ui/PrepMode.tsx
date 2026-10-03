@@ -86,7 +86,7 @@ export function PrepMode() {
     if (items.length === 0) { setMeaning({ status: "done", byId: {} }); return; }
     setMeaning({ status: "loading", byId: {} });
     try {
-      const resp = await fetch("/api/meaning", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items }), signal: ticket.signal });
+      const resp = await fetch("/api/meaning", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items, language: ticket.inputs.language }), signal: ticket.signal });
       const j = await resp.json();
       if (!current()) return; // a newer paper or language meanwhile
       if (!resp.ok || !Array.isArray(j.results)) throw new Error("check failed");

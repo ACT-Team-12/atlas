@@ -332,3 +332,22 @@ describe("Codex re-review: an exact fragment can leave out the line's \"do not\"
     expect(s.slot).toBe("days_before");
   });
 });
+
+describe("Codex re-review: a changed number written as a word in another language", () => {
+  const bisa = "Take 2 bisacodyl tablets at 3 PM.";
+  it.each<[string, string]>([
+    ["Spanish", "Tome cuatro tabletas de bisacodilo a las 3 PM."],
+    ["French", "Prenez quatre comprimés de bisacodyl à 3 PM."],
+    ["Vietnamese", "Uống bốn viên bisacodyl lúc 3 PM."],
+    ["Korean", "오후 3시에 비사코딜 네 알을 드세요."],
+    ["Chinese", "下午3点服用四片比沙可啶。"],
+  ])("%s: %s is blocked", (language, plain) => {
+    const r = buildPrepTimeline(SAMPLE_PREP, [item({ kind: "bowel_prep", source_quote: bisa, plain_language: plain, ai_slot: "not_stated" })], language as never);
+    expect(r.ask[0]).toMatchObject({ numbers_blocked: true, plain_language: "" });
+  });
+
+  it("the same number in words passes the number check", () => {
+    const r = buildPrepTimeline(SAMPLE_PREP, [item({ kind: "bowel_prep", source_quote: bisa, plain_language: "Tome dos tabletas de bisacodilo a las 3 PM.", ai_slot: "not_stated" })], "Spanish");
+    expect(r.ask[0].numbers_blocked).toBe(false);
+  });
+});

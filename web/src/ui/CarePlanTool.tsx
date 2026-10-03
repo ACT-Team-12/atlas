@@ -342,7 +342,7 @@ export function CarePlanTool() {
       const res = await fetch("/api/meaning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: c.items.slice(0, 40).map(({ id, plain_language, when, source_quote }) => ({ id, plain_language, when, source_quote })) }),
+        body: JSON.stringify({ language: c.language, items: c.items.slice(0, 40).map(({ id, plain_language, when, source_quote }) => ({ id, plain_language, when, source_quote })) }),
       });
       const json: MeaningResponse = await res.json();
       if (meaningFor.current !== key) return; // a newer paper was read meanwhile

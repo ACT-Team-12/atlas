@@ -44,6 +44,8 @@ export type CarePlanResponse = {
   questions_for_doctor: string[];
   not_in_document: string[];
   has_warning_signs: boolean;
+  /** The language the explanations were written in (the meaning check reads their number words). Older saved plans lack it. */
+  language?: (typeof LANGUAGES)[number];
   model: string;
   stats: { extracted: number; grounded: number; refused: number; ms: number };
 };

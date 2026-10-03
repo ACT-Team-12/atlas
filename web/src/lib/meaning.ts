@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { ExtractError } from "./extract";
+import { LANGUAGES } from "./schema";
+import { numberWords, type NumberLanguage } from "./numberWords";
 
 /**
  * Meaning check: does each plain-language explanation say the same thing as the line it quotes?
@@ -17,6 +19,8 @@ import { ExtractError } from "./extract";
 export const CHECKER_MODEL = process.env.ATLAS_CHECKER_MODEL ?? "claude-sonnet-5-5";
 
 export const MeaningRequestSchema = z.object({
+  /** The language the explanations are written in, so their number words can be read (numberWords.ts). */
+  language: z.enum(LANGUAGES).optional(),
   items: z
     .array(
       z.object({
@@ -53,25 +57,40 @@ export function numbersIn(text: string): string[] {
   return [...out];
 }
 
+/** Numbers a quote (or its "when") allows: digits, English words, and number words in the explanation's language. */
+function allowedNumbers(item: { when?: string; source_quote: string }, language?: NumberLanguage): Set<string> {
+  const texts = [item.source_quote, item.when ?? ""];
+  return new Set(texts.flatMap((t) => [...numbersIn(t), ...(language ? numberWords(t, language) : [])]));
+}
+
 /**
  * Deterministic signal: numbers in the explanation that the quote (or when) does not contain.
  * A total the paper states elsewhere in the same quote is fine; an invented dose or interval is not.
- * Only digits count against the explanation, because number words differ by language.
+ * Digits always count against the explanation. Number words count too when the explanation's language is given and
+ * is not English ("Tome tres tabletas" against "Take 2 tablets"); English words stay out on this path, as before,
+ * because "one of the lab locations" is not a dose.
  */
-export function unexpectedNumbers(item: { plain_language: string; when?: string; source_quote: string }): string[] {
-  const allowed = new Set([...numbersIn(item.source_quote), ...numbersIn(item.when ?? "")]);
+export function unexpectedNumbers(item: { plain_language: string; when?: string; source_quote: string }, language?: NumberLanguage): string[] {
+  const allowed = allowedNumbers(item, language);
   const digitsInPlain = [...item.plain_language.matchAll(/\d+(?:[.,]\d+)*/g)].map((m) => m[0].replace(/,(?=\d{3}\b)/g, ""));
-  return [...new Set(digitsInPlain.filter((n) => !allowed.has(n)))];
+  const wordsInPlain = language && language !== "English" ? numberWords(item.plain_language, language) : [];
+  return [...new Set([...digitsInPlain, ...wordsInPlain].filter((n) => !allowed.has(n)))];
 }
+
+/** Amharic number words can't be read (numberWords.ts), so an Amharic explanation of a line with a number can't be checked. */
+export const numbersUncheckable = (item: { when?: string; source_quote: string }, language?: NumberLanguage) =>
+  language === "Amharic" && numbersIn(`${item.source_quote} ${item.when ?? ""}`).length > 0;
 
 /**
  * Stricter form for prep mode: digits AND English number words ("two", "twice") in the explanation must be in the
  * quote (as digits or words). "Take four tablets" against "Take 2 tablets" is caught; "two" against "2" is fine.
- * Number words in other languages are not read, so the second-model check still has to certify the explanation.
+ * Number words in Spanish, French, Vietnamese, Korean and Chinese are read too (numberWords.ts); Amharic ones are not,
+ * and prep mode never shows an Amharic explanation. The second-model check still has to certify the explanation.
  */
-export function unexpectedNumbersAnyForm(item: { plain_language: string; when?: string; source_quote: string }): string[] {
-  const allowed = new Set([...numbersIn(item.source_quote), ...numbersIn(item.when ?? "")]);
-  return numbersIn(item.plain_language).filter((n) => !allowed.has(n));
+export function unexpectedNumbersAnyForm(item: { plain_language: string; when?: string; source_quote: string }, language: NumberLanguage = "English"): string[] {
+  const allowed = allowedNumbers(item, language);
+  const inPlain = new Set([...numbersIn(item.plain_language), ...numberWords(item.plain_language, language)]);
+  return [...inPlain].filter((n) => !allowed.has(n));
 }
 
 const ModelOutput = z.object({
@@ -86,8 +105,10 @@ Compare ONLY: the action (start, stop, take, avoid, call, go), the medicine or t
 - "unclear": you are not sure. Prefer "unclear" over guessing "different".
 Do not invent words that are not in the line. Never judge whether the medical advice is good.`;
 
-export function combine(id: string, item: MeaningRequest["items"][number], verdict: MeaningResult["model_verdict"], what: string): MeaningResult {
-  const unexpected = unexpectedNumbers(item);
+export function combine(id: string, item: MeaningRequest["items"][number], verdict: MeaningResult["model_verdict"], what: string, language?: NumberLanguage): MeaningResult {
+  const unexpected = unexpectedNumbers(item, language);
+  // An explanation whose numbers can't be read is never certified; with no clash found it shows as "couldn't check".
+  const uncheckable = numbersUncheckable(item, language);
   return {
     id,
     numbers_ok: unexpected.length === 0,
@@ -96,7 +117,7 @@ export function combine(id: string, item: MeaningRequest["items"][number], verdi
     what_differs: verdict === "same" ? "" : what,
     flagged: unexpected.length > 0 || verdict === "different",
     // "unclear", or a step the checker skipped, is neither flagged nor certified: the UI says it could not double-check it.
-    certified: verdict === "same" && unexpected.length === 0,
+    certified: verdict === "same" && unexpected.length === 0 && !uncheckable,
   };
 }
 
@@ -122,7 +143,7 @@ export async function checkMeaning(req: MeaningRequest): Promise<MeaningResponse
   // An item the model skipped counts as unclear, never as checked.
   const results = req.items.map((i) => {
     const r = byId.get(i.id);
-    return combine(i.id, i, r?.verdict ?? "unclear", r?.what_differs ?? "The checker did not return this step.");
+    return combine(i.id, i, r?.verdict ?? "unclear", r?.what_differs ?? "The checker did not return this step.", req.language);
   });
   return { results, flagged: results.filter((r) => r.flagged).length, checker_model: CHECKER_MODEL, ms: Date.now() - t0 };
 }

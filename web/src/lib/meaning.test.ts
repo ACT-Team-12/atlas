@@ -45,3 +45,40 @@ describe("meaning check: combining the two signals", () => {
     expect(combine("item-0", { ...item, plain_language: "Take 3 pills once a day." }, "same", "").certified).toBe(false);
   });
 });
+
+describe("Codex re-review: number words in every explanation language", () => {
+  const two = "Take 2 tablets by mouth.";
+  it.each<[string, string, string, string]>([
+    ["Spanish", "Tome tres tabletas.", "Tome dos tabletas.", "3"],
+    ["Spanish", "Tome una tableta.", "Tome 2 tabletas.", "1"],
+    ["French", "Prenez trois comprimés.", "Prenez deux comprimés.", "3"],
+    ["Vietnamese", "Uống ba viên.", "Uống hai viên.", "3"],
+    ["Korean", "세 알을 드세요.", "두 알을 드세요.", "3"],
+    ["Chinese", "服用三片。", "服用两片。", "3"],
+    ["Chinese", "一起服用四片。", "一起服用二片。", "4"],
+  ])("%s: %s is caught, %s is not", (language, changed, same, n) => {
+    expect(unexpectedNumbers({ plain_language: changed, source_quote: two }, language as never)).toEqual([n]);
+    expect(unexpectedNumbers({ plain_language: same, source_quote: two }, language as never)).toEqual([]);
+    expect(combine("x", { id: "x", plain_language: changed, when: "", source_quote: two }, "same", "", language as never)).toMatchObject({ flagged: true, certified: false, unexpected_numbers: [n] });
+  });
+
+  it("tens: twenty-four hours in Spanish and French", () => {
+    const q = "Do not eat for 24 hours.";
+    expect(unexpectedNumbers({ plain_language: "No coma durante veinticuatro horas.", source_quote: q }, "Spanish")).toEqual([]);
+    expect(unexpectedNumbers({ plain_language: "No coma durante treinta y seis horas.", source_quote: q }, "Spanish")).toEqual(["36"]);
+    expect(unexpectedNumbers({ plain_language: "Ne mangez rien pendant vingt-quatre heures.", source_quote: q }, "French")).toEqual([]);
+    expect(unexpectedNumbers({ plain_language: "Ne mangez rien pendant quarante-huit heures.", source_quote: q }, "French")).toEqual(["48"]);
+  });
+
+  it("English explanations are read exactly as before (digits only on this path)", () => {
+    expect(unexpectedNumbers({ plain_language: "Take three tablets.", source_quote: two }, "English")).toEqual([]);
+    expect(unexpectedNumbers({ plain_language: "Take three tablets.", source_quote: two })).toEqual([]);
+    expect(unexpectedNumbers({ plain_language: "Take 3 tablets.", source_quote: two }, "English")).toEqual(["3"]);
+  });
+
+  it("Amharic: a line with a number is never certified, since its number words can't be read", () => {
+    const am = { id: "x", plain_language: "ሁለት ጽላቶችን ይውሰዱ።", when: "", source_quote: two };
+    expect(combine("x", am, "same", "", "Amharic").certified).toBe(false);
+    expect(combine("x", { ...am, source_quote: "Take your tablets by mouth." }, "same", "", "Amharic").certified).toBe(true);
+  });
+});

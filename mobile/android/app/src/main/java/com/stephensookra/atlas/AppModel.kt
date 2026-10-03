@@ -122,15 +122,22 @@ class AppModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * The language the steps on screen were written in, for reading them aloud. While the steps are outdated it is still
-     * theirs, not the language just picked, so a Spanish plan is never read with a Vietnamese voice.
+     * theirs, not the language just picked, so a Spanish plan is never read with a Vietnamese voice. Null when an older
+     * file did not record it: then the steps are not read aloud at all rather than with a guessed voice.
      */
-    val stepsLanguage: Language get() = care?.language ?: language
+    val stepsLanguage: Language? get() = care?.language
 
-    /** The steps on screen were read from different text, language or reading level than what is entered now. */
-    val careOutdated: Boolean get() = care != null && readFp != null && readFp != StaleGuard.readFingerprint(text, language, level)
+    /** The steps were saved by an older app that did not record what they were read from: unknown, so outdated. */
+    val careProvenanceUnknown: Boolean get() = care != null && readFp == null
 
-    /** The plan on screen was built from different inputs than what is entered now; its actions are turned off. */
-    val planOutdated: Boolean get() = plan != null && planFp != null && (careOutdated || planFp != currentPlanFingerprint())
+    /** The plan was saved by an older app that did not record what it was built from: unknown, so outdated. */
+    val planProvenanceUnknown: Boolean get() = plan != null && planFp == null
+
+    /** The steps on screen were read from different text, language or reading level than what is entered now, or from unknown inputs. */
+    val careOutdated: Boolean get() = care != null && (readFp == null || readFp != StaleGuard.readFingerprint(text, language, level))
+
+    /** The plan on screen was built from different (or unknown) inputs than what is entered now; its actions are turned off. */
+    val planOutdated: Boolean get() = plan != null && (planFp == null || careOutdated || planFp != currentPlanFingerprint())
 
     private fun currentPlanFingerprint(): String = StaleGuard.planFingerprint(
         items.map { it.id }, barriers.toList(), language, note, StaleGuard.place(location, validZip()), location,
@@ -228,15 +235,10 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         task = viewModelScope.launch {
             try {
                 // An older server leaves out the language; the steps were still written in the one asked for.
-                val result = api.extract(text, level, language).let { if (it.language == null) it.copy(language = language) else it }
-                care = result
-                plan = null
-                planFp = null
-                readFp = StaleGuard.readFingerprint(text, language, level)
-                done.clear(); removed.clear()
-                restoredAt = null
+                val result = api.extract(text, level, language)
+                applyRead(result, text, language, level)
                 busy = null
-                startMeaningCheck(result, language)
+                startMeaningCheck(care ?: result, language)
                 persist(planChanged = true)
                 push(Route.Steps)
             } catch (e: CancellationException) {
@@ -246,6 +248,17 @@ class AppModel(app: Application) : AndroidViewModel(app) {
                 error = e.message
             }
         }
+    }
+
+    /** A read came back for `text` at `language` and `level`: it replaces the steps, drops the plan, and records where it came from. */
+    internal fun applyRead(response: CarePlanResponse, text: String, language: Language, level: ReadingLevel) {
+        // An older server leaves out the language; the steps were still written in the one asked for.
+        care = if (response.language == null) response.copy(language = language) else response
+        plan = null
+        planFp = null
+        readFp = StaleGuard.readFingerprint(text, language, level)
+        done.clear(); removed.clear()
+        restoredAt = null
     }
 
     fun makePlan() {
@@ -332,7 +345,8 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         if (saved.care != null || saved.plan != null) restoredAt = saved.savedAt
         // A check that was still running when the app closed is run again; until it answers, every step is unchecked.
         val c = saved.care
-        if (c != null && saved.meaning.status == MeaningStatus.loading) startMeaningCheck(c, saved.language)
+        // Only for steps whose language is known: a check in a guessed language could certify the wrong explanation.
+        if (c?.language != null && saved.meaning.status == MeaningStatus.loading) startMeaningCheck(c, c.language)
     }
 
     /** `planChanged`: a read, a plan, or a step done or removed, which moves the saved time "Welcome back" shows. */

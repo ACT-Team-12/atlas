@@ -60,8 +60,14 @@ fun PlanScreen(model: AppModel) {
         MedicalNote()
         if (outdated) {
             OutdatedNote(
-                if (model.careOutdated) "You changed your paper's text, language or reading level since this plan was made. Read your paper again first; until then reading aloud, sharing and reminders are off."
-                else "You changed your steps, barriers, language, note or place since this plan was made. Update the plan; until then reading aloud, sharing and reminders are off."
+                when {
+                    model.careProvenanceUnknown || model.planProvenanceUnknown ->
+                        "This plan was saved by an older version of ATLAS, which did not keep what it was made from. " +
+                            (if (model.careOutdated) "Read your paper again first" else "Update the plan") +
+                            "; until then reading aloud, sharing and reminders are off."
+                    model.careOutdated -> "You changed your paper's text, language or reading level since this plan was made. Read your paper again first; until then reading aloud, sharing and reminders are off."
+                    else -> "You changed your steps, barriers, language, note or place since this plan was made. Update the plan; until then reading aloud, sharing and reminders are off."
+                }
             )
             if (!model.careOutdated) PillButton("Update the plan", onClick = { speaker.stop(); model.makePlan() },
                 fill = Palette.ink, textColor = Palette.paper, shadow = Palette.mint)

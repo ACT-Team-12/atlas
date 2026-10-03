@@ -26,21 +26,20 @@ data class SavedSession(
     val savedAt: Long,
 ) {
     /**
-     * A file saved by the 1.0 app has no fingerprints and its steps carry no language, so the outdated note could never show.
-     * Rebuild both from what was saved: the steps were read from the saved text at the saved language and reading level
-     * (1.0 saved the inputs every time they changed, so these are the last ones entered, the best record there is), and the
-     * plan from the steps still kept, the barriers, the note and the ZIP (the device location is never saved). Files that
-     * already carry fingerprints come back unchanged.
+     * Older files are missing provenance, and it is never invented. The 1.0 app saved the text, language, reading level,
+     * barriers, note and ZIP after every edit and never saved the device location, so they say what was entered last,
+     * not what the steps were read from or the plan built from. A missing fingerprint stays missing: AppModel treats it as
+     * unknown and shows the steps and plan as outdated until they are read or planned again.
+     *
+     * The only thing recovered is the steps' language, and only from a read fingerprint that records it (1.1 files kept
+     * the fingerprint but not `care.language`). Without one the language stays unknown, so the steps are never read
+     * aloud with a guessed voice.
      */
     fun upgraded(): SavedSession {
-        val care = care?.let { if (it.language == null) it.copy(language = language) else it }
-        val readFp = readFingerprint ?: care?.let { StaleGuard.readFingerprint(text, it.language ?: language, level) }
-        val planFp = planFingerprint ?: plan?.let {
-            val kept = care?.items.orEmpty().filter { removed[it.id] != true }.map { it.id }
-            val zip = if (Regex("^\\d{5}$").matches(zip)) zip else ""
-            StaleGuard.planFingerprint(kept, barriers, care?.language ?: language, note, StaleGuard.place(null, zip), null)
-        }
-        return copy(care = care, readFingerprint = readFp, planFingerprint = planFp)
+        val c = care ?: return this
+        if (c.language != null) return this
+        val recovered = readFingerprint?.let { StaleGuard.languageOf(it) } ?: return this
+        return copy(care = c.copy(language = recovered))
     }
 }
 

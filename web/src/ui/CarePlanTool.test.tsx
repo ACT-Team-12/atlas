@@ -282,6 +282,8 @@ describe("automatic scroll after a reply", () => {
     act(() => byText("Make my plan").click());
     window.dispatchEvent(new Event("scroll")); // that smooth scroll is still firing scroll events
     await release(req, ready(planFor("The new plan")));
+    expect(scrolls).toEqual(["step-2"]); // waits for that scroll to settle
+    act(() => { window.dispatchEvent(new Event("scrollend")); }); // it arrived where it was going
     expect(scrolls).toEqual(["step-2", "step-3"]);
   });
 });
@@ -411,6 +413,40 @@ describe("the person scrolling while the page's own scroll is still moving", () 
     window.dispatchEvent(new Event("scrollend"));
     await release(req, ready(planFor("The new plan")));
     expect(scrolls).toEqual(["step-2"]);
+  });
+
+  describe("a plan landing while that scroll is still moving waits for it to settle", () => {
+    let rect: typeof Element.prototype.getBoundingClientRect;
+    beforeEach(() => {
+      rect = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function (this: Element) {
+        return { top: this.id === "step-2" ? 1_000 : 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON() {} } as DOMRect;
+      };
+      Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: 5_000 });
+    });
+    afterEach(() => {
+      Element.prototype.getBoundingClientRect = rect;
+      delete (document.documentElement as unknown as { scrollHeight?: number }).scrollHeight;
+    });
+
+    it("a scrollbar drag resting on the path (same way as the page was going) stops the plan scroll", async () => {
+      const req = await readThenPressPlan(); // the page's own scroll: 0 -> 1_000
+      setScrollY(500); // the person drags the same way and stops halfway: on the path, so not yet told apart
+      window.dispatchEvent(new Event("scroll"));
+      await release(req, ready(planFor("The new plan")));
+      expect(scrolls).toEqual(["step-2"]);
+      await act(async () => { await new Promise((r) => setTimeout(r, 1_600)); }); // its time is up, short of the target
+      expect(scrolls).toEqual(["step-2"]);
+    });
+
+    it("the page's scroll arriving at its target lets the plan scroll go", async () => {
+      const req = await readThenPressPlan();
+      setScrollY(1_000);
+      window.dispatchEvent(new Event("scroll"));
+      await release(req, ready(planFor("The new plan")));
+      await act(async () => { await new Promise((r) => setTimeout(r, 1_600)); });
+      expect(scrolls).toEqual(["step-2", "step-3"]);
+    });
   });
 
   it("the page's own scroll ending where it was going does not count", async () => {
@@ -703,6 +739,7 @@ describe("a size change during the page's own scroll", () => {
     const req = await readThenLayoutShift();
     window.dispatchEvent(new Event("scroll"));
     await release(req, ready(planFor("The new plan")));
+    act(() => { window.dispatchEvent(new Event("scrollend")); });
     expect(scrolls).toEqual(["step-2", "step-3"]);
   });
 });

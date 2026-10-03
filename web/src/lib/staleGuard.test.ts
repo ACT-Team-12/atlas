@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  anchorHolds, ANCHOR_MS, isEditable, LAYOUT_SCROLL_MS, NO_LAYOUT_SHIFT, OWN_SCROLL_SLACK_PX, ownScrollEndedByPerson, photoId, rebaseOwnScroll, planFingerprint, planPlace,
+  anchorHolds, ANCHOR_MS, isEditable, LAYOUT_SCROLL_MS, NO_LAYOUT_SHIFT, OWN_SCROLL_SLACK_PX, ownScrollArrived, ownScrollEndedByPerson, photoId, rebaseOwnScroll, planFingerprint, planPlace,
   readFingerprint, scrollIsPersons, shouldAutoScroll,
 } from "./staleGuard";
 
@@ -133,6 +133,12 @@ describe("ownScrollEndedByPerson", () => {
   it("a scroll end right after a size change anywhere else (not the target either) is the person", () => {
     expect(ownScrollEndedByPerson({ y: 3_000, own, layout: { at: 9_950, y: 1_200 }, now: 10_000 })).toBe(true);
   });
+});
+
+describe("ownScrollArrived", () => {
+  const own = { start: 9_000, until: 10_500, from: 0, to: 1_000 };
+  it("at its target (within the slack) it arrived", () => expect(ownScrollArrived({ y: 1_000 - OWN_SCROLL_SLACK_PX, own })).toBe(true));
+  it("still on the way there, it was stopped", () => expect(ownScrollArrived({ y: 500, own })).toBe(false));
 });
 
 describe("rebaseOwnScroll", () => {

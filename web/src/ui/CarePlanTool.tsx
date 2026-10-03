@@ -26,7 +26,7 @@ import {
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
 import {
-  anchorHolds, isEditable, NO_LAYOUT_SHIFT, OWN_INSTANT_SCROLL_MS, OWN_SCROLL_MS, ownScrollEndedByPerson, photoId, planFingerprint, planPlace, readFingerprint, rebaseOwnScroll,
+  anchorHolds, isEditable, NO_LAYOUT_SHIFT, OWN_INSTANT_SCROLL_MS, ownScrollArrived, OWN_SCROLL_MS, ownScrollEndedByPerson, photoId, planFingerprint, planPlace, readFingerprint, rebaseOwnScroll,
   scrollIsPersons, shouldAutoScroll, type LayoutShift, type OwnScroll,
 } from "@/lib/staleGuard";
 import { SPEECH_LANG } from "@/lib/speechLang";
@@ -157,6 +157,8 @@ function SourceLink({ href, label, off }: { href: string; label: string; off?: s
   return off ? <span>{label}</span> : <a className="underline" href={href} target="_blank" rel="noreferrer">{label}</a>;
 }
 
+type ScrollRequest = { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number };
+
 /** The fingerprint of a save from before results were checked against answers: no inputs ever match it. */
 const UNMATCHED_SAVE = "saved-before-results-were-checked";
 
@@ -241,6 +243,11 @@ export function CarePlanTool() {
   // The page's own automatic scroll in progress (where it is headed), and when the page last changed size.
   // Scrolls along that path, or caused by a size change, are not the person and do not cancel an automatic scroll.
   const ownScroll = useRef<OwnScroll | null>(null);
+  // An automatic scroll asked for while the page's own scroll is still moving waits until that one settles:
+  // only then can a scrollbar drag along the same path be told from it.
+  const waitingScroll = useRef<ScrollRequest | null>(null);
+  const waitingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const runScrollRef = useRef<(req: ScrollRequest) => void>(() => {});
   const ownScrollEl = useRef<HTMLElement | null>(null);
   // Device location requests: a generation so only the latest answer counts, and whether one is out.
   const locGen = useRef(0);
@@ -728,6 +735,7 @@ export function CarePlanTool() {
       ownScroll.current = null;
       const now = performance.now();
       if (now <= own.until && ownScrollEndedByPerson({ y: window.scrollY, own, layout: layoutShift.current, now })) lastInteraction.current = now;
+      releaseWaitingScroll();
     };
     window.addEventListener("scroll", onScroll, opts);
     window.addEventListener("scrollend", onScrollEnd, opts);
@@ -746,8 +754,35 @@ export function CarePlanTool() {
       window.removeEventListener("scroll", onScroll, opts);
       window.removeEventListener("scrollend", onScrollEnd, opts);
       ro?.disconnect();
+      if (waitingTimer.current) clearTimeout(waitingTimer.current);
+      waitingScroll.current = null;
     };
+    // Reads refs only (runScrollRef holds the latest runScroll).
   }, []);
+
+  /** The waiting automatic scroll goes now (checked again against use of the page), or is dropped. */
+  function releaseWaitingScroll() {
+    if (waitingTimer.current) { clearTimeout(waitingTimer.current); waitingTimer.current = null; }
+    const req = waitingScroll.current;
+    waitingScroll.current = null;
+    if (req) runScrollRef.current(req);
+  }
+
+  /** Waits for the page's own scroll to settle: at scrollend, or when its time is up, short of its target counting as the person. */
+  function waitForOwnScroll(req: ScrollRequest, own: OwnScroll) {
+    waitingScroll.current = req;
+    if (waitingTimer.current) clearTimeout(waitingTimer.current);
+    waitingTimer.current = setTimeout(() => {
+      waitingTimer.current = null;
+      if (!waitingScroll.current) return;
+      const still = ownScroll.current;
+      if (still === own) {
+        ownScroll.current = null;
+        if (!ownScrollArrived({ y: window.scrollY, own })) lastInteraction.current = performance.now();
+      }
+      releaseWaitingScroll();
+    }, Math.max(0, own.until - performance.now()) + 20);
+  }
 
   function markOwnScroll(s: PageScroll | null) {
     if (!s) return;
@@ -756,12 +791,16 @@ export function CarePlanTool() {
     ownScrollEl.current = s.el;
   }
 
-  function runScroll(req: { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number }) {
+  function runScroll(req: ScrollRequest) {
     // An automatic scroll is checked again here: a tap or scroll since the button press cancels it.
     if (req.submittedAt !== undefined && !autoScrollOk(req.submittedAt)) { scrollAnchor.current = null; return; }
+    const own = ownScroll.current;
+    if (req.submittedAt !== undefined && own && performance.now() <= own.until) return waitForOwnScroll(req, own);
     markOwnScroll(scrollToPanel(req.t, req.onlyIfHidden));
     scrollAnchor.current = req.anchor ? { t: req.t, at: performance.now() } : null;
   }
+
+  runScrollRef.current = runScroll;
 
   // A read or plan whose inputs changed while it was pending is stopped, so its late reply can't land.
   useEffect(() => {

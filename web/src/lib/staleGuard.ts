@@ -128,6 +128,14 @@ export function ownScrollEndedByPerson(s: { y: number; own: OwnScroll; layout: L
 }
 
 /**
+ * Did the page's own scroll arrive where it was going? A scroll still between start and target when its time is
+ * up was stopped (a scrollbar drag the same way looks like the page's own scroll until then).
+ */
+export function ownScrollArrived(s: { y: number; own: OwnScroll }): boolean {
+  return Math.abs(s.y - s.own.to) <= OWN_SCROLL_SLACK_PX;
+}
+
+/**
  * The page changed size while its own scroll was moving: content above the target grew or shrank, and the
  * browser shifted the view. Re-aim the path from where the page is now to where the target sits now.
  */

@@ -82,6 +82,7 @@ const WORD_CHAR =
   /[A-Za-z0-9\u00AA\u00B2\u00B3\u00B5\u00B9\u00BA\u00BC-\u00BE\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0300-\u036F\u0370-\u03FF\u0400-\u052F\u0530-\u058F\u0590-\u05FF\u0600-\u06FF\u0900-\u097F\u10A0-\u10FF\u1200-\u139F\u1E00-\u1FFF\u2070-\u209F\u2150-\u218F\uFF10-\uFF19\uFF21-\uFF3A\uFF41-\uFF5A]/;
 /** A character that can join two runs of digits into one number: . , / ⁄ ∕ ' and a space. */
 const NUMBER_JOIN = /[.,/\u2044\u2215' ]/;
+const FRACTION_SLASH = /[/\u2044\u2215]/;
 /** A digit, in any of the digit sets above. */
 const DIGIT = /[0-9\u0660-\u0669\u06F0-\u06F9\u0966-\u096F\uFF10-\uFF19]/;
 
@@ -99,7 +100,20 @@ function onBoundary(norm: string, f: string, at: number): boolean {
   // between digits ("1 500", or the "1 1/2" of a mixed fraction): "2 tablets" is not in "1/2 tablets" (Codex round 10).
   if (DIGIT.test(f[0]) && NUMBER_JOIN.test(before) && DIGIT.test(norm[at - 2] ?? "")) return false;
   if (DIGIT.test(f[f.length - 1]) && NUMBER_JOIN.test(after) && DIGIT.test(norm[end + 1] ?? "")) return false;
+  // A fraction slash with a space on either side ("1 / 2", "3 ⁄ 4") still joins the two numbers (Codex round 11).
+  if (DIGIT.test(f[0]) && spacedSlash(norm, at - 1, -1)) return false;
+  if (DIGIT.test(f[f.length - 1]) && spacedSlash(norm, end, 1)) return false;
   return true;
+}
+
+/** From `i` walking in `step` direction: an optional space, a fraction slash, an optional space, then a digit. */
+function spacedSlash(norm: string, i: number, step: 1 | -1): boolean {
+  let j = i;
+  if (norm[j] === " ") j += step;
+  if (!FRACTION_SLASH.test(norm[j] ?? "")) return false;
+  j += step;
+  if (norm[j] === " ") j += step;
+  return DIGIT.test(norm[j] ?? "");
 }
 
 export function findSpan(source: string, quote: string): { start: number; end: number } | null {

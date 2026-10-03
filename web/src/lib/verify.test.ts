@@ -162,6 +162,9 @@ describe("Codex round 9: a quote must match whole words and whole numbers", () =
     ["Take 1 500 mg.", "500 mg"],
     ["Take 1’500 mg.", "500 mg"],
     ["Take 1 1/2 tablets.", "Take 1"],
+    ["Take 1 / 2 tablet daily.", "2 tablet daily"],
+    ["Take 3 \u2044 4 cup.", "4 cup"],
+    ["Take 1 /2 tablet daily.", "Take 1"],
   ])("%j does not ground %j", (paper, quote) => {
     expect(findSpan(paper, quote)).toBeNull();
     expect(verifyItems(paper, [item(quote)]).kept).toEqual([]);

@@ -266,7 +266,38 @@ fn on_boundary(norm: &[u16], f: &[u16], at: usize) -> bool {
     if digit(last) && sep(after) && digit(after2) {
         return false;
     }
+    // A fraction slash with a space on either side ("1 / 2", "3 \u{2044} 4") still joins the two numbers.
+    if digit(first) && at > 0 && spaced_slash(norm, at as isize - 1, -1) {
+        return false;
+    }
+    if digit(last) && spaced_slash(norm, end as isize, 1) {
+        return false;
+    }
     true
+}
+
+/// `spacedSlash` from verify.ts: from `i` walking in `step` direction, an optional space, a fraction slash, an
+/// optional space, then a digit.
+fn spaced_slash(norm: &[u16], i: isize, step: isize) -> bool {
+    let at = |j: isize| -> Option<u16> {
+        if j < 0 {
+            None
+        } else {
+            norm.get(j as usize).copied()
+        }
+    };
+    let mut j = i;
+    if at(j) == Some(0x20) {
+        j += step;
+    }
+    if !matches!(at(j), Some(0x2F | 0x2044 | 0x2215)) {
+        return false;
+    }
+    j += step;
+    if at(j) == Some(0x20) {
+        j += step;
+    }
+    at(j).is_some_and(is_digit_unit)
 }
 
 /// `findSpan` from verify.ts. `None` is the TS `null`: the quote is not in the paper and the step is refused.

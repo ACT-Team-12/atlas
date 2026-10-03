@@ -165,6 +165,10 @@ fn a_quote_must_match_whole_words_and_whole_numbers() {
     assert_eq!(find_span("Take 1 500 mg.", "500 mg"), None);
     assert_eq!(find_span("Take 1\u{2019}500 mg.", "500 mg"), None);
     assert_eq!(find_span("Take 1 1/2 tablets.", "Take 1"), None);
+    // ...and a fraction slash with spaces around it (Codex round 11).
+    assert_eq!(find_span("Take 1 / 2 tablet daily.", "2 tablet daily"), None);
+    assert_eq!(find_span("Take 3 \u{2044} 4 cup.", "4 cup"), None);
+    assert_eq!(find_span("Take 1 /2 tablet daily.", "Take 1"), None);
     // Arabic-Indic and fullwidth digits count as digits too.
     assert_eq!(find_span("Use \u{0663}10 mg.", "10 mg"), None);
     assert_eq!(find_span("Use \u{FF11}10 mg.", "10 mg"), None);

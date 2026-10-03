@@ -156,3 +156,24 @@ describe("Codex review: every Unicode line break ends a line", () => {
     expect(readWhen(`Bring your ID${br}2 hours before your procedure`).reason).toBe("multi_line");
   });
 });
+
+describe("Codex review: \"before your arrival\" is a time, not an arrival", () => {
+  it.each<[string, Slot]>([
+    ["Stop drinking 2 hours before your arrival.", "hours_before"],
+    ["Stop drinking 2 hours before you arrive.", "hours_before"],
+    ["Stop drinking all liquids 2 hours before your arrival time.", "hours_before"],
+    ["Take your blood pressure pill 1 hour before your arrival.", "hours_before"],
+    ["Take your blood pressure pill 1 hour before you arrive.", "hours_before"],
+    ["Take your seizure medicine 2 hours prior to your arrival.", "hours_before"],
+    ["Stop drinking 2 hours before you check in.", "hours_before"],
+  ])("%s", (q, slot) => expect(placed(q)).toBe(slot));
+
+  it.each<[string, Slot]>([
+    ["Arrive at 7:30 AM.", "arrival"],
+    ["Arrive at 7:30 AM at the main entrance.", "arrival"],
+    ["Please arrive 1 hour before your procedure.", "arrival"],
+    ["Check in at 6:45 AM on the 2nd floor.", "arrival"],
+    ["Your arrival time is 7:30 AM.", "arrival"],
+    ["Check in 30 minutes before you arrive at the desk.", "arrival"],
+  ])("a genuine arrival stays an arrival: %s", (q, slot) => expect(placed(q)).toBe(slot));
+});

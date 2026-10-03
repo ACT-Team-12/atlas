@@ -64,7 +64,16 @@ const BEFORE = String.raw`(?:before|prior\s+to)`;
 /** A clock time: "8 PM", "7:30 a.m.", "noon". Midnight is read separately: alone it is a time with no day. */
 const CLOCK = /(?<![\w:])(?:\d{1,2}(?::\d{2})?\s?(?:[ap]\.\s?m\.|[ap]\s?m)(?![a-z])|noon)/gi;
 const MIDNIGHT = /\bmidnight\b/gi;
-const ARRIVE = /\b(?:arrive|arrival|check[- ]?in|check in)\b/i;
+/**
+ * An arrival is a step whose action is to arrive or check in ("Arrive at 7:30 AM", "Check in 1 hour before your
+ * procedure", "Your arrival time is 7:30 AM"). "Stop drinking 2 hours before your arrival" or "before you arrive" uses the
+ * arrival only as the moment it counts back from, so those words are taken out (ARRIVAL_AS_TIME) before this is tested.
+ */
+const ARRIVE = /\b(?:arrive|check[- ]?in)\b|\barrival\s+(?:time|is|at)\b/i;
+const ARRIVAL_AS_TIME = new RegExp(
+  String.raw`\b(?:${BEFORE}|after|until|till|by)\s+(?:you\s+(?:arrive|check[- ]?in)|(?:your|the)\s+(?:arrival|check[- ]?in)(?:\s+time)?)\b`,
+  "gi",
+);
 
 /**
  * Every character that ends a line. CR and LF are not the only ones: U+0085 (next line), U+2028 (line separator),
@@ -93,7 +102,7 @@ function dayHits(t: string): Hit[] {
   add(new RegExp(String.raw`(?<!\b${NUM}\s+)\b(?:the\s+)?day\s+${BEFORE}\s+${TARGET}`, "gi"), () => "day_before");
   add(new RegExp(String.raw`\b(?:the\s+)?(?:night|evening)\s+${BEFORE}\s+${TARGET}`, "gi"), () => "evening_before");
   // "2 hours before your procedure", "30 minutes before your arrival", "1 hour before you arrive" (no day is said)
-  add(new RegExp(String.raw`\b${NUM}\s+(?:hours?|hrs?|minutes?|mins?)\s+(?:${BEFORE}\s+${TARGET}|before\s+you\s+arrive\b)`, "gi"), () => "hours_before");
+  add(new RegExp(String.raw`\b${NUM}\s+(?:hours?|hrs?|minutes?|mins?)\s+(?:${BEFORE}\s+${TARGET}|${BEFORE}\s+you\s+(?:arrive|check[- ]?in)\b)`, "gi"), () => "hours_before");
   add(new RegExp(String.raw`\b(?:the\s+)?morning\s+of\s+${TARGET}`, "gi"), () => "morning_of");
   // "On the day of your procedure" says the day, not the morning: a procedure can be in the afternoon.
   add(new RegExp(String.raw`\b(?:on\s+)?the\s+day\s+of\s+${TARGET}`, "gi"), () => "day_of");
@@ -132,7 +141,8 @@ export function readWhen(quote: string, multiLine = false): WhenRead {
 
   let slots = new Set(days.map((h) => h.slot));
   // "Arrive at 7:00 AM", "Check in 1 hour before": an arrival with its own time. It happens on the day itself.
-  const arrivalTimed = ARRIVE.test(t) && (clocks.length > 0 || slots.has("hours_before"));
+  // Only when arriving is the action: "Stop drinking 2 hours before your arrival" stays "in the hours before".
+  const arrivalTimed = ARRIVE.test(t.replace(ARRIVAL_AS_TIME, " ")) && (clocks.length > 0 || slots.has("hours_before"));
   if (arrivalTimed) {
     const rest = [...slots].filter((s) => s !== "day_of" && s !== "morning_of" && s !== "hours_before");
     return rest.length ? { slot: null, reason: "conflict", words } : { slot: "arrival", reason: "placed", words };

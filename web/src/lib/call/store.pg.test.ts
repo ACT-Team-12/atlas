@@ -9,6 +9,10 @@ import { ensureSchema, PgCallStore, reserveSlots, WIPE, type NewSession } from "
  */
 const url = process.env.CALL_TEST_DATABASE_URL;
 const NOW = Date.UTC(2026, 9, 2, 15, 0, 0);
+if (!url) {
+  // Not a silent pass: say what did not run. (CI has no Postgres yet; a later change adds one and makes this required.)
+  console.warn(`store.pg.test.ts SKIPPED: CALL_TEST_DATABASE_URL is not set${process.env.CI ? " (CI)" : ""}, so the call SQL was not run against Postgres.`);
+}
 
 describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
   let pool: Pool;

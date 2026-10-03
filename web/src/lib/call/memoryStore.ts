@@ -1,4 +1,4 @@
-import { CODE_ATTEMPTS, COUNTER_TTL_MS, PLAN_CALL_MAX_MS, UNCONFIRMED_PLAN_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
+import { refuseStale, CODE_ATTEMPTS, COUNTER_TTL_MS, PLAN_CALL_MAX_MS, UNCONFIRMED_PLAN_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
 
 /**
  * An in-memory CallStore with the same rules as PgCallStore (one live code per number, atomic attempts, capped
@@ -28,6 +28,7 @@ export class MemoryCallStore implements CallStore {
       }
     }
     for (const [k, end] of this.counterEnds) if (end < now) { this.counterEnds.delete(k); this.counters.delete(k); }
+    return true;
   }
 
   async startCode(s: NewSession, now: number) {
@@ -57,7 +58,7 @@ export class MemoryCallStore implements CallStore {
     const r = this.rows.get(id);
     if (!r || r.expires_at.getTime() <= now) return null;
     const { sealed_audio, ...row } = r;
-    return { ...row, has_audio: sealed_audio !== null };
+    return refuseStale({ ...row, has_audio: sealed_audio !== null }, now);
   }
 
   async getAudio(id: string, now: number) {

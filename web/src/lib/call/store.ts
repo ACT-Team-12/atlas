@@ -54,8 +54,8 @@ export type SessionPatch = Partial<Pick<SessionRow, "phase" | "code_hash" | "cod
 export const WIPE: SessionPatch = { sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null, code_hash: null };
 
 export interface CallStore {
-  /** Deletes expired sessions and counters. */
-  sweep(now: number): Promise<void>;
+  /** Deletes expired sessions and counters and wipes sessions that can go no further. False on a database error. */
+  sweep(now: number): Promise<boolean>;
   /** Inserts a session in phase "code", unless this number already has a live code ("in-flight"). */
   startCode(s: NewSession, now: number): Promise<"ok" | "in-flight" | "error">;
   drop(id: string): Promise<void>;
@@ -137,6 +137,19 @@ export async function ensureSchema(db: Q): Promise<boolean> {
   }
 }
 
+/**
+ * Read-time retention: whatever the sweep has or has not done yet, a session past its limits never hands out its
+ * encrypted data. A code nobody typed within 10 minutes, a plan call Vonage never confirmed within 5, or any plan call
+ * past its longest possible length reads as wiped (and the row itself is invisible past 30 minutes).
+ */
+export function refuseStale(row: SessionRow, now: number): SessionRow {
+  const placed = row.placed_at?.getTime();
+  const codeOver = row.phase === "code" && (row.code_expires_at?.getTime() ?? 0) <= now;
+  const planOver = row.phase === "calling" && placed !== undefined
+    && ((row.plan_status === "unknown" && placed < now - UNCONFIRMED_PLAN_MS) || placed < now - PLAN_CALL_MAX_MS);
+  return codeOver || planOver ? { ...row, code_hash: null, sealed_phone: null, sealed_text: null, sealed_token: null, has_audio: false } : row;
+}
+
 const COLS = "id, phone_hash, last4, language, phase, code_hash, attempts, code_expires_at, code_status, plan_status, plan_mode, note, code_uuid, plan_uuid, placed_at, sealed_phone, sealed_text, sealed_token, (sealed_audio is not null) as has_audio, created_at, expires_at";
 const PATCHABLE = new Set(["phase", "code_hash", "code_status", "plan_status", "plan_mode", "note", "code_uuid", "plan_uuid", "sealed_phone", "sealed_text", "sealed_token", "sealed_audio"]);
 const logErr = (what: string, e: unknown) => console.error(what, e instanceof Error ? e.name : typeof e); // never values
@@ -161,7 +174,11 @@ export class PgCallStore implements CallStore {
         [new Date(now - UNCONFIRMED_PLAN_MS), new Date(now - PLAN_CALL_MAX_MS)],
       );
       await this.db.query("delete from atlas_call_counters where expires_at < $1", [at]);
-    } catch (e) { logErr("call sweep failed", e); }
+      return true;
+    } catch (e) {
+      logErr("call sweep failed", e);
+      return false;
+    }
   }
 
   async startCode(s: NewSession, now: number) {
@@ -203,7 +220,8 @@ export class PgCallStore implements CallStore {
   async get(id: string, now: number) {
     try {
       const r = await this.db.query(`select ${COLS} from atlas_calls where id = $1 and expires_at > $2`, [id, new Date(now)]);
-      return (r.rows[0] as SessionRow | undefined) ?? null;
+      const row = (r.rows[0] as SessionRow | undefined) ?? null;
+      return row && refuseStale(row, now);
     } catch (e) {
       logErr("call get failed", e);
       return null;

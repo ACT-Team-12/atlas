@@ -321,7 +321,7 @@ export async function handleInput(deps: Hook, t: CallTicket, digits: unknown, uu
 export async function audioFor(deps: Pick<Deps, "store" | "cfg" | "now">, t: CallTicket): Promise<Buffer | null> {
   const now = deps.now ?? Date.now();
   const row = await deps.store.get(t.k, now);
-  if (!row || row.phase !== "calling") return null;
+  if (!row || row.phase !== "calling" || !row.has_audio || !row.sealed_text) return null; // refused when stale (store.refuseStale)
   return open(deps.cfg.secret, "audio", t.k, await deps.store.getAudio(t.k, now), now);
 }
 

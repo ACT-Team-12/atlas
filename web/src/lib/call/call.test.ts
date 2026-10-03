@@ -621,6 +621,22 @@ describe("the call flow", () => {
     });
   });
 
+  it("refuses a stale session's data at read time even before any sweep runs", async () => {
+    const id = await started();
+    const late = await store.get(id, NOW + 10 * 60_000 + 1); // code untyped past 10 minutes, not swept
+    expect([late?.sealed_phone, late?.sealed_text, late?.sealed_token, late?.code_hash]).toEqual([null, null, null, null]);
+    expect((await store.get(id, NOW))?.sealed_text).not.toBeNull();
+  });
+
+  it("refuses a plan call's audio and text past its longest possible length, before any sweep", async () => {
+    const id = await started();
+    await verifyAndCall(deps(), { id, code: "4821" });
+    const at = NOW + 18 * 60_000;
+    expect(await audioFor({ store, cfg, now: at }, { k: id, p: "audio", exp: at + 60_000 })).toBeNull();
+    truth.set("call-2", { status: "answered" });
+    expect((await handleInput(hk({ now: at }), { k: id, p: "input", n: 0, exp: at + 60_000 }, "1", "call-2")).map((a) => a.action)).toEqual(["talk"]);
+  });
+
   it("is gone after 30 minutes", async () => {
     const id = await started();
     expect(publicStatus(await store.get(id, NOW + 31 * 60_000))).toEqual({ phase: "gone" });

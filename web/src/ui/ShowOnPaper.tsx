@@ -5,6 +5,8 @@ import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { guessOcrLang, spanContext, type Bbox } from "@/lib/paperMatch";
 import { locateOnPhoto, progressMessage, UNSUPPORTED_MESSAGE, type Stage } from "@/lib/photoLocate";
 import type { OcrPage } from "@/lib/paperOcr";
+import type { Check } from "@/lib/paperFirst";
+import { shortQuote } from "@/lib/stepsView";
 
 /**
  * "Show on my paper": one tap shows where a step's words are on the person's own paper.
@@ -13,7 +15,7 @@ import type { OcrPage } from "@/lib/paperOcr";
  * English and Spanish), we say so and show the text view instead. Nothing new leaves
  * the device: the text is already here, and the photo is read in this browser tab.
  */
-export function ShowOnPaper({ care, item, photo }: { care: CarePlanResponse; item: VerifiedItem; photo: File | null }) {
+export function ShowOnPaper({ care, item, photo, check }: { care: CarePlanResponse; item: VerifiedItem; photo: File | null; check: Check }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -25,10 +27,12 @@ export function ShowOnPaper({ care, item, photo }: { care: CarePlanResponse; ite
   }, [open]);
 
   if (!spanContext(care.source_text, item.span)) return null;
+  // Paper first (lib/paperFirst.ts): the AI's title names the step only when it was certified; otherwise the paper's words do.
+  const name = check === "certified" ? item.title : `“${shortQuote(item.source_quote, 48)}”`;
   const readsPhoto = care.source_kind === "image" && photo !== null && guessOcrLang(care.source_text) !== null;
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} aria-label={`Show on my paper: ${item.title}`} aria-haspopup="dialog"
+      <button type="button" onClick={() => setOpen(true)} aria-label={`Show on my paper: ${name}`} aria-haspopup="dialog"
         className="mt-2 rounded-full border-2 border-ink bg-paper px-3 py-1 text-xs font-bold hover:bg-mint">
         📄 Show on my paper
       </button>
@@ -40,7 +44,7 @@ export function ShowOnPaper({ care, item, photo }: { care: CarePlanResponse; ite
             <div className="flex items-start gap-3 border-b-2 border-ink/20 p-4">
               <div className="flex-1">
                 <h2 id={titleId} className="display text-2xl">On your paper</h2>
-                <p className="mt-1 text-sm font-bold">{item.title}</p>
+                <p className="mt-1 text-sm font-bold">{name}</p>
               </div>
               <button type="button" onClick={() => ref.current?.close()}
                 className="rounded-full border-2 border-ink px-4 py-2 text-sm font-bold hover:bg-mint">Close</button>

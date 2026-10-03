@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
-import { guessOcrLang, matchOnPhoto, spanContext, type Bbox } from "@/lib/paperMatch";
+import { spanContext, type Bbox } from "@/lib/paperMatch";
+import { locateOnPhoto, progressMessage, type Stage } from "@/lib/photoLocate";
 import type { OcrPage } from "@/lib/paperOcr";
 
 /**
@@ -56,28 +57,24 @@ export function ShowOnPaper({ care, item, photo }: { care: CarePlanResponse; ite
 }
 
 type PhotoState =
-  | { kind: "reading"; stage: "loading" | "reading"; pct: number }
+  | { kind: "reading"; stage: Stage; pct: number; message: string }
   | { kind: "found"; page: OcrPage; boxes: Bbox[]; matched: number; total: number; url: string }
   | { kind: "not_found" }
   | { kind: "error" };
 
 function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: VerifiedItem; photo: File | null; statusId: string }) {
-  const [state, setState] = useState<PhotoState>({ kind: "reading", stage: "loading", pct: 0 });
+  const [state, setState] = useState<PhotoState>({ kind: "reading", stage: "loading", pct: 0, message: progressMessage("loading", 0) });
 
   useEffect(() => {
     if (!photo) return;
     let live = true;
     let url: string | null = null;
-    import("@/lib/paperOcr")
-      .then(({ readPhoto }) => readPhoto(photo, guessOcrLang(care.source_text), (stage, f) => {
-        if (live) setState({ kind: "reading", stage, pct: Math.round(f * 100) });
-      }))
-      .then((page) => {
+    locateOnPhoto(care.source_text, item.span, photo, (p) => { if (live) setState({ kind: "reading", ...p }); })
+      .then((r) => {
         if (!live) return;
-        const m = matchOnPhoto(care.source_text, item.span, page.words);
-        if (m.status !== "found") { setState({ kind: "not_found" }); return; }
+        if (r.kind !== "found") { setState({ kind: "not_found" }); return; }
         url = URL.createObjectURL(photo);
-        setState({ kind: "found", page, boxes: m.boxes, matched: m.matched, total: m.total, url });
+        setState({ ...r, url });
       })
       .catch(() => { if (live) setState({ kind: "error" }); });
     return () => { live = false; if (url) URL.revokeObjectURL(url); };
@@ -99,9 +96,7 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
     return (
       <div aria-busy="true">
         <p id={statusId} role="status" className="text-sm font-bold">
-          {state.stage === "loading"
-            ? "Getting the reader ready on this device (the first time it downloads about 7 MB)..."
-            : `Reading your photo on this device... ${state.pct}%`}
+          {state.message}
         </p>
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-mint-soft" aria-hidden="true">
           <div className="h-full bg-teal" style={{ width: `${state.stage === "reading" ? state.pct : 5}%` }} />

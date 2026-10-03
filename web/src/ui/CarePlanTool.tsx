@@ -1,6 +1,6 @@
 "use client";
 
-import { careStepView, checkOf, type Check } from "@/lib/paperFirst";
+import { bookSafe, careStepView, checkedText, checkOf, type Check } from "@/lib/paperFirst";
 import { PaperFirst } from "./PaperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -361,7 +361,8 @@ export function CarePlanTool() {
       const res = await fetch("/api/meaning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language: c.language, items: c.items.slice(0, 40).map(({ id, plain_language, when, source_quote }) => ({ id, plain_language, when, source_quote })) }),
+        // The title is shown with a certified step, so it is checked with the explanation (Codex round 13).
+        body: JSON.stringify({ language: c.language, items: c.items.slice(0, 40).map(({ id, title, plain_language, when, source_quote }) => ({ id, plain_language: checkedText(title, plain_language), when, source_quote })) }),
       });
       const json: MeaningResponse = await res.json();
       if (meaningFor.current !== key) return; // a newer paper was read meanwhile
@@ -733,11 +734,11 @@ export function CarePlanTool() {
               )}
               <div className="mt-4 grid gap-5 lg:grid-cols-[1.15fr_1fr]">
                 <ul className="space-y-3">
-                  {items.map((it) => (
+                  {items.map((it, n) => (
                     <li key={it.id} onMouseEnter={() => setActive(it.id)} onMouseLeave={() => setActive(null)}
                       className={`rounded-2xl border-2 p-4 ${it.kind === "warning_sign" ? "border-red bg-red-soft/50" : "border-ink/70 bg-paper"}`}>
                       <div className="flex items-start gap-3">
-                        <input type="checkbox" aria-label={`Mark ${it.title} done`} className="mt-1 h-5 w-5 accent-[var(--teal)]"
+                        <input type="checkbox" aria-label={`Mark step ${n + 1} done`} className="mt-1 h-5 w-5 accent-[var(--teal)]"
                           checked={!!done[it.id]} onChange={(e) => setDone((d) => ({ ...d, [it.id]: e.target.checked }))} />
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2">
@@ -770,7 +771,7 @@ export function CarePlanTool() {
                             <p className="mt-1 text-[11px] font-semibold text-ink/70">Not double-checked: our second check couldn&apos;t confirm this one. Read the line from your paper above.</p>
                           )}
                         </div>
-                        <button type="button" aria-label={`Remove ${it.title}`} className="text-xs font-bold text-ink/70 hover:text-red"
+                        <button type="button" aria-label={`Remove step ${n + 1}`} className="text-xs font-bold text-ink/70 hover:text-red"
                           onClick={() => setRemoved((r) => ({ ...r, [it.id]: true }))}>Remove</button>
                       </div>
                     </li>
@@ -789,7 +790,7 @@ export function CarePlanTool() {
                       <ul className="mt-2 space-y-1">
                         {removedItems.map((r) => (
                           <li key={r.id} className="flex items-center justify-between gap-2">
-                            <span>{r.title}</span>
+                            <span data-paper-quote="">{KIND[r.kind]?.label ?? "Step"}: your paper says &ldquo;{r.source_quote}&rdquo;</span>
                             <button type="button" className="font-bold underline" onClick={() => setRemoved((x) => { const n = { ...x }; delete n[r.id]; return n; })}>Undo</button>
                           </li>
                         ))}
@@ -806,9 +807,10 @@ export function CarePlanTool() {
                   {care.refused.length > 0 && (
                     <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4">
                       <p className="font-extrabold">Held back to protect you ({care.refused.length})</p>
-                      <p className="text-xs text-ink/70">The AI suggested these, but we couldn&apos;t show their words from your paper.</p>
-                      <ul className="mt-2 list-disc pl-5 text-sm">{care.refused.map((r) => (
-                        <li key={r.id}>{r.title}{r.held_reason === "sentence_too_long" ? " (its sentence in your paper is too long to show here: read it in your paper)" : r.held_reason === "skips_across" ? " (its words come from different lines of your paper, so it can't be shown as one step)" : ""}</li>
+                      <p className="text-xs text-ink/70">The AI suggested these, but we couldn&apos;t show their words from your paper, so we don&apos;t show what it said. Read your paper itself.</p>
+                      {/* Never the AI's title: a held-back step has no paper words to stand next to it (Codex round 13). */}
+                      <ul className="mt-2 list-disc pl-5 text-sm">{care.refused.map((r, n) => (
+                        <li key={r.id}>Held back {n + 1}: {r.held_reason === "sentence_too_long" ? "its sentence in your paper is too long to show here." : r.held_reason === "skips_across" ? "its words come from different lines of your paper." : "its words are not in your paper."}</li>
                       ))}</ul>
                     </div>
                   )}
@@ -907,7 +909,7 @@ export function CarePlanTool() {
                     </div>
                   )}
                   {[...bookAt.values()].includes(i) && (
-                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean)} barriers={barriers} language={language} />
+                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean).map((i) => bookSafe(i, checkFor(i.id)))} barriers={barriers} language={language} />
                   )}
                 </li>
               ))}

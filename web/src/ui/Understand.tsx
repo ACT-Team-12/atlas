@@ -50,7 +50,9 @@ export function Understand({ care, items, language }: Props) {
   // Finished only after the person taps past the last answer, so they always see what their paper says on it.
   const finished = qs.length > 0 && at >= qs.length;
   const lookAgain = qs.filter((x) => { const t = tries[x.item_id] ?? []; return t.length > 0 && t[0] !== x.correct; });
-  const titleOf = (id: string) => items.find((i) => i.id === id)?.title ?? "";
+  // Never the AI's title (it is not checked): the step's number in the list, and the paper's words where it matters.
+  const titleOf = (id: string) => `step ${items.findIndex((i) => i.id === id) + 1}`;
+  const quoteOf = (id: string) => items.find((i) => i.id === id)?.source_quote ?? "";
   const proof = (x: CheckedQuestion) => care.source_text.slice(x.span.start, x.span.end);
 
   return (
@@ -108,7 +110,10 @@ export function Understand({ care, items, language }: Props) {
           <div className="mt-5 rounded-xl bg-mint-soft p-4">
             <p className="text-lg font-extrabold">You matched your paper on {firstTry} of {qs.length} on the first try.</p>
             {lookAgain.length > 0 ? (
-              <p className="mt-1 font-semibold">Worth a second look, or a question for your clinic: {lookAgain.map((x) => titleOf(x.item_id)).join(", ")}.</p>
+              <div className="mt-1 font-semibold">
+                <p>Worth a second look, or a question for your clinic:</p>
+                <ul className="mt-1 list-disc pl-5 text-sm">{lookAgain.map((x) => <li key={x.item_id} data-paper-quote="">Your paper says: &ldquo;{quoteOf(x.item_id)}&rdquo;</li>)}</ul>
+              </div>
             ) : (
               <p className="mt-1 font-semibold">Nice. You got every step right the first time.</p>
             )}

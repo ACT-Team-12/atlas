@@ -79,3 +79,18 @@ export function careStepView(it: { title: string; when: string; plain_language: 
 export function labRowView(r: { quote: string; plain_name: string }): PaperFirstView {
   return paperFirstView({ quote: r.quote, explanation: [r.plain_name], check: "unchecked", source: "report" });
 }
+
+/** What the meaning check is asked about: every AI string a certified card shows, the title included (round 13). */
+export const checkedText = (title: string, plain: string) => [title.trim(), plain.trim()].filter(Boolean).join(". ");
+
+const BOOK_TITLE: Record<string, string> = {
+  medication: "Medicine", lab_test: "Lab test", referral: "Referral", follow_up_visit: "Follow-up visit", self_care: "Self care", warning_sign: "Warning sign",
+};
+
+/**
+ * A care step as booking (call script, calendar event and its alarms) may use it: the title is the step's kind,
+ * never the AI's title, and the AI's "when" goes only with a certified step. The quote always goes (round 13).
+ */
+export function bookSafe<T extends { id: string; kind: string; title: string; when: string; source_quote: string }>(it: T, check: Check): T {
+  return { ...it, title: `${BOOK_TITLE[it.kind] ?? "Appointment"} from your paper`, when: check === "certified" ? it.when : "" };
+}

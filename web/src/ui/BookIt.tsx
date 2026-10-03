@@ -80,7 +80,7 @@ export function BookIt({ items, barriers, language }: { items: BookableItem[]; b
 
           <div>
             <p className="font-extrabold">3. Got a time? Put it on your phone</p>
-            {item.when.trim() && <p className="text-xs font-semibold text-ink/70 mt-0.5">Your paper says: {item.when.trim()}</p>}
+            {item.when.trim() && <p className="text-xs font-semibold text-ink/70 mt-0.5">When, as ATLAS read your paper (double-checked): {item.when.trim()}</p>}
 
             <p className="mt-3 text-sm font-bold" id={`${panelId}-day`}>Day</p>
             <div role="group" aria-labelledby={`${panelId}-day`} className="mt-1 flex gap-2 overflow-x-auto pb-1" data-lenis-prevent>

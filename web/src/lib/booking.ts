@@ -65,7 +65,7 @@ const ASK: Partial<Record<Barrier, string>> = {
  */
 export function callScript(item: BookableItem, barriers: Barrier[], language = "English"): string[] {
   const lines = [`Hi, I'm calling to book this: ${item.title}.`, `My paper from the clinic says: "${item.source_quote}"`];
-  if (item.when.trim()) lines.push(`It says it should happen: ${item.when.trim()}.`);
+  if (item.when.trim()) lines.push(`As I understand it, it should happen: ${item.when.trim()}.`);
   if (barriers.includes("cost") || barriers.includes("insurance")) lines.push("I'm worried about the cost. What would this cost me, and is there help with paying?");
   if (barriers.includes("language") && language !== "English") lines.push(`Can I have an interpreter in ${language}?`);
   for (const b of barriers) if (ASK[b]) lines.push(ASK[b]!);
@@ -125,7 +125,8 @@ export function buildIcs(e: CalendarEvent): string {
     `SUMMARY:${icsEscape(e.title)}`,
     ...(e.location ? [`LOCATION:${icsEscape(e.location)}`] : []),
     `DESCRIPTION:${icsEscape(e.description)}`,
-    ...["-P1D", "-PT2H"].flatMap((t) => ["BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEscape(e.title)}`, `TRIGGER:${t}`, "END:VALARM"]),
+    // The reminder that pops up carries the paper's own words too, not only a title (Codex round 13).
+    ...["-P1D", "-PT2H"].flatMap((t) => ["BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEscape(`${e.title}. ${e.description.split("\n")[0]}`)}`, `TRIGGER:${t}`, "END:VALARM"]),
     "END:VEVENT",
     "END:VCALENDAR",
   ];
@@ -135,7 +136,7 @@ export function buildIcs(e: CalendarEvent): string {
 /** The calendar description: the paper's own words plus who to call, so the reminder carries the evidence. */
 export function eventDescription(item: BookableItem, target: BookingTarget | null) {
   const parts = [`From your paper: "${item.source_quote}"`];
-  if (item.when.trim()) parts.push(`When: ${item.when.trim()}`);
+  if (item.when.trim()) parts.push(`When (as ATLAS read it): ${item.when.trim()}`);
   if (target) parts.push(`Number on your paper: ${target.phone}`);
   parts.push("Made with ATLAS (atlas-team12.vercel.app). Not medical advice.");
   return parts.join("\n");

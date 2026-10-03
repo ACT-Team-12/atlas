@@ -7,6 +7,7 @@ import { DATASET } from "@/lib/resources";
 import { NATIONAL } from "@/lib/national";
 import { helperFunnel, liveStats } from "@/lib/db";
 import type { Count, HelperFunnelResult } from "@/lib/helperFunnel";
+import { publicStats } from "@/lib/publicStats";
 
 export const metadata: Metadata = {
   title: "For judges · ATLAS",
@@ -92,7 +93,8 @@ function HelperFunnelCard({ result }: { result: HelperFunnelResult }) {
 export default async function JudgePage() {
   const T = results.totals;
   const M = meaning.totals;
-  const [live, funnel] = await Promise.all([liveStats(), helperFunnel()]);
+  const [raw, funnel] = await Promise.all([liveStats(), helperFunnel()]);
+  const live = raw ? publicStats(raw, funnel) : null;
   return (
     <>
       <Nav />
@@ -125,7 +127,7 @@ export default async function JudgePage() {
               </p>
               <p>
                 Real use, counted anonymously (our own tests excluded):{" "}
-                {live ? <><b>{live.reads}</b> papers read, <b>{live.plans}</b> plans, <b>{live.feedback}</b> feedback answers so far. Raw: <a className="underline decoration-2 underline-offset-4" href="/api/stats">/api/stats</a>.</> : "not reachable right now."}
+                {live ? <><b>{show(live.reads)}</b> papers read, <b>{show(live.plans)}</b> plans, <b>{show(live.feedback)}</b> feedback answers so far. Raw: <a className="underline decoration-2 underline-offset-4" href="/api/stats">/api/stats</a>.</> : "not reachable right now."}
               </p>
             </Stop>
           </ol>

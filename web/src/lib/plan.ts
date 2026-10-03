@@ -5,6 +5,7 @@ import { MODEL, ExtractError } from "./extract";
 import { BARRIERS, BARRIER_LABEL, type Barrier, type Clinic, type Program, afterHoursClinics, formatHours, nearestClinics, opensEvenings, opensWeekends, programsFor } from "./resources";
 import { LANGUAGES } from "./schema";
 import { type Region, isGeorgiaZip, locateAnyZip, nationalPrograms, nearestNationalClinics, regionOf } from "./national";
+import { cleanPlanText } from "./planText";
 
 export const PlanRequestSchema = z.object({
   care: z
@@ -69,7 +70,8 @@ You get: the care steps from the patient's own after-visit paper (with ids), the
 Rules:
 - Use ONLY the care ids and resource ids you were given. Never invent a phone number, address, program, price, eligibility rule or medical advice. Do not write phone numbers or URLs in your text; the app shows them from the verified record.
 - Each step should help the person get one real thing done (get to the lab, afford the medicine, apply for coverage, understand the referral). Tie it to the care step it serves and the resource that helps.
-- For "referrals" or "schedule" barriers, explain using only what the paper says (cite the care id). If the paper does not say, tell them what to ask the clinic.
+- For "referrals" or "schedule" barriers, explain using only what the paper says (put that step's care id in care_ids). If the paper does not say, tell them what to ask the clinic.
+- Ids go ONLY in care_ids and resource_ids. Never write an id (like item-3 or a resource id) in summary, title, action, why or ask_a_person_reason; name the test, visit or program in words instead.
 - For a "schedule" barrier, prefer clinics with open_evenings or open_weekends true and you may say they list evening or weekend hours. Never state exact hours in your text (the app shows the listed hours), and suggest calling to confirm.
 - Write in the requested language, at a plain reading level, kind and direct. 3 to 7 steps.
 - Set ask_a_person true if a barrier has no matching verified resource, or the situation sounds urgent or unsafe, and say why.`;
@@ -167,7 +169,11 @@ export async function buildPlan(req: PlanRequest): Promise<PlanResponse> {
     })
     .filter((s) => s.care_ids.length + s.resource_ids.length > 0);
 
-  return {
+  // The ids are for linking only. Whatever the prompt says, none reaches the person's text (planText.ts): this runs
+  // before /api/plan signs the read-aloud text, so the screen, the voice, the call, share, print and the handoff sheet
+  // all get the clean words. Every id we sent and every id the model wrote counts, even on a step dropped above.
+  const allIds = [...careIds, ...resourceIds, ...parsed.data.steps.flatMap((s) => [...s.care_ids, ...s.resource_ids])];
+  return cleanPlanText({
     summary: parsed.data.summary,
     steps,
     resources,
@@ -176,5 +182,5 @@ export async function buildPlan(req: PlanRequest): Promise<PlanResponse> {
     located,
     stats: { candidates: resourceIds.size, steps: steps.length, dropped_refs: dropped, ms: Date.now() - t0 },
     model: MODEL,
-  };
+  }, allIds);
 }

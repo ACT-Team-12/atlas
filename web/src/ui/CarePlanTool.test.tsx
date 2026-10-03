@@ -700,6 +700,20 @@ describe("a plan saved before results were checked against answers", () => {
     expect(screenText()).not.toContain("Read your paper again first");
     expect(byText("Read it out loud").disabled).toBe(false);
   });
+
+  it("a plan saved with internal ids in its text comes back without them (the live 2026-10-03 sentence)", () => {
+    localStorage.setItem("atlas-plans-v2", JSON.stringify({ v: 2, active: "p1", plans: [{
+      id: "p1", name: "My plan", createdAt: "2026-10-01T10:00:00.000Z", savedAt: "2026-10-01T10:00:00.000Z",
+      text: PAPER, language: "English", level: "simple", care: careFor(PAPER), barriers: ["cost"], zip: "", note: "", matched: true,
+      plan: planFor("Plan from older answers: the fasting blood test within 2 weeks (item-4), the eye doctor visit (item-5), the A1c test (item-3) and your clinic visit in 3 months (item-6)."),
+      done: {}, removed: {}, photoChecked: false,
+    }] }));
+    act(() => root.unmount());
+    root = createRoot(host);
+    act(() => root.render(<CarePlanTool />));
+    expect(screenText()).toContain("Plan from older answers: the fasting blood test within 2 weeks, the eye doctor visit, the A1c test and your clinic visit in 3 months.");
+    expect(screenText()).not.toMatch(/item-\d/);
+  });
 });
 
 describe("a size change during the page's own scroll", () => {

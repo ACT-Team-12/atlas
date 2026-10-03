@@ -39,7 +39,11 @@ jobs:
           grep -E "Test run with [0-9]+ tests" test.log
           python3 -c "
           import re
-          m = re.search(r'Test run with (\d+) tests', open('test.log').read())
+          log = open('test.log').read()
+          m = re.search(r'Test run with (\d+) tests', log)
           n = int(m[1]) if m else 0
           print('tests', n)
-          assert n >= 16, 'fewer iOS tests ran than expected'"
+          assert n >= 65, 'fewer iOS tests ran than expected'
+          v = re.search(r'missed_lines vectors: 17 fixtures, (\d+) of (\d+) kept sets equal to the web reference', log)
+          print(v[0] if v else 'missed_lines vector replay did not report')
+          assert v and v[1] == v[2] == '576', 'the shared missed_lines vectors did not all run and pass'"

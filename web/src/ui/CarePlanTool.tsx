@@ -242,7 +242,6 @@ export function CarePlanTool() {
   const locGen = useRef(0);
   const [locating, setLocating] = useState(false);
   const layoutShift = useRef<LayoutShift>(NO_LAYOUT_SHIFT);
-  const pageHeight = useRef<number | null>(null);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const [planReadyNote, setPlanReadyNote] = useState<string | null>(null);
@@ -725,13 +724,10 @@ export function CarePlanTool() {
     window.addEventListener("scrollend", onScrollEnd, opts);
     // A size change while the page's own scroll is moving re-aims its path at where the target sits now,
     // so a drag off that path is still seen once the browser's own adjustment has passed.
-    // The size change is measured, so only a scroll within that much counts as the browser's adjustment.
+    // The position here already includes the browser's adjustment, so only a scroll event reporting it is the browser's.
     const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
       const now = performance.now();
-      const h = document.documentElement.scrollHeight;
-      const shift = pageHeight.current == null ? 0 : Math.abs(h - pageHeight.current);
-      pageHeight.current = h;
-      layoutShift.current = { at: now, y: window.scrollY, shift };
+      layoutShift.current = { at: now, y: window.scrollY };
       const own = ownScroll.current, el = ownScrollEl.current;
       if (own && el?.isConnected && now <= own.until) ownScroll.current = rebaseOwnScroll(own, { y: window.scrollY, to: scrollTargetY(el) });
     });

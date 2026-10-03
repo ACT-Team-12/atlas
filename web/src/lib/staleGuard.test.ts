@@ -88,8 +88,8 @@ describe("shouldAutoScroll", () => {
 describe("scrollIsPersons", () => {
   const own = { start: 9_000, until: 10_500, from: 2_000, to: 500 };
   const quiet = { now: 10_000, y: 1_200, own: null, layout: NO_LAYOUT_SHIFT };
-  /** The page grew by 300px a moment before, at scrollY 1_000; the browser moved the view to 1_200 (within 300). */
-  const shifted = (at: number) => ({ at, y: 1_000, shift: 300 });
+  /** The page changed size a moment before; the observer read the (already adjusted) position 1_200. */
+  const shifted = (at: number) => ({ at, y: 1_200 });
   it("a scroll with nothing else going on is the person's (scrollbar drag, find in page)", () => expect(scrollIsPersons(quiet)).toBe(true));
   it("on the path of the page's own scroll, it is the page", () => {
     expect(scrollIsPersons({ ...quiet, own })).toBe(false);
@@ -102,15 +102,15 @@ describe("scrollIsPersons", () => {
   it("after the page's own scroll could still be moving, any scroll is the person's", () => {
     expect(scrollIsPersons({ ...quiet, own: { ...own, until: 9_999 } })).toBe(true);
   });
-  it("not right after the page changed size, when it moved no further than the size change (the browser keeping content in place)", () => {
+  it("not right after the page changed size, at the position measured then (the browser keeping content in place)", () => {
     expect(scrollIsPersons({ ...quiet, layout: shifted(10_000 - LAYOUT_SCROLL_MS + 1) })).toBe(false);
-    expect(scrollIsPersons({ ...quiet, y: 700 - OWN_SCROLL_SLACK_PX, layout: shifted(10_000 - 10) })).toBe(false);
+    expect(scrollIsPersons({ ...quiet, y: 1_200 + OWN_SCROLL_SLACK_PX, layout: shifted(10_000 - 10) })).toBe(false);
     expect(scrollIsPersons({ ...quiet, layout: shifted(10_000 - LAYOUT_SCROLL_MS - 1) })).toBe(true);
   });
-  it("a far scrollbar move right after a size change is still the person (further than the size change explains)", () => {
+  it("any other position right after a size change is the person, near or far (a big size change excuses nothing)", () => {
     expect(scrollIsPersons({ ...quiet, y: 4_000, layout: shifted(10_000 - 10) })).toBe(true);
-    expect(scrollIsPersons({ ...quiet, y: 1_300 + OWN_SCROLL_SLACK_PX + 1, layout: shifted(10_000 - 10) })).toBe(true);
-    expect(scrollIsPersons({ ...quiet, y: 1_300 + OWN_SCROLL_SLACK_PX + 1, layout: { at: 10_000 - 10, y: 1_000, shift: 0 } })).toBe(true);
+    expect(scrollIsPersons({ ...quiet, y: 1_200 + OWN_SCROLL_SLACK_PX + 1, layout: shifted(10_000 - 10) })).toBe(true);
+    expect(scrollIsPersons({ ...quiet, y: 1_200 - 100, layout: shifted(10_000 - 10) })).toBe(true);
   });
   it("a size change during the page's own scroll does not switch the check off: once settled, off the (rebased) path is the person", () => {
     expect(scrollIsPersons({ ...quiet, own, y: 5_000, layout: shifted(9_500) })).toBe(true);
@@ -122,12 +122,12 @@ describe("ownScrollEndedByPerson", () => {
   const own = { start: 9_000, until: 10_500, from: 2_000, to: 500 };
   it("ending at the target is the page", () => expect(ownScrollEndedByPerson({ y: 500 + OWN_SCROLL_SLACK_PX, own, layout: NO_LAYOUT_SHIFT, now: 10_000 })).toBe(false));
   it("ending elsewhere is the person", () => expect(ownScrollEndedByPerson({ y: 1_200, own, layout: NO_LAYOUT_SHIFT, now: 10_000 })).toBe(true));
-  it("a size change meanwhile still counts the (rebased) target", () => expect(ownScrollEndedByPerson({ y: 1_200, own, layout: { at: 9_500, y: 500, shift: 900 }, now: 10_000 })).toBe(true));
-  it("but not a scroll end right after a size change, within that change of the target (the browser keeping content in place)", () => {
-    expect(ownScrollEndedByPerson({ y: 1_200, own, layout: { at: 9_950, y: 500, shift: 700 }, now: 10_000 })).toBe(false);
+  it("a size change meanwhile still counts the (rebased) target", () => expect(ownScrollEndedByPerson({ y: 1_200, own, layout: { at: 9_500, y: 1_200 }, now: 10_000 })).toBe(true));
+  it("but not a scroll end right after a size change, at the position measured then (the browser keeping content in place)", () => {
+    expect(ownScrollEndedByPerson({ y: 1_200, own, layout: { at: 9_950, y: 1_200 }, now: 10_000 })).toBe(false);
   });
-  it("a scroll end right after a size change, further from the target than the change explains, is the person", () => {
-    expect(ownScrollEndedByPerson({ y: 3_000, own, layout: { at: 9_950, y: 500, shift: 700 }, now: 10_000 })).toBe(true);
+  it("a scroll end right after a size change anywhere else (not the target either) is the person", () => {
+    expect(ownScrollEndedByPerson({ y: 3_000, own, layout: { at: 9_950, y: 1_200 }, now: 10_000 })).toBe(true);
   });
 });
 

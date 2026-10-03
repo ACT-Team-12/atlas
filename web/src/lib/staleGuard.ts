@@ -83,25 +83,25 @@ export const LAYOUT_SCROLL_MS = 120;
 export const OWN_SCROLL_SLACK_PX = 16;
 
 /**
- * The page's last size change: when, where the page was scrolled at that moment, and by how much (px) the page's
- * height changed. The browser's own adjustment for it (scroll anchoring, or clamping when the page got shorter)
- * moves the view by at most that much, so a bigger move in the moment after it is still the person.
+ * The page's last size change, as a size observer sees it: when, and where the page was scrolled at that moment.
+ * The browser's own adjustment for a size change (scroll anchoring, or clamping when the page got shorter) is
+ * made during layout, before size observers run, so the observer already reads the adjusted position. The
+ * scroll event for that adjustment reports that same position; anywhere else is the person moving the page.
  */
-export type LayoutShift = { at: number; y: number; shift: number };
-export const NO_LAYOUT_SHIFT: LayoutShift = { at: -Infinity, y: 0, shift: 0 };
+export type LayoutShift = { at: number; y: number };
+export const NO_LAYOUT_SHIFT: LayoutShift = { at: -Infinity, y: 0 };
 
-/** Is this scroll explained by the browser adjusting for the last size change (just after it, and no further than it)? */
+/** Is this scroll the browser's adjustment for the last size change (just after it, at the position measured then)? */
 function browserAdjusting(now: number, y: number, layout: LayoutShift): boolean {
-  return now - layout.at <= LAYOUT_SCROLL_MS && Math.abs(y - layout.y) <= layout.shift + OWN_SCROLL_SLACK_PX;
+  return now - layout.at <= LAYOUT_SCROLL_MS && Math.abs(y - layout.y) <= OWN_SCROLL_SLACK_PX;
 }
 
 /** The page's own scroll: when it started, until when it may still be moving, and from where to where (scrollY). */
 export type OwnScroll = { start: number; until: number; from: number; to: number };
 
 /**
- * A scroll counts as the person using the page, except: right after the page changed size, when it moved the
- * view no more than that size change (the browser keeping content in place; a far scrollbar move in that moment
- * is still the person), or while the page's own scroll is moving and the page is
+ * A scroll counts as the person using the page, except: right after the page changed size, at the position
+ * measured then (the browser keeping content in place; any other position in that moment is still the person), or while the page's own scroll is moving and the page is
  * still on its way from start to target. Off that path (a scrollbar drag the other way, or past the
  * target) it is the person. When the page changes size mid-scroll, the caller re-aims the path
  * (rebaseOwnScroll), so the check keeps working instead of switching off.
@@ -117,11 +117,11 @@ export function scrollIsPersons(s: { now: number; y: number; own: OwnScroll | nu
 
 /**
  * The page's own scroll has ended (scrollend). Ending away from its (re-aimed) target means the person stopped
- * or moved it. Right after a size change the target may sit up to that change away, but no further.
+ * or moved it, unless it ended right after a size change at the position measured then (the browser's adjustment).
  */
 export function ownScrollEndedByPerson(s: { y: number; own: OwnScroll; layout: LayoutShift; now: number }): boolean {
-  const room = s.now - s.layout.at <= LAYOUT_SCROLL_MS ? s.layout.shift : 0;
-  return Math.abs(s.y - s.own.to) > OWN_SCROLL_SLACK_PX + room;
+  if (browserAdjusting(s.now, s.y, s.layout)) return false;
+  return Math.abs(s.y - s.own.to) > OWN_SCROLL_SLACK_PX;
 }
 
 /**

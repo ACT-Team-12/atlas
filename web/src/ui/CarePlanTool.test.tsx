@@ -644,10 +644,24 @@ describe("a size change during the page's own scroll", () => {
     await release(read, ready(careFor(PAPER)));
     const req = hold("/api/plan");
     act(() => byText("Make my plan").click());
-    act(() => observers.forEach((cb) => cb([], {} as ResizeObserver))); // baseline height 5_000
-    Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: 5_100 });
-    act(() => observers.forEach((cb) => cb([], {} as ResizeObserver))); // grew by 100
-    setScrollY(2_000); // far further than 100px, inside the moment after the change
+    act(() => observers.forEach((cb) => cb([], {} as ResizeObserver))); // the page changed size at scrollY 0
+    setScrollY(2_000); // a far scrollbar move inside the moment after the change
+    window.dispatchEvent(new Event("scroll"));
+    await release(req, ready(planFor("The new plan")));
+    expect(scrolls).toEqual(["step-2"]);
+  });
+
+  it("a small scrollbar move right after a big size change counts as the person too", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    act(() => observers.forEach((cb) => cb([], {} as ResizeObserver))); // a first size reading (5_000)
+    Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: 9_000 }); // grew by 4_000 (below the view)
+    act(() => observers.forEach((cb) => cb([], {} as ResizeObserver)));
+    setScrollY(120); // the person nudges the scrollbar
     window.dispatchEvent(new Event("scroll"));
     await release(req, ready(planFor("The new plan")));
     expect(scrolls).toEqual(["step-2"]);

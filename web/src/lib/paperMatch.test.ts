@@ -183,6 +183,18 @@ describe("matchOnPhoto", () => {
     expect(matchOnPhoto(same, spanOf(same, same), ocr(same)).status).toBe("found");
   });
 
+  it("refuses when one copy of a repeated number is missing from the photo", () => {
+    const source = "Take 5 mg in morning and 5 mg at night";
+    const photo = "Take 5 mg in morning and mg at night";
+    expect(matchOnPhoto(source, spanOf(source, source), ocr(photo)).status).toBe("not_found");
+  });
+
+  it("refuses when an extra number sits inside the matched words on the photo", () => {
+    const source = "Take 5 mg daily with food";
+    const photo = "Take 50 5 mg daily with food";
+    expect(matchOnPhoto(source, spanOf(source, source), ocr(photo)).status).toBe("not_found");
+  });
+
   it("says when the photo had no readable words, and refuses without a span", () => {
     expect(matchOnPhoto("Take 1 tablet.", { start: 0, end: 14 }, [])).toEqual({ status: "not_found", reason: "no_words" });
     expect(matchOnPhoto("Take 1 tablet.", null, ocr("Take 1 tablet.")).status).toBe("not_found");

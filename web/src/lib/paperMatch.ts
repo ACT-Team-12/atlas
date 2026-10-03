@@ -126,7 +126,13 @@ export function wordScore(quoteWord: string, ocrWord: string): 0 | 1 | 2 {
 
 // ---------- alignment ----------
 
-type Candidate = { a: number; b: number; matched: number; exact: number; score: number };
+/**
+ * `hits`: the OCR tokens the quote words actually matched, in order. `digitsOk`: every quote word with a number
+ * matched an equal OCR word at its own place, and no OCR word with a number inside [a, b] went unmatched.
+ */
+type Candidate = { a: number; b: number; matched: number; exact: number; score: number; hits: number[]; digitsOk: boolean };
+
+const hasDigit = (w: string) => /\p{N}/u.test(w);
 
 const MATCH = 2, CLOSE = 1.5, MISS = -1, GAP = -1;
 
@@ -158,16 +164,21 @@ function align(q: string[], o: string[]): Candidate[] {
     const here = D[n * W + j];
     if (T[n * W + j] !== 1 || S[n * W + j] === 0) continue; // must end on a real match
     if (here <= 0) continue;
-    let i = n, k = j, matched = 0, exact = 0, a = j - 1;
+    let i = n, k = j, matched = 0, exact = 0, a = j - 1, digitsOk = true;
+    const hits: number[] = [];
     while (i > 0) {
       const t = T[i * W + k];
       if (t === 1) {
-        if (S[i * W + k] > 0) { matched++; if (S[i * W + k] === 2) exact++; a = k - 1; }
+        if (S[i * W + k] > 0) { matched++; if (S[i * W + k] === 2) exact++; a = k - 1; hits.push(k - 1); }
+        else if (hasDigit(q[i - 1])) digitsOk = false;
         i--; k--;
-      } else if (t === 2) i--;
+      } else if (t === 2) { if (hasDigit(q[i - 1])) digitsOk = false; i--; }
       else k--;
     }
-    out.push({ a, b: j - 1, matched, exact, score: here });
+    hits.reverse();
+    const hit = new Set(hits);
+    for (let x = a; x <= j - 1; x++) if (!hit.has(x) && hasDigit(o[x])) digitsOk = false;
+    out.push({ a, b: j - 1, matched, exact, score: here, hits, digitsOk });
   }
   return out;
 }
@@ -218,13 +229,9 @@ export function matchOnPhoto(sourceText: string, span: Span | null, words: OcrWo
 
   const need = needed(q.length);
   const maxRun = q.length + Math.max(2, Math.ceil(q.length * 0.25));
-  const qDigits = q.filter((w) => /\p{N}/u.test(w));
-  let cands = align(q, ot.map((t) => t.norm)).filter((c) => {
-    if (c.matched < need || c.b - c.a + 1 > maxRun) return false;
-    // Every number in the quote (a dose, a date, a phone number) must be on the photo inside this run.
-    const run = ot.slice(c.a, c.b + 1).map((t) => t.norm);
-    return qDigits.every((d) => run.includes(d));
-  });
+  // Every number in the quote (a dose, a date, a phone number) must match an equal number at its own place on the
+  // photo, and no other number may sit inside the run: a repeated "5" cannot be counted twice, and a "50" in between is refused.
+  let cands = align(q, ot.map((t) => t.norm)).filter((c) => c.matched >= need && c.b - c.a + 1 <= maxRun && c.digitsOk);
   // Overlapping runs describe the same place: keep the best of each.
   cands.sort((x, y) => y.score - x.score || x.a - y.a);
   const kept: Candidate[] = [];

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ExtractError, MODEL } from "./extract";
 import { LANGUAGES } from "./schema";
 import { findSpanIn, mapSource, type MappedSource } from "./verify";
+import { findTestName } from "./labsView";
 
 /**
  * "Explain my lab results": asked for by a real patient on Oct 2 ("a summary option that only highlights what I
@@ -113,13 +114,8 @@ type Span = { text: string; start: number; end: number };
 const spans = (re: RegExp, s: string): Span[] => [...s.matchAll(re)].map((m) => ({ text: m[0], start: m.index ?? 0, end: (m.index ?? 0) + m[0].length }));
 const inside = (a: Span, b: Span) => a.start >= b.start && a.end <= b.end;
 
-/** Finds the test name on the line, ignoring case and punctuation ("Glucose Fasting" finds "Glucose, Fasting"). */
-function findName(line: string, test: string): Span | null {
-  const words = test.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-  if (!words.length) return null;
-  const m = new RegExp(`(?<![\\p{L}\\p{N}])${words.map(escapeRe).join("[^\\p{L}\\p{N}]+")}(?![\\p{L}\\p{N}])`, "iu").exec(line);
-  return m ? { text: m[0], start: m.index, end: m.index + m[0].length } : null;
-}
+/** The test name as printed on the line (labsView.ts, shared with the page). */
+const findName = findTestName;
 
 type LineRead = {
   value: Span; valueRange: Interval; range: Interval | null; rangeText: string;

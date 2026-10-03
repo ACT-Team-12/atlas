@@ -152,6 +152,11 @@ function StepHeader({ n, title, done, note }: { n: number; title: string; done?:
 }
 
 /** While the plan is outdated, `off` says why and the call, website, directions and open links are not offered: the place may be wrong. */
+/** A source link, or just its name while the plan is outdated (no link out to a place picked from old answers). */
+function SourceLink({ href, label, off }: { href: string; label: string; off?: string }) {
+  return off ? <span>{label}</span> : <a className="underline" href={href} target="_blank" rel="noreferrer">{label}</a>;
+}
+
 function ResourceLinksOff({ off }: { off: string }) {
   return <p className="mt-3 text-sm font-bold text-peach-deep">{off}: calls, websites and directions for this plan are off until then.</p>;
 }
@@ -190,7 +195,7 @@ function Resource({ r, off }: { r: ResourceCard; off?: string }) {
         <p className="mt-2 text-[11px] text-ink/70">
           Source: HRSA health center data{c.source_id === "hrsa-national" ? " (nationwide list, Oct 2)" : ""}
           {hours && c.hours_source_id === "clinic-site" && c.hours_url
-            ? <> · hours quoted from <a className="underline" href={c.hours_url} target="_blank" rel="noreferrer">{new URL(c.hours_url).hostname.replace(/^www\./, "")}</a>, checked Oct 2</>
+            ? <> · hours quoted from <SourceLink href={c.hours_url} label={new URL(c.hours_url).hostname.replace(/^www\./, "")} off={off} />, checked Oct 2</>
             : hours ? " · hours from its Google Maps listing, checked Oct 2" : c.hours_per_week ? ` · ${c.hours_per_week} hrs/week listed, times not listed` : " · hours not listed"}
         </p>
       </div>
@@ -207,7 +212,7 @@ function Resource({ r, off }: { r: ResourceCard; off?: string }) {
         {p.access.url && <a className="rounded-full border-2 border-ink px-3 py-1" href={p.access.url} target="_blank" rel="noreferrer">Open ↗</a>}
       </div>}
       {p.access.text && <p className="text-sm mt-2">{p.access.text}</p>}
-      <p className="mt-2 text-[11px] text-ink/70">Verified on the official page: <a className="underline" href={p.source_url} target="_blank" rel="noreferrer">{new URL(p.source_url).hostname}</a></p>
+      <p className="mt-2 text-[11px] text-ink/70">Verified on the official page: <SourceLink href={p.source_url} label={new URL(p.source_url).hostname} off={off} /></p>
     </div>
   );
 }

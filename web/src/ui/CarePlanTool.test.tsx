@@ -433,15 +433,14 @@ describe("an outdated plan cannot be acted on", () => {
     const p = planFor(summary);
     p.steps = [{ title: "Book the A1c test", action: "Call to book it.", why: "", barrier: null, care_ids: ["c2"], resource_ids: ["k1", "g1"], dropped_refs: [] } as unknown as PlanResponse["steps"][number]];
     p.resources = {
-      k1: { type: "clinic", id: "k1", km: 2, clinic: { id: "k1", name: "Old Place Clinic", org: "", address: "1 Main St", city: "Atlanta", zip: "30303", county: "", phone: "404-555-0100", website: "https://clinic.example", lat: 0, lng: 0, hours_per_week: null, setting: "", health_center_type: "", nearest_rail: null, nearest_bus: null, barriers: [], source_id: "hrsa" } },
+      k1: { type: "clinic", id: "k1", km: 2, clinic: { id: "k1", name: "Old Place Clinic", org: "", address: "1 Main St", city: "Atlanta", zip: "30303", county: "", phone: "404-555-0100", website: "https://clinic.example", lat: 0, lng: 0, hours_per_week: null, setting: "", health_center_type: "", nearest_rail: null, nearest_bus: null, barriers: [], source_id: "hrsa", hours: [{ day: 1, open: "0800", close: "1700" }], hours_source_id: "clinic-site", hours_quote: "Mon 8 to 5", hours_url: "https://clinic.example/hours" } },
       g1: { type: "program", id: "g1", program: { id: "g1", name: "Ride Program", barriers: [], access: { phone: "404-555-0199", url: "https://ride.example" }, languages: [], evidence_quote: "Free rides.", source_url: "https://ride.example/about" } },
     } as unknown as PlanResponse["resources"];
     return p;
   }
   const ACTIONS = ["Read it out loud", "Print for the next visit", "Print a handoff sheet", "Send to family", "Book it now"];
-  /** Every link that would call, open or route to a place in the plan. */
-  const placeLinks = () => [...host.querySelectorAll<HTMLAnchorElement>("a")].map((a) => a.getAttribute("href") ?? "")
-    .filter((h) => h.startsWith("tel:") || h.includes("clinic.example") || h.startsWith("https://ride.example") && !h.endsWith("/about") || h.includes("google.com/maps"));
+  /** Every link out of the plan's place cards: calls, websites, directions, and their source pages. */
+  const placeLinks = () => [...host.querySelectorAll<HTMLAnchorElement>("li a")].map((a) => a.getAttribute("href") ?? "");
   const enabled = () => Object.fromEntries(ACTIONS.map((t) => [t, !byText(t).disabled]));
   const all = (v: boolean) => Object.fromEntries(ACTIONS.map((t) => [t, v]));
   let speech: { speak: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> };
@@ -480,7 +479,7 @@ describe("an outdated plan cannot be acted on", () => {
   for (const [what, change] of changes) {
     it(`after changing ${what}: read aloud, both prints, Send to family, Book it now and place links are off, with the reason`, async () => {
       await planReady();
-      expect(placeLinks()).toHaveLength(5); // call + website + directions for the clinic, call + open for the program
+      expect(placeLinks()).toHaveLength(7); // clinic: call, website, directions, hours source; program: call, open, source
       act(change);
       expect(enabled()).toEqual(all(false));
       expect(placeLinks()).toEqual([]);
@@ -529,7 +528,7 @@ describe("an outdated plan cannot be acted on", () => {
     act(() => byText("Update plan").click());
     await release(req, ready(planWithLab("Updated plan")));
     expect(enabled()).toEqual(all(true));
-    expect(placeLinks()).toHaveLength(5);
+    expect(placeLinks()).toHaveLength(7);
     expect(host.querySelector(".plan-outdated, .outdated-print-note")).toBeNull();
   });
 });

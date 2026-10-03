@@ -27,6 +27,14 @@ describe("suggests only on a near-exact restatement", () => {
     expect(suggestOption("take 2 tablets 1 time a day", ["Take 1 tablet 2 times a day", "Take 1 tablet at bedtime", "Take 3 tablets"])).toBeNull();
   });
 
+  it("word order and repeats count: a reversed relation never suggests (Codex round 3)", () => {
+    const order = ["Take aspirin before ibuprofen", "Take ibuprofen with food", "Stop aspirin"];
+    expect(suggestOption("take ibuprofen before aspirin", order)).toBeNull();
+    expect(suggestOption("take aspirin before ibuprofen", order)).toBe(0);
+    expect(suggestOption("take aspirin before aspirin", order)).toBeNull();
+    expect(suggestOption("先吃B再吃A", ["先吃A再吃B", "只吃B", "不吃A"])).toBeNull();
+  });
+
   it("anything extra or missing returns null", () => {
     expect(suggestOption("take it with food in the morning", food)).toBeNull();
     expect(suggestOption("with food", food)).toBeNull();

@@ -3,7 +3,7 @@
  * own tap is the only answer the quiz records. No AI, runs in the browser.
  *
  * A suggestion is made only for a near-exact restatement: after dropping filler words, what was said and exactly
- * one option have the same content words (so increase/decrease, before/after, with/without, morning/night, not,
+ * one option have the same content words in the same order (so increase/decrease, before/after, with/without, morning/night, not,
  * stop... must all agree, in every supported language), and the same quantities in the same order, each a
  * (value, unit, role) tuple such as (1, tablet, dose), (2, time, frequency), (5, day, duration). 5 g is not 5 mg,
  * "2 tablets 1 time" is not "1 tablet 2 times", and a number we cannot read means no suggestion. Otherwise null.
@@ -168,10 +168,8 @@ export function quantities(s: string): Quantity[] {
 
 const sameQuantities = (a: Quantity[], b: Quantity[]) =>
   a.length === b.length && a.every((q, i) => q.value === b[i].value && q.unit === b[i].unit && q.role === b[i].role);
-const sameSet = (a: string[], b: string[]) => {
-  const x = new Set(a), y = new Set(b);
-  return x.size === y.size && [...x].every((w) => y.has(w));
-};
+/** Same content words in the same order, repeats included: "A before B" is not "B before A". */
+const sameSequence = (a: string[], b: string[]) => a.length === b.length && a.every((w, i) => w === b[i]);
 
 /** Index of the one option the words restate, or null. Only ever a suggestion for the person to confirm. */
 export function suggestOption(answer: string, options: string[]): number | null {
@@ -179,6 +177,6 @@ export function suggestOption(answer: string, options: string[]): number | null 
   if (said.bad || (said.content.length === 0 && said.quantities.length === 0)) return null;
   const hits = options
     .map((o, i) => ({ i, r: read(o) }))
-    .filter(({ r }) => !r.bad && sameQuantities(r.quantities, said.quantities) && sameSet(r.content, said.content));
+    .filter(({ r }) => !r.bad && sameQuantities(r.quantities, said.quantities) && sameSequence(r.content, said.content));
   return hits.length === 1 ? hits[0].i : null;
 }

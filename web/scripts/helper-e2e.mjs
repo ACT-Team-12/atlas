@@ -74,6 +74,7 @@ try {
   check(await lang.inputValue() === "Spanish", "language preset applied");
   check(await p2.locator("#try").getByLabel("Reading level").first().inputValue() === "standard", "reading level preset applied");
   check(await p2.locator("#zip").inputValue() === "30310", "ZIP preset applied");
+  check(await p2.evaluate(() => document.activeElement?.hasAttribute("data-helper-banner")), "focus moves to the banner on arrival");
   check(await lang.isEnabled(), "language stays editable");
   await lang.selectOption("French");
   check(await lang.inputValue() === "French", "language can be changed");
@@ -92,6 +93,20 @@ try {
   await p2.waitForTimeout(1500);
   check(planHeaders?.["x-atlas-entry"] === "helper-link", "plan request tagged as helper-link", JSON.stringify(planHeaders?.["x-atlas-entry"] ?? null));
   check(leaks.length === 0, "no request URL or Referer carried the ZIP", leaks.join(", "));
+  check(await p2.evaluate(() => sessionStorage.getItem("atlas-entry")) === "helper-link", "a failed plan keeps the tag, so the retry still counts");
+  if (process.env.REAL_PLAN === "1") {
+    // One real plan (one AI call; the local server has no database, so nothing is recorded): the tag is used once.
+    await p2.unroute("**/api/plan");
+    planHeaders = null;
+    p2.on("request", (r) => { if (r.url().endsWith("/api/plan")) planHeaders = r.headers(); });
+    await p2.getByRole("button", { name: "Make my plan" }).click();
+    await p2.getByText(/steps · /).first().waitFor({ timeout: 90_000 });
+    check(planHeaders?.["x-atlas-entry"] === "helper-link", "real plan request tagged");
+    check(await p2.evaluate(() => sessionStorage.getItem("atlas-entry")) === null, "tag used up after one built plan");
+    const saved = await p2.evaluate(() => localStorage.getItem("atlas-plans-v2") ?? "");
+    console.log(`info saved plan on this device ${saved.includes("30310") ? "holds" : "does not hold"} the ZIP (same as a typed ZIP; disclosed on /helper and /privacy)`);
+    await p2.screenshot({ path: `${SHOTS}/plan-390.png` });
+  }
   await p2.getByRole("button", { name: /Close this note/ }).click();
   check(await banner.count() === 0, "banner can be dismissed");
   await person.close();

@@ -1,9 +1,9 @@
 name: web-ci
 on:
   push:
-    paths: ["web/**", ".github/workflows/web-ci.yml"]
+    paths: ["web/**", "mobile/shared/**", "mobile/ios/ATLASTests/Fixtures/extract_sample_live.json", ".github/workflows/web-ci.yml"]
   pull_request:
-    paths: ["web/**", ".github/workflows/web-ci.yml"]
+    paths: ["web/**", "mobile/shared/**", "mobile/ios/ATLASTests/Fixtures/extract_sample_live.json", ".github/workflows/web-ci.yml"]
 concurrency:
   group: web-ci-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
   cancel-in-progress: true
@@ -46,4 +46,10 @@ jobs:
       - run: pnpm exec next typegen
       - run: pnpm exec tsc --noEmit
       - run: pnpm test
+      # The phone apps replay mobile/shared/missed-lines-vectors.json; regenerate it from this web code and fail on any
+      # difference. Enforced on main and on pull requests into main (see the script for branches without PR 66).
+      - name: Missed-lines vectors match the web reference
+        env:
+          ENFORCE: ${{ github.ref == 'refs/heads/main' || github.base_ref == 'main' }}
+        run: bash ../mobile/shared/check-vectors.sh
       - run: pnpm build

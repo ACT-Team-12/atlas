@@ -194,9 +194,12 @@ private fun ResultRowCard(row: ResultRow) {
             Text("${row.test}: ${row.value} ${row.unit}".trim(), style = Type.headline, modifier = Modifier.weight(1f))
             Chip(badge, Palette.ink, Palette.paper)
         }
-        if (row.plain_name.isNotBlank()) Text(row.plain_name, style = Type.sub.copy(fontWeight = FontWeight.Normal))
         if (row.reason.isNotBlank()) Text(row.reason, style = Type.sub)
+        // Paper first (labRowView in paperFirst.ts): the report's own line leads; the AI's plain name for the test is
+        // never double-checked, so it follows, marked.
         ReportLine(row.quote)
+        val v = com.stephensookra.atlas.data.PaperFirst.labRow(row)
+        if (v.explanation != null) Text("${v.note ?: ""} ${v.explanation}".trim(), style = Type.sub.copy(fontWeight = FontWeight.Normal, color = Palette.inkSoft))
         if (row.ask.isNotBlank()) Text("Ask your clinic: ${row.ask}", style = Type.sub.copy(fontWeight = FontWeight.Normal))
     }
 }

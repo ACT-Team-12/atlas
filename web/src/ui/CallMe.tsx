@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { PlanResponse } from "@/lib/plan";
 import type { LANGUAGES } from "@/lib/schema";
 import { paidSpeechText } from "@/lib/speechText";
-import { nextPoll, pollDelayMs, START_POLL, type PollState } from "@/lib/call/poll";
+import { nextPoll, pollDelayMs, pollNotice, POLL_WINDOW_MS, startPoll, type PollState } from "@/lib/call/poll";
 
 /**
  * "Call me with my plan": ATLAS phones the person and reads the plan in its language. For someone who can't read or
@@ -20,14 +20,19 @@ type Status = {
   code_status?: string | null;
   plan_status?: string | null;
   attempts_left?: number;
+  /** true: the right code was entered on the plan call. false: ATLAS has no record of that. null/absent: not known. */
+  gate_passed?: boolean | null;
 };
 
 const MAX_CALL_CHARS = 4000; // same limit as the natural voice (lib/voice.ts)
 const MISSED = ["busy", "cancelled", "failed", "rejected", "timeout", "unanswered"];
-const post = (url: string, body: unknown) =>
-  fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
+const post = (url: string, body: unknown, signal?: AbortSignal) =>
+  fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), cache: "no-store", signal });
+/** One status poll may take this long; past it the poll counts as failed, so a hung request never stops the loop. */
+const POLL_TIMEOUT_MS = 15_000;
 
-function line(s: Status, suffix: string, typed: string): string {
+/** The status line under the call panel. Exported for its tests. */
+export function line(s: Status, suffix: string, typed: string): string {
   const n = `...${suffix}`;
   switch (s.phase) {
     case "code":
@@ -43,9 +48,13 @@ function line(s: Status, suffix: string, typed: string): string {
       if (s.plan_status === "answered") return `Answered. On the phone keypad, enter your code${typed ? ` ${typed.split("").join(" ")}` : ""}, then press #. Then ATLAS reads your plan; press 1 to hear it again.`;
       return `Calling ${n} with your plan. When you answer, enter your code${typed ? ` ${typed.split("").join(" ")}` : ""} on the keypad, then press #.`;
     case "done":
-      return s.plan_status && MISSED.includes(s.plan_status)
-        ? `No one answered at ${n}. Your number and plan text were deleted.`
-        : `Call finished. Your number and plan text were deleted.`;
+      if (s.plan_status && MISSED.includes(s.plan_status)) return `No one answered at ${n}. Your number and plan text were deleted.`;
+      // Only an explicit false: an older server, or a status that does not know, keeps the plain wording.
+      // false covers silence, wrong codes and a record that failed to save, so it says only what is true of all three.
+      if (s.gate_passed === false) {
+        return "The call ended, and ATLAS could not confirm your plan was read: it plays only after the 4-digit code is entered on the phone keypad. Your number and plan text were deleted. You can ask for a new call below.";
+      }
+      return `Call finished. Your number and plan text were deleted.`;
     case "code_missed":
       return `No one answered the code call at ${n}. You can try again.`;
     case "failed":
@@ -68,7 +77,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   const [typed, setTyped] = useState(""); // the code the person typed: the plan call asks for it again before it plays
   const [suffix, setSuffix] = useState(""); // the number's last 4 digits, kept here: the server clears its copy when the call ends
   const panelId = useId();
-  const [poll, setPoll] = useState<PollState>(START_POLL);
+  const [poll, setPoll] = useState<PollState>(() => startPoll(0)); // restarted, timed from now, when a call is asked for
   const text = paidSpeechText(plan);
   // The plan this panel's call belongs to. A response that comes back after the plan changed (or the panel went away)
   // is dropped, so a call session can never carry over to another plan. The state reset itself comes from the parent
@@ -95,16 +104,20 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   useEffect(() => {
     if (!id || !live || poll.stopped) return;
     let alive = true;
+    // Never waits past the time bound: the tick that reaches it only records it (nextPoll sets timedOut), no request.
+    const delay = Math.max(0, Math.min(pollDelayMs(poll), poll.startedAt + POLL_WINDOW_MS - Date.now()));
     const timer = setTimeout(async () => {
       let j: Status | null = null;
-      try {
-        const r = await post("/api/call/status", { id });
-        j = r.ok ? ((await r.json()) as Status) : null;
-      } catch { j = null; }
+      if (Date.now() - poll.startedAt < POLL_WINDOW_MS) {
+        try {
+          const r = await post("/api/call/status", { id }, AbortSignal.timeout(POLL_TIMEOUT_MS));
+          j = r.ok ? ((await r.json()) as Status) : null;
+        } catch { j = null; }
+      }
       if (!alive || current.current !== owner) return;
       if (j && typeof j.phase === "string") setSt(j);
-      setPoll((p) => nextPoll(p, j && typeof j.phase === "string" ? "ok" : "fail"));
-    }, pollDelayMs(poll));
+      setPoll((p) => nextPoll(p, j && typeof j.phase === "string" ? "ok" : "fail", Date.now()));
+    }, delay);
     return () => { alive = false; clearTimeout(timer); };
   }, [id, live, poll, owner]);
 
@@ -129,7 +142,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   }
 
   const askCode = (e: FormEvent) => send(e, "/api/call/start", { phone, consent, text, language, token: plan.speak_token }, (j) => {
-    setPoll(START_POLL);
+    setPoll(startPoll(Date.now()));
     setId(String(j.id));
     setSuffix(typeof j.last4 === "string" ? j.last4 : "");
     setSt({ phase: "code", code_status: j.uncertain ? "unknown" : null });
@@ -137,7 +150,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
     setCode("");
   });
   const verify = (e: FormEvent) => send(e, "/api/call/verify", { id, code }, (j) => {
-    setPoll(START_POLL);
+    setPoll(startPoll(Date.now()));
     setSt((s) => ({ ...(s ?? {}), phase: "calling", plan_status: j.uncertain ? "unknown" : null }));
     setTyped(code);
     setCode("");
@@ -165,10 +178,8 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
           ) : (
             <>
               {st && <p role="status" className="mt-2 font-bold">{line(st, suffix, typed)}</p>}
-              {st && live && poll.trouble && (
-                <p className="mt-1 text-sm font-semibold">
-                  {poll.stopped ? "We can't get this call's status right now. If your phone rings, pick up." : "Call status is unavailable right now. Still trying..."}
-                </p>
+              {st && live && pollNotice(poll) && (
+                <p role="status" aria-live="polite" className="mt-1 text-sm font-semibold">{pollNotice(poll)}</p>
               )}
               {st?.phase === "code" && (
                 <form onSubmit={verify} className="mt-3 grid gap-2">

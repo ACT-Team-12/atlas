@@ -6,7 +6,7 @@ import { signTicket, subKey, type CallConfig, type CallTicket } from "./config";
 import { canCallIn, codeNcco, GATE_TRIES, gateNcco, goodbyeNcco, MAX_REPLAYS, planLengthSeconds, planNcco, type NccoAction } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
-import { CallStoreDown, CODE_ATTEMPTS, CODE_TTL_MS, dayKey, hourKey, reserveSlots, SESSION_TTL_MS, WIPE, type CallStore, type SessionRow } from "./store";
+import { CallStoreDown, CODE_ATTEMPTS, CODE_TTL_MS, dayKey, END_PENDING, hourKey, reserveSlots, SESSION_TTL_MS, WIPE, type CallStore, type SessionRow } from "./store";
 import { getCall, placeCall } from "./vonage";
 
 /**
@@ -191,7 +191,9 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
   }
   // Exactly one request moves a session past its code.
   // The code's hash stays: the plan call asks for the same code before it plays anything (handleInput).
-  const moved = await store.update(id, { phase: "calling", placed_at: new Date(now) }, ["code"]);
+  // gate_passed starts false here, before any call exists, so the right code on the call (gateInput) can only ever
+  // move it to true, never race a later write back to false.
+  const moved = await store.update(id, { phase: "calling", placed_at: new Date(now), gate_passed: false }, ["code"]);
   if (moved === "error") return { state: "no-db" };
   if (moved !== "updated") return { state: "expired" };
   // "done" only when the wipe was written. Otherwise the session stays "preparing" and is wiped by the sweep after
@@ -313,6 +315,13 @@ export async function handleEvent(deps: Hook, t: CallTicket, uuid: unknown, clai
   if (!(status in RANK)) return "ignored";
   if (typeof claimed === "string" && RANK[claimed] === 4 && RANK[status] < 4) {
     console.error("call event: the callback says ended but Vonage still reports it live; asking for a retry");
+    // If the retry reads stale too, or never comes, the end must not be lost: mark the session so the sweep (and the
+    // person's status poll) ask Vonage again and wipe once Vonage itself reports an end. The marker is written only
+    // here, after callTruth matched this UUID to the session's own call; on its own it never wipes or ends anything.
+    if (t.c === "plan" && row.phase === "calling") {
+      const marked = await deps.store.update(t.k, { note: END_PENDING }, ["calling"]);
+      if (marked !== "updated") console.error("call event: pending-end marker not written", marked);
+    }
     return "error";
   }
   const field = t.c === "code" ? "code_status" : "plan_status";
@@ -326,10 +335,50 @@ export async function handleEvent(deps: Hook, t: CallTicket, uuid: unknown, clai
       : await deps.store.update(t.k, { code_status: status }, ["code"]);
     return r === "error" ? "error" : "ok"; // "phase_changed": the code was typed meanwhile, nothing to record
   }
+  // A live status is written only while the call is live, so a check that read Vonage before a concurrent end (a
+  // webhook retry and the sweep racing) can never move a finished session's status back.
   const r = RANK[status] === 4
     ? await deps.store.update(t.k, { ...WIPE, plan_status: status, phase: "done" })
-    : await deps.store.update(t.k, { plan_status: status });
+    : await deps.store.update(t.k, { plan_status: status }, ["calling"]);
   return r === "error" ? "error" : "ok"; // "phase_changed": the session is gone (swept), nothing left to record
+}
+
+/** How many plan calls with a pending end settlePendingEnds checks per run. */
+export const PENDING_ENDS_PER_RUN = 20;
+
+/**
+ * Plan calls whose end a callback reported while Vonage's GET still said live (END_PENDING): asks Vonage again for each
+ * and, through handleEvent with no claimed status, wipes only those Vonage now reports ended. One still live keeps its
+ * marker and is checked on the next run. With `id`, checks only that session (the person's own status poll).
+ * null when the pending sessions could not be listed (database error).
+ */
+export async function settlePendingEnds(deps: Hook, id?: string): Promise<{ checked: number; ended: number; failed: number } | null> {
+  const now = deps.now ?? Date.now();
+  let pending: { id: string; plan_uuid: string }[] | null;
+  if (id !== undefined) {
+    let row: SessionRow | null;
+    try { row = await deps.store.get(id, now); } catch (e) {
+      if (e instanceof CallStoreDown) return null;
+      throw e;
+    }
+    pending = row && row.phase === "calling" && row.note === END_PENDING && row.plan_uuid ? [{ id, plan_uuid: row.plan_uuid }] : [];
+  } else {
+    pending = await deps.store.pendingEnds(now, PENDING_ENDS_PER_RUN);
+  }
+  if (!pending) return null;
+  const results = await Promise.all(pending.map(async (p) => {
+    try {
+      const r = await handleEvent(deps, { k: p.id, p: "event", c: "plan", exp: now + 60_000 }, p.plan_uuid);
+      // "error": Vonage or the database could not answer. "ignored": Vonage's answer could not be matched to this call
+      // (another number, an unknown status). Neither settles the end, so both count as failed, never as "still live".
+      if (r !== "ok") return "failed" as const;
+      return (await deps.store.get(p.id, now))?.phase === "done" ? "ended" as const : "live" as const;
+    } catch (e) {
+      if (e instanceof CallStoreDown) return "failed" as const;
+      throw e;
+    }
+  }));
+  return { checked: pending.length, ended: results.filter((r) => r === "ended").length, failed: results.filter((r) => r === "failed").length };
 }
 
 /**
@@ -360,8 +409,12 @@ export async function handleInput(deps: Hook, t: CallTicket, digits: unknown, uu
 
 /**
  * The code at the start of the plan call. The plan (and the signed audio URL) is returned only for the session's own
- * code, compared in constant time against its hash, on a call Vonage reports live; a wrong code or silence gets one
- * more try (GATE_TRIES in all), then goodbye.
+ * code, compared in constant time against its hash, on a call Vonage reports live; a wrong code or silence each use a
+ * try (GATE_TRIES in all), then goodbye. After silence the first prompt plays again ("Enter the 4-digit code..."); only
+ * an entry that was typed and did not match hears "That code did not match".
+ * Before the plan is returned, gate_passed is set on the session: a non-sensitive yes/no that the wipe keeps. It says
+ * the right code was entered and the plan was handed to Vonage, not that the person heard it (ATLAS cannot know that),
+ * so the page only ever says "ATLAS could not confirm your plan was read" when it is false.
  */
 async function gateInput(deps: Hook, t: CallTicket, digits: unknown, uuid: unknown, now: number): Promise<NccoAction[]> {
   const tries = (t.g ?? 0) + 1;
@@ -375,15 +428,22 @@ async function gateInput(deps: Hook, t: CallTicket, digits: unknown, uuid: unkno
   if (!(await deps.store.takeSlot(`gate:${t.k}`, GATE_TRIES, now, SESSION_TTL_MS))) return goodbyeNcco(language);
   const base = urls(deps.cfg);
   const typed = typeof digits === "string" && /^\d{4}$/.test(digits) ? digits : "";
+  // Nothing pressed at all (Vonage's keypad wait ran out): the same prompt again, never "did not match".
+  const silent = typeof digits !== "string" || digits === "";
   const want = Buffer.from(row.code_hash, "hex");
   const got = Buffer.from(codeHash(deps.cfg.secret, t.k, row.phone_hash, typed || "none"), "hex");
   if (!typed || want.length !== got.length || !timingSafeEqual(want, got)) {
     return tries < GATE_TRIES
-      ? gateNcco({ language, inputUrl: `${base}/input?t=${ticket(deps.cfg, { k: t.k, p: "input", g: tries }, now)}`, retry: true })
+      ? gateNcco({ language, inputUrl: `${base}/input?t=${ticket(deps.cfg, { k: t.k, p: "input", g: tries }, now)}`, retry: !silent })
       : goodbyeNcco(language);
   }
   const text = openText(deps.cfg.secret, "text", t.k, row.sealed_text, now);
   if (!text) return goodbyeNcco(language);
+  // Recorded before the plan is returned. If the write fails the plan still plays (the person on the phone comes
+  // first); the flag then stays false and the page says only that ATLAS could not confirm the plan was read, which is
+  // still true of what ATLAS knows. The log says why.
+  const passed = await deps.store.update(t.k, { gate_passed: true }, ["calling"]);
+  if (passed !== "updated") console.error("call: gate_passed not recorded", passed);
   return planNcco({
     text, language, replays: 0,
     audioUrl: row.has_audio ? `${base}/audio?t=${ticket(deps.cfg, { k: t.k, p: "audio" }, now)}` : null,
@@ -405,5 +465,7 @@ export function publicStatus(row: SessionRow | null) {
   return {
     phase: row.phase, last4: row.last4, code_status: row.code_status, plan_status: row.plan_status, plan_mode: row.plan_mode,
     attempts_left: Math.max(0, CODE_ATTEMPTS - row.attempts),
+    /** true: the right code was entered on the plan call and the plan was handed to Vonage. false: not recorded. null: unknown. */
+    gate_passed: row.gate_passed,
   };
 }

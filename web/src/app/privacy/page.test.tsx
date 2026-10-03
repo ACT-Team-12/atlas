@@ -22,6 +22,11 @@ describe("privacy page: questions or deletion", () => {
     expect(section).toMatch(/ask the ATL Innovation Cup organizers to reach Team 12/);
   });
 
+  it("says a call end Vonage cannot confirm yet is re-checked by the 5-minute cleanup, not left to the 30-minute limit (#54)", () => {
+    expect(text).toMatch(/The cleanup runs every 5 minutes\./);
+    expect(text).toMatch(/cleanup asks Vonage again each time it runs and deletes them as soon as Vonage confirms the call has ended/);
+  });
+
   it("agrees with the retention paragraph on the same page", () => {
     expect(text).toMatch(/An hourly cleanup deletes any count older than two days, and every use of Say your answer also deletes counts that have expired/);
   });

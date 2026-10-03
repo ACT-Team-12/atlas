@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { CallStoreDown, ensureSchema, PgCallStore, reserveSlots, WIPE, type NewSession } from "./store";
+import { CallStoreDown, END_PENDING, ensureSchema, PgCallStore, reserveSlots, WIPE, type NewSession } from "./store";
 
 /**
  * The SQL of PgCallStore against a real Postgres. Runs only with CALL_TEST_DATABASE_URL pointing at a throwaway
@@ -68,7 +68,10 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     expect(await store.update("f", { sealed_audio: Buffer.from([7, 7]) })).toBe("updated");
     expect((await store.get("f", NOW))?.has_audio).toBe(true);
     expect(await store.getAudio("f", NOW)).toEqual(Buffer.from([7, 7]));
+    expect((await store.get("f", NOW))?.gate_passed).toBeNull();
+    expect(await store.update("f", { gate_passed: true }, ["calling"])).toBe("updated");
     expect(await store.update("f", { ...WIPE, phase: "done", plan_status: "completed" })).toBe("updated");
+    expect((await store.get("f", NOW))?.gate_passed).toBe(true); // nothing personal: the wipe keeps it for the page
     const { rows: [left] } = await pool.query("select phone_hash, language, code_uuid, plan_uuid, note, plan_mode, placed_at, last4 from atlas_calls where id = 'f'");
     expect(Object.values(left).every((v) => v === null)).toBe(true);
     expect(await store.update("f", { plan_status: "x" }, ["code"])).toBe("phase_changed");
@@ -170,6 +173,25 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     expect(rows[0]).toEqual({ phase: "failed", sealed_phone: null, sealed_text: null });
   });
 
+  it("lists only live plan calls with a pending end and a UUID; the sweep alone never wipes them; the wipe clears the marker", async () => {
+    await store.startCode(session("pe1", "h11"), NOW);
+    await store.update("pe1", { phase: "calling", code_hash: null, placed_at: new Date(NOW), plan_status: "answered", plan_uuid: "v-1" }, ["code"]);
+    await store.startCode(session("pe2", "h12"), NOW);
+    await store.update("pe2", { phase: "calling", code_hash: null, placed_at: new Date(NOW), plan_status: "answered" }, ["code"]);
+    expect(await store.pendingEnds(NOW, 10)).toEqual([]);
+    expect(await store.update("pe1", { note: END_PENDING }, ["calling"])).toBe("updated");
+    expect(await store.update("pe2", { note: END_PENDING }, ["calling"])).toBe("updated"); // no UUID: nothing to ask Vonage about
+    expect(await store.pendingEnds(NOW, 10)).toEqual([{ id: "pe1", plan_uuid: "v-1" }]);
+    expect(await store.pendingEnds(NOW, 0)).toEqual([]);
+    await store.sweep(NOW + 6 * 60_000); // the marker is not a reason to wipe
+    expect((await store.get("pe1", NOW + 6 * 60_000))?.sealed_text).toEqual(Buffer.from([4, 5]));
+    expect(await store.update("pe1", { ...WIPE, phase: "done", plan_status: "completed" })).toBe("updated");
+    const { rows } = await pool.query("select note, plan_uuid from atlas_calls where id = 'pe1'");
+    expect(rows[0]).toEqual({ note: null, plan_uuid: null });
+    expect(await store.pendingEnds(NOW, 10)).toEqual([]);
+    expect(await store.pendingEnds(NOW + 31 * 60_000, 10)).toEqual([]); // past the row's life
+  });
+
   it("sweeps expired sessions and counters", async () => {
     await store.sweep(NOW + 3 * 24 * 3600_000);
     const { rows } = await pool.query("select (select count(*) from atlas_calls)::int as s, (select count(*) from atlas_call_counters)::int as c");
@@ -226,6 +248,16 @@ describe.skipIf(!url)("call migrations (real Postgres)", () => {
     const idx = await pool.query("select 1 from pg_indexes where tablename = 'atlas_calls' and indexname = 'atlas_calls_one_live_uq'");
     expect(idx.rowCount).toBe(1);
     expect(await ensureSchema(pool)).toBe(true);
+  });
+
+  it("008 adds gate_passed (nullable, existing rows null) and is idempotent", async () => {
+    await pool.query("alter table atlas_calls drop column if exists gate_passed"); // ensureSchema above had added it
+    await pool.query(migration("008_atlas_calls_gate_passed.sql"));
+    await pool.query(migration("008_atlas_calls_gate_passed.sql"));
+    const col = await pool.query("select data_type, is_nullable from information_schema.columns where table_name = 'atlas_calls' and column_name = 'gate_passed'");
+    expect(col.rows).toEqual([{ data_type: "boolean", is_nullable: "YES" }]);
+    const { rows } = await pool.query("select count(*)::int as n from atlas_calls where gate_passed is not null");
+    expect(rows[0].n).toBe(0);
   });
 
   it("holds writers off from the first statement until commit, so no duplicate can appear before the index exists", async () => {

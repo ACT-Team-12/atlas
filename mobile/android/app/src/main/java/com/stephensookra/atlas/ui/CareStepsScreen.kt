@@ -38,8 +38,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.stephensookra.atlas.AppModel
 import com.stephensookra.atlas.Route
+import com.stephensookra.atlas.data.Check
 import com.stephensookra.atlas.data.ItemKind
 import com.stephensookra.atlas.data.Language
+import com.stephensookra.atlas.data.MeaningResult
+import com.stephensookra.atlas.data.MeaningStatus
+import com.stephensookra.atlas.data.PaperFirst
 import com.stephensookra.atlas.data.VerifiedItem
 import com.stephensookra.atlas.services.Speaker
 import java.util.Locale
@@ -59,21 +63,40 @@ fun CareStepsScreen(model: AppModel) {
     }
     ScreenBody {
         ScreenTitle("Your steps", "Each one is quoted from your paper.")
+        if (model.careProvenanceUnknown) OutdatedNote("These steps were saved by an older version of ATLAS, which did not keep what they were read from. Read your paper again to update them.")
+        else if (model.careOutdated) OutdatedNote("You changed the text, language or reading level since this was read. Read your paper again to update these steps.")
         if (care.has_warning_signs) WarningBanner()
         Text(
-            "${care.stats.grounded} steps found in your paper · ${care.stats.refused} held back because we couldn't find the words · " +
+            "${care.stats.grounded} steps found in your paper · ${care.stats.refused} held back because we couldn't show their words from your paper · " +
                 String.format(Locale.US, "%.1f", care.stats.ms / 1000.0) + "s",
             style = Type.foot.copy(fontWeight = FontWeight.Bold),
         )
         val items = model.items
-        ReadAloudBar(speaker, model.language, items.mapIndexed { i, it -> "${i + 1}. ${it.title}. ${it.plain_language}" })
+        when (model.meaning.status) {
+            MeaningStatus.loading -> Text("Double-checking each explanation against your paper...", style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
+            MeaningStatus.error -> Text("The double-check is not available right now, so each step shows your paper's own words first.",
+                style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
+            else -> {}
+        }
+        // Paper first: read aloud carries an explanation only when it was certified; otherwise the paper's words.
+        // Not offered when the steps' language is unknown (an older saved file): never a guessed voice.
+        model.stepsLanguage?.let { stepsLanguage ->
+            ReadAloudBar(speaker, stepsLanguage, items.flatMapIndexed { i, it ->
+                listOf("${i + 1}.") + PaperFirst.lines(PaperFirst.careStep(it, model.checkFor(it.id)))
+            })
+        }
 
         items.forEach { item ->
+            val check = model.checkFor(item.id)
             CareItemCard(
                 item = item,
+                check = check,
+                result = if (model.meaning.status == MeaningStatus.done) model.meaning.byId[item.id] else null,
+                checking = model.meaning.status == MeaningStatus.loading,
                 done = model.done[item.id] == true,
                 onToggleDone = { model.setDone(item.id, model.done[item.id] != true) },
-                onRemind = { reminder = ReminderTarget(item.title, item.source_quote) },
+                // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
+                onRemind = { reminder = ReminderTarget(PaperFirst.bookTitle(item.kind), item.source_quote, PaperFirst.bookWhen(item, check)) },
                 onRemove = { model.remove(item.id) },
             )
         }
@@ -84,9 +107,9 @@ fun CareStepsScreen(model: AppModel) {
                 Text("You removed ${removed.size}", style = Type.headline)
                 removed.forEach { r ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(r.title, style = Type.sub.copy(fontWeight = FontWeight.Normal), modifier = Modifier.weight(1f))
+                        Text("${KindStyle.of(r.kind).label}: your paper says “${r.source_quote}”", style = Type.sub.copy(fontWeight = FontWeight.Normal), modifier = Modifier.weight(1f))
                         TextLink("Undo", onClick = { model.undoRemove(r.id) },
-                            modifier = Modifier.semantics { contentDescription = "Undo removing ${r.title}" })
+                            modifier = Modifier.semantics { contentDescription = "Undo removing ${KindStyle.of(r.kind).label}: ${r.source_quote}" })
                     }
                 }
             }
@@ -108,16 +131,28 @@ fun CareStepsScreen(model: AppModel) {
             }
         }
 
-        PillButton("Next: what gets in the way?", onClick = { speaker.stop(); model.push(Route.Barriers) },
-            fill = Palette.ink, textColor = Palette.paper, shadow = Palette.mint)
+        // Where the website puts it: after the steps and the removed, not-in-paper and held-back lists, before moving on.
+        MissedLinesSection(model.missedLines)
+
+        if (model.careOutdated) {
+            PillButton("Read my paper again", onClick = { speaker.stop(); model.readPaper() },
+                fill = Palette.ink, textColor = Palette.paper, shadow = Palette.mint)
+        } else {
+            PillButton("Next: what gets in the way?", onClick = { speaker.stop(); model.push(Route.Barriers) },
+                fill = Palette.ink, textColor = Palette.paper, shadow = Palette.mint)
+        }
     }
     reminder?.let { ReminderDialog(it) { reminder = null } }
 }
 
 @Composable
-fun CareItemCard(item: VerifiedItem, done: Boolean, onToggleDone: () -> Unit, onRemind: () -> Unit, onRemove: () -> Unit) {
+fun CareItemCard(item: VerifiedItem, check: Check, result: MeaningResult?, checking: Boolean, done: Boolean,
+                 onToggleDone: () -> Unit, onRemind: () -> Unit, onRemove: () -> Unit) {
     val style = KindStyle.of(item.kind)
     val warning = item.itemKind == ItemKind.warning_sign
+    val certified = check == Check.certified
+    // The AI's title is only a label once it is certified; otherwise the card is named by its kind.
+    val name = if (certified) item.title else style.label
     AtlasCard(
         background = if (warning) Palette.redSoft.copy(alpha = 0.6f) else Palette.paper,
         border = if (warning) Palette.red else Palette.ink.copy(alpha = 0.75f),
@@ -126,7 +161,7 @@ fun CareItemCard(item: VerifiedItem, done: Boolean, onToggleDone: () -> Unit, on
             IconButton(
                 onClick = onToggleDone,
                 modifier = Modifier.semantics {
-                    contentDescription = if (done) "Done: ${item.title}" else "Mark ${item.title} done"
+                    contentDescription = if (done) "Done: $name" else "Mark $name done"
                     selected = done
                 },
             ) {
@@ -142,10 +177,10 @@ fun CareItemCard(item: VerifiedItem, done: Boolean, onToggleDone: () -> Unit, on
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Chip(style.label, style.background, style.foreground)
-                    if (item.`when`.isNotEmpty()) Text(item.`when`, style = Type.caption)
+                    if (certified && item.`when`.isNotEmpty()) Text(item.`when`, style = Type.caption)
                 }
-                Text(item.title, style = Type.headline.copy(textDecoration = if (done) TextDecoration.LineThrough else null))
-                Text(item.plain_language, style = Type.body)
+                if (certified) Text(item.title, style = Type.headline.copy(textDecoration = if (done) TextDecoration.LineThrough else null))
+                PaperFirstBlock(PaperFirst.careStep(item, check), done = done && !certified)
                 if (item.needs_clarification && item.question_for_clinic.isNotEmpty()) {
                     Text(
                         "Ask your clinic: ${item.question_for_clinic}",
@@ -153,17 +188,74 @@ fun CareItemCard(item: VerifiedItem, done: Boolean, onToggleDone: () -> Unit, on
                         modifier = Modifier.fillMaxWidth().background(Palette.peach, RoundedCornerShape(12.dp)).padding(8.dp),
                     )
                 }
-                PaperQuote(item.source_quote)
+                CheckStatus(result, checking)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinePill("Remind me", onClick = onRemind, fill = Palette.mint, icon = Icons.Filled.Notifications,
-                        contentDescription = "Remind me about ${item.title}")
+                        contentDescription = "Remind me about $name")
                     Spacer(Modifier.weight(1f))
                     TextLink("Remove", onClick = onRemove, color = Palette.inkSoft,
-                        modifier = Modifier.semantics { contentDescription = "Remove ${item.title}" })
+                        modifier = Modifier.semantics { contentDescription = "Remove $name" })
                 }
             }
         }
     }
+}
+
+/** The second check's verdict for one step, in the same words as the website. */
+@Composable
+private fun CheckStatus(result: MeaningResult?, checking: Boolean) {
+    when {
+        checking -> Text("Double-checking this against your paper...", style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
+        result == null -> {}
+        result.flagged -> {
+            val what = result.what_differs.trim().replaceFirstChar { it.uppercase() }
+            val numbers = if (result.unexpected_numbers.isNotEmpty()) " (Number not in your paper: ${result.unexpected_numbers.joinToString(", ")}.)" else ""
+            Text(
+                "Double-check this one with your clinic: our second check says the explanation may not match your paper." +
+                    (if (what.isNotEmpty()) " $what" else "") + numbers,
+                style = Type.sub.copy(color = Palette.peachDeep),
+                modifier = Modifier.fillMaxWidth().background(Palette.peach, RoundedCornerShape(12.dp)).padding(8.dp),
+            )
+        }
+        result.certified -> Text("✓ Double-checked: the explanation matches this line", style = Type.caption.copy(color = Palette.teal))
+        else -> Text("Not double-checked: our second check couldn't confirm this one. Read the line from your paper above.",
+            style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
+    }
+}
+
+/**
+ * Paper first (web/src/ui/PaperFirst.tsx). Certified: the explanation leads and the quote follows. Otherwise the
+ * paper's words lead, labelled, and the explanation is secondary with its note.
+ */
+@Composable
+fun PaperFirstBlock(v: PaperFirst.View, done: Boolean = false) {
+    if (v.quote.isEmpty()) return
+    if (v.explanationLeads) {
+        v.explanation?.let { Text(it, style = Type.body) }
+        PaperQuote(v.quote)
+        return
+    }
+    Text(
+        "${v.quoteLabel} “${v.quote}”",
+        style = Type.body.copy(fontWeight = FontWeight.SemiBold, textDecoration = if (done) TextDecoration.LineThrough else null),
+        modifier = Modifier.fillMaxWidth().sunRule().semantics { contentDescription = "${v.quoteLabel} ${v.quote}" },
+    )
+    if (v.explanation != null) {
+        Text(
+            "${v.note ?: ""} ${v.explanation}".trim(),
+            style = Type.sub.copy(fontWeight = FontWeight.Normal, color = Palette.inkSoft),
+        )
+    }
+}
+
+/** Shown when what is on screen no longer matches what was entered (StaleGuard). */
+@Composable
+fun OutdatedNote(text: String) {
+    Text(
+        text,
+        style = Type.sub.copy(color = Palette.peachDeep),
+        modifier = Modifier.fillMaxWidth().background(Palette.peach, RoundedCornerShape(12.dp)).padding(10.dp),
+    )
 }
 
 @Composable

@@ -1,4 +1,4 @@
-import { CallStoreDown, refuseStale, WIPE, CODE_ATTEMPTS, COUNTER_TTL_MS, PLAN_CALL_MAX_MS, PREPARING_MAX_MS, UNCONFIRMED_PLAN_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
+import { CallStoreDown, END_PENDING, refuseStale, WIPE, CODE_ATTEMPTS, COUNTER_TTL_MS, PLAN_CALL_MAX_MS, PREPARING_MAX_MS, UNCONFIRMED_PLAN_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
 
 /**
  * An in-memory CallStore with the same rules as PgCallStore (one live code per number, atomic attempts, capped
@@ -39,6 +39,14 @@ export class MemoryCallStore implements CallStore {
     return true;
   }
 
+  async pendingEnds(now: number, limit: number) {
+    if (this.failReads) return null;
+    return [...this.rows.values()]
+      .filter((r) => r.phase === "calling" && r.note === END_PENDING && r.plan_uuid !== null && r.expires_at.getTime() > now)
+      .slice(0, limit)
+      .map((r) => ({ id: r.id, plan_uuid: r.plan_uuid as string }));
+  }
+
   /** While true, startCode saves the row and then reports "error", as a connection dropped after commit would. */
   failAfterInsert = false;
 
@@ -50,7 +58,7 @@ export class MemoryCallStore implements CallStore {
       if ((r.code_expires_at?.getTime() ?? 0) < now) { r.phase = "expired"; r.code_hash = null; } else return "in-flight" as const;
     }
     this.rows.set(s.id, {
-      ...s, phase: "code", attempts: 0, code_status: null, plan_status: null, plan_mode: null, note: null, code_uuid: null, plan_uuid: null, placed_at: null, sealed_audio: null, has_audio: false, created_at: new Date(now),
+      ...s, phase: "code", attempts: 0, code_status: null, plan_status: null, plan_mode: null, note: null, code_uuid: null, plan_uuid: null, placed_at: null, sealed_audio: null, has_audio: false, gate_passed: null, created_at: new Date(now),
     });
     return this.failAfterInsert ? "error" as const : "ok" as const;
   }

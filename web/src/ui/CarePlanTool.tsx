@@ -10,6 +10,7 @@ import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
 import { BARRIERS, BARRIER_LABEL, type Barrier, formatHours, openNow, opensEvenings, opensWeekends } from "@/lib/resources";
 import type { PlanResponse, ResourceCard } from "@/lib/plan";
+import { restoredPlan } from "@/lib/planText";
 import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
@@ -401,7 +402,10 @@ export function CarePlanTool() {
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setLoc(null); locGen.current++; setLocating(false);
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
-    setPlan(v.plan); setDone(v.done); setRemoved(v.removed); setPhotoChecked(v.photoChecked ?? false);
+    // A plan saved before ids were filtered out (lib/planText.ts) comes back without them. A plan with nothing to clean
+    // is the same object, so its speak token stays valid; one that changed loses its token (it signed the old text), so
+    // it reads with the device voice and offers no phone call.
+    setPlan(v.plan && restoredPlan(v.plan)); setDone(v.done); setRemoved(v.removed); setPhotoChecked(v.photoChecked ?? false);
     // Saved plans are only written while their results match their inputs, so what comes back is current,
     // except a plan built from the device location: the position is never saved, so nothing on this page can
     // match it ("device" with no coordinates). It comes back outdated until a fresh position or a ZIP is given.

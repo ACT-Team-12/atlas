@@ -7,7 +7,7 @@ import { careStepView, checkOf, labRowView, paperFirstLines, paperFirstView } fr
 import { PaperFirst } from "@/ui/PaperFirst";
 import { HandoffSheetBody } from "@/ui/HandoffSheet";
 import { planShareText } from "./shareText";
-import { speechLines } from "./speechText";
+import { PLAN_IS_A_SUGGESTION, speechLines } from "./speechText";
 import { shownExplanation } from "./prepView";
 import type { VerifiedItem } from "./schema";
 import type { PlanResponse } from "./plan";
@@ -113,7 +113,7 @@ describe("paper first: every surface", () => {
   });
   it("read aloud: a plan step tied to a paper step is followed by the paper's words", () => {
     const lines = speechLines(plan, [item()]);
-    expect(lines).toEqual(["Your plan.", "1. Get a ride. Call the ride line.", `Your paper says: "${QUOTE}"`]);
+    expect(lines).toEqual([PLAN_IS_A_SUGGESTION, "Your plan.", "1. Get a ride. Call the ride line.", `Your paper says: "${QUOTE}"`]);
     for (const w of AI_WORDS) expect(lines.join("\n")).not.toContain(w);
   });
   it("lab row: the report's line leads, the AI's plain name is secondary", () => {
@@ -145,5 +145,20 @@ describe("paper first: no surface renders an AI explanation field directly", () 
     expect(files.length).toBeGreaterThan(20);
     const bad = files.filter((f) => /\{\s*[\w.?]*\.(?:plain_language|plain_name)\s*\}/.test(readFileSync(f, "utf8")));
     expect(bad).toEqual([]);
+  });
+});
+
+describe("Codex round 12: removing a step never strips a plan step's quote", () => {
+  it("share text and read-aloud use every planned step's quote, even after it was removed from the list", () => {
+    const t = planShareText({ items: [], plan, questions: [], planItems: [item()] });
+    expect(t).toContain(`Your paper says: "${QUOTE}"`);
+    expect(t).toContain("Suggestion from ATLAS, not the paper:");
+    const lines = speechLines(plan, [item()]);
+    expect(lines).toContain(`Your paper says: "${QUOTE}"`);
+  });
+  it("the printed sheet labels the plan as suggestions and keeps a removed step's quote", () => {
+    const html = renderToStaticMarkup(createElement(HandoffSheetBody, { items: [], plan, questions: [], language: "English", planItems: [item()] }));
+    expect(html).toContain("suggestions from ATLAS");
+    expect(html).toContain("Your paper says:");
   });
 });

@@ -10,7 +10,10 @@ type Linked = { id: string; source_quote: string; grounded?: boolean };
  */
 export const paidSpeechText = (plan: Pick<PlanResponse, "summary" | "steps">) => planLines(plan).join("\n");
 
-const planLines = (plan: Pick<PlanResponse, "summary" | "steps">) => [plan.summary, ...plan.steps.map((s, i) => `${i + 1}. ${s.title}. ${s.action}`)];
+/** Said first, every time: the plan is the AI's suggestion, and the paper wins. */
+export const PLAN_IS_A_SUGGESTION = "This plan is a suggestion from ATLAS, not your paper. If anything differs, follow your paper.";
+
+const planLines = (plan: Pick<PlanResponse, "summary" | "steps">) => [PLAN_IS_A_SUGGESTION, plan.summary, ...plan.steps.map((s, i) => `${i + 1}. ${s.title}. ${s.action}`)];
 
 /**
  * What "Read it out loud" says for a plan, one line each. A plan step is the AI's suggestion and is never certified,
@@ -19,6 +22,7 @@ const planLines = (plan: Pick<PlanResponse, "summary" | "steps">) => [plan.summa
  */
 export function speechLines(plan: Pick<PlanResponse, "summary" | "steps">, items: Linked[] = []): string[] {
   return [
+    PLAN_IS_A_SUGGESTION,
     plan.summary,
     ...plan.steps.flatMap((s, i) => [`${i + 1}. ${s.title}. ${s.action}`, ...planStepQuotes(s, items).map((q) => `Your paper says: "${q}"`)]),
   ];

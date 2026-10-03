@@ -6,11 +6,11 @@ import type { PlanResponse } from "@/lib/plan";
 import { planShareText, SHARE_TITLE, type ShareMeaning } from "@/lib/shareText";
 
 /** "Send to family": hands the plan to the phone's own share sheet (text, email, WhatsApp). Falls back to copy, email and text links. */
-export function ShareFamily({ items, plan, questions, meaning }: { items: VerifiedItem[]; plan: PlanResponse; questions: string[]; meaning: ShareMeaning }) {
+export function ShareFamily({ items, plan, questions, meaning, planItems }: { items: VerifiedItem[]; plan: PlanResponse; questions: string[]; meaning: ShareMeaning; planItems: VerifiedItem[] }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const panelId = useId();
-  const text = planShareText({ items, plan, questions, meaning });
+  const text = planShareText({ items, plan, questions, meaning, planItems });
   // Never send while the double-check is still running: its warnings must be in the message.
   const checking = meaning.status === "loading";
 

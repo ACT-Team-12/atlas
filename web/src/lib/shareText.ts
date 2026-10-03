@@ -19,8 +19,8 @@ const KIND_LABEL: Record<string, string> = {
  * The double-check travels with it: an explanation is sent only when the second check certified it; otherwise the
  * paper's own words are sent in its place (paperFirst.ts), so a text message never carries an unchecked paraphrase.
  */
-export function planShareText({ items, plan, questions, meaning }: { items: VerifiedItem[]; plan: PlanResponse; questions: string[]; meaning?: ShareMeaning }): string {
-  const out: string[] = ["Plan after the visit (from ATLAS)", "", plan.summary];
+export function planShareText({ items, plan, questions, meaning, planItems }: { items: VerifiedItem[]; plan: PlanResponse; questions: string[]; meaning?: ShareMeaning; planItems?: VerifiedItem[] }): string {
+  const out: string[] = ["Plan after the visit (from ATLAS)", "", `Suggestion from ATLAS, not the paper: ${plan.summary}`];
 
   const grounded = items.filter((i) => i.grounded);
   if (grounded.length) {
@@ -38,7 +38,8 @@ export function planShareText({ items, plan, questions, meaning }: { items: Veri
     out.push("", "THE PLAN (suggestions from ATLAS; if anything differs from the paper, follow the paper)");
     plan.steps.forEach((s, n) => {
       out.push(`${n + 1}. ${s.title}. ${s.action}`);
-      for (const q of planStepQuotes(s, grounded)) out.push(`   Your paper says: "${q}"`);
+      // Every step the plan was built from, even one removed from the list since: its quote never drops out.
+      for (const q of planStepQuotes(s, planItems ?? grounded)) out.push(`   Your paper says: "${q}"`);
     });
   }
 

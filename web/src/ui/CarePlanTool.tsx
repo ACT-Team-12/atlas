@@ -507,7 +507,7 @@ export function CarePlanTool() {
     if (speaking) return stopSpeaking();
     silence();
     const run = speechRun.current;
-    const lines = speechLines(plan, items);
+    const lines = speechLines(plan, planItems);
     speechLinesRef.current = lines;
     setSpeaking(true);
     setVoiceNote("");
@@ -592,6 +592,8 @@ export function CarePlanTool() {
     if (b && !bookAt.has(b.id)) bookAt.set(b.id, i);
   });
   const items = (care?.items ?? []).filter((i) => !removed[i.id]);
+  // Every grounded step the plan could point at, removed or not: a plan step's paper quote never drops out (round 12).
+  const planItems = (care?.items ?? []).filter((i) => i.grounded);
   // Paper first (lib/paperFirst.ts): only a step the second check certified, and this device's own check did not
   // dispute, may lead with its explanation.
   const checkFor = (id: string): Check => {
@@ -858,13 +860,14 @@ export function CarePlanTool() {
           </div>
         </div>
 
-        {plan && care && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} meaning={paperMeaning} />}
+        {plan && care && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} meaning={paperMeaning} planItems={planItems} />}
 
         {/* Step 3 */}
         {plan && (
           <div {...panel(3)} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 scroll-mt-24 max-md:scroll-mt-44 ${onPhone(3)}`}>
             <StepHeader n={3} title="Your plan" done note={plan.located.label} />
-            <p className="mt-4 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
+            <p className="mt-4 text-xs font-bold uppercase tracking-wide text-ink/70">Suggestions from ATLAS, not your paper. If anything differs, follow your paper.</p>
+            <p className="mt-1 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
               {tapToPlay
                 ? <button type="button" onClick={() => void startAudio(speechRun.current)} className="rounded-full border-2 border-ink bg-sun px-4 py-2">▶ Tap to play</button>
@@ -875,7 +878,7 @@ export function CarePlanTool() {
               <span role="status" className={voiceNote ? "self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
               <button type="button" onClick={() => window.print()} className="rounded-full border-2 border-ink px-4 py-2">🖨️ Print for the next visit</button>
               <button type="button" onClick={printSheet} className="rounded-full border-2 border-ink px-4 py-2">📄 Print a handoff sheet</button>
-              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={paperMeaning} />}
+              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={paperMeaning} planItems={planItems} />}
               <span className="self-center text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
             </div>
             {plan.ask_a_person && (
@@ -895,7 +898,7 @@ export function CarePlanTool() {
                   <p className="mt-2 font-semibold">{s.action}</p>
                   {s.why && <p className="mt-1 text-sm text-ink/75">Why: {s.why}</p>}
                   {/* The plan step is a suggestion, never certified: the paper's own words for its steps go with it. */}
-                  {planStepQuotes(s, items).map((q, k) => (
+                  {planStepQuotes(s, planItems).map((q, k) => (
                     <p key={k} data-paper-quote="" className="mt-2 border-l-4 border-sun pl-2 text-sm font-semibold">📄 Your paper says: &ldquo;{q}&rdquo;</p>
                   ))}
                   {s.resource_ids.length > 0 && (

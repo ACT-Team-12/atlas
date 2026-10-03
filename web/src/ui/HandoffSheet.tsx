@@ -19,7 +19,7 @@ const KIND_LABEL: Record<string, string> = {
  * the paper's own line under every step, verified numbers, and room for a helper's notes.
  * Rendered into <body> and shown only while printing it (see .atlas-sheet rules in globals.css).
  */
-type SheetProps = { items: VerifiedItem[]; plan: PlanResponse | null; questions: string[]; language: string; meaning?: ShareMeaning };
+type SheetProps = { items: VerifiedItem[]; plan: PlanResponse | null; questions: string[]; language: string; meaning?: ShareMeaning; planItems?: VerifiedItem[] };
 
 export function HandoffSheet(props: SheetProps) {
   // true only in the browser, so the portal never renders on the server
@@ -32,7 +32,7 @@ export function HandoffSheet(props: SheetProps) {
  * The sheet itself. Paper first (lib/paperFirst.ts): a step's plain-words explanation is printed only when the second
  * check certified it; otherwise the sheet prints the paper's own words and says the explanation was left out.
  */
-export function HandoffSheetBody({ items, plan, questions, language, meaning }: SheetProps) {
+export function HandoffSheetBody({ items, plan, questions, language, meaning, planItems }: SheetProps) {
   const resources = plan ? Object.values(plan.resources) : [];
   const used = new Set(plan?.steps.flatMap((s) => s.resource_ids) ?? []);
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
@@ -61,12 +61,13 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning }: 
 
       {plan && plan.steps.length > 0 && (
         <>
-          <h2>My plan</h2>
+          <h2>My plan (suggestions from ATLAS; if anything differs from my paper, follow my paper)</h2>
+          <p>{plan.summary}</p>
           <ol className="plan">
             {plan.steps.map((s, n) => (
               <li key={n}>
                 <b>{s.title}.</b> {s.action}
-                {planStepQuotes(s, items).map((q, k) => <p key={k} className="quote" data-paper-quote="">Your paper says: &ldquo;{q}&rdquo;</p>)}
+                {planStepQuotes(s, planItems ?? items).map((q, k) => <p key={k} className="quote" data-paper-quote="">Your paper says: &ldquo;{q}&rdquo;</p>)}
               </li>
             ))}
           </ol>

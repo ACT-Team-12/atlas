@@ -30,7 +30,7 @@ export default function HelperPage() {
               <h2 className="display text-2xl sm:text-3xl">What the link does</h2>
               <div className="mt-3 space-y-3 font-semibold text-ink-soft leading-7">
                 <p>It opens ATLAS at &ldquo;Try it&rdquo; with the language, reading level and ZIP already picked, and a short note saying someone helping them set it up. Nothing else changes: they still choose what to share.</p>
-                <p>The link has no name, no organization and nothing about the person in it. If any part is wrong or missing, ATLAS just opens normally.</p>
+                <p>The link holds only the language, the reading level and the ZIP if you add one: no name and no organization. Anyone who sees the link can read those choices, so leave the ZIP out if sharing it would not be right. If any part is wrong or missing, ATLAS just opens normally.</p>
               </div>
             </div>
             <div className="card p-6 sm:p-8 bg-paper">

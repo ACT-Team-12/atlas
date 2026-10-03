@@ -80,6 +80,7 @@ beforeEach(() => {
     value: { getCurrentPosition: (ok: (p: { coords: { latitude: number; longitude: number } }) => void) => ok({ coords: { latitude: geo.lat, longitude: geo.lng } }) },
   });
   Element.prototype.scrollIntoView = function (this: Element) { scrolls.push(this.id); };
+  setScrollY(0);
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -91,6 +92,11 @@ afterEach(() => {
   host.remove();
   vi.unstubAllGlobals();
 });
+
+/** Where the page is scrolled to (jsdom never moves on its own). */
+function setScrollY(y: number) {
+  Object.defineProperty(window, "scrollY", { configurable: true, value: y });
+}
 
 const byText = (t: string) => {
   const el = [...host.querySelectorAll("button")].find((b) => b.textContent?.includes(t));
@@ -374,5 +380,42 @@ describe("a result the person changed their answers after", () => {
     act(() => typeInto(paperBox(), "A different paper about a knee brace, worn every day for six weeks."));
     expect(screenText()).toContain(CARE_OUTDATED);
     expect(screenText()).toContain("Read it again in step 1, then make a new plan");
+  });
+});
+
+describe("the person scrolling while the page's own scroll is still moving", () => {
+  async function readThenPressPlan() {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    expect(scrolls).toEqual(["step-2"]); // the automatic smooth scroll after a read (desktop) has started
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    return req;
+  }
+
+  it("a scrollbar drag away from where the page was going counts, so the plan does not pull them back", async () => {
+    const req = await readThenPressPlan();
+    setScrollY(900); // dragged well off the path to step 2
+    window.dispatchEvent(new Event("scroll"));
+    await release(req, ready(planFor("The new plan")));
+    expect(scrolls).toEqual(["step-2"]);
+  });
+
+  it("the page's own scroll ending somewhere else (the person stopped it) counts", async () => {
+    const req = await readThenPressPlan();
+    setScrollY(40);
+    window.dispatchEvent(new Event("scrollend"));
+    await release(req, ready(planFor("The new plan")));
+    expect(scrolls).toEqual(["step-2"]);
+  });
+
+  it("the page's own scroll ending where it was going does not count", async () => {
+    const req = await readThenPressPlan();
+    window.dispatchEvent(new Event("scroll"));
+    window.dispatchEvent(new Event("scrollend"));
+    await release(req, ready(planFor("The new plan")));
+    expect(scrolls).toEqual(["step-2", "step-3"]);
   });
 });

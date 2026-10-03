@@ -26,19 +26,30 @@ export const panelId = (t: Tab) => `step-${t}`;
 
 const LABEL: Record<Tab, string> = { 1: "Paper", 2: "Your needs", 3: "Plan" };
 
+/** A scroll the page itself started: how, and from which window.scrollY to which (measured before it moves). */
+export type PageScroll = { behavior: "smooth" | "auto"; from: number; to: number };
+
+/** Scrolls `el` to the top (under its scroll margin) and says where the window is headed. */
+export function scrollElementToTop(el: HTMLElement, behavior: "smooth" | "auto"): PageScroll {
+  const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+  const from = window.scrollY;
+  const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  const to = Math.min(max, Math.max(0, from + el.getBoundingClientRect().top - margin));
+  el.scrollIntoView({ behavior, block: "start" });
+  return { behavior, from, to };
+}
+
 /**
  * Scrolls a step card to the top, just under the sticky tab bar. With `onlyIfHidden`, it only moves
  * when the card's top is already scrolled up under the bar, so a tap near the top does not jump.
- * Says how it scrolled (null when it did not), so the caller can tell its own scroll from the person's.
+ * Says how and where it scrolled (null when it did not), so the caller can tell its own scroll from the person's.
  */
-export function scrollToPanel(t: Tab, onlyIfHidden = false): "smooth" | "auto" | null {
+export function scrollToPanel(t: Tab, onlyIfHidden = false): PageScroll | null {
   const el = document.getElementById(panelId(t));
   if (!el) return null;
   const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
   if (onlyIfHidden && el.getBoundingClientRect().top >= margin - 1) return null;
-  const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
-  el.scrollIntoView({ behavior, block: "start" });
-  return behavior;
+  return scrollElementToTop(el, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
 }
 
 /** Sticky tab bar for phones. Hidden from md up, where all three steps show at once. */

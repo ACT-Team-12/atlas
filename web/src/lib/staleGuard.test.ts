@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { anchorHolds, ANCHOR_MS, isEditable, LAYOUT_SCROLL_MS, photoId, planFingerprint, planPlace, readFingerprint, scrollIsPersons, shouldAutoScroll } from "./staleGuard";
+import {
+  anchorHolds, ANCHOR_MS, isEditable, LAYOUT_SCROLL_MS, OWN_SCROLL_SLACK_PX, ownScrollEndedByPerson, photoId, planFingerprint, planPlace,
+  readFingerprint, scrollIsPersons, shouldAutoScroll,
+} from "./staleGuard";
 
 const read = { text: "paper one", photo: null, language: "English", level: "simple" };
 const plan = { careIds: ["c1", "c2"], barriers: ["transport", "cost"], language: "English", note: "", place: "30030", location: null };
@@ -83,14 +86,32 @@ describe("shouldAutoScroll", () => {
 });
 
 describe("scrollIsPersons", () => {
-  const quiet = { now: 10_000, ownScrollUntil: 0, layoutChangedAt: 0 };
+  const own = { start: 9_000, until: 10_500, from: 2_000, to: 500 };
+  const quiet = { now: 10_000, y: 1_200, own: null, layoutChangedAt: 0 };
   it("a scroll with nothing else going on is the person's (scrollbar drag, find in page)", () => expect(scrollIsPersons(quiet)).toBe(true));
-  it("not while the page's own scroll is still moving", () => {
-    expect(scrollIsPersons({ ...quiet, ownScrollUntil: 10_500 })).toBe(false);
-    expect(scrollIsPersons({ ...quiet, ownScrollUntil: 9_999 })).toBe(true);
+  it("on the path of the page's own scroll, it is the page", () => {
+    expect(scrollIsPersons({ ...quiet, own })).toBe(false);
+    expect(scrollIsPersons({ ...quiet, own, y: 500 + OWN_SCROLL_SLACK_PX })).toBe(false);
+  });
+  it("off that path (dragged the other way, or past the target), it is the person", () => {
+    expect(scrollIsPersons({ ...quiet, own, y: 2_000 + OWN_SCROLL_SLACK_PX + 1 })).toBe(true);
+    expect(scrollIsPersons({ ...quiet, own, y: 500 - OWN_SCROLL_SLACK_PX - 1 })).toBe(true);
+  });
+  it("after the page's own scroll could still be moving, any scroll is the person's", () => {
+    expect(scrollIsPersons({ ...quiet, own: { ...own, until: 9_999 } })).toBe(true);
   });
   it("not right after the page changed size (the browser keeping content in place)", () => {
     expect(scrollIsPersons({ ...quiet, layoutChangedAt: 10_000 - LAYOUT_SCROLL_MS + 1 })).toBe(false);
     expect(scrollIsPersons({ ...quiet, layoutChangedAt: 10_000 - LAYOUT_SCROLL_MS - 1 })).toBe(true);
   });
+  it("if the page changed size during its own scroll, the path is unreliable and the time window decides", () => {
+    expect(scrollIsPersons({ ...quiet, own, y: 5_000, layoutChangedAt: 9_500 })).toBe(false);
+  });
+});
+
+describe("ownScrollEndedByPerson", () => {
+  const own = { start: 9_000, until: 10_500, from: 2_000, to: 500 };
+  it("ending at the target is the page", () => expect(ownScrollEndedByPerson({ y: 500 + OWN_SCROLL_SLACK_PX, own, layoutChangedAt: 0 })).toBe(false));
+  it("ending elsewhere is the person", () => expect(ownScrollEndedByPerson({ y: 1_200, own, layoutChangedAt: 0 })).toBe(true));
+  it("unless the page changed size meanwhile", () => expect(ownScrollEndedByPerson({ y: 1_200, own, layoutChangedAt: 9_500 })).toBe(false));
 });

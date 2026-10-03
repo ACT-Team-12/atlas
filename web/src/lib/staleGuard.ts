@@ -79,12 +79,33 @@ export const OWN_INSTANT_SCROLL_MS = 150;
 /** A scroll this soon after the page changed size is the browser keeping content in place, not the person. */
 export const LAYOUT_SCROLL_MS = 120;
 
+/** How far (px) the page may sit off its own scroll's path before the person is taken to be moving it. */
+export const OWN_SCROLL_SLACK_PX = 16;
+
+/** The page's own scroll: when it started, until when it may still be moving, and from where to where (scrollY). */
+export type OwnScroll = { start: number; until: number; from: number; to: number };
+
 /**
- * A scroll counts as the person using the page unless the page itself is scrolling (an automatic scroll
- * still moving), or the page just changed size (the browser shifting the view to keep content in place).
+ * A scroll counts as the person using the page, except: right after the page changed size (the browser
+ * shifting the view to keep content in place), or while the page's own scroll is moving and the page is
+ * still on its way from start to target. Off that path (a scrollbar drag the other way, or past the
+ * target) it is the person. If the page changed size since its own scroll began, the path is unreliable,
+ * so the time window alone decides.
  */
-export function scrollIsPersons(s: { now: number; ownScrollUntil: number; layoutChangedAt: number }): boolean {
-  return s.now > s.ownScrollUntil && s.now - s.layoutChangedAt > LAYOUT_SCROLL_MS;
+export function scrollIsPersons(s: { now: number; y: number; own: OwnScroll | null; layoutChangedAt: number }): boolean {
+  if (s.now - s.layoutChangedAt <= LAYOUT_SCROLL_MS) return false;
+  const own = s.own;
+  if (!own || s.now > own.until) return true;
+  if (s.layoutChangedAt >= own.start) return false;
+  const lo = Math.min(own.from, own.to) - OWN_SCROLL_SLACK_PX;
+  const hi = Math.max(own.from, own.to) + OWN_SCROLL_SLACK_PX;
+  return s.y < lo || s.y > hi;
+}
+
+/** The page's own scroll has ended (scrollend). Ending away from its target means the person stopped or moved it. */
+export function ownScrollEndedByPerson(s: { y: number; own: OwnScroll; layoutChangedAt: number }): boolean {
+  if (s.layoutChangedAt >= s.own.start) return false;
+  return Math.abs(s.y - s.own.to) > OWN_SCROLL_SLACK_PX;
 }
 
 /** Scroll for them only if they have not touched the page since they pressed the button, and are not typing. */

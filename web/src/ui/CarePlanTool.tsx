@@ -18,7 +18,7 @@ import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
 import { restoredTab, scrollTargetAfter, shownTab, type Tab } from "@/lib/phoneTabs";
 import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
-import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
+import { isPhoneNow, panelId, PhoneTabBar, scrollElementToTop, scrollToPanel, tabId, useIsPhone, type PageScroll } from "./PhoneTabs";
 import { speechLines } from "@/lib/speechText";
 import {
   closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan, saveSession,
@@ -26,7 +26,8 @@ import {
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
 import {
-  anchorHolds, isEditable, OWN_INSTANT_SCROLL_MS, OWN_SCROLL_MS, photoId, planFingerprint, planPlace, readFingerprint, scrollIsPersons, shouldAutoScroll,
+  anchorHolds, isEditable, OWN_INSTANT_SCROLL_MS, OWN_SCROLL_MS, ownScrollEndedByPerson, photoId, planFingerprint, planPlace, readFingerprint,
+  scrollIsPersons, shouldAutoScroll, type OwnScroll,
 } from "@/lib/staleGuard";
 import { SPEECH_LANG } from "@/lib/speechLang";
 
@@ -223,9 +224,9 @@ export function CarePlanTool() {
   const pendingRead = useRef<{ run: number; fp: string; at: number; abort: AbortController } | null>(null);
   const pendingPlan = useRef<{ run: number; fp: string; at: number; abort: AbortController } | null>(null);
   const lastInteraction = useRef(0);
-  // Until when scroll events are the page's own automatic scroll, and when the page last changed size.
-  // Neither is the person using the page, so neither cancels an automatic scroll.
-  const ownScrollUntil = useRef(-Infinity);
+  // The page's own automatic scroll in progress (where it is headed), and when the page last changed size.
+  // Scrolls along that path, or caused by a size change, are not the person and do not cancel an automatic scroll.
+  const ownScroll = useRef<OwnScroll | null>(null);
   const layoutChangedAt = useRef(-Infinity);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
@@ -670,9 +671,16 @@ export function CarePlanTool() {
     // A scroll with none of those (dragging the scrollbar, find in page) counts too, unless it is the page's own.
     const onScroll = () => {
       const now = performance.now();
-      if (scrollIsPersons({ now, ownScrollUntil: ownScrollUntil.current, layoutChangedAt: layoutChangedAt.current })) lastInteraction.current = now;
+      if (scrollIsPersons({ now, y: window.scrollY, own: ownScroll.current, layoutChangedAt: layoutChangedAt.current })) lastInteraction.current = now;
     };
-    const onScrollEnd = () => { ownScrollUntil.current = Math.min(ownScrollUntil.current, performance.now()); };
+    // The page's own scroll is over. If it stopped short of (or past) its target, the person moved it.
+    const onScrollEnd = () => {
+      const own = ownScroll.current;
+      if (!own) return;
+      ownScroll.current = null;
+      const now = performance.now();
+      if (now <= own.until && ownScrollEndedByPerson({ y: window.scrollY, own, layoutChangedAt: layoutChangedAt.current })) lastInteraction.current = now;
+    };
     window.addEventListener("scroll", onScroll, opts);
     window.addEventListener("scrollend", onScrollEnd, opts);
     const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => { layoutChangedAt.current = performance.now(); });
@@ -685,8 +693,10 @@ export function CarePlanTool() {
     };
   }, []);
 
-  function markOwnScroll(behavior: "smooth" | "auto" | null) {
-    if (behavior) ownScrollUntil.current = performance.now() + (behavior === "smooth" ? OWN_SCROLL_MS : OWN_INSTANT_SCROLL_MS);
+  function markOwnScroll(s: PageScroll | null) {
+    if (!s) return;
+    const now = performance.now();
+    ownScroll.current = { start: now, until: now + (s.behavior === "smooth" ? OWN_SCROLL_MS : OWN_INSTANT_SCROLL_MS), from: s.from, to: s.to };
   }
 
   function runScroll(req: { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number }) {
@@ -754,7 +764,7 @@ export function CarePlanTool() {
       const el = document.getElementById(panelId(a.t));
       if (!el) return;
       const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
-      if (Math.abs(el.getBoundingClientRect().top - margin) > 4) { el.scrollIntoView({ behavior: "auto", block: "start" }); markOwnScroll("auto"); }
+      if (Math.abs(el.getBoundingClientRect().top - margin) > 4) markOwnScroll(scrollElementToTop(el, "auto"));
     });
     ro.observe(section);
     return () => ro.disconnect();

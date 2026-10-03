@@ -81,6 +81,12 @@ const MIXED_WORDS = [
   /rưỡi/iu,
   /[一二两兩三四五六七八九十\d][^\s半]{1,2}半/u,
   /(?:알|정|시간|개|잔|컵|스푼|숟가락|봉|포)\s*반(?![가-힣])/u,
+  // Fractions we don't read as values ("one third of a tablet", "an eighth"), and ordinals that look like them
+  // (Codex round 11): never certified, rather than read as the whole number before them.
+  /(?<![\p{L}\p{M}])(?:thirds?|fifths?|sixths?|sevenths?|eighths?|ninths?|tenths?|twelfths?|sixteenths?|tercios?|octavos?|tiers|huitièmes?|cinquièmes?|sixièmes?|phần)(?![\p{L}\p{M}])/iu,
+  /分之/u,
+  // A number grouped with a space or an apostrophe ("1 500 mg", "1'500 mg"), which the digit readers would split in two.
+  /\d[ \u00A0\u202F'’]\d{3}(?!\d)/u,
 ];
 
 export function fractionsIn(text: string): { values: string[]; rest: string; mixed: boolean } {
@@ -224,7 +230,7 @@ function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [strin
       // The "a" of "once a day" or "half a tablet" is not a number (numberWords.ts reads it with the word before).
       if (/^an?$/i.test(tok) && /^(?:once|twice|times?|half|quarter|per|every|each|and)$/i.test(toks[i - 1] ?? "")) continue;
       // "vitamin A", "Class A": a name, not 1 (Codex round 10).
-      if (/^an?$/i.test(tok) && (NAME_BEFORE_LETTER.test((toks[i - 1] ?? "").toLowerCase()) || (/^A/.test(tok) && i > 0))) continue;
+      if (/^an?$/i.test(tok) && NAME_BEFORE_LETTER.test((toks[i - 1] ?? "").toLowerCase())) continue;
       for (const lang of languages) {
         const both = readNumberWords(`${tok} ${next ?? ""}`, lang).numbers;
         if (both.length === 1 && readNumberWords(next ?? "", lang).numbers.length === 0) { value = both[0]; break; }

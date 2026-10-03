@@ -210,3 +210,19 @@ describe("Codex round 8: a shared word like \"insulin\" never lines up swapped d
     expect(caught("Inject insulin glargine 10 units and insulin lispro 5 units each day.")).toEqual({ certified: true, prepBlocked: false });
   });
 });
+
+describe("Codex round 11: grouped numbers and unread fractions are never certified", () => {
+  const base = { id: "x", when: "" };
+  it.each([
+    ["Take 1 500 mg daily.", "Take 500 mg daily."],
+    ["Take 1'500 mg daily.", "Take 500 mg daily."],
+    ["Take 1’500 mg daily.", "Take 500 mg daily."],
+    ["Take one third of a tablet.", "Take one tablet."],
+    ["Take one eighth of a tablet.", "Take one tablet."],
+    ["Take 2 tablets.", "Take a third of a tablet."],
+  ])("paper %j, explanation %j: never certified, blocked in prep", (paper, plain) => {
+    expect(combine("x", { ...base, source_quote: paper, plain_language: plain }, "same", "").certified).toBe(false);
+    const any = numberCheckAnyForm({ source_quote: paper, plain_language: plain });
+    expect(any.unexpected.length > 0 || any.uncheckable).toBe(true);
+  });
+});

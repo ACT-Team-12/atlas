@@ -129,9 +129,17 @@ describe("Codex round 10: \"vitamin A\" is a name, not 1", () => {
     expect(any.unexpected.length > 0 || any.uncheckable).toBe(true);
     expect(combine("x", { id: "x", when: "", source_quote: quote, plain_language: plain }, "same", "").certified).toBe(false);
   });
-  it("reads no number in \"vitamin A\" or a mid-sentence \"Class A\", and still reads a sentence-initial \"A tablet\"", () => {
+  it("reads no number in \"vitamin A\" or \"Class A\", and still reads \"A tablet\"", () => {
     expect(readNumberWords("Take vitamin A tablet daily.", "English").numbers).toEqual([]);
     expect(readNumberWords("Use the Class A inhaler.", "English").numbers).toEqual([]);
     expect(readNumberWords("A tablet is enough.", "English").numbers).toEqual(["1"]);
+  });
+});
+
+describe("Codex round 11: a capital A before a unit is still 1", () => {
+  it.each([["TAKE A TABLET."], ["Take A tablet."]])("%j against \"Take 2 tablets\" is caught", (plain) => {
+    const any = numberCheckAnyForm({ plain_language: plain, source_quote: "Take 2 tablets." });
+    expect(any.unexpected.length > 0 || any.uncheckable).toBe(true);
+    expect(combine("x", { id: "x", when: "", source_quote: "Take 2 tablets.", plain_language: plain }, "same", "").certified).toBe(false);
   });
 });

@@ -135,8 +135,6 @@ function readLatin(text: string, lex: Lexicon, lang: NumberLanguage): NumberRead
   let i = 0;
   while (i < words.length) {
     const prev = i > 0 ? words[i - 1].w : null;
-    // A capital "A" or "An" that does not start a sentence is a name ("Take Vitamin A tablet", "Class A"), never 1.
-    if (lang === "English" && /^an?$/.test(words[i].w) && /^A/.test(text.slice(words[i].at, words[i].at + 1)) && i > 0 && !/[.!?:]\s*$/.test(text.slice(words[i - 1].end, words[i].at))) { i++; continue; }
     const first = lex.word(words[i].w, prev, words[i + 1]?.w ?? null);
     if (!first || first.kind === "conn") { i++; continue; }
     const run: Tok[] = [first];

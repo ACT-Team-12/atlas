@@ -1,3 +1,4 @@
+import { INSTRUCTION_START } from "./sentences";
 import { z } from "zod";
 import { LANGUAGES } from "./schema";
 import { negationBlocked } from "./prepCues";
@@ -152,6 +153,34 @@ export function timeOutsideClause(quote: string, matched: { start: number; end: 
 /** Any way of writing an ellipsis: "...", "..", ". . .", "…" (U+2026), "⋯" (U+22EF), "᠁" (U+1801), "︙" (U+FE19). */
 export const ELLIPSIS = /\.\s*\.|[\u2026\u22EF\u1801\uFE19]/;
 
+/**
+ * True when the sentence holds two instructions and its time sits in only one of them: "Take your pill; stop drinking
+ * 2 hours before your procedure." even when the model quotes the whole sentence (Codex round 7). Parts are split at a
+ * semicolon, bullet or spaced dash, and at a comma plus "and", "then", "or" or "but" before an instruction word
+ * ("..., and call us"). Then we can't tell which action the time is for, so the step is not placed.
+ */
+export function timeForOneOfTwoActions(quote: string, words: string[]): boolean {
+  const verbs = [...INSTRUCTION_START].map((v) => escapeRe(v)).join("|");
+  const splitter = new RegExp(String.raw`[;•]|\s[-–—]\s|,\s*(?:and\s+then|and|then|or|but|y|et|và)\s+(?=(?:${verbs})(?![\p{L}\p{M}]))`, "giu");
+  const cuts: { start: number; end: number }[] = [];
+  let last = 0;
+  for (const m of quote.matchAll(splitter)) { cuts.push({ start: last, end: m.index }); last = m.index + m[0].length; }
+  cuts.push({ start: last, end: quote.length });
+  const parts = cuts.filter((c) => /[\p{L}\p{M}]/u.test(quote.slice(c.start, c.end)));
+  if (parts.length < 2) return false;
+  const timeParts = new Set<number>();
+  for (const w of words) {
+    const m = new RegExp(escapeRe(w.trim()), "i").exec(quote);
+    if (!m) return true;
+    parts.forEach((c, k) => { if (m.index < c.end && c.start < m.index + m[0].length) timeParts.add(k); });
+  }
+  return parts.some((c, k) => {
+    if (timeParts.has(k)) return false;
+    const ws = [...quote.slice(c.start, c.end).toLowerCase().matchAll(/[\p{L}\p{M}'’.-]+/gu)].map((x) => x[0].replace(/^[.'’-]+|[.'’-]+$/g, ""));
+    return ws.some((x) => x !== "" && !TIME_PHRASE_WORD.has(x) && !CLAUSE_BREAK.test(x));
+  });
+}
+
 /** The deterministic part of prep mode: verify, place, group. `source` is the paper the person pasted. */
 export function buildPrepTimeline(source: string, items: PrepModelItem[], language: PrepRequest["language"] = "English"): Omit<PrepResponse, "model" | "ms"> {
   const kept: { step: PrepStep; at: number }[] = [];
@@ -172,7 +201,7 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[], langua
     const read = readWhen(quote, multiLine);
     // The model's words appear more than once in the paper: we can't tell which line it meant (Codex round 6).
     const repeated = findSpan(source.slice(found.end), asked) !== null;
-    const otherClause = read.slot !== null && timeOutsideClause(quote, { start: found.start - span.start, end: found.end - span.start }, read.words);
+    const otherClause = read.slot !== null && (timeForOneOfTwoActions(quote, read.words) || timeOutsideClause(quote, { start: found.start - span.start, end: found.end - span.start }, read.words));
     const when = read.slot === null ? read
       : repeated ? { slot: null, reason: "repeated" as const, words: read.words }
       : otherClause ? { slot: null, reason: "other_clause" as const, words: read.words }

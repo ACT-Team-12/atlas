@@ -25,7 +25,7 @@ const END_UNLESS_LOWER = new Set([
   "sr", "ft", "hr", "hrs", "min", "mins", "sec", "secs", "wk", "wks", "mo", "mos", "tab", "tabs", "cap", "caps",
 ]);
 /** Words that start an instruction: after "5 mg." they begin a new sentence even in lowercase. */
-const INSTRUCTION_START = new Set([
+export const INSTRUCTION_START = new Set([
   // English
   "take", "stop", "hold", "call", "start", "skip", "avoid", "do", "don't", "don’t", "dont", "never", "eat", "drink",
   "arrive", "bring", "use", "apply", "check", "continue", "resume", "wait", "keep", "have", "go", "come", "tell", "ask",

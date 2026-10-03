@@ -426,12 +426,16 @@ describe("Codex round 6: a step never borrows the time of another part of its se
     ["Take your pill - stop drinking 2 hours before your procedure.", "Take your pill"],
     ["Stop drinking 2 hours before your procedure; take your pill.", "take your pill"],
     ["Take your pill, then refrain from drinking 3 days before your procedure.", "Take your pill"],
+    ["Take your pill; stop drinking 2 hours before your procedure.", "Take your pill; stop drinking 2 hours before your procedure"],
+    ["Take your pill - stop drinking 2 hours before your procedure.", "Take your pill - stop drinking 2 hours before your procedure."],
+    ["Stop aspirin 3 days before your procedure, and call us with questions.", "Stop aspirin 3 days before your procedure, and call us with questions."],
   ])("%j quoted as %j is not placed", (line, quote) => {
     expect(one(line, quote)).toMatchObject({ slot: null, reason: "other_clause" });
   });
   it.each([
     ["5 hours before your procedure, drink the second half of the bowel prep.", "drink the second half of the bowel prep", "hours_before"],
-    ["Stop aspirin 3 days before your procedure, and call us with questions.", "Stop aspirin", "days_before"],
+    ["Stop aspirin, fish oil and iron pills 3 days before your procedure.", "Stop aspirin, fish oil and iron pills", "days_before"],
+    ["Do not eat or drink anything after midnight the night before your procedure, except the second half of the prep.", "Do not eat or drink anything after midnight", "evening_before"],
     ["Stop drinking 2 hours before your procedure.", "Stop drinking", "hours_before"],
   ])("%j quoted as %j is still placed", (line, quote, slot) => {
     expect(one(line, quote)).toMatchObject({ slot });

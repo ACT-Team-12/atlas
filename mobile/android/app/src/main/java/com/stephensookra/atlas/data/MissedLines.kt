@@ -85,6 +85,14 @@ object MissedLines {
         return MissedLinesView.Shown(payload.languages, total, total - lines.size, lines)
     }
 
+    /**
+     * The section for a read: its payload checked against its own paper. The server always sends source_text with
+     * missed_lines, so a show:true payload without it (empty string, the decoder's default) has no paper to bound its
+     * offsets and is hidden as invalid rather than trusted.
+     */
+    fun forCare(care: CarePlanResponse?, keptIds: Iterable<String>): MissedLinesView =
+        view(care?.missed_lines, keptIds, care?.source_text?.length ?: 0)
+
     /** `why` of a show:true payload that breaks a rule in [valid]. */
     const val INVALID = "invalid"
 

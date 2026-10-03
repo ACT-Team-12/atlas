@@ -163,6 +163,18 @@ class MissedLinesTest {
         assertEquals("", MissedLines.announcement(MissedLinesView.Hidden("empty")))
     }
 
+    @Test fun aPayloadWithoutItsPaperIsHidden() {
+        // [0, 2147483647] is only refused against a paper length; without source_text there is none to check it against.
+        val wide = good.copy(quotes = mapOf("a" to listOf(listOf(0, Int.MAX_VALUE))))
+        val noPaper = CarePlanResponse(items = emptyList(), stats = com.stephensookra.atlas.data.CareStats(0, 0, 0, 1), missed_lines = wide)
+        assertEquals("", noPaper.source_text)
+        assertEquals(MissedLinesView.Hidden(MissedLines.INVALID), MissedLines.forCare(noPaper, listOf("a")))
+        assertEquals("even a well-formed payload needs its paper", MissedLinesView.Hidden(MissedLines.INVALID), MissedLines.forCare(noPaper.copy(missed_lines = good), listOf("a")))
+        val withPaper = noPaper.copy(source_text = "x".repeat(40), missed_lines = good)
+        assertEquals(1, (MissedLines.forCare(withPaper, listOf("a")) as MissedLinesView.Shown).lines.size)
+        assertEquals(MissedLinesView.Hidden("missing"), MissedLines.forCare(null, listOf("a")))
+    }
+
     @Test fun webWordingIsCopiedExactly() {
         val web = File("../../../web/src/ui/MissedLines.tsx").readText().replace("&apos;", "'")
         for (s in listOf(MissedLines.TITLE, MissedLines.ALL_IN_A_STEP, MissedLines.ALL_IN_A_STEP_NOTE, MissedLines.READ_THESE, MissedLines.CAN_MISS)) {

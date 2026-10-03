@@ -118,9 +118,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     fun checkFor(id: String): Check = meaning.checkFor(id)
 
     /** "Lines on your paper we didn't turn into steps", for the steps still kept: follows every Remove and Undo. */
-    val missedLines: MissedLinesView get() = MissedLines.view(
-        care?.missed_lines, items.map { it.id }, care?.source_text?.takeIf { it.isNotEmpty() }?.length,
-    )
+    val missedLines: MissedLinesView get() = MissedLines.forCare(care, items.map { it.id })
 
     /**
      * The language the steps on screen were written in, for reading them aloud. While the steps are outdated it is still

@@ -1,7 +1,7 @@
 import { guard } from "@/lib/guard";
 import { callConfig, verifyTicket } from "@/lib/call/config";
 import { handleEvent } from "@/lib/call/flow";
-import { callStore } from "@/lib/call/store";
+import { CallStoreDown, callStore } from "@/lib/call/store";
 import { signedByVonage } from "@/lib/call/webhook";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,11 @@ export async function POST(request: Request) {
   const body = parse(raw) as { uuid?: unknown } | null;
   const store = await callStore();
   if (!store) return new Response("unavailable", { status: 503 });
-  const r = await handleEvent({ store, cfg }, t, body?.uuid);
-  return new Response(null, { status: r === "error" ? 503 : 204 });
+  try {
+    const r = await handleEvent({ store, cfg }, t, body?.uuid);
+    return new Response(null, { status: r === "error" ? 503 : 204 });
+  } catch (e) {
+    if (!(e instanceof CallStoreDown)) throw e;
+    return new Response("unavailable", { status: 503 });
+  }
 }

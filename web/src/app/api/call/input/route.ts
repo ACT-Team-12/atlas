@@ -2,7 +2,7 @@ import { guard } from "@/lib/guard";
 import { callConfig, verifyTicket } from "@/lib/call/config";
 import { handleInput } from "@/lib/call/flow";
 import { goodbyeNcco } from "@/lib/call/ncco";
-import { callStore } from "@/lib/call/store";
+import { CallStoreDown, callStore } from "@/lib/call/store";
 import { signedByVonage } from "@/lib/call/webhook";
 
 export const dynamic = "force-dynamic";
@@ -26,5 +26,10 @@ export async function POST(request: Request) {
   const body = parse(raw) as { uuid?: unknown; dtmf?: { digits?: unknown } } | null;
   const store = await callStore();
   if (!store) return Response.json(goodbyeNcco("English"));
-  return Response.json(await handleInput({ store, cfg }, t, body?.dtmf?.digits, body?.uuid));
+  try {
+    return Response.json(await handleInput({ store, cfg }, t, body?.dtmf?.digits, body?.uuid));
+  } catch (e) {
+    if (!(e instanceof CallStoreDown)) throw e;
+    return new Response("unavailable", { status: 503 }); // never the plan text; Vonage ends the step
+  }
 }

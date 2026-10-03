@@ -2,7 +2,7 @@ import { guard } from "@/lib/guard";
 import { callConfig } from "@/lib/call/config";
 import { verifyAndCall } from "@/lib/call/flow";
 import { verifyRefusal } from "@/lib/call/messages";
-import { callStore } from "@/lib/call/store";
+import { CallStoreDown, callStore } from "@/lib/call/store";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -19,7 +19,13 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return Response.json({ error: "Send JSON." }, { status: 400, headers: NO_STORE });
   await store.sweep(Date.now()); // opportunistic; the cron (/api/call/sweep) is the floor
-  const r = await verifyAndCall({ store, cfg }, { id: body.id, code: body.code });
+  let r: Awaited<ReturnType<typeof verifyAndCall>>;
+  try {
+    r = await verifyAndCall({ store, cfg }, { id: body.id, code: body.code });
+  } catch (e) {
+    if (!(e instanceof CallStoreDown)) throw e;
+    r = { state: "no-db" };
+  }
   if (r.state === "calling") return Response.json({ last4: r.last4, mode: r.mode, uncertain: r.uncertain === true }, { headers: NO_STORE });
   if (r.state === "wrong") {
     const left = r.attemptsLeft;

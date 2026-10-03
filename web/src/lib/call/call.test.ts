@@ -8,7 +8,7 @@ import { verifyRefusal } from "./messages";
 import { canCallIn, codeNcco, MAX_REPLAYS, planLengthSeconds, planNcco, talkChunks, TALK_CHUNK, VONAGE_TTS } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
-import { PREPARING_MAX_MS, reserveSlots, UNCONFIRMED_PLAN_MS } from "./store";
+import { CallStoreDown, PREPARING_MAX_MS, reserveSlots, UNCONFIRMED_PLAN_MS } from "./store";
 import { placeCall, vonageJwt } from "./vonage";
 import { verifyVonageJwt } from "./webhook";
 
@@ -770,6 +770,22 @@ describe("the call flow", () => {
       await store.sweep(later);
       const row = store.rows.get(id)!;
       expect([row.phase, row.sealed_phone, row.sealed_text]).toEqual(["failed", null, null]);
+    });
+  });
+
+  describe("a database outage is an error, never 'not found'", () => {
+    it("verify, events, keypad input and audio throw CallStoreDown (the routes answer 503) instead of acting as if the session were gone", async () => {
+      const id = await started();
+      await verifyAndCall(deps(), { id, code: "4821" });
+      truth.set("call-2", { status: "completed" });
+      store.failReads = true;
+      await expect(verifyAndCall(deps(), { id, code: "4821" })).rejects.toBeInstanceOf(CallStoreDown);
+      await expect(handleEvent(hk(), { k: id, p: "event", c: "plan", exp: NOW + 60_000 }, "call-2")).rejects.toBeInstanceOf(CallStoreDown);
+      await expect(handleInput(hk(), { k: id, p: "input", g: 0, exp: NOW + 60_000 }, "4821", "call-2")).rejects.toBeInstanceOf(CallStoreDown);
+      await expect(audioFor({ store, cfg, now: NOW }, { k: id, p: "audio", exp: NOW + 60_000 })).rejects.toBeInstanceOf(CallStoreDown);
+      await expect(store.get(id, NOW)).rejects.toBeInstanceOf(CallStoreDown);
+      store.failReads = false;
+      expect(await store.get("no-such-session", NOW)).toBeNull(); // absent is still null
     });
   });
 

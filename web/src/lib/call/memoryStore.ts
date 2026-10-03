@@ -1,4 +1,4 @@
-import { refuseStale, CODE_ATTEMPTS, COUNTER_TTL_MS, PLAN_CALL_MAX_MS, PREPARING_MAX_MS, UNCONFIRMED_PLAN_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
+import { CallStoreDown, refuseStale, CODE_ATTEMPTS, COUNTER_TTL_MS, PLAN_CALL_MAX_MS, PREPARING_MAX_MS, UNCONFIRMED_PLAN_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
 
 /**
  * An in-memory CallStore with the same rules as PgCallStore (one live code per number, atomic attempts, capped
@@ -12,6 +12,8 @@ export class MemoryCallStore implements CallStore {
   failNext = false;
   /** While true, every update fails as a database outage would ("error"). */
   failUpdates = false;
+  /** While true, get, getAudio and takeAttempt throw CallStoreDown, as a database outage would. */
+  failReads = false;
   /** Fails (as "error") only the updates this picks out. */
   failWhen?: (patch: SessionPatch) => boolean;
 
@@ -59,6 +61,7 @@ export class MemoryCallStore implements CallStore {
   }
 
   async get(id: string, now: number) {
+    if (this.failReads) throw new CallStoreDown();
     const r = this.rows.get(id);
     if (!r || r.expires_at.getTime() <= now) return null;
     const { sealed_audio, ...row } = r;
@@ -66,11 +69,13 @@ export class MemoryCallStore implements CallStore {
   }
 
   async getAudio(id: string, now: number) {
+    if (this.failReads) throw new CallStoreDown();
     const r = this.rows.get(id);
     return r && r.expires_at.getTime() > now ? r.sealed_audio : null;
   }
 
   async takeAttempt(id: string, now: number) {
+    if (this.failReads) throw new CallStoreDown();
     const r = this.rows.get(id);
     if (!r || r.phase !== "code" || (r.code_expires_at?.getTime() ?? 0) <= now || r.expires_at.getTime() <= now || r.attempts >= CODE_ATTEMPTS) return null;
     r.attempts += 1;

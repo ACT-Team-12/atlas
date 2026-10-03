@@ -23,6 +23,14 @@ export const PREPARING_MAX_MS = 5 * 60_000;
 export const PLAN_CALL_MAX_MS = 17 * 60_000;
 export const COUNTER_TTL_MS = 2 * 24 * 60 * 60_000;
 
+/**
+ * Thrown by get, getAudio and takeAttempt when the database cannot answer, so a caller can never mistake an outage for
+ * "no such session". The call routes turn it into 503 (Vonage retries; the page says calls are unavailable).
+ */
+export class CallStoreDown extends Error {
+  constructor() { super("call store unavailable"); this.name = "CallStoreDown"; }
+}
+
 export type UpdateResult = "updated" | "phase_changed" | "error";
 export type Phase = "code" | "code_missed" | "expired" | "calling" | "done" | "failed";
 
@@ -71,10 +79,11 @@ export interface CallStore {
    * written only if no event has set one already, `uuid` (when known) always wins. Only while the session is in `phase`.
    */
   markPlaced(id: string, leg: "code" | "plan", status: "placed" | "unknown", uuid: string | null, now: number): Promise<boolean>;
+  /** The live session, or null when there is none. Throws CallStoreDown when the database cannot answer. */
   get(id: string, now: number): Promise<SessionRow | null>;
-  /** The sealed voice MP3 of a live session. */
+  /** The sealed voice MP3 of a live session. Throws CallStoreDown. */
   getAudio(id: string, now: number): Promise<Buffer | null>;
-  /** Spends one code attempt atomically; null when there is no live code left to try. */
+  /** Spends one code attempt atomically; null when there is no live code left to try. Throws CallStoreDown. */
   takeAttempt(id: string, now: number): Promise<SessionRow | null>;
   /**
    * "updated" when the row was written; "phase_changed" when no live row matched (gone, or, with onlyIf, its phase is
@@ -261,7 +270,7 @@ export class PgCallStore implements CallStore {
       return row && refuseStale(row, now);
     } catch (e) {
       logErr("call get failed", e);
-      return null;
+      throw new CallStoreDown();
     }
   }
 
@@ -271,7 +280,7 @@ export class PgCallStore implements CallStore {
       return (r.rows[0]?.sealed_audio as Buffer | null | undefined) ?? null;
     } catch (e) {
       logErr("call audio failed", e);
-      return null;
+      throw new CallStoreDown();
     }
   }
 
@@ -286,7 +295,7 @@ export class PgCallStore implements CallStore {
       return (r.rows[0] as SessionRow | undefined) ?? null;
     } catch (e) {
       logErr("call attempt failed", e);
-      return null;
+      throw new CallStoreDown();
     }
   }
 

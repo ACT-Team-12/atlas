@@ -1,7 +1,7 @@
 import { guard } from "@/lib/guard";
 import { callConfig } from "@/lib/call/config";
 import { publicStatus } from "@/lib/call/flow";
-import { callStore } from "@/lib/call/store";
+import { CallStoreDown, callStore } from "@/lib/call/store";
 
 export const dynamic = "force-dynamic";
 
@@ -19,5 +19,10 @@ export async function POST(request: Request) {
   if (!id) return Response.json({ error: "Send the call id." }, { status: 400, headers: NO_STORE });
   const now = Date.now();
   await store.sweep(now);
-  return Response.json(publicStatus(await store.get(id, now)), { headers: NO_STORE });
+  try {
+    return Response.json(publicStatus(await store.get(id, now)), { headers: NO_STORE });
+  } catch (e) {
+    if (!(e instanceof CallStoreDown)) throw e;
+    return Response.json({ error: "Call status is not available right now." }, { status: 503, headers: NO_STORE });
+  }
 }

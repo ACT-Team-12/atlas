@@ -5,6 +5,7 @@ import { ExtractError } from "./extract";
 import { LANGUAGES } from "./schema";
 import { NAME_BEFORE_LETTER, readNumberWords, type NumberLanguage } from "./numberWords";
 import { certifyBlocker } from "./semanticGuard";
+import { readable, unreadable } from "./textReading";
 
 /**
  * Meaning check: does each plain-language explanation say the same thing as the line it quotes?
@@ -295,7 +296,22 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
  * "one of the lab locations" is not a dose (the second model covers English words). `uncheckable` (numeral text that
  * can't be read, a whole number plus a fraction, or any Amharic explanation) means it can never be certified.
  */
-export function numberCheck(item: NumItem, language?: NumberLanguage): NumberCheck {
+export function numberCheck(raw: NumItem, language?: NumberLanguage): NumberCheck {
+  // The shared reading (textReading.ts); text it can't read is never certified.
+  const item = readItem(raw);
+  if (item.unreadable) return { ...numberCheckRead(item, language), uncheckable: true };
+  return numberCheckRead(item, language);
+}
+
+/** The item through the shared reading, plus whether any of it can't be read. */
+function readItem(raw: NumItem): NumItem & { unreadable: boolean } {
+  return {
+    plain_language: readable(raw.plain_language), when: readable(raw.when ?? ""), source_quote: readable(raw.source_quote),
+    unreadable: unreadable(raw.plain_language) || unreadable(raw.when ?? "") || unreadable(raw.source_quote),
+  };
+}
+
+function numberCheckRead(item: NumItem, language?: NumberLanguage): NumberCheck {
   const q = quoteNumbers(item, language);
   const f = fractionsIn(item.plain_language);
   const plain = language && language !== "English" ? readNumberWords(f.rest, language) : null;
@@ -323,7 +339,13 @@ export const unexpectedNumbers = (item: NumItem, language?: NumberLanguage): str
  * tablets" is caught; "two" or "dos" against "2" is fine. Numeral text that can't be read makes it uncheckable, which
  * blocks it.
  */
-export function numberCheckAnyForm(item: NumItem, language: NumberLanguage = "English"): NumberCheck {
+export function numberCheckAnyForm(raw: NumItem, language: NumberLanguage = "English"): NumberCheck {
+  const item = readItem(raw);
+  const r = numberCheckAnyFormRead(item, language);
+  return item.unreadable ? { ...r, uncheckable: true } : r;
+}
+
+function numberCheckAnyFormRead(item: NumItem, language: NumberLanguage): NumberCheck {
   const q = quoteNumbers(item, language);
   const f = fractionsIn(item.plain_language);
   const en = readNumberWords(f.rest, "English");

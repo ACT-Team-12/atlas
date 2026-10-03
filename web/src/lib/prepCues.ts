@@ -1,4 +1,5 @@
 import type { LANGUAGES } from "./schema";
+import { readable, unreadable } from "./textReading";
 
 type Lang = (typeof LANGUAGES)[number];
 
@@ -32,7 +33,7 @@ const W = (words: string[]) => new RegExp(String.raw`(?<![\p{L}\p{N}])(?:${words
 
 const NO_WORDS = W([
   // English
-  "not", "no", "never", "cannot", "nothing", "none", "nobody", "neither", "nor", "without",
+  "not", "no", "never", "cannot", "dont", "doesnt", "didnt", "cant", "wont", "shouldnt", "mustnt", "isnt", "arent", "nothing", "none", "nobody", "neither", "nor", "without",
   "stop", "stops", "stopped", "stopping", "hold", "holds", "holding", "held", "avoid", "avoids", "avoiding",
   "skip", "skips", "skipping", "skipped", "refrain", "discontinue", "discontinued", "quit", "cease", "withhold", "npo", "nil",
   "fast", "fasts", "fasting", "fasted", "omit", "omits", "omitting", "omitted", "withheld", "withholding", "pause",
@@ -75,20 +76,8 @@ const LIMIT_CJK = /直到|除|只|仅|僅|까지|제외|외에는/u;
 /** Ethiopic script (Amharic, Tigrinya): "not" is part of the verb, so no word list can find it. */
 const ETHIOPIC = /[ሀ-᎟ⶀ-⷟꬀-꬯]/u;
 
-/**
- * Text as every word list here reads it: Unicode compatibility form, so fullwidth letters, decomposed accents and
- * ligatures match the listed words (one reading for every way of writing the same text; security review of 9f2c70e).
- */
-export const readable = (text: string) => text.normalize("NFKC");
-
-/**
- * True when no word list here can be trusted to read the text: an invisible format character (zero-width space, soft
- * hyphen, joiner) that can split a word, or a letter outside the scripts the lists cover (Latin, Chinese, Korean),
- * such as Ethiopic, or a Cyrillic or Greek look-alike inside "evening". Checked on the text as written.
- */
-export function unreadable(text: string): boolean {
-  return /[\p{Cf}]/u.test(text) || /(?![\p{Script=Latin}\p{Script=Han}\p{Script=Hangul}])\p{L}/u.test(text);
-}
+// The one shared reading of text (textReading.ts); re-exported for callers that already import it from here.
+export { readable, unreadable } from "./textReading";
 
 export function cues(text: string): Cues {
   const t = readable(text);

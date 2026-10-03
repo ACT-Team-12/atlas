@@ -1,4 +1,5 @@
-import { cuesDiffer, readable, unreadable } from "./prepCues";
+import { cuesDiffer } from "./prepCues";
+import { readable, unreadable } from "./textReading";
 
 /**
  * Deterministic guards a green check must pass, whatever the second model says (Codex round 13).

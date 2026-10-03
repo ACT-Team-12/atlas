@@ -191,7 +191,9 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
   }
   // Exactly one request moves a session past its code.
   // The code's hash stays: the plan call asks for the same code before it plays anything (handleInput).
-  const moved = await store.update(id, { phase: "calling", placed_at: new Date(now) }, ["code"]);
+  // plan_played starts false here, before any call exists, so the right code on the call (gateInput) can only ever
+  // move it to true, never race a later write back to false.
+  const moved = await store.update(id, { phase: "calling", placed_at: new Date(now), plan_played: false }, ["code"]);
   if (moved === "error") return { state: "no-db" };
   if (moved !== "updated") return { state: "expired" };
   // "done" only when the wipe was written. Otherwise the session stays "preparing" and is wiped by the sweep after
@@ -407,8 +409,11 @@ export async function handleInput(deps: Hook, t: CallTicket, digits: unknown, uu
 
 /**
  * The code at the start of the plan call. The plan (and the signed audio URL) is returned only for the session's own
- * code, compared in constant time against its hash, on a call Vonage reports live; a wrong code or silence gets one
- * more try (GATE_TRIES in all), then goodbye.
+ * code, compared in constant time against its hash, on a call Vonage reports live; a wrong code or silence each use a
+ * try (GATE_TRIES in all), then goodbye. After silence the first prompt plays again ("Enter the 4-digit code..."); only
+ * an entry that was typed and did not match hears "That code did not match".
+ * Before the plan is returned, plan_played is set on the session: a non-sensitive yes/no that the wipe keeps, so the
+ * person's page can say plainly when a call ended before the plan was read.
  */
 async function gateInput(deps: Hook, t: CallTicket, digits: unknown, uuid: unknown, now: number): Promise<NccoAction[]> {
   const tries = (t.g ?? 0) + 1;
@@ -422,15 +427,21 @@ async function gateInput(deps: Hook, t: CallTicket, digits: unknown, uuid: unkno
   if (!(await deps.store.takeSlot(`gate:${t.k}`, GATE_TRIES, now, SESSION_TTL_MS))) return goodbyeNcco(language);
   const base = urls(deps.cfg);
   const typed = typeof digits === "string" && /^\d{4}$/.test(digits) ? digits : "";
+  // Nothing pressed at all (Vonage's keypad wait ran out): the same prompt again, never "did not match".
+  const silent = typeof digits !== "string" || digits === "";
   const want = Buffer.from(row.code_hash, "hex");
   const got = Buffer.from(codeHash(deps.cfg.secret, t.k, row.phone_hash, typed || "none"), "hex");
   if (!typed || want.length !== got.length || !timingSafeEqual(want, got)) {
     return tries < GATE_TRIES
-      ? gateNcco({ language, inputUrl: `${base}/input?t=${ticket(deps.cfg, { k: t.k, p: "input", g: tries }, now)}`, retry: true })
+      ? gateNcco({ language, inputUrl: `${base}/input?t=${ticket(deps.cfg, { k: t.k, p: "input", g: tries }, now)}`, retry: !silent })
       : goodbyeNcco(language);
   }
   const text = openText(deps.cfg.secret, "text", t.k, row.sealed_text, now);
   if (!text) return goodbyeNcco(language);
+  // Recorded before the plan plays. If the write fails the plan still plays (the person on the phone comes first); the
+  // page then says the plan was not read, which is wrong only in that rare case, and the log says why.
+  const played = await deps.store.update(t.k, { plan_played: true }, ["calling"]);
+  if (played !== "updated") console.error("call: plan_played not recorded", played);
   return planNcco({
     text, language, replays: 0,
     audioUrl: row.has_audio ? `${base}/audio?t=${ticket(deps.cfg, { k: t.k, p: "audio" }, now)}` : null,
@@ -452,5 +463,7 @@ export function publicStatus(row: SessionRow | null) {
   return {
     phase: row.phase, last4: row.last4, code_status: row.code_status, plan_status: row.plan_status, plan_mode: row.plan_mode,
     attempts_left: Math.max(0, CODE_ATTEMPTS - row.attempts),
+    /** Whether the right code was entered on the plan call and the plan played; null when not known. */
+    plan_played: row.plan_played,
   };
 }

@@ -103,21 +103,32 @@ export function talkChunks(text: string, max = TALK_CHUNK): string[] {
 }
 
 export const MAX_REPLAYS = 2;
-/** Tries at the code at the start of the plan call (a wrong code or silence each use one). */
-export const GATE_TRIES = 2;
+/**
+ * Tries at the code at the start of the plan call (a wrong code or silence each use one). Three, because the person
+ * hears the prompt with the phone at their ear and must then open the keypad: a slow first try must not end the call.
+ * Guessing stays bounded: 3 tries per plan call, 3 plan calls per number per day (flow.ts PLAN_CALLS_PER_NUMBER), each
+ * call against its own fresh 4-digit code, so at most 9 guesses per number per day.
+ */
+export const GATE_TRIES = 3;
+/**
+ * Seconds of keypad inactivity before Vonage submits what was typed. Vonage's NCCO reference (input action, DTMF input
+ * settings: developer.vonage.com/en/voice/voice-api/ncco-reference) allows a timeOut of up to 10 seconds. The code
+ * prompt and the "press 1" prompt both use that maximum, so nobody is cut off while they find the keypad.
+ */
+export const KEYPAD_TIMEOUT_S = 10;
 
 /**
  * The start of the plan call: a fixed, non-sensitive prompt and a keypad input for the code the person typed on the
  * page. Only that code unlocks the plan (flow.ts handleInput), so whoever else answers, and any voicemail, hears only
  * this prompt, which says nothing about a plan or health (only the name ATLAS, which the code call also says).
  */
-export function gateNcco(o: { language: Language; inputUrl: string; retry: boolean }): NccoAction[] {
+export function gateNcco(o: { language: Language; inputUrl: string; /** A wrong code was entered. Never for silence: then the first prompt plays again. */ retry: boolean }): NccoAction[] {
   const lang = VONAGE_TTS[o.language];
   const p = PHRASES[o.language];
   if (!lang || !p) throw new Error(`no phone voice for ${o.language}`);
   return [
     talk(o.retry ? p.retry : p.gate, lang, { bargeIn: true }),
-    { action: "input", type: ["dtmf"], dtmf: { maxDigits: 4, submitOnHash: true, timeOut: 3 }, eventUrl: [o.inputUrl], eventMethod: "POST" },
+    { action: "input", type: ["dtmf"], dtmf: { maxDigits: 4, submitOnHash: true, timeOut: KEYPAD_TIMEOUT_S }, eventUrl: [o.inputUrl], eventMethod: "POST" },
   ];
 }
 
@@ -136,7 +147,7 @@ export function planNcco(o: { text: string; language: Language; audioUrl: string
     ...head,
     ...plan,
     talk(p.again, lang, { bargeIn: true }),
-    { action: "input", type: ["dtmf"], dtmf: { maxDigits: 1, timeOut: 6 }, eventUrl: [o.inputUrl], eventMethod: "POST" },
+    { action: "input", type: ["dtmf"], dtmf: { maxDigits: 1, timeOut: KEYPAD_TIMEOUT_S }, eventUrl: [o.inputUrl], eventMethod: "POST" },
   ];
 }
 
@@ -144,11 +155,12 @@ export const goodbyeNcco = (language: Language): NccoAction[] =>
   [talk((PHRASES[language] ?? PHRASES.English!).bye, VONAGE_TTS[language] ?? "en-US")];
 
 /**
- * How long one plan call may last: the code prompt (twice at most), the intro, the plan played up to three times and
- * the prompts, with margin.
+ * How long one plan call may last: the code prompt (GATE_TRIES times at most, about 30 s each for the prompt, typing
+ * and the keypad wait), the intro, the plan played up to three times with the "press 1" prompt and its 10 s wait,
+ * with margin.
  * The natural-voice MP3 (ElevenLabs, lib/voice.ts) is 64 kbps (8,000 bytes a second); without audio, assume about 12 characters a second.
  */
 export function planLengthSeconds(o: { audioBytes: number | null; textChars: number }): number {
   const once = o.audioBytes ? o.audioBytes / 8000 : o.textChars / 12;
-  return Math.min(900, Math.ceil(20 + 15 * GATE_TRIES + (once + 10) * (1 + MAX_REPLAYS)));
+  return Math.min(900, Math.ceil(20 + 30 * GATE_TRIES + (once + 15) * (1 + MAX_REPLAYS)));
 }

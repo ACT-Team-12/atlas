@@ -5,7 +5,7 @@ import { callConfig, normalizePem, strongSecret, publicBaseUrl, signTicket, veri
 import { audioFor, CODE_CALL_GAP_MS, CODE_CALLS_PER_HOUR, CODE_CALLS_PER_IP, CODE_CALLS_PER_NUMBER, handleEvent, handleInput, publicStatus, settlePendingEnds, startCall, verifyAndCall, type Deps } from "./flow";
 import { MemoryCallStore } from "./memoryStore";
 import { startRefusal, verifyRefusal } from "./messages";
-import { canCallIn, codeNcco, gateNcco, MAX_REPLAYS, planLengthSeconds, planNcco, talkChunks, TALK_CHUNK, VONAGE_TTS } from "./ncco";
+import { canCallIn, codeNcco, GATE_TRIES, gateNcco, KEYPAD_TIMEOUT_S, MAX_REPLAYS, planLengthSeconds, planNcco, talkChunks, TALK_CHUNK, VONAGE_TTS } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
 import { CallStoreDown, END_PENDING, PREPARING_MAX_MS, reserveSlots, UNCONFIRMED_PLAN_MS } from "./store";
@@ -252,8 +252,25 @@ describe("NCCO", () => {
     expect(parts.join(" ")).toBe(line);
   });
   it("bounds how long a plan call may last", () => {
-    expect(planLengthSeconds({ audioBytes: 8000 * 60, textChars: 0 })).toBe(20 + 30 + 70 * 3); // 30 s for the code prompt
+    expect(planLengthSeconds({ audioBytes: 8000 * 60, textChars: 0 })).toBe(20 + 3 * 30 + 75 * 3); // 30 s per code try
     expect(planLengthSeconds({ audioBytes: 8000 * 3000, textChars: 0 })).toBe(900);
+  });
+  it("gives the person the longest keypad wait Vonage allows (10 s), at the code and at 'press 1'", () => {
+    expect(KEYPAD_TIMEOUT_S).toBe(10);
+    expect(GATE_TRIES).toBe(3);
+    expect(gateNcco({ language: "English", inputUrl: "u", retry: false })[1]).toMatchObject({ dtmf: { maxDigits: 4, submitOnHash: true, timeOut: 10 } });
+    expect(gateNcco({ language: "English", inputUrl: "u", retry: true })[1]).toMatchObject({ dtmf: { timeOut: 10 } });
+    const first = planNcco({ text: TEXT, language: "English", audioUrl: null, inputUrl: "u", replays: 0 });
+    expect(first.at(-1)).toMatchObject({ action: "input", dtmf: { maxDigits: 1, timeOut: 10 } });
+  });
+  it("only a wrong code hears 'did not match'; the first prompt is the plain code request, in every language", () => {
+    for (const language of Object.keys(VONAGE_TTS) as "English"[]) {
+      const [plain] = gateNcco({ language, inputUrl: "u", retry: false });
+      const [wrong] = gateNcco({ language, inputUrl: "u", retry: true });
+      expect(plain.text, language).not.toBe(wrong.text);
+      expect(plain.language).toBe(VONAGE_TTS[language]);
+    }
+    expect(gateNcco({ language: "English", inputUrl: "u", retry: false })[0].text).toBe("This is ATLAS. Enter the 4-digit code you just typed, then press pound.");
   });
 });
 
@@ -471,7 +488,7 @@ describe("the call flow", () => {
     const body = sentBody(fetchImpl, 1);
     expect(body.ncco.map((a: { action: string }) => a.action)).toEqual(["talk", "input"]);
     expect(body.ncco[0].text).toContain("4-digit code");
-    expect(body.ncco[1]).toMatchObject({ type: ["dtmf"], dtmf: { maxDigits: 4, submitOnHash: true, timeOut: 3 } });
+    expect(body.ncco[1]).toMatchObject({ type: ["dtmf"], dtmf: { maxDigits: 4, submitOnHash: true, timeOut: 10 } });
     expect(JSON.stringify(body.ncco)).not.toContain("blue pill");
     expect(JSON.stringify(body.ncco)).not.toContain("/api/call/audio");
     expect(body.length_timer).toBe(planLengthSeconds({ audioBytes: 16_000, textChars: TEXT.length }));
@@ -492,28 +509,59 @@ describe("the call flow", () => {
     expect((await audioFor({ store, cfg, now: NOW }, t))?.byteLength).toBe(16_000);
   });
 
-  it("a wrong code gets one more try, then goodbye, never the plan", async () => {
+  const DID_NOT_MATCH = "That code did not match. Enter the 4-digit code, then press pound.";
+  const FIRST_PROMPT = "This is ATLAS. Enter the 4-digit code you just typed, then press pound.";
+  const BYE = "Goodbye, and take care.";
+
+  it("a wrong code gets two more tries (3 in all), each saying it did not match, then goodbye, never the plan", async () => {
     const id = await started();
     await verifyAndCall(deps(), { id, code: "4821" });
     const retry = await gate(id, "1111");
     expect(retry.map((a) => a.action)).toEqual(["talk", "input"]);
+    expect(retry[0].text).toBe(DID_NOT_MATCH);
     const next = verifyTicket(SECRET, new URL(String((retry[1].eventUrl as string[])[0])).searchParams.get("t"), "input", NOW)!;
     expect(next.g).toBe(1);
-    const out = await gate(id, "1111", 1);
-    expect(out.map((a) => a.action)).toEqual(["talk"]);
-    expect(JSON.stringify([retry, out])).not.toContain("blue pill");
-    expect(JSON.stringify([retry, out])).not.toContain("/api/call/audio"); // no plan audio URL before the right code
-    expect((await gate(id, "4821", 2)).map((a) => a.action)).toEqual(["talk"]); // past the tries, even the right code
+    const again = await gate(id, "2222", 1);
+    expect(again.map((a) => a.action)).toEqual(["talk", "input"]);
+    expect(again[0].text).toBe(DID_NOT_MATCH);
+    const out = await gate(id, "3333", 2);
+    expect(out).toEqual([{ action: "talk", text: BYE, language: "en-US" }]);
+    expect(JSON.stringify([retry, again, out])).not.toContain("blue pill");
+    expect(JSON.stringify([retry, again, out])).not.toContain("/api/call/audio"); // no plan audio URL before the right code
+    expect((await gate(id, "4821", 3)).map((a) => a.action)).toEqual(["talk"]); // past the tries, even the right code
+    expect(store.rows.get(id)!.plan_played).toBe(false);
   });
 
-  it.each([[""], ["48211"], [undefined]])("silence or a malformed entry (%s), as from voicemail, never gets the plan", async (digits) => {
+  it.each([[""], [undefined]])("silence (%s) replays the FIRST prompt, never 'did not match', and ends after 3 tries", async (digits) => {
     const id = await started();
     await verifyAndCall(deps(), { id, code: "4821" });
     const first = await gate(id, digits as string, 0);
     const second = await gate(id, digits as string, 1);
-    expect([first.map((a) => a.action), second.map((a) => a.action)]).toEqual([["talk", "input"], ["talk"]]);
-    expect(JSON.stringify([first, second])).not.toContain("blue pill");
-    expect(JSON.stringify([first, second])).not.toContain("/api/call/audio");
+    const third = await gate(id, digits as string, 2);
+    expect([first, second, third].map((n) => n.map((a) => a.action))).toEqual([["talk", "input"], ["talk", "input"], ["talk"]]);
+    expect([first[0].text, second[0].text, third[0].text]).toEqual([FIRST_PROMPT, FIRST_PROMPT, BYE]);
+    expect(JSON.stringify([first, second, third])).not.toContain("blue pill");
+    expect(JSON.stringify([first, second, third])).not.toContain("/api/call/audio");
+  });
+
+  it.each([["48211"], ["48"]])("a malformed entry (%s) was typed, so it hears 'did not match', and never gets the plan", async (digits) => {
+    const id = await started();
+    await verifyAndCall(deps(), { id, code: "4821" });
+    const first = await gate(id, digits, 0);
+    expect(first.map((a) => a.action)).toEqual(["talk", "input"]);
+    expect(first[0].text).toBe(DID_NOT_MATCH);
+    expect(JSON.stringify(first)).not.toContain("blue pill");
+  });
+
+  it("silence then the right code plays the plan; in Spanish the silent retry is the Spanish first prompt", async () => {
+    const r = await startCall(deps(), input({ language: "Spanish", token: issueSpeakToken("Spanish", TEXT, SPEAK, NOW) }));
+    if (r.state !== "calling") throw new Error(r.state);
+    const id = r.id;
+    await verifyAndCall(deps(), { id, code: "4821" });
+    const quiet = await gate(id, "", 0);
+    expect(quiet[0]).toMatchObject({ language: "es-US", text: gateNcco({ language: "Spanish", inputUrl: "u", retry: false })[0].text });
+    const next = verifyTicket(SECRET, new URL(String((quiet[1].eventUrl as string[])[0])).searchParams.get("t"), "input", NOW)!;
+    expect((await gate(id, "4821", next.g)).map((a) => a.action)).toEqual(["talk", "stream", "talk", "input"]);
   });
 
   it("counts code tries at the start of the plan call in the store, so a replayed first-try callback cannot guess on", async () => {
@@ -521,8 +569,47 @@ describe("the call flow", () => {
     await verifyAndCall(deps(), { id, code: "4821" });
     expect((await gate(id, "1111", 0)).map((a) => a.action)).toEqual(["talk", "input"]);
     expect((await gate(id, "2222", 0)).map((a) => a.action)).toEqual(["talk", "input"]);
-    // the same g=0 ticket a third time: tries are used up, even with the right code
+    expect((await gate(id, "3333", 0)).map((a) => a.action)).toEqual(["talk", "input"]);
+    // the same g=0 ticket a fourth time: the 3 tries are used up, even with the right code
     expect((await gate(id, "4821", 0)).map((a) => a.action)).toEqual(["talk"]);
+  });
+
+  it("records whether the plan played: false once the code is typed, true only after the right code on the call, kept by the wipe", async () => {
+    const id = await started();
+    expect(store.rows.get(id)!.plan_played).toBeNull();
+    await verifyAndCall(deps(), { id, code: "4821" });
+    expect(store.rows.get(id)!.plan_played).toBe(false);
+    await gate(id, "1111", 0);
+    expect(store.rows.get(id)!.plan_played).toBe(false);
+    await gate(id, "4821", 1);
+    expect(store.rows.get(id)!.plan_played).toBe(true);
+    truth.set("call-2", { status: "completed" });
+    await handleEvent(hk(), { k: id, p: "event", c: "plan", exp: NOW + 60_000 }, "call-2");
+    const row = store.rows.get(id)!;
+    expect([row.phase, row.sealed_text, row.plan_played]).toEqual(["done", null, true]);
+    expect(publicStatus(row)).toMatchObject({ phase: "done", plan_status: "completed", plan_played: true });
+  });
+
+  it("a plan call that ends before the code is entered reports plan_played false after the wipe", async () => {
+    const id = await started();
+    await verifyAndCall(deps(), { id, code: "4821" });
+    await gate(id, "", 0); // the person was still finding the keypad
+    truth.set("call-2", { status: "completed" });
+    await handleEvent(hk(), { k: id, p: "event", c: "plan", exp: NOW + 60_000 }, "call-2");
+    const row = store.rows.get(id)!;
+    expect([row.phase, row.sealed_text, row.sealed_phone]).toEqual(["done", null, null]);
+    expect(publicStatus(row)).toMatchObject({ phase: "done", plan_status: "completed", plan_played: false });
+  });
+
+  it("still plays the plan when recording plan_played fails, and logs it", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const id = await started();
+    await verifyAndCall(deps(), { id, code: "4821" });
+    store.failWhen = (p) => "plan_played" in p && p.plan_played === true;
+    expect((await gate(id, "4821", 0)).map((a) => a.action)).toEqual(["talk", "stream", "talk", "input"]);
+    expect(JSON.stringify(err.mock.calls)).toContain("plan_played not recorded");
+    store.failWhen = undefined;
+    err.mockRestore();
   });
 
   it("the right code on a call Vonage does not report live, or for another call, says goodbye", async () => {

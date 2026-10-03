@@ -171,8 +171,10 @@ export async function buildPlan(req: PlanRequest): Promise<PlanResponse> {
 
   // The ids are for linking only. Whatever the prompt says, none reaches the person's text (planText.ts): this runs
   // before /api/plan signs the read-aloud text, so the screen, the voice, the call, share, print and the handoff sheet
-  // all get the clean words. Every id we sent and every id the model wrote counts, even on a step dropped above.
-  const allIds = [...careIds, ...resourceIds, ...parsed.data.steps.flatMap((s) => [...s.care_ids, ...s.resource_ids])];
+  // all get the clean words. Only ids we sent count (the request's care steps and the verified resources), never ids
+  // the model made up: a made-up "A1c" would otherwise wipe that word from the plan. Made-up item-N ids are still
+  // caught by their shape.
+  const allIds = [...careIds, ...resourceIds];
   return cleanPlanText({
     summary: parsed.data.summary,
     steps,

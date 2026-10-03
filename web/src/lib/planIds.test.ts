@@ -13,6 +13,8 @@ const modelPlan = {
   steps: [
     { title: "Fasting blood test (item-4)", action: "Go to the lab before breakfast (item-4).", why: "Your paper asks for it within 2 weeks (care id item-4).", barrier: "transport", care_ids: ["item-4"], resource_ids: [] },
     { title: "Eye doctor visit", action: "Call to book the eye exam [item-5].", why: "", barrier: "", care_ids: ["item-5", "item-99"], resource_ids: [] },
+    // Made-up refs that look like medical terms: dropped as links, and NEVER used to delete words (Codex review of #70).
+    { title: "A1c test", action: "Get your A1c test (item-3) and ask about fasting-glucose.", why: "A1c shows your 3-month sugar.", barrier: "", care_ids: ["item-3", "A1c", "fasting-glucose"], resource_ids: ["A1c"] },
   ],
   ask_a_person: true,
   ask_a_person_reason: "No verified ride for the clinic visit (item-6) or the A1c recheck (lab-a1c).",
@@ -44,6 +46,9 @@ describe("the plan never shows its internal ids", () => {
     expect(plan.summary).toBe(LIVE_CLEAN);
     expect(plan.steps[0]).toMatchObject({ title: "Fasting blood test", action: "Go to the lab before breakfast.", why: "Your paper asks for it within 2 weeks.", care_ids: ["item-4"] });
     expect(plan.steps[1]).toMatchObject({ action: "Call to book the eye exam.", care_ids: ["item-5"], dropped_refs: ["item-99"] });
+    expect(plan.steps[2]).toMatchObject({ title: "A1c test", action: "Get your A1c test and ask about fasting-glucose.", why: "A1c shows your 3-month sugar.", care_ids: ["item-3"] });
+    expect(plan.steps[2].dropped_refs).toEqual(["A1c", "fasting-glucose", "A1c"]);
+    expect(plan.summary).toContain("the A1c test");
     expect(plan.ask_a_person_reason).toBe("No verified ride for the clinic visit or the A1c recheck.");
     expect([plan.summary, plan.ask_a_person_reason, ...plan.steps.flatMap((s) => [s.title, s.action, s.why])].join(" ")).not.toMatch(/item-\d|lab-a1c/);
   });

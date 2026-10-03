@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { cleanPlanText, stripIds } from "./planText";
+import { cleanPlanText, restoredPlan, stripIds } from "./planText";
+
+describe("ids are trusted only when the server sent them", () => {
+  it("a term like A1c is never removed, even if passed as an id; a model's made-up refs never become redaction terms", () => {
+    expect(stripIds("Get your A1c test (A1c).", ["A1c"])).toBe("Get your A1c test (A1c).");
+    const plan = {
+      summary: "Get your A1c test and your fasting-glucose check.", ask_a_person_reason: "",
+      steps: [{ title: "A1c", action: "Ask about fasting-glucose.", why: "", barrier: "", care_ids: ["item-3"], resource_ids: [], dropped_refs: ["A1c", "fasting-glucose"] }],
+    };
+    expect(cleanPlanText(plan)).toBe(plan);
+  });
+});
+
+describe("a restored plan", () => {
+  const steps = [{ title: "Lab", action: "Go.", why: "", barrier: "", care_ids: ["item-4"], resource_ids: [], dropped_refs: [] }];
+  it("keeps its speak token when there was nothing to clean", () => {
+    const plan = { summary: "Get the blood test.", ask_a_person_reason: "", steps, speak_token: "tok" };
+    expect(restoredPlan(plan)).toBe(plan);
+  });
+  it("loses its speak token when its text changed, so read aloud and the call never try a token signed for other text", () => {
+    const plan = { summary: "Get the blood test (item-4).", ask_a_person_reason: "", steps, speak_token: "tok" };
+    expect(restoredPlan(plan)).toMatchObject({ summary: "Get the blood test.", speak_token: null });
+  });
+});
 
 /** The sentence a live plan showed the person on 2026-10-03. */
 const LIVE = "The trips that matter most: the fasting blood test within 2 weeks (item-4), the eye doctor visit (item-5), the A1c test (item-3) and your clinic visit in 3 months (item-6).";

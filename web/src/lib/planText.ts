@@ -8,13 +8,15 @@ import type { PlanResponse } from "./plan";
  * field of every plan (buildPlan, and a plan restored from this device) and so on everything made from those fields:
  * the screen, read aloud, the phone call, share, print and the handoff sheet.
  *
- * What is removed: a known id, or anything shaped like a care id ("item-12"), together with a "care id" / "ID" label
- * before it, and a bracket that held nothing else. Only id-shaped tokens are ever removed (no spaces, and a hyphen,
- * underscore or digit in them), so an id that happens to be a plain word can never delete that word from a sentence.
+ * What is removed: a TRUSTED id (one the server sent the model: a care step's or a verified resource's), or anything
+ * shaped like a care id ("item-12"), together with a "care id" / "ID" label before it, and a bracket that held nothing
+ * else. Ids the model made up are never trusted: one it wrote as "A1c" would otherwise delete the word A1c from the
+ * whole plan. And only id-shaped tokens are ever removed (no spaces, and a hyphen or underscore in them), so even a
+ * trusted id that happens to be a word or a term like "A1c" can never delete it from a sentence.
  */
 const CARE_ID = String.raw`item-\d+`;
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const idShaped = (id: string) => /^[\p{L}\p{N}_-]{2,80}$/u.test(id) && /[-_\d]/.test(id);
+const idShaped = (id: string) => /^[\p{L}\p{N}_-]{2,80}$/u.test(id) && /[-_]/.test(id);
 
 /** A label the model puts before an id: "care id", "resource ID", "id", "ids", "#". */
 const LABEL = String.raw`(?<![\p{L}\p{N}])(?:(?:care|resource|step)[ \t]+)?ids?[ \t]*[:#]?[ \t]*`;
@@ -49,12 +51,25 @@ export function stripIds(text: string, ids: Iterable<string> = []): string {
 
 type PlanText = Pick<PlanResponse, "summary" | "steps" | "ask_a_person_reason"> & Partial<Pick<PlanResponse, "resources">>;
 
-/** Every id a plan knows about: its resources and every id its steps link (kept or dropped). */
+/**
+ * The trusted ids a plan carries: its verified resources and the ids its steps link after the grounding check (which
+ * keeps only ids the server sent). Never dropped_refs: those are ids the model made up.
+ */
 export function planIds(plan: PlanText): string[] {
   return [
     ...Object.keys(plan.resources ?? {}),
-    ...plan.steps.flatMap((s) => [...(s.care_ids ?? []), ...(s.resource_ids ?? []), ...(s.dropped_refs ?? [])]),
+    ...plan.steps.flatMap((s) => [...(s.care_ids ?? []), ...(s.resource_ids ?? [])]),
   ];
+}
+
+/**
+ * A plan restored from this device, cleaned. When the text changed, its speak token (signed for the old text) is
+ * cleared, so read aloud goes straight to the device voice and the phone call is not offered, instead of both failing
+ * at the server after asking for a number.
+ */
+export function restoredPlan<T extends PlanText & { speak_token?: string | null }>(plan: T): T {
+  const clean = cleanPlanText(plan);
+  return clean === plan ? plan : { ...clean, speak_token: null };
 }
 
 /**

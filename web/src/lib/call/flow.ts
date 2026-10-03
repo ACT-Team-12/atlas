@@ -63,7 +63,7 @@ const urls = (cfg: CallConfig) => `${cfg.baseUrl}/api/call`;
 
 export type StartInput = { phone: unknown; consent: unknown; text: unknown; language: unknown; token: unknown; /** HMAC of the caller's IP. */ caller?: string };
 export type StartOutcome =
-  | { state: "calling"; id: string; last4: string }
+  | { state: "calling"; id: string; last4: string; /** Vonage did not confirm the call; it may still ring. */ uncertain?: true }
   | { state: "no-consent" | "language" | "token" | "token-used" | "phone" | "in-flight" | "too-soon" | "capped-caller" | "capped-code" | "capped-plan" | "capped-site" | "no-db" | "failed" };
 
 export async function startCall(deps: Deps, input: StartInput): Promise<StartOutcome> {
@@ -132,15 +132,21 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
   if (!placed.ok) {
     // The slots stay spent (the phone may have rung). Error kind only, never the number.
     console.error("code call failed", placed.error);
+    if (placed.unknown) {
+      // Vonage may have placed it: keep the session (its code stays typeable for its 10 minutes, and the number stays
+      // blocked by its live code and the 10-minute gap). The call's own events, checked against Vonage, settle it.
+      await store.markPlaced(id, "code", "unknown", null, now);
+      return { state: "calling", id, last4: last4(phone), uncertain: true };
+    }
     await store.drop(id);
     return { state: "failed" };
   }
-  await store.update(id, { code_status: "placed", code_uuid: placed.uuid }, ["code"]);
+  await store.markPlaced(id, "code", "placed", placed.uuid, now);
   return { state: "calling", id, last4: last4(phone) };
 }
 
 export type VerifyOutcome =
-  | { state: "calling"; last4: string; mode: "stream" | "talk" }
+  | { state: "calling"; last4: string; mode: "stream" | "talk"; /** Vonage did not confirm the call; it may still ring. */ uncertain?: true }
   | { state: "wrong"; attemptsLeft: number }
   | { state: "expired" | "token" | "capped-plan" | "capped-site" | "failed" };
 
@@ -197,11 +203,20 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
     eventUrl: `${base}/event?t=${ticket(cfg, { k: id, p: "event", c: "plan" }, now)}`,
     lengthTimer: planLengthSeconds({ audioBytes: bytes?.byteLength ?? null, textChars: text.length }),
   }, deps.fetchImpl);
-  if (!placed.ok) {
+  if (!placed.ok && !placed.unknown) {
     console.error("plan call failed", placed.error);
     return fail("failed", "the plan call could not be placed");
   }
-  await store.update(id, { plan_status: "placed", plan_mode: mode, plan_uuid: placed.uuid }, ["calling"]);
+  await store.update(id, { plan_mode: mode }, ["calling"]);
+  if (!placed.ok) {
+    // Vonage may have placed it and the phone may be ringing: keep what the call needs (text, audio) and do not let the
+    // person retry. A confirming event (checked against Vonage) moves it on; with none, the sweep wipes it after
+    // UNCONFIRMED_PLAN_MS.
+    console.error("plan call unconfirmed", placed.error);
+    await store.markPlaced(id, "plan", "unknown", null, now);
+    return { state: "calling", last4: row.last4, mode, uncertain: true };
+  }
+  await store.markPlaced(id, "plan", "placed", placed.uuid, now);
   return { state: "calling", last4: row.last4, mode };
 }
 

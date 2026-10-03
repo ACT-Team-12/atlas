@@ -12,6 +12,10 @@ import { getPool } from "../db";
 export const SESSION_TTL_MS = 30 * 60_000;
 export const CODE_TTL_MS = 10 * 60_000;
 export const CODE_ATTEMPTS = 3;
+/** A plan call whose placing could not be confirmed (Vonage timed out) and that no event has confirmed since is wiped after this. */
+export const UNCONFIRMED_PLAN_MS = 5 * 60_000;
+/** A placed plan call can ring 45 s and last 15 min (length_timer); past this its data is wiped even if no event came. */
+export const PLAN_CALL_MAX_MS = 17 * 60_000;
 export const COUNTER_TTL_MS = 2 * 24 * 60 * 60_000;
 
 export type Phase = "code" | "code_missed" | "expired" | "calling" | "done" | "failed";
@@ -32,6 +36,8 @@ export type SessionRow = {
   /** The Vonage call UUIDs returned by POST /v1/calls (or bound by the call's first event); callbacks must match. */
   code_uuid: string | null;
   plan_uuid: string | null;
+  /** When the plan call was placed (or its placing was attempted and could not be confirmed). */
+  placed_at: Date | null;
   sealed_phone: Buffer | null;
   sealed_text: Buffer | null;
   sealed_token: Buffer | null;
@@ -53,6 +59,11 @@ export interface CallStore {
   /** Inserts a session in phase "code", unless this number already has a live code ("in-flight"). */
   startCode(s: NewSession, now: number): Promise<"ok" | "in-flight" | "error">;
   drop(id: string): Promise<void>;
+  /**
+   * Records that one of a session's calls was placed: `status` ("placed", or "unknown" when Vonage did not confirm) is
+   * written only if no event has set one already, `uuid` (when known) always wins. Only while the session is in `phase`.
+   */
+  markPlaced(id: string, leg: "code" | "plan", status: "placed" | "unknown", uuid: string | null, now: number): Promise<boolean>;
   get(id: string, now: number): Promise<SessionRow | null>;
   /** The sealed voice MP3 of a live session. */
   getAudio(id: string, now: number): Promise<Buffer | null>;
@@ -99,6 +110,7 @@ create table if not exists atlas_calls (
 );
 alter table atlas_calls add column if not exists code_uuid text;
 alter table atlas_calls add column if not exists plan_uuid text;
+alter table atlas_calls add column if not exists placed_at timestamptz;
 create unique index if not exists atlas_calls_one_code_uq on atlas_calls (phone_hash) where phase = 'code';
 create index if not exists atlas_calls_expires_idx on atlas_calls (expires_at);
 create table if not exists atlas_call_counters (
@@ -125,7 +137,7 @@ export async function ensureSchema(db: Q): Promise<boolean> {
   }
 }
 
-const COLS = "id, phone_hash, last4, language, phase, code_hash, attempts, code_expires_at, code_status, plan_status, plan_mode, note, code_uuid, plan_uuid, sealed_phone, sealed_text, sealed_token, (sealed_audio is not null) as has_audio, created_at, expires_at";
+const COLS = "id, phone_hash, last4, language, phase, code_hash, attempts, code_expires_at, code_status, plan_status, plan_mode, note, code_uuid, plan_uuid, placed_at, sealed_phone, sealed_text, sealed_token, (sealed_audio is not null) as has_audio, created_at, expires_at";
 const PATCHABLE = new Set(["phase", "code_hash", "code_status", "plan_status", "plan_mode", "note", "code_uuid", "plan_uuid", "sealed_phone", "sealed_text", "sealed_token", "sealed_audio"]);
 const logErr = (what: string, e: unknown) => console.error(what, e instanceof Error ? e.name : typeof e); // never values
 
@@ -142,6 +154,12 @@ export class PgCallStore implements CallStore {
          where (phase = 'code' and code_expires_at < $1) or (phase in ('code_missed', 'expired', 'failed', 'done') and sealed_phone is not null)`,
         [at],
       );
+      // A plan call Vonage never confirmed (placing timed out, no event since), or one past its longest possible length.
+      await this.db.query(
+        `update atlas_calls set phase = 'failed', note = 'plan call not confirmed', code_hash = null, sealed_phone = null, sealed_text = null, sealed_token = null, sealed_audio = null
+         where phase = 'calling' and ((plan_status = 'unknown' and placed_at < $1) or placed_at < $2)`,
+        [new Date(now - UNCONFIRMED_PLAN_MS), new Date(now - PLAN_CALL_MAX_MS)],
+      );
       await this.db.query("delete from atlas_call_counters where expires_at < $1", [at]);
     } catch (e) { logErr("call sweep failed", e); }
   }
@@ -150,12 +168,14 @@ export class PgCallStore implements CallStore {
     try {
       // A code that ran out of time no longer blocks this number.
       await this.db.query("update atlas_calls set phase = 'expired', code_hash = null where phone_hash = $1 and phase = 'code' and code_expires_at < $2", [s.phone_hash, new Date(now)]);
-      await this.db.query(
+      // No new code call while a plan call to this number is live or still unconfirmed (it may be ringing right now).
+      const r = await this.db.query(
         `insert into atlas_calls (id, phone_hash, last4, language, phase, code_hash, code_expires_at, sealed_phone, sealed_text, sealed_token, expires_at)
-         values ($1, $2, $3, $4, 'code', $5, $6, $7, $8, $9, $10)`,
-        [s.id, s.phone_hash, s.last4, s.language, s.code_hash, s.code_expires_at, s.sealed_phone, s.sealed_text, s.sealed_token, s.expires_at],
+         select $1, $2, $3, $4, 'code', $5, $6, $7, $8, $9, $10
+         where not exists (select 1 from atlas_calls where phone_hash = $2 and phase = 'calling' and expires_at > $11)`,
+        [s.id, s.phone_hash, s.last4, s.language, s.code_hash, s.code_expires_at, s.sealed_phone, s.sealed_text, s.sealed_token, s.expires_at, new Date(now)],
       );
-      return "ok" as const;
+      return (r.rowCount ?? 0) === 1 ? "ok" as const : "in-flight" as const;
     } catch (e) {
       if ((e as { code?: string })?.code === "23505") return "in-flight" as const;
       logErr("call start failed", e);
@@ -165,6 +185,19 @@ export class PgCallStore implements CallStore {
 
   async drop(id: string) {
     try { await this.db.query("delete from atlas_calls where id = $1", [id]); } catch (e) { logErr("call drop failed", e); }
+  }
+
+  async markPlaced(id: string, leg: "code" | "plan", status: "placed" | "unknown", uuid: string | null, now: number) {
+    const sql = leg === "code"
+      ? "update atlas_calls set code_status = coalesce(code_status, $2), code_uuid = coalesce($3, code_uuid) where id = $1 and phase = 'code'"
+      : "update atlas_calls set plan_status = coalesce(plan_status, $2), plan_uuid = coalesce($3, plan_uuid), placed_at = $4 where id = $1 and phase = 'calling'";
+    try {
+      const r = await this.db.query(sql, leg === "code" ? [id, status, uuid] : [id, status, uuid, new Date(now)]);
+      return (r.rowCount ?? 0) === 1;
+    } catch (e) {
+      logErr("call mark failed", e);
+      return false;
+    }
   }
 
   async get(id: string, now: number) {

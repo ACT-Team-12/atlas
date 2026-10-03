@@ -1,4 +1,4 @@
-import { CODE_ATTEMPTS, COUNTER_TTL_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
+import { CODE_ATTEMPTS, COUNTER_TTL_MS, PLAN_CALL_MAX_MS, UNCONFIRMED_PLAN_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
 
 /**
  * An in-memory CallStore with the same rules as PgCallStore (one live code per number, atomic attempts, capped
@@ -21,22 +21,37 @@ export class MemoryCallStore implements CallStore {
         Object.assign(r, { phase: "expired", code_hash: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null });
       }
     }
+    for (const r of this.rows.values()) {
+      const at = r.placed_at?.getTime();
+      if (r.phase === "calling" && at !== undefined && ((r.plan_status === "unknown" && at < now - UNCONFIRMED_PLAN_MS) || at < now - PLAN_CALL_MAX_MS)) {
+        Object.assign(r, { phase: "failed", note: "plan call not confirmed", code_hash: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null });
+      }
+    }
     for (const [k, end] of this.counterEnds) if (end < now) { this.counterEnds.delete(k); this.counters.delete(k); }
   }
 
   async startCode(s: NewSession, now: number) {
     try { this.boom(); } catch { return "error" as const; }
     for (const r of this.rows.values()) {
+      if (r.phone_hash === s.phone_hash && r.phase === "calling" && r.expires_at.getTime() > now) return "in-flight" as const;
       if (r.phone_hash !== s.phone_hash || r.phase !== "code") continue;
       if ((r.code_expires_at?.getTime() ?? 0) < now) { r.phase = "expired"; r.code_hash = null; } else return "in-flight" as const;
     }
     this.rows.set(s.id, {
-      ...s, phase: "code", attempts: 0, code_status: null, plan_status: null, plan_mode: null, note: null, code_uuid: null, plan_uuid: null, sealed_audio: null, has_audio: false, created_at: new Date(now),
+      ...s, phase: "code", attempts: 0, code_status: null, plan_status: null, plan_mode: null, note: null, code_uuid: null, plan_uuid: null, placed_at: null, sealed_audio: null, has_audio: false, created_at: new Date(now),
     });
     return "ok" as const;
   }
 
   async drop(id: string) { this.rows.delete(id); }
+
+  async markPlaced(id: string, leg: "code" | "plan", status: "placed" | "unknown", uuid: string | null, now: number) {
+    const r = this.rows.get(id);
+    if (!r || r.phase !== (leg === "code" ? "code" : "calling")) return false;
+    if (leg === "code") { r.code_status ??= status; r.code_uuid = uuid ?? r.code_uuid; }
+    else { r.plan_status ??= status; r.plan_uuid = uuid ?? r.plan_uuid; r.placed_at = new Date(now); }
+    return true;
+  }
 
   async get(id: string, now: number) {
     const r = this.rows.get(id);

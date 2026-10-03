@@ -7,8 +7,8 @@ import { MemoryCallStore } from "./memoryStore";
 import { canCallIn, codeNcco, MAX_REPLAYS, planLengthSeconds, planNcco, talkChunks, TALK_CHUNK, VONAGE_TTS } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
-import { reserveSlots } from "./store";
-import { vonageJwt } from "./vonage";
+import { reserveSlots, UNCONFIRMED_PLAN_MS } from "./store";
+import { placeCall, vonageJwt } from "./vonage";
 import { verifyVonageJwt } from "./webhook";
 
 const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -39,6 +39,18 @@ function vonageOk() {
     return new Response(JSON.stringify({ uuid }), { status: 201 });
   });
 }
+/** Like vonageOk, but the `failPost`-th POST answers 503 after Vonage did create the call (as `lostUuid`). */
+function vonageFlaky(failPost: number, lostUuid = "call-lost") {
+  const ok = vonageOk();
+  let p = 0;
+  return vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async (url, init) => {
+    if (init?.method === "POST" && ++p === failPost) {
+      truth.set(lostUuid, { status: "started" });
+      return new Response("", { status: 503 });
+    }
+    return ok(url, init);
+  });
+}
 const posts = (f: ReturnType<typeof vonageOk>) => f.mock.calls.filter((c) => c[1]?.method === "POST");
 const sentBody = (f: ReturnType<typeof vonageOk>, i = 0) => JSON.parse(String(posts(f)[i][1]?.body));
 
@@ -61,6 +73,17 @@ describe("Vonage application JWT", () => {
     expect(normalizePem(PEM)).toBe(PEM.trim());
     expect(normalizePem(PEM.replace(/\n/g, "\\n"))).toBe(PEM.trim());
     expect(normalizePem(Buffer.from(PEM).toString("base64"))).toBe(PEM.trim());
+  });
+});
+
+describe("placing a call when Vonage does not confirm it", () => {
+  const o = { applicationId: "app-123", privateKey: PEM, to: "+14045552368", from: "+19432445023", ncco: [], eventUrl: "https://a/e", lengthTimer: 60 };
+  it("treats a timeout, a dropped connection, a 5xx or a success without a uuid as UNKNOWN, a 4xx as a refusal", async () => {
+    expect(await placeCall(o, (() => new Promise(() => {})) as unknown as typeof fetch, 20)).toMatchObject({ ok: false, unknown: true });
+    expect(await placeCall(o, (async () => { throw new TypeError("reset"); }) as unknown as typeof fetch)).toMatchObject({ ok: false, unknown: true });
+    expect(await placeCall(o, (async () => new Response("", { status: 502 })) as unknown as typeof fetch)).toMatchObject({ ok: false, unknown: true });
+    expect(await placeCall(o, (async () => new Response("{}", { status: 201 })) as unknown as typeof fetch)).toMatchObject({ ok: false, unknown: true });
+    expect(await placeCall(o, (async () => new Response("", { status: 400 })) as unknown as typeof fetch)).toMatchObject({ ok: false, unknown: false });
   });
 });
 
@@ -551,6 +574,50 @@ describe("the call flow", () => {
       fetchImpl = vonageOk();
       expect((await handleInput(hk(), inp, "1", "call-x")).map((a) => a.action)).toEqual(["talk"]);
       spy.mockRestore();
+    });
+  });
+
+  describe("an unconfirmed call is kept and reconciled, never wiped or retried while it may ring", () => {
+    beforeEach(() => { vi.spyOn(console, "error").mockImplementation(() => {}); });
+
+    it("keeps an unconfirmed code call's session, blocks a second code call, and lets its event settle it", async () => {
+      fetchImpl = vonageFlaky(1);
+      const r = await startCall(deps(), input());
+      expect(r).toMatchObject({ state: "calling", uncertain: true });
+      const id = (r as { id: string }).id;
+      expect(store.rows.get(id)!.code_status).toBe("unknown");
+      expect((await startCall(deps({ now: NOW + 60_000 }), input())).state).toBe("in-flight");
+      truth.set("call-lost", { status: "answered" });
+      expect(await handleEvent(hk(), { k: id, p: "event", c: "code", exp: NOW + 60_000 }, "call-lost")).toBe("ok");
+      expect([store.rows.get(id)!.code_status, store.rows.get(id)!.code_uuid]).toEqual(["answered", "call-lost"]);
+      expect((await verifyAndCall(deps(), { id, code: "4821" })).state).toBe("calling");
+    });
+
+    it("keeps an unconfirmed plan call's text, blocks new calls to the number, and wipes it if nothing confirms it", async () => {
+      fetchImpl = vonageFlaky(2);
+      const id = await started();
+      const v = await verifyAndCall(deps(), { id, code: "4821" });
+      expect(v).toMatchObject({ state: "calling", uncertain: true });
+      let row = store.rows.get(id)!;
+      expect([row.phase, row.plan_status]).toEqual(["calling", "unknown"]);
+      expect(row.sealed_text).not.toBeNull();
+      // no second call to this number while that one may be ringing (the live session refuses before any cap is looked at)
+      expect((await startCall(deps({ now: NOW + 4 * 60_000 }), input())).state).toBe("in-flight");
+      await store.sweep(NOW + UNCONFIRMED_PLAN_MS + 1000);
+      row = store.rows.get(id)!;
+      expect([row.phase, row.sealed_phone, row.sealed_text, row.sealed_audio]).toEqual(["failed", null, null, null]);
+    });
+
+    it("an event Vonage confirms turns an unconfirmed plan call into a live one, which the sweep then leaves alone", async () => {
+      fetchImpl = vonageFlaky(2);
+      const id = await started();
+      await verifyAndCall(deps(), { id, code: "4821" });
+      truth.set("call-lost", { status: "answered" });
+      expect(await handleEvent(hk(), { k: id, p: "event", c: "plan", exp: NOW + 60_000 }, "call-lost")).toBe("ok");
+      await store.sweep(NOW + UNCONFIRMED_PLAN_MS + 1000);
+      const row = store.rows.get(id)!;
+      expect([row.phase, row.plan_status, row.plan_uuid]).toEqual(["calling", "answered", "call-lost"]);
+      expect(row.sealed_text).not.toBeNull();
     });
   });
 

@@ -99,6 +99,21 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     expect(await store.counter("gap:z", NOW + 121_000)).toBe(0);
   });
 
+  it("refuses a new code while a plan call to the number is live, and records placing without overwriting an event", async () => {
+    await store.startCode(session("p", "h8"), NOW);
+    await store.update("p", { phase: "calling", code_hash: null }, ["code"]);
+    expect(await store.startCode(session("q", "h8"), NOW)).toBe("in-flight");
+    await store.update("p", { plan_status: "answered" });
+    expect(await store.markPlaced("p", "plan", "unknown", null, NOW)).toBe(true);
+    expect((await store.get("p", NOW))?.plan_status).toBe("answered");
+    await store.sweep(NOW + 6 * 60_000); // confirmed by an event: left alone
+    expect((await store.get("p", NOW + 6 * 60_000))?.phase).toBe("calling");
+    await store.update("p", { plan_status: "unknown" });
+    await store.sweep(NOW + 6 * 60_000); // unconfirmed past 5 minutes: wiped
+    const row = await store.get("p", NOW + 6 * 60_000);
+    expect([row?.phase, row?.sealed_phone, row?.sealed_text]).toEqual(["failed", null, null]);
+  });
+
   it("sweeps expired sessions and counters", async () => {
     await store.sweep(NOW + 3 * 24 * 3600_000);
     const { rows } = await pool.query("select (select count(*) from atlas_calls)::int as s, (select count(*) from atlas_call_counters)::int as c");

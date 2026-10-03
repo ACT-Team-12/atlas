@@ -32,10 +32,12 @@ function line(s: Status): string {
       if (s.code_status === "ringing") return `Ringing ${n} with your code...`;
       if (s.code_status === "answered") return `Answered. Listen for the 4 digits, then type them below.`;
       if (s.code_status === "completed") return `Code call finished. Type the 4 digits below.`;
+      if (s.code_status === "unknown") return `We couldn't confirm the call to ${n}. If your phone rings, type the 4 digits below. If it doesn't, try again in 10 minutes.`;
       return `Calling ${n} with a 4-digit code...`;
     case "calling":
       if (!s.plan_status) return "Code is right. Getting your plan ready to call...";
       if (s.plan_status === "ringing") return `Ringing ${n} with your plan...`;
+      if (s.plan_status === "unknown") return `We couldn't confirm the plan call to ${n}. If your phone rings, pick up. If it doesn't ring in a few minutes, your number and plan text are deleted.`;
       if (s.plan_status === "answered") return `Answered. ATLAS is reading your plan. Press 1 on the call to hear it again.`;
       return `Calling ${n} with your plan...`;
     case "done":
@@ -109,13 +111,13 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   const askCode = (e: FormEvent) => send(e, "/api/call/start", { phone, consent, text, language, token: plan.speak_token }, (j) => {
     polls.current = 0;
     setId(String(j.id));
-    setSt({ phase: "code", last4: String(j.last4), code_status: null });
+    setSt({ phase: "code", last4: String(j.last4), code_status: j.uncertain ? "unknown" : null });
     setPhone("");
     setCode("");
   });
   const verify = (e: FormEvent) => send(e, "/api/call/verify", { id, code }, (j) => {
     polls.current = 0;
-    setSt((s) => ({ ...(s ?? {}), phase: "calling", last4: String(j.last4), plan_status: null }));
+    setSt((s) => ({ ...(s ?? {}), phase: "calling", last4: String(j.last4), plan_status: j.uncertain ? "unknown" : null }));
     setCode("");
   });
   const restart = () => { setId(null); setSt(null); setMsg(""); setConsent(false); };

@@ -15,7 +15,12 @@ export function vonageJwt(applicationId: string, privateKeyPem: string, now = Da
   return `${head}.${body}.${b64u(sig)}`;
 }
 
-export type PlaceResult = { ok: true; uuid: string } | { ok: false; error: string };
+/**
+ * `unknown: true` means Vonage may have created the call anyway (a timeout, a dropped connection, a 5xx, or a success
+ * without a readable uuid): the caller must not treat it as "no call" (no retry, no wipe while the phone may ring).
+ * `unknown: false` is a definite refusal (the JWT could not be signed, or a 4xx).
+ */
+export type PlaceResult = { ok: true; uuid: string } | { ok: false; error: string; unknown: boolean };
 
 export type PlaceOptions = {
   applicationId: string;
@@ -33,14 +38,14 @@ export async function placeCall(o: PlaceOptions, fetchImpl: typeof fetch = fetch
   const ctl = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<PlaceResult>((ok) => {
-    timer = setTimeout(() => { ctl.abort(); ok({ ok: false, error: `Vonage did not answer in ${timeoutMs} ms` }); }, timeoutMs);
+    timer = setTimeout(() => { ctl.abort(); ok({ ok: false, error: `Vonage did not answer in ${timeoutMs} ms`, unknown: true }); }, timeoutMs);
   });
   const attempt = (async (): Promise<PlaceResult> => {
     let jwt: string;
     try {
       jwt = vonageJwt(o.applicationId, o.privateKey);
     } catch (e) {
-      return { ok: false, error: `could not sign the Vonage JWT: ${(e as Error).name}` };
+      return { ok: false, error: `could not sign the Vonage JWT: ${(e as Error).name}`, unknown: false };
     }
     const res = await fetchImpl("https://api.nexmo.com/v1/calls", {
       method: "POST",
@@ -58,14 +63,14 @@ export async function placeCall(o: PlaceOptions, fetchImpl: typeof fetch = fetch
     });
     const text = await res.text();
     // Status only: an error body could echo the request, and this string reaches the logs.
-    if (!res.ok) return { ok: false, error: `Vonage HTTP ${res.status}` };
+    if (!res.ok) return { ok: false, error: `Vonage HTTP ${res.status}`, unknown: res.status >= 500 };
     try {
       const j = JSON.parse(text) as { uuid?: unknown };
-      return typeof j.uuid === "string" ? { ok: true, uuid: j.uuid } : { ok: false, error: "Vonage answered without a call uuid" };
+      return typeof j.uuid === "string" ? { ok: true, uuid: j.uuid } : { ok: false, error: "Vonage answered without a call uuid", unknown: true };
     } catch {
-      return { ok: false, error: "Vonage answered with a body that was not JSON" };
+      return { ok: false, error: "Vonage answered with a body that was not JSON", unknown: true };
     }
-  })().catch((e: unknown) => ({ ok: false as const, error: `Vonage request failed: ${(e as Error).name}` }));
+  })().catch((e: unknown) => ({ ok: false as const, error: `Vonage request failed: ${(e as Error).name}`, unknown: true }));
   try {
     return await Promise.race([attempt, timeout]);
   } finally {

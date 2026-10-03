@@ -24,6 +24,7 @@ create table if not exists atlas_calls (
 );
 alter table atlas_calls add column if not exists code_uuid text;
 alter table atlas_calls add column if not exists plan_uuid text;
+alter table atlas_calls add column if not exists placed_at timestamptz;
 create unique index if not exists atlas_calls_one_code_uq on atlas_calls (phone_hash) where phase = 'code';
 create index if not exists atlas_calls_expires_idx on atlas_calls (expires_at);
 create table if not exists atlas_call_counters (

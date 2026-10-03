@@ -16,6 +16,8 @@ validation rule (`missedLinesPayloadValid`), which every client must hide as `in
 has every kept subset; a larger one has all, none and 58 seeded random subsets (18 for the random papers).
 
 Android replays it in `mobile/android/app/src/test/java/com/stephensookra/atlas/MissedLinesTest.kt`.
+iOS replays it in `mobile/ios/ATLASTests/MissedLinesTests.swift` (the file is a test resource referenced from
+`mobile/ios/project.yml`, not a copy).
 
 ## Drift check (CI)
 

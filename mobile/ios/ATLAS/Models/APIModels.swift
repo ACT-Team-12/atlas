@@ -116,13 +116,16 @@ struct CarePlanResponse: Codable, Hashable, Sendable {
     let not_in_document: [String]
     let has_warning_signs: Bool
     /// The language the explanations were written in (sent back to the meaning check). Missing from older servers
-    /// and from plans saved by older versions of the app.
-    let language: Language?
+    /// and from plans saved by older versions of the app (set from the saved language when such a plan is loaded).
+    var language: Language?
     let model: String
     let stats: CareStats
+    /// The "Lines on your paper we didn't turn into steps" check (MissedLines). Missing from older servers and saved plans.
+    let missed_lines: MissedLinesPayload?
 
     enum CodingKeys: String, CodingKey {
         case source_text, source_kind, items, refused, questions_for_doctor, not_in_document, has_warning_signs, language, model, stats
+        case missed_lines
     }
 
     init(from decoder: Decoder) throws {
@@ -138,6 +141,8 @@ struct CarePlanResponse: Codable, Hashable, Sendable {
         language = (try? c.decodeIfPresent(Language.self, forKey: .language)) ?? nil
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
         stats = try c.decode(CareStats.self, forKey: .stats)
+        // Never fails the read: a payload this app cannot read decodes as MissedLinesPayload.unreadable (hidden, invalid).
+        missed_lines = (try? c.decodeIfPresent(MissedLinesPayload.self, forKey: .missed_lines)) ?? nil
     }
 }
 

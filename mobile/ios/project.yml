@@ -10,8 +10,8 @@ settings:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     DEVELOPMENT_TEAM: Y8XVCMLQCZ
-    MARKETING_VERSION: "1.1"
-    CURRENT_PROJECT_VERSION: "2"
+    MARKETING_VERSION: "1.2"
+    CURRENT_PROJECT_VERSION: "3"
 targets:
   ATLAS:
     type: application
@@ -59,6 +59,9 @@ targets:
     platform: iOS
     sources:
       - path: ATLASTests
+      # The web reference vectors shared with Android (referenced, not copied): MissedLinesTests replays every case.
+      - path: ../shared/missed-lines-vectors.json
+        buildPhase: resources
     dependencies:
       - target: ATLAS
     settings:

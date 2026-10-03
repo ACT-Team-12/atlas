@@ -25,17 +25,19 @@ final class AppModel {
     /// Device location for the plan request only. Never saved.
     var location: LatLng?
 
-    // Results
-    var care: CarePlanResponse? { didSet { persist() } }
-    var plan: PlanResponse? { didSet { persist() } }
-    var done: [String: Bool] = [:] { didSet { persist() } }
-    var removed: [String: Bool] = [:] { didSet { persist() } }
+    // Results. A read, a plan, or a step done, removed or restored moves the saved time "Welcome back" shows.
+    var care: CarePlanResponse? { didSet { persist(planChanged: true) } }
+    var plan: PlanResponse? { didSet { persist(planChanged: true) } }
+    var done: [String: Bool] = [:] { didSet { persist(planChanged: true) } }
+    var removed: [String: Bool] = [:] { didSet { persist(planChanged: true) } }
     var restoredAt: Date?
     /// The second-model double-check of `care` (paper first: only a certified explanation may lead).
     private(set) var meaning: MeaningState = .idle { didSet { persist() } }
     /// What `care` was read from and what `plan` was built from (StaleGuard). Nil when unknown (older saved files).
     private(set) var readFingerprint: String?
     private(set) var planFingerprint: String?
+    /// When the steps or the plan last changed (SavedSession.savedAt). Input changes and helper links keep it.
+    @ObservationIgnored private var planChangedAt: Date?
 
     // Helper link: the banner, and whether the next plan counts as one built from the link. Never saved.
     private(set) var helperBanner: HelperBanner?
@@ -54,6 +56,9 @@ final class AppModel {
     enum Busy: Equatable { case recognizing, reading, planning }
 
     @ObservationIgnored private var task: Task<Void, Never>?
+    /// Moved by every cancel() (so by every new OCR, read or plan, and by Clear): a task whose await finished after it was
+    /// replaced applies nothing, not its result and not its error or `busy = nil` over the newer request.
+    @ObservationIgnored private var taskID = 0
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private let store: SessionStore
     @ObservationIgnored private var restoring = false
@@ -76,15 +81,37 @@ final class AppModel {
 
     func check(for id: String) -> Check { meaning.check(for: id) }
 
-    /// The steps on screen were read from different text, language or reading level than what is entered now.
+    /// "Lines on your paper we didn't turn into steps", for the steps still kept: follows every Remove and Undo.
+    var missedLines: MissedLinesView {
+        MissedLines.forCare(care, keptIDs: items.map(\.id))
+    }
+
+    /// The language the steps on screen were written in, for reading them aloud. While the steps are outdated it is still
+    /// theirs, not the language just picked, so a Spanish plan is never read with a Vietnamese voice. Nil when it is not
+    /// known (a plan saved by 1.0): then the steps are not read aloud at all until they are read again.
+    var stepsLanguage: Language? { care?.language }
+
+    /// Read aloud on the plan screen is off while the plan is outdated, like the website: the plan was built in a
+    /// language that may no longer be the one picked.
+    var planCanReadAloud: Bool { plan != nil && !planOutdated }
+
+    /// The steps on screen were read from different text, language or reading level than what is entered now, or it is
+    /// not known what they were read from (a plan saved by 1.0): missing provenance counts as outdated.
     var careOutdated: Bool {
-        guard care != nil, let readFingerprint else { return false }
+        guard care != nil else { return false }
+        guard let readFingerprint else { return true }
         return readFingerprint != StaleGuard.readFingerprint(text: text, language: language, level: level)
     }
 
-    /// The plan on screen was built from different inputs than what is entered now; its actions are turned off.
+    /// Steps saved by 1.0, which kept no record of what they were read from (so neither they nor a plan built on them
+    /// can be shown as current).
+    var provenanceUnknown: Bool { care != nil && readFingerprint == nil }
+
+    /// The plan on screen was built from different inputs than what is entered now, or it is not known what it was built
+    /// from; its actions are turned off.
     var planOutdated: Bool {
-        guard plan != nil, let planFingerprint else { return false }
+        guard plan != nil else { return false }
+        guard let planFingerprint else { return true }
         return careOutdated || planFingerprint != currentPlanFingerprint()
     }
 
@@ -134,9 +161,11 @@ final class AppModel {
         cancel()
         error = nil
         busy = .recognizing
+        let run = taskID
         task = Task {
             do {
                 let result = try await TextRecognizer.recognize(pages: pages)
+                guard run == taskID else { return }
                 busy = nil
                 if result.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     error = "We could not find any words in that picture. Try again in good light, or type the text."
@@ -146,8 +175,10 @@ final class AppModel {
                 text = result
                 path = [.check]
             } catch is CancellationError {
+                guard run == taskID else { return }
                 busy = nil
             } catch {
+                guard run == taskID else { return }
                 busy = nil
                 self.error = "We could not read that picture. Try again, or type the text."
             }
@@ -162,9 +193,13 @@ final class AppModel {
         error = nil
         busy = .reading
         let text = self.text, level = self.level, language = self.language
+        let run = taskID
         task = Task {
             do {
-                let result = try await api.extract(text: text, level: level, language: language)
+                var result = try await api.extract(text: text, level: level, language: language)
+                guard run == taskID else { return }
+                // An older server leaves out the language; the steps were still written in the one asked for.
+                if result.language == nil { result.language = language }
                 readFingerprint = StaleGuard.readFingerprint(text: text, language: language, level: level)
                 planFingerprint = nil
                 care = result
@@ -176,6 +211,7 @@ final class AppModel {
                 startMeaningCheck(for: result, language: result.language ?? language)
                 if path.last != .steps { path.append(.steps) }
             } catch {
+                guard run == taskID else { return }
                 busy = nil
                 if (error as? APIError) != .cancelled { self.error = error.localizedDescription }
             }
@@ -198,9 +234,11 @@ final class AppModel {
             language: language,
             note: note
         )
+        let run = taskID
         task = Task {
             do {
                 let result = try await api.plan(request, fromHelperLink: viaHelper)
+                guard run == taskID else { return }
                 planFingerprint = fingerprint
                 plan = result
                 // One link counts at most one plan (helperLink.ts consumeHelperSession).
@@ -208,6 +246,7 @@ final class AppModel {
                 busy = nil
                 if path.last != .plan { path.append(.plan) }
             } catch {
+                guard run == taskID else { return }
                 busy = nil
                 if (error as? APIError) != .cancelled { self.error = error.localizedDescription }
             }
@@ -245,6 +284,7 @@ final class AppModel {
     }
 
     func cancel() {
+        taskID += 1
         task?.cancel()
         task = nil
         busy = nil
@@ -257,12 +297,13 @@ final class AppModel {
     // MARK: Saved on this phone
 
     private func restore() {
-        guard let saved = store.load() else { return }
+        guard let saved = store.load()?.upgraded() else { return }
         restoring = true
         text = saved.text; language = saved.language; level = saved.level
         care = saved.care; barriers = saved.barriers; zip = saved.zip; note = saved.note
         plan = saved.plan; done = saved.done; removed = saved.removed
         readFingerprint = saved.readFingerprint; planFingerprint = saved.planFingerprint
+        planChangedAt = saved.savedAt
         let savedMeaning = saved.meaning ?? .idle
         meaning = savedMeaning.status == .done ? savedMeaning : .idle
         restoring = false
@@ -271,12 +312,16 @@ final class AppModel {
         if let c = saved.care, savedMeaning.status == .loading { startMeaningCheck(for: c, language: c.language ?? saved.language) }
     }
 
-    private func persist() {
+    /// `planChanged`: a read, a plan, or a step done, removed or restored, which moves the saved time "Welcome back"
+    /// shows. Everything else (language, level, ZIP, note, barriers, a helper link, the double-check) is saved but keeps it.
+    private func persist(planChanged: Bool = false) {
         guard !restoring, care != nil || plan != nil else { return }
+        let at = planChanged ? Date() : (planChangedAt ?? Date())
+        planChangedAt = at
         let session = SavedSession(text: text, language: language, level: level, care: care, barriers: barriers,
                                    zip: zip, note: note, plan: plan, done: done, removed: removed,
                                    meaning: meaning, readFingerprint: readFingerprint, planFingerprint: planFingerprint,
-                                   savedAt: Date())
+                                   savedAt: at)
         try? store.save(session)
     }
 
@@ -291,7 +336,7 @@ final class AppModel {
         helperBanner = nil; fromHelperLink = false
         store.clear()
         restoring = true
-        meaning = .idle; readFingerprint = nil; planFingerprint = nil
+        meaning = .idle; readFingerprint = nil; planFingerprint = nil; planChangedAt = nil
         text = ""; care = nil; plan = nil; barriers = []; zip = ""; note = ""; done = [:]; removed = [:]
         restoring = false
         location = nil

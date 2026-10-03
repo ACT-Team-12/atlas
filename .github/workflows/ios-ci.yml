@@ -1,9 +1,9 @@
 name: ios-ci
 on:
   push:
-    paths: ["mobile/ios/**", ".github/workflows/ios-ci.yml"]
+    paths: ["mobile/ios/**", "mobile/shared/**", ".github/workflows/ios-ci.yml"]
   pull_request:
-    paths: ["mobile/ios/**", ".github/workflows/ios-ci.yml"]
+    paths: ["mobile/ios/**", "mobile/shared/**", ".github/workflows/ios-ci.yml"]
 concurrency:
   group: ios-ci-${{ github.ref }}
   cancel-in-progress: true
@@ -39,7 +39,11 @@ jobs:
           grep -E "Test run with [0-9]+ tests" test.log
           python3 -c "
           import re
-          m = re.search(r'Test run with (\d+) tests', open('test.log').read())
+          log = open('test.log').read()
+          m = re.search(r'Test run with (\d+) tests', log)
           n = int(m[1]) if m else 0
           print('tests', n)
-          assert n >= 16, 'fewer iOS tests ran than expected'"
+          assert n >= 67, 'fewer iOS tests ran than expected'
+          v = re.search(r'missed_lines vectors: 42 fixtures, (\d+) of (\d+) kept sets equal to the web reference', log)
+          print(v[0] if v else 'missed_lines vector replay did not report')
+          assert v and v[1] == v[2] == '753', 'the shared missed_lines vectors did not all run and pass'"

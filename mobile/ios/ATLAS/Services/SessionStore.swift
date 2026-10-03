@@ -17,7 +17,25 @@ struct SavedSession: Codable, Equatable, Sendable {
     /// What the steps were read from and what the plan was built from (StaleGuard). Nil in older files.
     var readFingerprint: String?
     var planFingerprint: String?
+    /// When the steps or the plan last changed (a read, a plan, a step done, removed or restored). Changing the language,
+    /// reading level, ZIP, note or barriers, or opening a helper link, keeps it, so "Welcome back" shows when the plan
+    /// was made.
     var savedAt: Date
+
+    /// What a loaded file can honestly say about where its steps and plan came from. Provenance is never invented: a
+    /// file saved by the 1.0 app has no fingerprints, and 1.0 saved the text, language and reading level after every
+    /// edit, so the saved inputs may be later than the ones the steps were read with. Such a file keeps its missing
+    /// fingerprints, and AppModel treats missing provenance as outdated until the person reads (and plans) again.
+    /// The only thing recovered is the steps' language, and only from a read fingerprint that encodes it (a 1.1 file
+    /// whose server did not send the language). Otherwise it stays unknown, so the steps are never read in a wrong voice.
+    func upgraded() -> SavedSession {
+        var s = self
+        if var c = s.care, c.language == nil, let fp = readFingerprint, let lang = StaleGuard.language(inReadFingerprint: fp) {
+            c.language = lang
+            s.care = c
+        }
+        return s
+    }
 }
 
 /// Codable JSON in Application Support, excluded from iCloud backup, protected while the phone is locked.

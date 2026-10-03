@@ -794,7 +794,7 @@ export function CarePlanTool() {
                       <p className="font-extrabold">Held back to protect you ({care.refused.length})</p>
                       <p className="text-xs text-ink/70">The AI suggested these, but we couldn&apos;t show their words from your paper.</p>
                       <ul className="mt-2 list-disc pl-5 text-sm">{care.refused.map((r) => (
-                        <li key={r.id}>{r.title}{r.held_reason === "sentence_too_long" ? " (its sentence in your paper is too long to show here: read it in your paper)" : ""}</li>
+                        <li key={r.id}>{r.title}{r.held_reason === "sentence_too_long" ? " (its sentence in your paper is too long to show here: read it in your paper)" : r.held_reason === "skips_across" ? " (its words come from different lines of your paper, so it can't be shown as one step)" : ""}</li>
                       ))}</ul>
                     </div>
                   )}

@@ -120,6 +120,16 @@ export function enclosingSentence(source: string, span: { start: number; end: nu
   return { start: Math.min(start, span.start), end: Math.max(end, span.end) };
 }
 
+/** True when a line break or a sentence end falls inside `span` (before its last character). */
+export function crossesSentence(source: string, span: { start: number; end: number }): boolean {
+  for (let i = span.start; i < span.end; i++) {
+    if (LINE_END.test(source[i])) return true;
+    const after = sentenceEndAt(source, i, span.end);
+    if (after >= 0 && after < span.end) return true;
+  }
+  return false;
+}
+
 /** The care plan route's request limit for one quote (plan.ts, meaning.ts, understand.ts all cap source_quote at 800). */
 const MAX_QUOTE = 800;
 
@@ -132,6 +142,11 @@ const MAX_QUOTE = 800;
 export function verifyItem(source: string, item: CareItem, index: number): VerifiedItem {
   const found = findSpan(source, item.source_quote);
   if (!found) return { ...item, id: `item-${index}`, grounded: false, span: null };
+  // A "..." quote may only skip words inside one sentence on one line: "stop aspirin ... take insulin" must not fuse
+  // two lines (or two sentences) of the paper into one step (Codex round 7).
+  if (fragments(item.source_quote).length > 1 && crossesSentence(source, found)) {
+    return { ...item, id: `item-${index}`, grounded: false, span: null, held_reason: "skips_across" };
+  }
   const span = enclosingSentence(source, found);
   if (span.end - span.start > MAX_QUOTE) return { ...item, id: `item-${index}`, grounded: false, span: null, held_reason: "sentence_too_long" };
   return { ...item, source_quote: source.slice(span.start, span.end), id: `item-${index}`, grounded: true, span };

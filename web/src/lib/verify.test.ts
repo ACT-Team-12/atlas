@@ -135,3 +135,18 @@ describe("Codex round 4: the care plan's sentence ends at a period followed by a
     expect(verifyItems(paper, [item("2.5 mg daily")]).kept[0].source_quote).toBe("Take 2.5 mg daily.");
   });
 });
+
+describe("Codex round 7: a \"...\" quote never joins two lines or two sentences", () => {
+  it.each([
+    ["First line says stop aspirin.\nSecond line says take insulin.", "stop aspirin ... take insulin"],
+    ["Stop aspirin today. Take insulin tonight.", "Stop aspirin ... Take insulin"],
+  ])("%j with %j is held back", (paper, quote) => {
+    const { kept, refused } = verifyItems(paper, [item(quote)]);
+    expect(kept).toEqual([]);
+    expect(refused[0]).toMatchObject({ grounded: false, held_reason: "skips_across" });
+  });
+  it("a \"...\" inside one sentence is still grounded to that sentence", () => {
+    const { kept } = verifyItems("If you take insulin, do not take it the morning of your procedure.", [item("If you take insulin ... the morning of your procedure")]);
+    expect(kept[0]).toMatchObject({ grounded: true, source_quote: "If you take insulin, do not take it the morning of your procedure." });
+  });
+});

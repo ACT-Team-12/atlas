@@ -34,8 +34,11 @@ export type VerifiedItem = CareItem & {
   id: string;
   grounded: boolean;
   span: { start: number; end: number } | null;
-  /** Set on a held-back item whose words ARE in the paper, but whose whole sentence is too long to carry. */
-  held_reason?: "sentence_too_long";
+  /**
+   * Set on a held-back item whose words ARE in the paper, but whose whole sentence is too long to carry
+   * ("sentence_too_long"), or whose "..." quote joins words from different lines or sentences ("skips_across").
+   */
+  held_reason?: "sentence_too_long" | "skips_across";
 };
 
 export type CarePlanResponse = {

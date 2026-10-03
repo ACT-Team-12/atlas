@@ -80,7 +80,7 @@ export const subKey = (secret: string, purpose: string) => createHash("sha256").
  * many times the plan has been replayed.
  */
 export type TicketPurpose = "audio" | "input" | "event";
-export type CallTicket = { k: string; p: TicketPurpose; c?: "code" | "plan"; n?: number; exp: number };
+export type CallTicket = { k: string; p: TicketPurpose; c?: "code" | "plan"; n?: number; /** Code tries used at the start of the plan call. */ g?: number; exp: number };
 export const TICKET_TTL_MS = 30 * 60_000;
 
 const b64u = (s: string | Buffer) => Buffer.from(s).toString("base64url");

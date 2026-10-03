@@ -225,7 +225,7 @@ describe("NCCO", () => {
     expect(parts.join(" ")).toBe(line);
   });
   it("bounds how long a plan call may last", () => {
-    expect(planLengthSeconds({ audioBytes: 8000 * 60, textChars: 0 })).toBe(20 + 70 * 3);
+    expect(planLengthSeconds({ audioBytes: 8000 * 60, textChars: 0 })).toBe(20 + 30 + 70 * 3); // 30 s for the code prompt
     expect(planLengthSeconds({ audioBytes: 8000 * 3000, textChars: 0 })).toBe(900);
   });
 });
@@ -429,30 +429,87 @@ describe("the call flow", () => {
     expect((await verifyAndCall(deps({ now: NOW + 11 * 60_000 }), { id, code: "4821" })).state).toBe("expired");
   });
 
-  it("with the right code, places the plan call with the natural voice, streamed from a signed URL", async () => {
+  /** The person's answer at the start of the plan call: the 4-digit code they typed on the page, then pound. */
+  const gate = (id: string, digits: string, g = 0, uuid = "call-2") => {
+    truth.set(uuid, { status: "answered" });
+    return handleInput(hk(), { k: id, p: "input", g, exp: NOW + 60_000 }, digits, uuid);
+  };
+
+  it("places the plan call with nothing in it but a code prompt: whoever answers (or voicemail) hears no plan", async () => {
     const id = await started();
     const r = await verifyAndCall(deps(), { id, code: "4821" });
     expect(r).toEqual({ state: "calling", last4: "2368", mode: "stream" });
     expect(voice).toHaveBeenCalledWith(TEXT, "English");
     const body = sentBody(fetchImpl, 1);
-    expect(body.ncco.map((a: { action: string }) => a.action)).toEqual(["talk", "stream", "talk", "input"]);
-    const audioUrl = new URL(body.ncco[1].streamUrl[0]);
+    expect(body.ncco.map((a: { action: string }) => a.action)).toEqual(["talk", "input"]);
+    expect(body.ncco[0].text).toContain("4-digit code");
+    expect(body.ncco[1]).toMatchObject({ type: ["dtmf"], dtmf: { maxDigits: 4, submitOnHash: true, timeOut: 3 } });
+    expect(JSON.stringify(body.ncco)).not.toContain("blue pill");
+    expect(JSON.stringify(body.ncco)).not.toContain("/api/call/audio");
+    expect(body.length_timer).toBe(planLengthSeconds({ audioBytes: 16_000, textChars: TEXT.length }));
+    // the code can't be used twice on the page
+    expect((await verifyAndCall(deps(), { id, code: "4821" })).state).toBe("expired");
+  });
+
+  it("plays the plan, streamed from a signed URL, only after the right code is entered on the call", async () => {
+    const id = await started();
+    await verifyAndCall(deps(), { id, code: "4821" });
+    const ncco = await gate(id, "4821");
+    expect(ncco.map((a) => a.action)).toEqual(["talk", "stream", "talk", "input"]);
+    const audioUrl = new URL(String((ncco[1].streamUrl as string[])[0]));
     expect(audioUrl.origin + audioUrl.pathname).toBe("https://atlas.example/api/call/audio");
     const t = verifyTicket(SECRET, audioUrl.searchParams.get("t"), "audio", NOW)!;
     expect(t.k).toBe(id);
     // the MP3 comes back from the store (any instance), and only for this session's ticket
     expect((await audioFor({ store, cfg, now: NOW }, t))?.byteLength).toBe(16_000);
-    expect(body.length_timer).toBe(planLengthSeconds({ audioBytes: 16_000, textChars: TEXT.length }));
-    // the code can't be used twice
-    expect((await verifyAndCall(deps(), { id, code: "4821" })).state).toBe("expired");
+  });
+
+  it("a wrong code gets one more try, then goodbye, never the plan", async () => {
+    const id = await started();
+    await verifyAndCall(deps(), { id, code: "4821" });
+    const retry = await gate(id, "1111");
+    expect(retry.map((a) => a.action)).toEqual(["talk", "input"]);
+    const next = verifyTicket(SECRET, new URL(String((retry[1].eventUrl as string[])[0])).searchParams.get("t"), "input", NOW)!;
+    expect(next.g).toBe(1);
+    const out = await gate(id, "1111", 1);
+    expect(out.map((a) => a.action)).toEqual(["talk"]);
+    expect(JSON.stringify([retry, out])).not.toContain("blue pill");
+    expect((await gate(id, "4821", 2)).map((a) => a.action)).toEqual(["talk"]); // past the tries, even the right code
+  });
+
+  it.each([[""], ["48211"], [undefined]])("silence or a malformed entry (%s), as from voicemail, never gets the plan", async (digits) => {
+    const id = await started();
+    await verifyAndCall(deps(), { id, code: "4821" });
+    const first = await gate(id, digits as string, 0);
+    const second = await gate(id, digits as string, 1);
+    expect([first.map((a) => a.action), second.map((a) => a.action)]).toEqual([["talk", "input"], ["talk"]]);
+    expect(JSON.stringify([first, second])).not.toContain("blue pill");
+  });
+
+  it("counts code tries at the start of the plan call in the store, so a replayed first-try callback cannot guess on", async () => {
+    const id = await started();
+    await verifyAndCall(deps(), { id, code: "4821" });
+    expect((await gate(id, "1111", 0)).map((a) => a.action)).toEqual(["talk", "input"]);
+    expect((await gate(id, "2222", 0)).map((a) => a.action)).toEqual(["talk", "input"]);
+    // the same g=0 ticket a third time: tries are used up, even with the right code
+    expect((await gate(id, "4821", 0)).map((a) => a.action)).toEqual(["talk"]);
+  });
+
+  it("the right code on a call Vonage does not report live, or for another call, says goodbye", async () => {
+    const id = await started();
+    await verifyAndCall(deps(), { id, code: "4821" });
+    truth.set("call-2", { status: "completed" });
+    expect((await handleInput(hk(), { k: id, p: "input", g: 0, exp: NOW + 60_000 }, "4821", "call-2")).map((a) => a.action)).toEqual(["talk"]);
+    truth.set("call-x", { status: "answered", to: "14045552368" });
+    expect((await handleInput(hk(), { k: id, p: "input", g: 0, exp: NOW + 60_000 }, "4821", "call-x")).map((a) => a.action)).toEqual(["talk"]);
   });
 
   it("falls back to Vonage's own voice when the natural voice is unavailable", async () => {
     const id = await started();
     const r = await verifyAndCall(deps({ voice: async () => null }), { id, code: "4821" });
     expect(r).toMatchObject({ state: "calling", mode: "talk" });
-    const body = sentBody(fetchImpl, 1);
-    expect(body.ncco[1]).toMatchObject({ action: "talk", language: "en-US", text: TEXT });
+    const ncco = await gate(id, "4821");
+    expect(ncco[1]).toMatchObject({ action: "talk", language: "en-US", text: TEXT });
   });
 
   it("caps plan calls per number and wipes the session when refused", async () => {

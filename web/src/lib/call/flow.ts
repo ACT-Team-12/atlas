@@ -3,7 +3,7 @@ import { LANGUAGES } from "../schema";
 import { verifySpeakToken } from "../speakToken";
 import { MAX_SPEAK_CHARS, synthesize } from "../voice";
 import { signTicket, subKey, type CallConfig, type CallTicket } from "./config";
-import { canCallIn, codeNcco, goodbyeNcco, MAX_REPLAYS, planLengthSeconds, planNcco, type NccoAction } from "./ncco";
+import { canCallIn, codeNcco, GATE_TRIES, gateNcco, goodbyeNcco, MAX_REPLAYS, planLengthSeconds, planNcco, type NccoAction } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
 import { CODE_ATTEMPTS, CODE_TTL_MS, dayKey, hourKey, reserveSlots, SESSION_TTL_MS, WIPE, type CallStore, type SessionRow } from "./store";
@@ -168,7 +168,8 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
     return left > 0 ? { state: "wrong", attemptsLeft: left } : { state: "expired" };
   }
   // Exactly one request moves a session past its code.
-  const moved = await store.update(id, { phase: "calling", code_hash: null, placed_at: new Date(now) }, ["code"]);
+  // The code's hash stays: the plan call asks for the same code before it plays anything (handleInput).
+  const moved = await store.update(id, { phase: "calling", placed_at: new Date(now) }, ["code"]);
   if (moved === "error") return { state: "no-db" };
   if (moved !== "updated") return { state: "expired" };
   // "done" only when the wipe was written. Otherwise the session stays "preparing" and is wiped by the sweep after
@@ -199,11 +200,9 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
   }
   const mode = bytes ? "stream" : "talk";
   const base = urls(cfg);
-  const ncco = planNcco({
-    text, language, replays: 0,
-    audioUrl: bytes ? `${base}/audio?t=${ticket(cfg, { k: id, p: "audio" }, now)}` : null,
-    inputUrl: `${base}/input?t=${ticket(cfg, { k: id, p: "input", n: 0 }, now)}`,
-  });
+  // Nothing about the plan goes into the call itself: it starts with a code prompt (gateNcco), and only the right code
+  // returns the plan (handleInput), so voicemail or someone else answering never hears it.
+  const ncco = gateNcco({ language, inputUrl: `${base}/input?t=${ticket(cfg, { k: id, p: "input", g: 0 }, now)}`, retry: false });
   const placed = await placeCall({
     applicationId: cfg.applicationId, privateKey: cfg.privateKey, to: phone, from: cfg.from, ncco,
     eventUrl: `${base}/event?t=${ticket(cfg, { k: id, p: "event", c: "plan" }, now)}`,
@@ -305,6 +304,7 @@ export async function handleEvent(deps: Hook, t: CallTicket, uuid: unknown): Pro
  */
 export async function handleInput(deps: Hook, t: CallTicket, digits: unknown, uuid: unknown): Promise<NccoAction[]> {
   const now = deps.now ?? Date.now();
+  if (t.g !== undefined) return gateInput(deps, t, digits, uuid, now);
   const n = (t.n ?? 0) + 1;
   if (digits !== "1" || n > MAX_REPLAYS) {
     const row = await deps.store.get(t.k, now);
@@ -321,6 +321,38 @@ export async function handleInput(deps: Hook, t: CallTicket, digits: unknown, uu
     text, language, replays: n,
     audioUrl: row.has_audio ? `${base}/audio?t=${ticket(deps.cfg, { k: t.k, p: "audio" }, now)}` : null,
     inputUrl: `${base}/input?t=${ticket(deps.cfg, { k: t.k, p: "input", n }, now)}`,
+  });
+}
+
+/**
+ * The code at the start of the plan call. The plan (and the signed audio URL) is returned only for the session's own
+ * code, compared in constant time against its hash, on a call Vonage reports live; a wrong code or silence gets one
+ * more try (GATE_TRIES in all), then goodbye.
+ */
+async function gateInput(deps: Hook, t: CallTicket, digits: unknown, uuid: unknown, now: number): Promise<NccoAction[]> {
+  const tries = (t.g ?? 0) + 1;
+  if (tries > GATE_TRIES) return goodbyeNcco("English");
+  const truth = await callTruth(deps, t.k, "plan", uuid, now);
+  const row = truth.kind === "ok" ? truth.row : null;
+  const language = LANGUAGES.find((l) => l === row?.language) ?? "English";
+  if (truth.kind !== "ok" || !row || row.phase !== "calling" || !row.code_hash || (truth.status !== "answered" && truth.status !== "started")) return goodbyeNcco(language);
+  // Tries are counted in the store too, so replaying a first-try callback cannot keep guessing.
+  if (!(await deps.store.takeSlot(`gate:${t.k}`, GATE_TRIES, now, SESSION_TTL_MS))) return goodbyeNcco(language);
+  const base = urls(deps.cfg);
+  const typed = typeof digits === "string" && /^\d{4}$/.test(digits) ? digits : "";
+  const want = Buffer.from(row.code_hash, "hex");
+  const got = Buffer.from(codeHash(deps.cfg.secret, t.k, row.phone_hash, typed || "none"), "hex");
+  if (!typed || want.length !== got.length || !timingSafeEqual(want, got)) {
+    return tries < GATE_TRIES
+      ? gateNcco({ language, inputUrl: `${base}/input?t=${ticket(deps.cfg, { k: t.k, p: "input", g: tries }, now)}`, retry: true })
+      : goodbyeNcco(language);
+  }
+  const text = openText(deps.cfg.secret, "text", t.k, row.sealed_text, now);
+  if (!text) return goodbyeNcco(language);
+  return planNcco({
+    text, language, replays: 0,
+    audioUrl: row.has_audio ? `${base}/audio?t=${ticket(deps.cfg, { k: t.k, p: "audio" }, now)}` : null,
+    inputUrl: `${base}/input?t=${ticket(deps.cfg, { k: t.k, p: "input", n: 0 }, now)}`,
   });
 }
 

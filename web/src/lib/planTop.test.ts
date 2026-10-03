@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { PlanResponse, ResourceCard } from "./plan";
-import { primaryAction, rankResources, topResources } from "./planTop";
+import { helpsLine, primaryAction, rankResources, topResources } from "./planTop";
 import { callScript, resourceScript } from "./booking";
 
 const clinic = (id: string, km: number | null, phone = "404-555-0100"): ResourceCard => ({
@@ -39,6 +39,12 @@ describe("rankResources: how many problems each verified place helps with", () =
   it("then keeps the plan's own order", () => {
     const p = plan([step("cost", ["x"]), step("food", ["y"])], [program("y"), program("x")]);
     expect(rankResources(p).map((x) => x.id)).toEqual(["x", "y"]);
+  });
+
+  it("the person's problems come first: two problems beat three steps about one problem", () => {
+    const p = plan([step("cost", ["oneProblem"]), step("cost", ["oneProblem", "twoProblems"]), step("cost", ["oneProblem"]), step("food", ["twoProblems"])], [program("oneProblem"), program("twoProblems")]);
+    const r = rankResources(p);
+    expect(r.map((x) => [x.id, x.barriers.length, x.steps.length])).toEqual([["twoProblems", 2, 2], ["oneProblem", 1, 3]]);
   });
 
   it("a count beats distance", () => {
@@ -81,6 +87,23 @@ describe("rankResources: how many problems each verified place helps with", () =
     expect(top.map((r) => r.id)).toEqual(["hrsa-mercy-care-at-gateway-center-30303", "hrsa-mercy-care-decatur-street-30312", "georgia-medicaid-apply"]);
     expect(top.map((r) => r.barriers)).toEqual([["cost"], ["cost"], ["cost"]]);
     expect(new Set(rankResources(live).map((r) => r.id)).size).toBe(rankResources(live).length);
+  });
+});
+
+describe("helpsLine: counts the problems the person named, never plan steps", () => {
+  it("the live demo plan: 2 barriers picked, 6 plan steps, each top place helps with 1 of the 2", () => {
+    const live = JSON.parse(readFileSync(join(process.cwd(), "../mobile/ios/ATLASTests/Fixtures/plan_sample_30303_live.json"), "utf8")) as PlanResponse;
+    expect(live.steps).toHaveLength(6);
+    const lines = topResources(live).map((r) => helpsLine(r, ["transport", "cost"]));
+    expect(lines).toEqual(Array(3).fill("Helps with 1 of the 2 problems you named:"));
+  });
+  it("one problem named; duplicates and unknown values in the choice are not counted", () => {
+    expect(helpsLine({ barriers: ["cost"], steps: [0, 2] }, ["cost"])).toBe("Helps with the problem you named:");
+    expect(helpsLine({ barriers: ["cost", "food"], steps: [0, 1] }, ["cost", "food", "cost", "made-up"])).toBe("Helps with 2 of the 2 problems you named:");
+  });
+  it("with no barrier to count, says how many plan steps use it", () => {
+    expect(helpsLine({ barriers: [], steps: [0, 3] }, [])).toBe("Part of 2 steps in your plan");
+    expect(helpsLine({ barriers: [], steps: [1] }, ["cost"])).toBe("Part of 1 step in your plan");
   });
 });
 

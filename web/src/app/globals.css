@@ -256,9 +256,12 @@ html.js-motion [data-reveal] {
 }
 
 /* Plan screen ("Start with 3 calls"). Folded rows, other options and "Why this?" print in full; the action bar is screen only. */
+.plan-fold.plan-shut { display: none; }
 @media print {
-  .plan-fold[hidden] { display: block !important; }
+  .plan-fold.plan-shut { display: block !important; }
   .plan-dock, .plan-chev { display: none !important; }
+  /* Each step's title lives in its disclosure button; print it even though #try buttons are hidden. */
+  #try .plan-rowhead > button { display: flex !important; }
 }
 /* The plan's action buttons stay together in one row; notes and an opened panel (Call me, Send) go under them. */
 .plan-dock > :not(button) { order: 1; }

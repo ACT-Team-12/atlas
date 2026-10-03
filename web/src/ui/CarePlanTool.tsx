@@ -1249,6 +1249,14 @@ export function CarePlanTool() {
             )}
             <p className="mt-4 text-xs font-bold uppercase tracking-wide text-ink/70">Suggestions from ATLAS, not your paper. If anything differs, follow your paper.</p>
             <p className="mt-1 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
+            {/* On the first screen at every width: right under the summary, before the actions and the three calls. */}
+            {plan.ask_a_person && (
+              <div className="mt-4 rounded-2xl border-2 border-peach-deep bg-peach p-4 max-w-[50em]">
+                <p className="font-extrabold text-peach-deep">This needs a person too</p>
+                <p className="text-sm font-semibold">{plan.ask_a_person_reason} Call 211 (United Way of Greater Atlanta) or your community health worker.</p>
+                <p className="mt-2 text-xs font-semibold"><a className="underline decoration-2 underline-offset-4" href="/helper">Helping someone? Make them a link</a></p>
+              </div>
+            )}
             {/* An outdated plan can't be read aloud, printed, sent, booked or called from; the on-screen note says why. */}
             {planOutdated && <p id="plan-actions-off" className="mt-3 text-sm font-bold text-peach-deep">{actionsOffReason}: read aloud, printing, the handoff sheet, Send to family, Book it now and the calls, websites and directions below are off until then.</p>}
             {/* One set of plan actions. Wider screens: a row under the summary. Phones: a bar fixed to the bottom while
@@ -1269,19 +1277,11 @@ export function CarePlanTool() {
               <span role="status" className={voiceNote ? "dock-note self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
             </div>
             <p className="mt-3 text-xs font-bold text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</p>
-            <TopCalls top={top} total={plan.steps.length} language={language} off={planOutdated ? actionsOffReason : undefined} offId={planOutdated ? "plan-actions-off" : undefined} />
-            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
-              {/* First in reading order (right after the three calls); on wide screens it sits beside the list. */}
-              {plan.ask_a_person && (
-                <div className="rounded-2xl border-2 border-peach-deep bg-peach p-4 lg:col-start-2 lg:row-start-1 lg:sticky lg:top-24">
-                  <p className="font-extrabold text-peach-deep">This needs a person too</p>
-                  <p className="text-sm font-semibold">{plan.ask_a_person_reason} Call 211 (United Way of Greater Atlanta) or your community health worker.</p>
-                  <p className="mt-2 text-xs font-semibold"><a className="underline decoration-2 underline-offset-4" href="/helper">Helping someone? Make them a link</a></p>
-                </div>
-              )}
-              <section aria-labelledby="plan-rows-title" className="min-w-0 lg:col-start-1 lg:row-start-1">
+            <TopCalls top={top} chosen={barriers} language={language} off={planOutdated ? actionsOffReason : undefined} offId={planOutdated ? "plan-actions-off" : undefined} />
+            <div className="mt-6">
+              <section aria-labelledby="plan-rows-title" className="min-w-0">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <h4 id="plan-rows-title" className="display text-2xl">Your {plan.steps.length} {plan.steps.length === 1 ? "problem" : "problems"}</h4>
+                  <h4 id="plan-rows-title" className="display text-2xl">Your plan, {plan.steps.length} {plan.steps.length === 1 ? "step" : "steps"}</h4>
                   <p className="text-xs font-bold text-ink/70">Tap one for the full plan. Tick it off when it&apos;s done.</p>
                 </div>
                 <ol className="mt-3 space-y-2.5">

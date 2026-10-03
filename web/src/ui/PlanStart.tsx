@@ -3,14 +3,16 @@
 import { useId, useState, type ReactNode } from "react";
 import type { PlanStep, ResourceCard } from "@/lib/plan";
 import { BARRIER_LABEL, type Barrier, formatHours, openNow, opensEvenings, opensWeekends } from "@/lib/resources";
-import { directionsHref, primaryAction, resourceName, telHref, type RankedResource } from "@/lib/planTop";
+import { directionsHref, helpsLine, primaryAction, resourceName, telHref, type RankedResource } from "@/lib/planTop";
 import { resourceScript } from "@/lib/booking";
 
 /**
  * The plan screen, "Start with 3 calls" (Akhil's concept A): the three verified places that help with the most of the
  * person's problems, each shown once with one big button, then every plan step as one line to tick off. Tapping a line
  * shows the plain plan, the paper's own words, the best option, other options and "Why this?" (the verified quotes).
- * Folded parts stay in the page (hidden), so the print stylesheet prints them in full (globals.css, .plan-fold).
+ * Folded parts stay in the page with class plan-shut (display: none on screen, so also out of the accessibility tree),
+ * and the print stylesheet prints them in full (globals.css). Not the hidden attribute: Tailwind's layered
+ * `[hidden] { display: none !important }` would beat any print override.
  */
 
 /** A source link, or just its name while the plan is outdated (no link out to a place picked from old answers). */
@@ -112,7 +114,7 @@ function Toggle({ open, controls, onClick, children, disabled, describedBy }: { 
 }
 
 /** One of the top three: name, the problems it helps with, ONE big button, and what to say when they answer. */
-function TopCard({ r, rank, total, language, off, offId }: { r: RankedResource; rank: number; total: number; language: string; off?: string; offId?: string }) {
+function TopCard({ r, rank, chosen, language, off, offId }: { r: RankedResource; rank: number; chosen: Barrier[]; language: string; off?: string; offId?: string }) {
   const [say, setSay] = useState(false);
   const sayId = useId();
   const card = r.card;
@@ -130,7 +132,7 @@ function TopCard({ r, rank, total, language, off, offId }: { r: RankedResource; 
         <span aria-hidden="true" className="display text-4xl text-teal">{rank}</span>
       </div>
       <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-ink/70">
-        Helps with {r.steps.length} of your {total} {total === 1 ? "problem" : "problems"}{r.barriers.length > 0 ? ":" : ""} <BarrierChips barriers={r.barriers} />
+        {helpsLine(r, chosen)} <BarrierChips barriers={r.barriers.filter((b) => chosen.includes(b))} />
       </p>
       {card.type === "clinic" && (
         <p className="text-sm font-semibold text-ink/80">
@@ -160,16 +162,17 @@ function TopCard({ r, rank, total, language, off, offId }: { r: RankedResource; 
   );
 }
 
-export function TopCalls({ top, total, language, off, offId }: { top: RankedResource[]; total: number; language: string; off?: string; offId?: string }) {
+/** `chosen`: the barriers the person picked in step 2, the only "problems" a top card counts. */
+export function TopCalls({ top, chosen, language, off, offId }: { top: RankedResource[]; chosen: Barrier[]; language: string; off?: string; offId?: string }) {
   if (top.length === 0) return null;
   return (
     <section aria-labelledby="plan-top-title" className="mt-6">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h4 id="plan-top-title" className="display text-2xl">{top.length === 1 ? "Start here" : `Start with these ${top.length}`}</h4>
-        <p className="text-xs font-bold text-ink/70">Ranked by how many of your problems each one helps with</p>
+        <p className="text-xs font-bold text-ink/70">Ranked by how many of the problems you named each one helps with</p>
       </div>
       <ol className="mt-3 grid gap-3 lg:grid-cols-3">
-        {top.map((r, i) => <TopCard key={r.id} r={r} rank={i + 1} total={total} language={language} off={off} offId={offId} />)}
+        {top.map((r, i) => <TopCard key={r.id} r={r} rank={i + 1} chosen={chosen} language={language} off={off} offId={offId} />)}
       </ol>
     </section>
   );
@@ -198,7 +201,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
       <div className="flex items-start gap-3 p-3 sm:p-4">
         <input type="checkbox" checked={done} onChange={(e) => onDone(e.target.checked)} aria-label={`Done: ${step.title}`}
           className="mt-1 h-6 w-6 shrink-0 accent-[var(--teal)]" />
-        <h5 className="min-w-0 flex-1">
+        <h5 className="plan-rowhead min-w-0 flex-1">
           <button type="button" aria-expanded={open} aria-controls={ids.body} onClick={() => setOpen((o) => !o)}
             className="flex w-full items-start gap-2 text-left">
             <span className="min-w-0 flex-1">
@@ -214,7 +217,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
           </button>
         </h5>
       </div>
-      <div id={ids.body} hidden={!open} className="plan-fold border-t-2 border-ink/10 px-3 pb-4 pt-3 sm:px-4">
+      <div id={ids.body} className={`plan-fold ${open ? "" : "plan-shut"} border-t-2 border-ink/10 px-3 pb-4 pt-3 sm:px-4`}>
         <p className="font-semibold">{step.action}</p>
         {/* The plan step is a suggestion, never certified: the paper's own words for its steps stay right next to it. */}
         {quotes.map((q, k) => (
@@ -231,7 +234,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
             <Toggle open={more} controls={ids.more} onClick={() => setMore((m) => !m)}>
               {others.length} other {others.length === 1 ? "option" : "options"}
             </Toggle>
-            <div id={ids.more} hidden={!more} className="plan-fold mt-3">
+            <div id={ids.more} className={`plan-fold ${more ? "" : "plan-shut"} mt-3`}>
               <div className="grid gap-3 md:grid-cols-2">
                 {others.map((r) => <Resource key={r.id} r={r} off={off} proof={false} />)}
               </div>
@@ -241,7 +244,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
         {bookIt}
         <div className="mt-4">
           <Toggle open={why} controls={ids.why} onClick={() => setWhy((w) => !w)}>Why this?</Toggle>
-          <div id={ids.why} hidden={!why} className="plan-fold mt-3 space-y-3">
+          <div id={ids.why} className={`plan-fold ${why ? "" : "plan-shut"} mt-3 space-y-3`}>
             {step.why && <p className="text-sm text-ink/80">Why: {step.why}</p>}
             {programs.map((c) => c.type === "program" && (
               <div key={c.id} className="rounded-xl bg-mint-soft/70 p-3">

@@ -4,10 +4,12 @@ import { BARRIERS, type Barrier, type Clinic } from "./resources";
 /**
  * "Start with these 3": which verified programs and clinics in a plan help with the most of the person's problems.
  *
- * Plain code, no AI. A problem is one plan step (one row in "Your problems"). For each resource the plan names:
- *   1. count the plan steps that list it in resource_ids (more first),
- *   2. ties: nearer first (a clinic's km; a program has no distance and comes after any place with one),
- *   3. still tied: the one the plan names first.
+ * Plain code, no AI. A problem is one of the barriers the person picked ("Paying for the visit", "Getting there").
+ * For each resource the plan names, from the plan steps that list it in resource_ids:
+ *   1. count the distinct barriers of those steps: the person's problems it helps with (more first),
+ *   2. ties: the number of plan steps that list it (more first),
+ *   3. ties: nearer first (a clinic's km; a program has no distance and comes after any place with one),
+ *   4. still tied: the one the plan names first.
  * Each resource appears once, with the barrier chips of the steps that use it.
  */
 export type RankedResource = {
@@ -44,8 +46,21 @@ export function rankResources(plan: Pick<PlanResponse, "steps" | "resources">): 
     }
   });
   return [...found.values()]
-    .sort((a, b) => b.steps.length - a.steps.length || byDistance(a.km, b.km) || a.first - b.first)
+    .sort((a, b) => b.barriers.length - a.barriers.length || b.steps.length - a.steps.length || byDistance(a.km, b.km) || a.first - b.first)
     .map((r) => ({ id: r.id, card: r.card, steps: r.steps, barriers: r.barriers, km: r.km }));
+}
+
+/**
+ * The line on a top card. The count is the person's own problems this place helps with, out of the barriers they
+ * picked in step 2 (never plan steps or anything else). With no barrier to count, it says how many plan steps use it.
+ */
+export function helpsLine(r: Pick<RankedResource, "barriers" | "steps">, chosen: readonly string[]): string {
+  const named = [...new Set(chosen)].filter(isBarrier);
+  const n = r.barriers.filter((b) => named.includes(b)).length;
+  if (named.length > 0 && n > 0) {
+    return named.length === 1 ? "Helps with the problem you named:" : `Helps with ${n} of the ${named.length} problems you named:`;
+  }
+  return `Part of ${r.steps.length} ${r.steps.length === 1 ? "step" : "steps"} in your plan`;
 }
 
 /** The top of the plan: at most `n` resources, ranked as above. */

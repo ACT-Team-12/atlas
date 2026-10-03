@@ -15,7 +15,12 @@ import { getCall, placeCall } from "./vonage";
  *     number, then places a short CODE call that speaks a 4-digit code. That proves the person holds that phone.
  *  2. verifyAndCall: the person types the code (3 tries, 10 minutes); ATLAS then places the PLAN call, which plays the
  *     natural-voice MP3 of the plan's read-aloud text (Vonage's own voice when that is unavailable), with
- *     "press 1 to hear it again" up to twice.
+ *     "press 1 to hear it again" up to twice. That call first asks for the same code on the keypad (gateInput), so
+ *     voicemail or anyone else who answers hears no plan.
+ * Accepted risk (a team decision, not an oversight): nothing proves the number is the person's own before the CODE
+ * call, so someone can make ATLAS place a short call that says only a 4-digit code to another number. There is no
+ * inbound opt-in and no captcha; the caps below bound it instead, and the page and /privacy say "Only enter your own
+ * number". The plan itself is never spoken to anyone who cannot enter the code.
  * Caps, each reserved before a call and never given back once a call was attempted: 3 code calls and 3 plan calls per
  * number per day, at most 1 code call per number per 10 minutes, 4 code calls per caller (IP) per day, 10 code calls
  * per hour site-wide, a site-wide daily cap (ATLAS_CALL_DAILY_CAP, default 40), and one live code per number.

@@ -29,7 +29,7 @@ import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun
 // Static, so erasing never waits on a chunk download; the WebAssembly itself is still fetched only after a read.
 import { forgetDeviceChecker, loadDeviceChecker, sameSpan } from "@/lib/deviceChecker";
 import { streamThenPlain } from "@/lib/readCancel";
-import { deleteOnDevice, dropDeleted, readTombstones, saveStore, watchDeletions } from "@/lib/tombstones";
+import { DeletedPlans, deleteOnDevice, dropDeleted, saveStore, watchDeletions } from "@/lib/tombstones";
 import { autosaveStore } from "@/lib/autosave";
 import { fetchMeaning, IDLE_MEANING, RunFence, runMeaningCheck, type MeaningState } from "@/lib/meaningRun";
 
@@ -266,6 +266,8 @@ export function CarePlanTool() {
   const storeRef = useRef<Store>(emptyStore());
   const [saveFailed, setSaveFailed] = useState(false);
   const [deleteFailed, setDeleteFailed] = useState(false);
+  // Ids of plans deleted on this device, from any tab (lib/tombstones.ts). Ids only, never paper text.
+  const [deleted] = useState(() => new DeletedPlans(() => localStorage));
   // Session epoch: bumped whenever the open session ends (deleted, cleared, another plan opened, a new plan), so a save
   // scheduled by an earlier render never writes that session's paper back (lib/autosave.ts).
   const sessionEpoch = useRef(0);
@@ -275,7 +277,7 @@ export function CarePlanTool() {
   /** Saves the list. A plan another tab deleted is never written back; if it is the one open here, its paper is erased. */
   function writeStore(next: Store) {
     if (next === storeRef.current) return;
-    const r = saveStore(() => localStorage, next);
+    const r = saveStore(() => localStorage, deleted, next);
     storeRef.current = r.store; setStore(r.store); setSaveFailed(!r.ok);
     if (r.openWasDeleted) eraseOpenPaper();
   }
@@ -310,7 +312,7 @@ export function CarePlanTool() {
     try { raw = localStorage.getItem(STORE_KEY); old = localStorage.getItem(OLD_KEY); } catch {}
     const { store: found, migrated } = loadStore(raw, old, newPlanId());
     // A plan deleted on this device stays deleted, even if a tab without this check wrote it back.
-    const s = dropDeleted(found, readTombstones(() => localStorage)).store;
+    const s = dropDeleted(found, deleted.all()).store;
     storeRef.current = s; setStore(s);
     if (migrated || s !== found) { try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); if (migrated) localStorage.removeItem(OLD_KEY); } catch {} }
     const open = s.plans.find((p) => p.id === s.active);
@@ -347,7 +349,7 @@ export function CarePlanTool() {
    * still holds it, nothing changes on screen and the person is told it was not deleted (a reload would bring it back).
    */
   function deleteFromDevice(id: string): boolean {
-    const r = deleteOnDevice(() => localStorage, deletePlan(storeRef.current, id), id);
+    const r = deleteOnDevice(() => localStorage, deleted, deletePlan(storeRef.current, id), id);
     if (!r) { setDeleteFailed(true); return false; }
     storeRef.current = r.store; setStore(r.store); setSaveFailed(false); setDeleteFailed(false);
     if (r.openWasDeleted) eraseOpenPaper(); // another tab had already deleted the plan open here
@@ -355,7 +357,7 @@ export function CarePlanTool() {
   }
 
   // Another tab deleted plans: drop them here too, and erase the open paper if it was one of them.
-  useEffect(() => watchDeletions(window, (dead) => {
+  useEffect(() => watchDeletions(window, () => localStorage, deleted, (dead) => {
     const r = dropDeleted(storeRef.current, dead);
     if (r.store !== storeRef.current) { storeRef.current = r.store; setStore(r.store); }
     if (r.openWasDeleted) eraseOpenPaper();

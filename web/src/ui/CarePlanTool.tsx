@@ -28,6 +28,11 @@ import {
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
 import { SPEECH_LANG } from "@/lib/speechLang";
+import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun, type DeviceVerdict } from "@/lib/deviceRun";
+// Static, so erasing never waits on a chunk download; the WebAssembly itself is still fetched only after a read.
+import { forgetDeviceChecker, loadDeviceChecker, sameSpan } from "@/lib/deviceChecker";
+import { streamThenPlain } from "@/lib/readCancel";
+import { persistDeletion } from "@/lib/persistDeletion";
 import { consumeHelperSession, entryHeaders } from "@/lib/helperLink";
 import { HelperBanner, useHelperArrival } from "./HelperArrival";
 
@@ -40,7 +45,6 @@ const KIND: Record<string, { label: string; cls: string }> = {
   warning_sign: { label: "Warning sign", cls: "bg-red-soft text-red" },
 };
 
-type DeviceVerdict = "match" | "differ" | "missing";
 
 /** Id for a saved plan. randomUUID needs a secure page; the fallback is fine for a local key. */
 function newPlanId() {
@@ -60,8 +64,8 @@ async function fileToBase64(file: File) {
   return canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
 }
 
-async function postExtract(body: Record<string, unknown>): Promise<CarePlanResponse> {
-  const res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+async function postExtract(body: Record<string, unknown>, signal?: AbortSignal): Promise<CarePlanResponse> {
+  const res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
   return json;
@@ -71,10 +75,10 @@ async function postExtract(body: Record<string, unknown>): Promise<CarePlanRespo
  * Reads a pasted paper over the streaming route. Throws StreamBroken when the caller should retry
  * with the plain route (connection cut, route missing, server error), or a plain Error to show.
  */
-async function streamExtract(body: Record<string, unknown>, onItem: (it: VerifiedItem) => void): Promise<CarePlanResponse> {
+async function streamExtract(body: Record<string, unknown>, onItem: (it: VerifiedItem) => void, signal?: AbortSignal): Promise<CarePlanResponse> {
   let res: Response;
   try {
-    res = await fetch("/api/extract/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    res = await fetch("/api/extract/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
   } catch {
     throw new StreamBroken("Network error");
   }
@@ -217,6 +221,8 @@ export function CarePlanTool() {
   // Verified steps that arrived while the paper is still being read. Shown, never final.
   const [partial, setPartial] = useState<VerifiedItem[]>([]);
   const readRun = useRef(0);
+  // Cancels the read in flight; erasing the open paper aborts it, so the paper is not sent again.
+  const readAbort = useRef<AbortController | null>(null);
   // Plan requests in flight. A new read or a clear bumps it, so an older plan reply cannot land on newer steps.
   const planRun = useRef(0);
   const [care, setCare] = useState<CarePlanResponse | null>(null);
@@ -239,8 +245,9 @@ export function CarePlanTool() {
   const meaningFor = useRef("");
   // The same quote checker, run again on this device (WebAssembly, loaded only after a read). Per step: did the
   // browser find the same words in the same place as the server?
-  // Stored with the reading it belongs to, so a newer read never shows an older result.
-  const [deviceRun, setDeviceRun] = useState<{ for: CarePlanResponse | null; ok: boolean; byId: Record<string, DeviceVerdict> }>({ for: null, ok: false, byId: {} });
+  // Stored with the id of the reading it belongs to (never the reading, which holds the paper), so a newer read
+  // never shows an older result and Clear leaves nothing of the paper behind.
+  const [deviceRun, setDeviceRun] = useState<DeviceRun>(NO_DEVICE_RUN);
   const loaded = useRef(false);
   const [speaking, setSpeaking] = useState(false);
   const speechRun = useRef(0);
@@ -260,6 +267,7 @@ export function CarePlanTool() {
   const [store, setStore] = useState<Store>(emptyStore);
   const storeRef = useRef<Store>(emptyStore());
   const [saveFailed, setSaveFailed] = useState(false);
+  const [deleteFailed, setDeleteFailed] = useState(false);
 
   function writeStore(next: Store) {
     if (next === storeRef.current) return;
@@ -285,7 +293,7 @@ export function CarePlanTool() {
     meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setPhotoChecked(false); setReadLevel(null);
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
-    setTab(1);
+    setTab(1); setDeviceRun(NO_DEVICE_RUN);
   }
 
   // One-time load after hydration (localStorage does not exist during the server render).
@@ -314,10 +322,31 @@ export function CarePlanTool() {
   }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  /**
+   * Empties the tool after the open paper was deleted, and drops the on-device checker that re-checked it: a load still
+   * in flight is aborted, so nothing waiting on it keeps the paper. Every path that deletes the open plan calls this.
+   */
+  function eraseOpenPaper() {
+    resetTool();
+    readAbort.current?.abort();
+    forgetDeviceChecker();
+  }
+
+  /**
+   * Deletes plan `id` from this device's storage, read back to be sure. When storage still holds it, nothing changes
+   * on screen and the person is told it was not deleted (a reload would bring it back).
+   */
+  function deleteFromDevice(id: string): boolean {
+    const next = deletePlan(storeRef.current, id);
+    if (!persistDeletion(() => localStorage, STORE_KEY, next, id)) { setDeleteFailed(true); return false; }
+    storeRef.current = next; setStore(next); setSaveFailed(false); setDeleteFailed(false);
+    return true;
+  }
+
   /** "Clear it from this device": deletes the open plan. Other saved plans stay. */
   function clearSaved() {
-    if (storeRef.current.active) writeStore(deletePlan(storeRef.current, storeRef.current.active));
-    resetTool();
+    if (storeRef.current.active && !deleteFromDevice(storeRef.current.active)) return;
+    eraseOpenPaper();
   }
 
   function openSaved(id: string) {
@@ -328,10 +357,11 @@ export function CarePlanTool() {
     setRestoredAt(p.savedAt);
   }
 
-  function deleteSaved(id: string) {
+  function deleteSaved(id: string): boolean {
     const wasOpen = storeRef.current.active === id;
-    writeStore(deletePlan(storeRef.current, id));
-    if (wasOpen) resetTool();
+    if (!deleteFromDevice(id)) return false;
+    if (wasOpen) eraseOpenPaper();
+    return true;
   }
 
   function newPlan() {
@@ -370,23 +400,24 @@ export function CarePlanTool() {
     setTranscript(null); setPhotoChecked(false); setPartial([]); setTab(1);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }
     const run = ++readRun.current;
+    const ac = new AbortController();
+    readAbort.current = ac;
     planRun.current++; setPlanning(false); // drop any plan still on its way: it was built from the old steps
     try {
       const body: Record<string, unknown> = { language, reading_level: usedLevel };
       if (corrected !== undefined) body.text = corrected;
       else if (photo) { body.image_base64 = await fileToBase64(photo); body.image_media_type = "image/jpeg"; } else body.text = text;
+      if (readRun.current !== run) return; // cleared or replaced while the photo was prepared: never send it
       let json: CarePlanResponse;
       if (typeof body.text === "string") {
         // Pasted text: show each verified step as it arrives. Photos keep the plain route (the person checks our reading first).
-        try {
-          json = await streamExtract(body, (it) => { if (readRun.current === run) setPartial((p) => [...p, it]); });
-        } catch (e) {
-          if (!(e instanceof StreamBroken)) throw e;
-          // The stream broke part way: drop what we showed and read it again the plain way.
-          if (readRun.current === run) setPartial([]);
-          json = await postExtract(body);
-        }
-      } else json = await postExtract(body);
+        // If the stream broke part way, drop what we showed and read it again the plain way, unless this read was cleared.
+        json = await streamThenPlain(
+          (signal) => streamExtract(body, (it) => { if (readRun.current === run) setPartial((p) => [...p, it]); }, signal),
+          (signal) => postExtract(body, signal),
+          ac.signal, () => readRun.current === run, () => setPartial([]),
+        );
+      } else json = await postExtract(body, ac.signal);
       if (readRun.current !== run) return;
       setPartial([]);
       setCare(json);
@@ -396,8 +427,8 @@ export function CarePlanTool() {
       // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared).
       const target = scrollTargetAfter("read", isPhoneNow());
       if (target) scrollAfter.current = { t: target, onlyIfHidden: false };
-    } catch (e) { setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong."); }
-    finally { setReading(false); }
+    } catch (e) { if (readRun.current === run) { setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong."); } }
+    finally { if (readRun.current === run) setReading(false); }
   }
 
   // "Too much? Make it simpler": the same paper, read again the normal way at the simple level.
@@ -561,17 +592,19 @@ export function CarePlanTool() {
   useEffect(() => {
     if (!care || !deviceWanted) return;
     let live = true;
-    import("@/lib/deviceChecker")
-      .then(async ({ loadDeviceChecker, sameSpan }) => {
-        const checker = await loadDeviceChecker();
+    loadDeviceChecker()
+      .then((checker) => {
+        if (!live) return; // cleared or changed while the checker loaded: never hand it this paper
         const byId: Record<string, DeviceVerdict> = {};
-        for (const it of care.items) {
-          const mine = checker.findSpan(care.source_text, it.source_quote);
+        // One call for the whole plan: the paper is mapped once, not once per step.
+        const spans = checker.findSpans(care.source_text, care.items.map((it) => it.source_quote));
+        care.items.forEach((it, k) => {
+          const mine = spans[k];
           byId[it.id] = sameSpan(it.span, mine) ? "match" : mine ? "differ" : "missing";
-        }
-        if (live) setDeviceRun({ for: care, ok: true, byId });
+        });
+        if (live) setDeviceRun({ run: runIdFor(care), ok: true, byId });
       })
-      .catch(() => { if (live) setDeviceRun({ for: care, ok: false, byId: {} }); });
+      .catch(() => { if (live) setDeviceRun({ run: runIdFor(care), ok: false, byId: {} }); });
     return () => { live = false; };
   }, [care, deviceWanted]);
 
@@ -601,8 +634,7 @@ export function CarePlanTool() {
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
   const missed = useMissedLines(care, removed);
-  const deviceStatus: "idle" | "loading" | "done" | "error" =
-    !care || needsPhotoCheck || care.items.length === 0 ? "idle" : deviceRun.for !== care ? "loading" : deviceRun.ok ? "done" : "error";
+  const deviceStatus = deviceStatusOf(care, needsPhotoCheck, deviceRun);
   const flow = { hasCare: !!care, hasPlan: !!plan };
   const openName = store.plans.find((p) => p.id === store.active)?.name ?? null;
   // The person changed our reading of their photo. Accepting or re-reading the old text would silently drop their fix.
@@ -633,7 +665,7 @@ export function CarePlanTool() {
 
         <HelperBanner arrival={helper.arrival} onDismiss={helper.dismiss} />
 
-        <SavedPlans plans={listPlans(store)} activeId={store.active} busy={reading || planning} saveFailed={saveFailed}
+        <SavedPlans plans={listPlans(store)} activeId={store.active} busy={reading || planning} saveFailed={saveFailed} deleteFailed={deleteFailed}
           onOpen={openSaved} onRename={(id, name) => writeStore(renamePlan(storeRef.current, id, name))} onDelete={deleteSaved} onNew={newPlan} />
 
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}

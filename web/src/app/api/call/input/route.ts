@@ -25,7 +25,9 @@ export async function POST(request: Request) {
   if (!signedByVonage(request, raw, cfg)) return new Response("unauthorized", { status: 401 });
   const body = parse(raw) as { uuid?: unknown; dtmf?: { digits?: unknown } } | null;
   const store = await callStore();
-  if (!store) return Response.json(goodbyeNcco("English"));
+  // Postgres or its schema could not be reached (calls are configured, so this is an outage): 503, never a goodbye that
+  // would end a verified caller's call as if handled.
+  if (!store) return new Response("unavailable", { status: 503 });
   try {
     return Response.json(await handleInput({ store, cfg }, t, body?.dtmf?.digits, body?.uuid));
   } catch (e) {

@@ -206,4 +206,24 @@ describe.skipIf(!url)("call migrations (real Postgres)", () => {
     expect(idx.rowCount).toBe(1);
     expect(await ensureSchema(pool)).toBe(true);
   });
+
+  it("holds writers off from the first statement until commit, so no duplicate can appear before the index exists", async () => {
+    await pool.query("drop index if exists atlas_calls_one_live_uq");
+    const sql = migration("006_atlas_calls_one_live.sql");
+    const beforeIndex = sql.slice(0, sql.indexOf("create unique index"));
+    const mig = await pool.connect();
+    const writer = await pool.connect();
+    try {
+      await mig.query(beforeIndex); // begin; ...the clean-up, index not built yet
+      await writer.query("set lock_timeout = '300ms'");
+      const insert = writer.query(`insert into atlas_calls (id, phone_hash, last4, language, phase, expires_at) values ('race', 'solo', '2222', 'English', 'calling', now() + interval '30 minutes')`);
+      await expect(insert).rejects.toMatchObject({ code: "55P03" }); // blocked by the migration's table lock
+      await mig.query(sql.slice(sql.indexOf("create unique index")));
+    } finally {
+      mig.release();
+      writer.release();
+    }
+    const idx = await pool.query("select 1 from pg_indexes where tablename = 'atlas_calls' and indexname = 'atlas_calls_one_live_uq'");
+    expect(idx.rowCount).toBe(1);
+  });
 });

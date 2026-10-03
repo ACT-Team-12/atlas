@@ -5,8 +5,13 @@
 --   2. where a number still has more than one live session, the plan call is kept (phase 'calling', latest placed,
 --      then latest created) and every other one is marked failed and wiped;
 --   3. the index is built.
+-- The table is locked against writes for the whole transaction (a few milliseconds on a table this small).
 -- Needs 003_atlas_calls.sql first (it adds placed_at and makes last4 nullable). Safe to run again.
 begin;
+
+-- No writer may create a new live session until the index exists: the lock is held through the commit.
+-- SHARE ROW EXCLUSIVE blocks inserts, updates and deletes but still allows reads (status polls keep working).
+lock table atlas_calls in share row exclusive mode;
 
 update atlas_calls
 set phase = 'expired', code_hash = null, last4 = null, sealed_phone = null, sealed_text = null, sealed_token = null, sealed_audio = null

@@ -2,8 +2,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { Pool } from "pg";
 import { readFileSync } from "node:fs";
 import {
-  clientKey, CLIENT_HOURLY_SECONDS, memoryUsageStore, normalizeIp, pgUsageStore, SITE_HOURLY_SECONDS, type UsageStore,
+  clientKey, CLIENT_HOURLY_SECONDS, memoryUsageStore, normalizeIp, pgUsageStore, SITE_HOURLY_SECONDS, sweepSttUsage, type UsageStore,
 } from "./sttUsage";
+import { GET as sweepRoute } from "@/app/api/transcribe/sweep/route";
 import { answerAloud, issueQuizToken, usesFor } from "./transcribe";
 
 const SECRET = "s3cret";
@@ -27,7 +28,7 @@ describe("network address normalising", () => {
   });
 });
 
-/** Runs the same budget rules against a store: memory always, real Postgres when STT_PG_URL is set. */
+/** Runs the same budget rules against a store: memory always, real Postgres when TEST_DATABASE_URL is set (CI). */
 function budgetRules(name: string, makeStore: () => Promise<{ store: UsageStore; used: (b: string, w: number) => Promise<number>; reset: () => Promise<void> }>) {
   describe(`budget rules (${name})`, () => {
     const fetchMock = vi.fn();
@@ -111,7 +112,13 @@ budgetRules("memory", async () => {
   return { store: m, used: async (b, w) => m.used(b, w), reset: async () => m.reset() };
 });
 
-const PG = process.env.STT_PG_URL;
+// CI runs a postgres:15 service with TEST_DATABASE_URL. In CI a missing URL is a failure, never a silent skip.
+const PG = process.env.TEST_DATABASE_URL ?? process.env.STT_PG_URL;
+if (process.env.CI && !PG) {
+  describe("postgres store", () => {
+    it("needs TEST_DATABASE_URL in CI", () => { throw new Error("TEST_DATABASE_URL is not set, so the shared-budget tests did not run."); });
+  });
+}
 describe.skipIf(!PG)("postgres store", () => {
   let pool: Pool;
   beforeAll(async () => {
@@ -140,6 +147,36 @@ describe.skipIf(!PG)("postgres store", () => {
     await store.adjust([{ bucket: "a", win: 1, delta: -100 }]);
     const again = await pool.query("select coalesce(min(used), 0)::int as n from atlas_stt_usage");
     expect(again.rows[0].n).toBe(0);
+  });
+
+  it("the sweep physically deletes every row by two days after it was written (Codex review, 2026-10-02)", async () => {
+    const store = pgUsageStore(pool);
+    await pool.query("delete from atlas_stt_usage");
+    const now = Date.now(), twoDaysAgo = now - 2 * 86_400_000 - 60_000;
+    const day = Math.floor(twoDaysAgo / 86_400_000), hr = Math.floor(twoDaysAgo / 3_600_000);
+    await store.reserve([
+      { bucket: "lcd:old", win: day, amount: 5, cap: 1500, ttlSec: 172_800 },
+      { bucket: "lch:old", win: hr, amount: 5, cap: 600, ttlSec: 7_200 },
+      { bucket: "lt:old", win: 0, amount: 1, cap: 8, ttlSec: 25_200 },
+    ], twoDaysAgo);
+    await store.reserve([{ bucket: "lch:new", win: Math.floor(now / 3_600_000), amount: 5, cap: 600, ttlSec: 7_200 }], now);
+    expect(await sweepSttUsage(pool)).toBe(3);
+    const { rows } = await pool.query("select bucket from atlas_stt_usage");
+    expect(rows).toEqual([{ bucket: "lch:new" }]);
+  });
+
+  it("the sweep route needs the cron secret and reports what it deleted", async () => {
+    vi.stubEnv("CRON_SECRET", "cron-s3cret");
+    vi.stubEnv("DATABASE_URL", PG!);
+    try {
+      expect((await sweepRoute(new Request("http://x/api/transcribe/sweep"))).status).toBe(401);
+      expect((await sweepRoute(new Request("http://x/api/transcribe/sweep", { headers: { authorization: "Bearer nope" } }))).status).toBe(401);
+      const r = await sweepRoute(new Request("http://x/api/transcribe/sweep", { headers: { authorization: "Bearer cron-s3cret" } }));
+      expect(r.status).toBe(200);
+      expect(typeof (await r.json()).deleted).toBe("number");
+      vi.stubEnv("CRON_SECRET", "");
+      expect((await sweepRoute(new Request("http://x/api/transcribe/sweep", { headers: { authorization: "Bearer " } }))).status).toBe(503);
+    } finally { vi.unstubAllEnvs(); }
   });
 
   budgetRules("postgres", async () => {

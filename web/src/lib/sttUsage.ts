@@ -93,8 +93,6 @@ export function pgUsageStore(pool: Pool): UsageStore {
       } finally {
         c.release();
       }
-      // Housekeeping now and then: expired windows are deleted so the table stays small.
-      if (Math.random() < 0.02) await pool.query("delete from atlas_stt_usage where expires_at < now()").catch(() => {});
       return { ok: true };
     },
     async adjust(items) {
@@ -107,6 +105,16 @@ export function pgUsageStore(pool: Pool): UsageStore {
       );
     },
   };
+}
+
+/**
+ * Retention: deletes every row whose window has ended. Every row expires at most two days after it is first written
+ * (the longest window is one day, kept one more for the daily cap's late settles). Run hourly by the Vercel cron
+ * /api/transcribe/sweep, so no counter outlives its two days by more than about an hour.
+ */
+export async function sweepSttUsage(pool: Pool): Promise<number> {
+  const r = await pool.query("delete from atlas_stt_usage where expires_at < now()");
+  return r.rowCount ?? 0;
 }
 
 let ready: { at: number; ok: boolean } | null = null;

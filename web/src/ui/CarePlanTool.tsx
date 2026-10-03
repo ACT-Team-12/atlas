@@ -151,7 +151,12 @@ function StepHeader({ n, title, done, note }: { n: number; title: string; done?:
   );
 }
 
-function Resource({ r }: { r: ResourceCard }) {
+/** While the plan is outdated, `off` says why and the call, website, directions and open links are not offered: the place may be wrong. */
+function ResourceLinksOff({ off }: { off: string }) {
+  return <p className="mt-3 text-sm font-bold text-peach-deep">{off}: calls, websites and directions for this plan are off until then.</p>;
+}
+
+function Resource({ r, off }: { r: ResourceCard; off?: string }) {
   if (r.type === "clinic") {
     const c = r.clinic;
     const hours = formatHours(c.hours);
@@ -176,12 +181,12 @@ function Resource({ r }: { r: ResourceCard }) {
           </>
         )}
         {hours && c.hours_source_id !== "clinic-site" && <p className="text-sm mt-1">🕘 Listed hours: {hours} <span className="text-ink/70">(call to confirm)</span></p>}
-        <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
+        {off ? <ResourceLinksOff off={off} /> : <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
           {c.phone && <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${c.phone.replace(/[^\d]/g, "")}`}>Call {c.phone}</a>}
           {c.website && <a className="rounded-full border-2 border-ink px-3 py-1" href={c.website} target="_blank" rel="noreferrer">Website ↗</a>}
           <a className="rounded-full border-2 border-ink px-3 py-1" target="_blank" rel="noreferrer"
             href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(c.city.includes(",") ? `${c.address}, ${c.city} ${c.zip}` : `${c.address}, ${c.city}, GA ${c.zip}`)}&travelmode=transit`}>Transit directions ↗</a>
-        </div>
+        </div>}
         <p className="mt-2 text-[11px] text-ink/70">
           Source: HRSA health center data{c.source_id === "hrsa-national" ? " (nationwide list, Oct 2)" : ""}
           {hours && c.hours_source_id === "clinic-site" && c.hours_url
@@ -197,10 +202,10 @@ function Resource({ r }: { r: ResourceCard }) {
       <span className="chip bg-sky text-sky-deep">Program</span>
       <p className="font-extrabold mt-2">{p.name}</p>
       <p className="text-sm italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{p.evidence_quote}&rdquo;</p>
-      <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
+      {off ? <ResourceLinksOff off={off} /> : <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
         {p.access.phone && <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${p.access.phone.replace(/[^\d]/g, "")}`}>Call {p.access.phone}</a>}
         {p.access.url && <a className="rounded-full border-2 border-ink px-3 py-1" href={p.access.url} target="_blank" rel="noreferrer">Open ↗</a>}
-      </div>
+      </div>}
       {p.access.text && <p className="text-sm mt-2">{p.access.text}</p>}
       <p className="mt-2 text-[11px] text-ink/70">Verified on the official page: <a className="underline" href={p.source_url} target="_blank" rel="noreferrer">{new URL(p.source_url).hostname}</a></p>
     </div>
@@ -646,6 +651,7 @@ export function CarePlanTool() {
   async function speak() {
     if (!plan || typeof window === "undefined") return;
     if (speaking) return stopSpeaking();
+    if (planOutdated) return;
     silence();
     const run = speechRun.current;
     const lines = speechLines(plan);
@@ -675,9 +681,10 @@ export function CarePlanTool() {
     }
   }
 
-  // An outdated plan is not read aloud: stop any reading in progress the moment it goes out of date.
+  // An outdated plan is not read aloud or printed as a handoff: stop any reading in progress the moment it goes out of date,
+  // and drop a handoff print still set up (its sheet is no longer rendered).
   useEffect(() => {
-    if (planOutdated) stopSpeaking();
+    if (planOutdated) { stopSpeaking(); document.documentElement.classList.remove("print-sheet"); }
     // Only the change to outdated matters; stopSpeaking only touches refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planOutdated]);
@@ -833,6 +840,7 @@ export function CarePlanTool() {
 
   // The handoff sheet is the only thing printed while html.print-sheet is set; afterprint clears it.
   function printSheet() {
+    if (planOutdated) return;
     const root = document.documentElement;
     const done = () => { root.classList.remove("print-sheet"); window.removeEventListener("afterprint", done); };
     root.classList.add("print-sheet");
@@ -1111,11 +1119,13 @@ export function CarePlanTool() {
           </div>
         </div>
 
-        {plan && care && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} />}
+        {plan && care && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} />}
 
         {/* Step 3 */}
         {plan && (
-          <div {...panel(3)} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 scroll-mt-24 max-md:scroll-mt-44 ${onPhone(3)}`}>
+          <div {...panel(3)} data-outdated={planOutdated || undefined} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 scroll-mt-24 max-md:scroll-mt-44 ${planOutdated ? "plan-outdated" : ""} ${onPhone(3)}`}>
+            {/* Printing from the browser menu while the plan is outdated prints only this, never the outdated plan. */}
+            {planOutdated && <p className="outdated-print-note">This plan is out of date, so it is not printed. {actionsOffReason}, then print again.</p>}
             <StepHeader n={3} title="Your plan" done note={plan.located.label} />
             {planOutdated && (
               <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-sun/30 p-3 text-sm font-bold">
@@ -1134,8 +1144,8 @@ export function CarePlanTool() {
             )}
             <p className="mt-4 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
-              {/* An outdated plan can't be read aloud, printed as a handoff, sent or booked from; the on-screen note says why. */}
-              {planOutdated && <span id="plan-actions-off" className="basis-full text-sm font-bold text-peach-deep">{actionsOffReason}: read aloud, the handoff sheet, Send to family and Book it now are off until then.</span>}
+              {/* An outdated plan can't be read aloud, printed, sent, booked or called from; the on-screen note says why. */}
+              {planOutdated && <span id="plan-actions-off" className="basis-full text-sm font-bold text-peach-deep">{actionsOffReason}: read aloud, printing, the handoff sheet, Send to family, Book it now and the calls, websites and directions below are off until then.</span>}
               {tapToPlay
                 ? <button type="button" onClick={() => void startAudio(speechRun.current)} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink bg-sun px-4 py-2 disabled:opacity-40">▶ Tap to play</button>
                 : <button type="button" onClick={speak} aria-pressed={speaking} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined}
@@ -1144,7 +1154,7 @@ export function CarePlanTool() {
                   </button>}
               {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2">Cancel</button>}
               <span role="status" className={voiceNote ? "self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
-              <button type="button" onClick={() => window.print()} className="rounded-full border-2 border-ink px-4 py-2">🖨️ Print for the next visit</button>
+              <button type="button" onClick={() => { if (!planOutdated) window.print(); }} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40">🖨️ Print for the next visit</button>
               <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40">📄 Print a handoff sheet</button>
               {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={meaning} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} />}
               <span className="self-center text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
@@ -1172,7 +1182,7 @@ export function CarePlanTool() {
                   )}
                   {s.resource_ids.length > 0 && (
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      {s.resource_ids.map((id) => plan.resources[id] && <Resource key={id} r={plan.resources[id]} />)}
+                      {s.resource_ids.map((id) => plan.resources[id] && <Resource key={id} r={plan.resources[id]} off={planOutdated ? actionsOffReason : undefined} />)}
                     </div>
                   )}
                   {[...bookAt.values()].includes(i) && (

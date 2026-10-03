@@ -3,6 +3,8 @@
  * Late replies against the real component: each request is held open (a deferred fetch) while the person
  * changes something, then released, and the test checks what reached the screen.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -429,10 +431,17 @@ describe("an outdated plan cannot be acted on", () => {
   }
   function planWithLab(summary: string): PlanResponse {
     const p = planFor(summary);
-    p.steps = [{ title: "Book the A1c test", action: "Call to book it.", why: "", barrier: null, care_ids: ["c2"], resource_ids: [], dropped_refs: [] } as unknown as PlanResponse["steps"][number]];
+    p.steps = [{ title: "Book the A1c test", action: "Call to book it.", why: "", barrier: null, care_ids: ["c2"], resource_ids: ["k1", "g1"], dropped_refs: [] } as unknown as PlanResponse["steps"][number]];
+    p.resources = {
+      k1: { type: "clinic", id: "k1", km: 2, clinic: { id: "k1", name: "Old Place Clinic", org: "", address: "1 Main St", city: "Atlanta", zip: "30303", county: "", phone: "404-555-0100", website: "https://clinic.example", lat: 0, lng: 0, hours_per_week: null, setting: "", health_center_type: "", nearest_rail: null, nearest_bus: null, barriers: [], source_id: "hrsa" } },
+      g1: { type: "program", id: "g1", program: { id: "g1", name: "Ride Program", barriers: [], access: { phone: "404-555-0199", url: "https://ride.example" }, languages: [], evidence_quote: "Free rides.", source_url: "https://ride.example/about" } },
+    } as unknown as PlanResponse["resources"];
     return p;
   }
-  const ACTIONS = ["Read it out loud", "Print a handoff sheet", "Send to family", "Book it now"];
+  const ACTIONS = ["Read it out loud", "Print for the next visit", "Print a handoff sheet", "Send to family", "Book it now"];
+  /** Every link that would call, open or route to a place in the plan. */
+  const placeLinks = () => [...host.querySelectorAll<HTMLAnchorElement>("a")].map((a) => a.getAttribute("href") ?? "")
+    .filter((h) => h.startsWith("tel:") || h.includes("clinic.example") || h.startsWith("https://ride.example") && !h.endsWith("/about") || h.includes("google.com/maps"));
   const enabled = () => Object.fromEntries(ACTIONS.map((t) => [t, !byText(t).disabled]));
   const all = (v: boolean) => Object.fromEntries(ACTIONS.map((t) => [t, v]));
   let speech: { speak: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> };
@@ -469,14 +478,38 @@ describe("an outdated plan cannot be acted on", () => {
     ["a removed step", () => (host.querySelector('button[aria-label="Remove Metformin"]') as HTMLButtonElement).click()],
   ];
   for (const [what, change] of changes) {
-    it(`after changing ${what}: read aloud, handoff print, Send to family and Book it now are off, with the reason`, async () => {
+    it(`after changing ${what}: read aloud, both prints, Send to family, Book it now and place links are off, with the reason`, async () => {
       await planReady();
+      expect(placeLinks()).toHaveLength(5); // call + website + directions for the clinic, call + open for the program
       act(change);
       expect(enabled()).toEqual(all(false));
+      expect(placeLinks()).toEqual([]);
+      expect(screenText()).toContain("Old Place Clinic"); // the place is still shown, only not offered
       expect(screenText()).toContain("Plan with the A1c test"); // still shown, labelled
       expect(screenText()).toMatch(/Update the plan first|Read your paper again first/);
     });
   }
+
+  it("printing from the browser menu prints only an out-of-date note, never the plan or its handoff sheet", async () => {
+    await planReady();
+    expect(document.getElementById("atlas-sheet")).not.toBeNull();
+    const print = vi.fn();
+    vi.stubGlobal("print", print);
+    act(() => byText("Print a handoff sheet").click());
+    expect(document.documentElement.classList.contains("print-sheet")).toBe(true); // set up, afterprint not fired yet
+    act(() => byText("Paying for the visit").click());
+    expect(document.documentElement.classList.contains("print-sheet")).toBe(false);
+    expect(document.getElementById("atlas-sheet")).toBeNull();
+    const card = host.querySelector("#step-3, [data-outdated]")!.closest("[data-outdated]")!;
+    expect(card.classList.contains("plan-outdated")).toBe(true);
+    expect(card.querySelector(":scope > .outdated-print-note")?.textContent).toContain("out of date");
+    print.mockClear();
+    act(() => byText("Print for the next visit").click());
+    expect(print).not.toHaveBeenCalled();
+    // The print stylesheet hides everything in an outdated plan card except that note.
+    const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8").replace(/\s+/g, " ");
+    expect(css).toContain(".plan-outdated > :not(.outdated-print-note) { display: none !important; }");
+  });
 
   it("speech in progress stops when the plan goes out of date", async () => {
     await planReady();
@@ -496,6 +529,8 @@ describe("an outdated plan cannot be acted on", () => {
     act(() => byText("Update plan").click());
     await release(req, ready(planWithLab("Updated plan")));
     expect(enabled()).toEqual(all(true));
+    expect(placeLinks()).toHaveLength(5);
+    expect(host.querySelector(".plan-outdated, .outdated-print-note")).toBeNull();
   });
 });
 

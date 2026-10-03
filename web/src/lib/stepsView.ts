@@ -19,10 +19,12 @@ export const WHEN_GROUPS = ["today", "soon", "daily", "later", "unclear"] as con
 export type WhenGroup = (typeof WHEN_GROUPS)[number];
 
 export const WHEN_GROUP_LABEL: Record<WhenGroup, string> = {
-  today: "Start today",
-  soon: "Next 2 weeks",
+  // Counted from the paper (the visit), not from the day a saved plan is reopened: no heading says "today" about a
+  // paper that may be weeks old (Codex review).
+  today: "Right away",
+  soon: "Within about 2 weeks",
   daily: "Every day or every week",
-  later: "Later on",
+  later: "Later (weeks or months away)",
   unclear: "Check the date on your paper",
 };
 
@@ -51,11 +53,16 @@ const LONG_UNIT = String.raw`(months?|mes|meses|years?|a[nñ]os?)`;
 /** "within", "in", "in the next", "dentro de", "en los próximos": a moment ahead, never a length ("for 2 weeks"). */
 const AHEAD = String.raw`(?:within|in|after|in${S}the${S}next|over${S}the${S}next|during${S}the${S}next|due${S}in|dentro${S}de|en|en${S}l[oa]s${S}pr[oó]xim[oa]s|despu[eé]s${S}de)`;
 
+/** Letters English and Spanish never use (Portuguese, French...): a shared phrase like "esta tarde" is not read there. */
+const OTHER_LATIN = /[ãõçâêôàèùûëïœ]/iu;
+/** A negation earlier in the same clause: "Do not start this medicine today" is never placed under "Right away". */
+const NEGATION = /(?<![\p{L}])(?:not|\p{L}+n['’]t|never|no|nunca|ni|tampoco)(?![\p{L}])/iu;
+
 type Rule = { group: WhenGroup | ((m: RegExpMatchArray) => WhenGroup | null); re: RegExp };
 
 const RULES: Rule[] = [
   // Today: now, today, tonight, right away.
-  { group: "today", re: word(String.raw`today|tonight|right${S}now|now|right${S}away|immediately|at${S}once|this${S}(?:morning|afternoon|evening)`) },
+  { group: "today", re: word(String.raw`today|tonight|right${S}now|now|right${S}away|immediately|this${S}(?:morning|afternoon|evening)`) },
   { group: "today", re: word(String.raw`hoy|ahora${S}mismo|ahora|de${S}inmediato|inmediatamente|enseguida|esta${S}(?:noche|tarde|ma[nñ]ana)`) },
   // A count of days or weeks ahead: up to 14 days is the next 2 weeks, more is later on.
   {
@@ -90,6 +97,7 @@ const RULES: Rule[] = [
  */
 export function whenFromText(text: string): TextWhen {
   const t = text.replace(/\s+/g, " ");
+  if (OTHER_LATIN.test(t)) return { group: "unclear", words: [] };
   const hits: { group: WhenGroup; text: string; at: number }[] = [];
   for (const rule of RULES) {
     for (const m of t.matchAll(rule.re)) {
@@ -102,6 +110,7 @@ export function whenFromText(text: string): TextWhen {
     .sort((a, b) => a.at - b.at || b.text.length - a.text.length)
     .filter((h, i, all) => !all.some((o, j) => j !== i && o.at <= h.at && o.at + o.text.length >= h.at + h.text.length && o.text.length > h.text.length));
   const words = [...new Set(kept.map((h) => h.text))];
+  if (kept.some((h) => NEGATION.test(t.slice(0, h.at).split(/[.;:!?]/).pop() ?? ""))) return { group: "unclear", words };
   const groups = new Set(kept.map((h) => h.group));
   if (groups.size === 0) return { group: "unclear", words: [] };
   if (groups.size === 1) return { group: [...groups][0], words };

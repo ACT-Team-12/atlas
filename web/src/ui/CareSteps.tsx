@@ -75,6 +75,16 @@ export function CareSteps(p: Props) {
   const stepQuestions = items.filter((i) => i.needs_clarification && i.question_for_clinic.trim());
   const questionCount = stepQuestions.length + care.questions_for_doctor.length;
 
+  // A check that disagrees can land after the steps are on screen. Opening the step is not an announcement, so a
+  // polite live region (always mounted, text set a moment later) names each one by its paper words (Codex review).
+  const flaggedNote = recheck === 0 ? "" : `${recheck} ${recheck === 1 ? "step needs" : "steps need"} a second look, opened below: ${items
+    .filter((i) => sealOf(checkFor(i.id)) === "recheck").map((i) => `"${shortQuote(i.source_quote, 60)}"`).join(", ")}.`;
+  const [spoken, setSpoken] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setSpoken(flaggedNote), 400);
+    return () => clearTimeout(t);
+  }, [flaggedNote]);
+
   const isOpen = (id: string) => open[id] ?? sealOf(checkFor(id)) === "recheck";
   const toggle = (id: string) => setOpen((o) => ({ ...o, [id]: !isOpen(id) }));
 
@@ -88,6 +98,7 @@ export function CareSteps(p: Props) {
 
   return (
     <div className="mt-8" data-steps="by-when">
+      <p role="status" aria-live="polite" className="sr-only" data-flagged-status="">{spoken}</p>
       {(care.has_warning_signs || warnings.length > 0) && (
         <section aria-labelledby="warn-title" className="mb-5 rounded-2xl border-2 border-red bg-red-soft p-4 text-red" data-warnings="">
           <h3 id="warn-title" className="display text-xl">Warning signs from your paper</h3>
@@ -120,7 +131,7 @@ export function CareSteps(p: Props) {
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.15fr_1fr]">
         <div>
           <h3 className="display text-2xl">Your steps</h3>
-          <p className="text-xs font-semibold text-ink/70">Tap a step to see your paper&apos;s words, what they mean, and more.</p>
+          <p className="text-xs font-semibold text-ink/70">Tap a step to see your paper&apos;s words, what they mean, and more. Times count from your visit, as your paper says them.</p>
           {groups.length === 0 && warnings.length === 0 && <p className="mt-3 text-sm font-semibold">No steps are left. Undo a removed step, or read your paper again.</p>}
           {groups.map(({ g, list }) => (
             <section key={g} aria-labelledby={`when-${g}`} className="mt-4" data-when-group={g}>

@@ -10,7 +10,7 @@ describe("whenFromText: the time group from the paper's own words", () => {
     ["ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function.", "unclear", []],
     ["Hemoglobin A1c - due in 3 months", "later", ["due in 3 months"]],
     ["Basic metabolic panel - fasting, complete within 2 weeks at any Quest or Labcorp location", "soon", ["within 2 weeks"]],
-    ["Referral to Ophthalmology for diabetic eye exam. Their office will call you to schedule. If you have not heard from them in 10 days, call 404-555-0134.", "soon", ["in 10 days"]],
+    ["Referral to Ophthalmology for diabetic eye exam. Their office will call you to schedule. If you have not heard from them in 10 days, call 404-555-0134.", "unclear", ["in 10 days"]], // "not" earlier in its clause: never placed
     ["Return to clinic in 3 months, or sooner if needed.", "later", ["in 3 months"]],
     ["Check your blood sugar every morning before breakfast and write down the number. Bring your log to your next visit.", "daily", ["every morning"]],
     ["Walk 30 minutes, 5 days a week, as tolerated.", "daily", ["5 days a week"]],
@@ -60,7 +60,19 @@ describe("whenFromText: the time group from the paper's own words", () => {
     ["Revise su azúcar cada mañana antes del desayuno.", "daily"],
     ["Camine 30 minutos, 5 días a la semana.", "daily"],
     ["Hágase el análisis de sangre dentro de 2 semanas.", "soon"],
-    ["Si no le llaman en 10 días, llame al 404-555-0134.", "soon"],
+    ["Si no le llaman en 10 días, llame al 404-555-0134.", "unclear"], // negated clause
+    ["Si le llaman en 10 días, vaya a la cita.", "soon"],
+    // Negations (Codex review): a time word after "not"/"no" in its clause is never placed.
+    ["Do not start this medicine today.", "unclear"],
+    ["Don't take it every day.", "unclear"],
+    ["Never stop it now.", "unclear"],
+    ["No empiece hoy.", "unclear"],
+    ["Stop taking it today. Do not restart.", "today"], // the negation is in another sentence
+    // "at once" can mean "together": not a time.
+    ["Take both pills at once.", "unclear"],
+    // Portuguese and French share some Spanish words; their own letters stop the read.
+    ["Tome o remédio esta tarde, não amanhã.", "unclear"],
+    ["Commencez ce médicament aujourd'hui à la maison, ça va.", "unclear"],
     ["Regrese a la clínica en 3 meses.", "later"],
     ["Hemoglobina A1c en tres meses.", "later"],
     ["Tome antibióticos por 10 días.", "unclear"],

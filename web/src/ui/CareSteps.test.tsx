@@ -167,11 +167,12 @@ describe("time groups come from the paper's words", () => {
   it("uncertified: placed by the quote only; no time words means 'Check the date on your paper'", () => {
     render();
     expect(groupIds("today")).toEqual([]);
-    expect(groupIds("soon")).toEqual(["bmp", "eye"]);
+    expect(groupIds("soon")).toEqual(["bmp"]);
     expect(groupIds("daily")).toEqual(["met", "lis", "walk"]);
     expect(groupIds("later")).toEqual(["a1c"]);
     // ibuprofen's AI "Stop now" and soda's AI "Every day" do not place them.
-    expect(groupIds("unclear")).toEqual(["ibu", "soda"]);
+    // The referral's "in 10 days" sits after "If you have not heard": a negated clause is never placed.
+    expect(groupIds("unclear")).toEqual(["ibu", "eye", "soda"]);
     expect(host.querySelector("#when-unclear")?.textContent).toContain("Check the date on your paper");
   });
 
@@ -179,8 +180,9 @@ describe("time groups come from the paper's words", () => {
     render({ meaning: certifiedAll() });
     expect(groupIds("today")).toEqual(["ibu"]);
     expect(groupIds("daily")).toEqual(["met", "lis", "walk", "soda"]);
-    expect(groupIds("soon")).toEqual(["bmp", "eye"]); // bmp's AI "today" loses to the paper's "within 2 weeks"
-    expect(groupIds("unclear")).toEqual([]);
+    expect(groupIds("soon")).toEqual(["bmp"]); // bmp's AI "today" loses to the paper's "within 2 weeks"
+    // The paper names a time for the referral, but in a negated clause: even certified, the AI's when does not override it.
+    expect(groupIds("unclear")).toEqual(["eye"]);
   });
 
   it("warning signs are pinned above everything, in red, and in no time group", () => {
@@ -228,6 +230,21 @@ describe("one seal per step, and flagged steps open themselves", () => {
     // The person can still close it.
     act(() => toggleOf("lis").click());
     expect(panelOf("lis").hidden).toBe(true);
+  });
+
+  it("a disagreement that lands after the steps are shown is announced politely, by the paper's words", async () => {
+    render({ meaning: { status: "loading", byId: {} } });
+    const status = host.querySelector('[data-flagged-status]')!;
+    expect(status.getAttribute("role")).toBe("status");
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+    expect(status.textContent).toBe("");
+    render({ meaning: { status: "done", byId: { bmp: result("bmp", { flagged: true }) } } });
+    expect(host.querySelector('[data-flagged-status]')).toBe(status); // the same region, still mounted
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+    expect(status.textContent).toContain("1 step needs a second look, opened below");
+    expect(status.textContent).toContain("Basic metabolic panel");
+    expect(status.textContent).not.toContain("AI-TITLE");
   });
 
   it("a step this device disputes opens itself with the device's wording", () => {

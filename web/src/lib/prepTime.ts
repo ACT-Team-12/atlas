@@ -33,7 +33,7 @@ export const PREP_KIND_LABEL: Record<PrepKind, string> = {
 };
 
 /** Why a step was or was not placed on the timeline. */
-export type WhenReason = "placed" | "no_time_words" | "clock_without_day" | "conflict" | "multi_line" | "ambiguous_sentence" | "other_clause" | "repeated";
+export type WhenReason = "placed" | "no_time_words" | "clock_without_day" | "conflict" | "multi_line" | "ambiguous_sentence" | "other_clause" | "repeated" | "multi_sentence";
 
 export const WHEN_REASON_TEXT: Record<Exclude<WhenReason, "placed">, string> = {
   no_time_words: "Your paper doesn't say when for this one.",
@@ -43,6 +43,7 @@ export const WHEN_REASON_TEXT: Record<Exclude<WhenReason, "placed">, string> = {
   ambiguous_sentence: "We couldn't tell where this sentence ends in your paper, so we didn't place it.",
   other_clause: "The time in this sentence may belong to another part of it, so we didn't place this step.",
   repeated: "These words appear more than once in your paper, so we didn't place this step.",
+  multi_sentence: "This step runs across more than one sentence of your paper, so we didn't place it.",
 };
 
 export type WhenRead = {

@@ -429,6 +429,8 @@ describe("Codex round 6: a step never borrows the time of another part of its se
     ["Take your pill; stop drinking 2 hours before your procedure.", "Take your pill; stop drinking 2 hours before your procedure"],
     ["Take your pill - stop drinking 2 hours before your procedure.", "Take your pill - stop drinking 2 hours before your procedure."],
     ["Stop aspirin 3 days before your procedure, and call us with questions.", "Stop aspirin 3 days before your procedure, and call us with questions."],
+    ["Take your pill, stop drinking 2 hours before your procedure.", "Take your pill, stop drinking 2 hours before your procedure."],
+    ["Take your pill; 2 hours before your procedure, stop drinking.", "Take your pill; 2 hours before your procedure, stop drinking."],
   ])("%j quoted as %j is not placed", (line, quote) => {
     expect(one(line, quote)).toMatchObject({ slot: null, reason: "other_clause" });
   });
@@ -453,5 +455,13 @@ describe("Codex round 6: swapped dose and interval never reach the page", () => 
     const r = buildPrepTimeline(`PREP SHEET (sample)\n- ${line}`, [item({ kind: "medicine", source_quote: line, plain_language: "Use 4 puffs every 2 hours the day before." })]);
     const [s] = [...r.timeline.flatMap((g) => g.steps), ...r.ask];
     expect(s).toMatchObject({ source_quote: line, numbers_blocked: true, plain_language: "" });
+  });
+});
+
+describe("Codex round 8: a quote that runs across two sentences is never placed", () => {
+  it("\"Stop drinking 2 hours before your procedure. Take your pill.\" quoted whole is not placed", () => {
+    const line = "Stop drinking 2 hours before your procedure. Take your pill.";
+    const r = buildPrepTimeline(`PREP SHEET (sample)\n- ${line}`, [item({ source_quote: line, plain_language: "" })]);
+    expect([...r.timeline.flatMap((g) => g.steps), ...r.ask][0]).toMatchObject({ slot: null, reason: "multi_sentence" });
   });
 });

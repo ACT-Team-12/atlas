@@ -4,12 +4,15 @@ import { useId, useState } from "react";
 import type { VerifiedItem } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { planShareText, SHARE_TITLE, type ShareMeaning } from "@/lib/shareText";
+import { DockLabel } from "./DockLabel";
 
 /** "Send to family": hands the plan to the phone's own share sheet (text, email, WhatsApp). Falls back to copy, email and text links. */
-export function ShareFamily({ items, plan, questions, meaning, planItems, disabled = false, describedBy }: {
+export function ShareFamily({ items, plan, questions, meaning, planItems, disabled = false, describedBy, short }: {
   items: VerifiedItem[]; plan: PlanResponse; questions: string[]; meaning: ShareMeaning; planItems: VerifiedItem[];
   /** Off while the plan is outdated: it would send a plan that no longer fits the person's answers. */
   disabled?: boolean; describedBy?: string;
+  /** A one-word label for phones (the plan's bottom bar); wider screens keep the full words. */
+  short?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -39,7 +42,9 @@ export function ShareFamily({ items, plan, questions, meaning, planItems, disabl
   return (
     <>
       <button type="button" onClick={share} disabled={checking || disabled} aria-expanded={open && !disabled} aria-controls={panelId} aria-describedby={describedBy} className="rounded-full border-2 border-ink bg-mint px-4 py-2 disabled:opacity-60">
-        📤 {checking ? "Send to family (finishing the double-check...)" : "Send to family"}
+        {short
+          ? <DockLabel icon="📤" short={checking ? "Checking" : short} long={checking ? "Send to family (finishing the double-check...)" : "Send to family"} />
+          : <>📤 {checking ? "Send to family (finishing the double-check...)" : "Send to family"}</>}
       </button>
       {open && !disabled && (
         <div id={panelId} className="basis-full mt-1 rounded-2xl border-2 border-ink bg-paper p-4 font-normal">

@@ -5,6 +5,7 @@ import type { PlanResponse } from "@/lib/plan";
 import type { LANGUAGES } from "@/lib/schema";
 import { paidSpeechText } from "@/lib/speechText";
 import { nextPoll, pollDelayMs, pollNotice, POLL_WINDOW_MS, startPoll, type PollState } from "@/lib/call/poll";
+import { DockLabel } from "./DockLabel";
 
 /**
  * "Call me with my plan": ATLAS phones the person and reads the plan in its language. For someone who can't read or
@@ -64,7 +65,8 @@ export function line(s: Status, suffix: string, typed: string): string {
   }
 }
 
-export function CallMe({ plan, language }: { plan: PlanResponse; language: Language }) {
+/** `short`: a one-word label for phones (the plan's bottom bar); wider screens keep the full words. */
+export function CallMe({ plan, language, short }: { plan: PlanResponse; language: Language; short?: string }) {
   const [cfg, setCfg] = useState<{ enabled: boolean; languages: string[] } | null>(null);
   const [open, setOpen] = useState(false);
   const [phone, setPhone] = useState("");
@@ -166,7 +168,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   return (
     <>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId} className="rounded-full border-2 border-ink bg-paper px-4 py-2">
-        📞 Call me with my plan
+        {short ? <DockLabel icon="📞" short={short} long="Call me with my plan" /> : "📞 Call me with my plan"}
       </button>
       {open && (
         <div id={panelId} className="basis-full mt-1 rounded-2xl border-2 border-ink bg-paper p-4 font-normal">

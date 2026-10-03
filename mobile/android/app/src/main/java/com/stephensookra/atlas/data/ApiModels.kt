@@ -90,6 +90,8 @@ data class CarePlanResponse(
     val questions_for_doctor: List<String> = emptyList(),
     val not_in_document: List<String> = emptyList(),
     val has_warning_signs: Boolean = false,
+    /** The language the explanations were written in (sent back to the meaning check). Missing from older servers. */
+    val language: Language? = null,
     val model: String = "",
     val stats: CareStats,
 )

@@ -13,26 +13,34 @@ object ShareText {
         "self_care" to "Self care", "warning_sign" to "Warning sign",
     )
 
-    fun plan(items: List<VerifiedItem>, plan: PlanResponse, questions: List<String>): String {
-        val out = mutableListOf("Plan after the visit (from ATLAS)", "", plan.summary)
+    /**
+     * The double-check travels with it: an explanation is sent only when the second check certified it; otherwise the
+     * paper's own words are sent in its place (PaperFirst), so a text message never carries an unchecked paraphrase.
+     * `planItems`: every grounded step the plan could point at, removed or not, so a plan step's quote never drops out.
+     */
+    fun plan(items: List<VerifiedItem>, plan: PlanResponse, questions: List<String>, meaning: MeaningState = MeaningState.IDLE,
+             planItems: List<VerifiedItem>? = null): String {
+        val out = mutableListOf("Plan after the visit (from ATLAS)", "", "Suggestion from ATLAS, not the paper: ${plan.summary}")
 
         val grounded = items.filter { it.grounded }
         if (grounded.isNotEmpty()) {
             out += listOf("", "WHAT THE PAPER SAYS TO DO")
             grounded.forEachIndexed { n, i ->
+                val check = meaning.checkFor(i.id)
                 val whenText = i.`when`.trim()
-                out += "${n + 1}. ${KIND_LABEL[i.kind] ?: i.kind}: ${i.title}${if (whenText.isEmpty()) "" else " ($whenText)"}"
-                val plain = i.plain_language.trim()
-                if (plain.isNotEmpty()) out += "   $plain"
-                // The phone app has no second-model double-check, so every explanation says so.
-                out += "   (Not double-checked. If this and the paper differ, follow the paper.)"
-                out += "   Paper says: \"${i.source_quote}\""
+                val head = if (check == Check.certified) ": ${i.title}${if (whenText.isEmpty()) "" else " ($whenText)"}" else ""
+                out += "${n + 1}. ${KIND_LABEL[i.kind] ?: i.kind}$head"
+                if (check == Check.flagged) out += "   Double-check this one with your clinic: our second check found the explanation may not match the paper."
+                for (l in PaperFirst.lines(PaperFirst.careStep(i, check))) out += "   $l"
             }
         }
 
         if (plan.steps.isNotEmpty()) {
             out += listOf("", "THE PLAN (suggestions from ATLAS; if anything differs from the paper, follow the paper)")
-            plan.steps.forEachIndexed { n, s -> out += "${n + 1}. ${s.title}. ${s.action}" }
+            plan.steps.forEachIndexed { n, s ->
+                out += "${n + 1}. ${s.title}. ${s.action}"
+                for (q in PaperFirst.planStepQuotes(s, planItems ?: grounded)) out += "   Your paper says: \"$q\""
+            }
         }
 
         // Only the verified resources the plan actually uses, in a stable order.

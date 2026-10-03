@@ -14,6 +14,14 @@ import com.stephensookra.atlas.data.ApiClient
 import com.stephensookra.atlas.data.ApiException
 import com.stephensookra.atlas.data.Barrier
 import com.stephensookra.atlas.data.CarePlanResponse
+import com.stephensookra.atlas.data.Check
+import com.stephensookra.atlas.data.HelperBanner
+import com.stephensookra.atlas.data.HelperLink
+import com.stephensookra.atlas.data.HelperPresets
+import com.stephensookra.atlas.data.MeaningRequest
+import com.stephensookra.atlas.data.MeaningState
+import com.stephensookra.atlas.data.MeaningStatus
+import com.stephensookra.atlas.data.StaleGuard
 import com.stephensookra.atlas.data.Language
 import com.stephensookra.atlas.data.LatLng
 import com.stephensookra.atlas.data.PlanCareInput
@@ -69,6 +77,22 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     val removed = mutableStateMapOf<String, Boolean>()
     var restoredAt by mutableStateOf<Long?>(null)
         private set
+    /** The second-model double-check of `care` (paper first: only a certified explanation may lead). */
+    var meaning by mutableStateOf(MeaningState.IDLE)
+        private set
+    /** What `care` was read from and what `plan` was built from (StaleGuard). Null when unknown. */
+    private var readFp by mutableStateOf<String?>(null)
+    private var planFp by mutableStateOf<String?>(null)
+
+    // Helper link: the banner, and whether the next plan counts as one built from the link. Never saved.
+    var helperBanner by mutableStateOf<HelperBanner?>(null)
+        private set
+    private var fromHelperLink = false
+
+    // The meaning check runs beside the read; every Clear, new read or restore moves this fence, so an older
+    // reply is never applied to a newer paper (web/src/lib/meaningRun.ts RunFence).
+    private var meaningRunId = 0
+    private var meaningJob: Job? = null
 
     // Work in progress
     val path = mutableStateListOf<Route>()
@@ -86,7 +110,20 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     val removedItems: List<VerifiedItem> get() = care?.items.orEmpty().filter { removed[it.id] == true }
     val careById: Map<String, VerifiedItem> get() = care?.items.orEmpty().associateBy { it.id }
     val canRead: Boolean get() = text.trim().length > 20 && busy == null
-    val canPlan: Boolean get() = busy == null && !(barriers.isEmpty() && items.isEmpty())
+    val canPlan: Boolean get() = busy == null && !(barriers.isEmpty() && items.isEmpty()) && !careOutdated
+    fun checkFor(id: String): Check = meaning.checkFor(id)
+
+    /** The steps on screen were read from different text, language or reading level than what is entered now. */
+    val careOutdated: Boolean get() = care != null && readFp != null && readFp != StaleGuard.readFingerprint(text, language, level)
+
+    /** The plan on screen was built from different inputs than what is entered now; its actions are turned off. */
+    val planOutdated: Boolean get() = plan != null && planFp != null && (careOutdated || planFp != currentPlanFingerprint())
+
+    private fun currentPlanFingerprint(): String = StaleGuard.planFingerprint(
+        items.map { it.id }, barriers.toList(), language, note, StaleGuard.place(location, validZip()), location,
+    )
+
+    private fun validZip(): String = if (Regex("^\\d{5}$").matches(zip)) zip else ""
 
     // ---- Setters that save
 
@@ -94,6 +131,20 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     fun updateLanguage(v: Language) { language = v; persist() }
     fun updateLevel(v: ReadingLevel) { level = v; persist() }
     fun updateNote(v: String) { note = v; persist() }
+    /** Opened from a helper link: apply the presets (each one is optional) and show the banner. Nothing is sent. */
+    fun applyHelperLink(p: HelperPresets) {
+        p.language?.let { language = it }
+        p.level?.let { level = it }
+        p.zip?.let { zip = it; location = null }
+        helperBanner = HelperLink.banner(p)
+        fromHelperLink = true
+        // Show the first screen, where the banner is. Nothing saved is touched; "Open it" still brings it back.
+        if (busy == null) path.clear()
+        persist()
+    }
+
+    fun dismissHelperBanner() { helperBanner = null }
+
     fun updateZip(v: String) {
         zip = v.filter { it.isDigit() }.take(5)
         location = null
@@ -166,9 +217,12 @@ class AppModel(app: Application) : AndroidViewModel(app) {
                 val result = api.extract(text, level, language)
                 care = result
                 plan = null
+                planFp = null
+                readFp = StaleGuard.readFingerprint(text, language, level)
                 done.clear(); removed.clear()
                 restoredAt = null
                 busy = null
+                startMeaningCheck(result, language)
                 persist()
                 push(Route.Steps)
             } catch (e: CancellationException) {
@@ -186,6 +240,8 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         error = null
         busy = Busy.Planning
         val validZip = Regex("^\\d{5}$").matches(zip)
+        val fingerprint = currentPlanFingerprint()
+        val viaHelper = fromHelperLink
         val request = PlanRequest(
             care = items.map { PlanCareInput(it) },
             barriers = barriers.toList(),
@@ -196,8 +252,11 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         )
         task = viewModelScope.launch {
             try {
-                val result = api.plan(request)
+                val result = api.plan(request, fromHelperLink = viaHelper)
                 plan = result
+                planFp = fingerprint
+                // One link counts at most one plan (helperLink.ts consumeHelperSession).
+                if (viaHelper) fromHelperLink = false
                 busy = null
                 persist()
                 push(Route.Plan)
@@ -208,6 +267,33 @@ class AppModel(app: Application) : AndroidViewModel(app) {
                 error = e.message
             }
         }
+    }
+
+    /** Runs the second check for `forCare`. Its reply is applied only while the run is current and `care` is still that read. */
+    private fun startMeaningCheck(forCare: CarePlanResponse, language: Language?) {
+        cancelMeaning()
+        val run = meaningRunId
+        val request = MeaningRequest.of(forCare.items, forCare.language ?: language)
+        if (request == null) { meaning = MeaningState.IDLE; return }
+        meaning = MeaningState(MeaningStatus.loading)
+        meaningJob = viewModelScope.launch {
+            val next = try {
+                MeaningState.done(request, api.meaning(request))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ApiException) {
+                MeaningState(MeaningStatus.error)
+            }
+            if (run != meaningRunId || care !== forCare) return@launch // cleared, re-read or replaced meanwhile
+            meaning = next
+            persist()
+        }
+    }
+
+    private fun cancelMeaning() {
+        meaningRunId++
+        meaningJob?.cancel()
+        meaningJob = null
     }
 
     fun cancel() {
@@ -225,8 +311,13 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         care = saved.care; barriers.clear(); barriers.addAll(saved.barriers)
         zip = saved.zip; note = saved.note; plan = saved.plan
         done.clear(); done.putAll(saved.done); removed.clear(); removed.putAll(saved.removed)
+        readFp = saved.readFingerprint; planFp = saved.planFingerprint
+        meaning = if (saved.meaning.status == MeaningStatus.done) saved.meaning else MeaningState.IDLE
         restoring = false
         if (saved.care != null || saved.plan != null) restoredAt = saved.savedAt
+        // A check that was still running when the app closed is run again; until it answers, every step is unchecked.
+        val c = saved.care
+        if (c != null && saved.meaning.status == MeaningStatus.loading) startMeaningCheck(c, saved.language)
     }
 
     private fun persist() {
@@ -234,6 +325,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         val session = SavedSession(
             text = text, language = language, level = level, care = care, barriers = barriers.toList(),
             zip = zip, note = note, plan = plan, done = done.toMap(), removed = removed.toMap(),
+            meaning = meaning, readFingerprint = readFp, planFingerprint = planFp,
             savedAt = System.currentTimeMillis(),
         )
         try {
@@ -252,6 +344,10 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     /** "Clear from this phone": saved plan, typed text and ATLAS reminders. */
     fun clearFromPhone() {
         cancel()
+        cancelMeaning()
+        meaning = MeaningState.IDLE
+        readFp = null; planFp = null
+        helperBanner = null; fromHelperLink = false
         store.clear()
         restoring = true
         text = ""; care = null; plan = null; barriers.clear(); zip = ""; note = ""; done.clear(); removed.clear()

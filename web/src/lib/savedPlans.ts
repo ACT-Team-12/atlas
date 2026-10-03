@@ -24,6 +24,11 @@ export type Session = {
   done: Record<string, boolean>;
   removed: Record<string, boolean>;
   photoChecked?: boolean;
+  /**
+   * True when written by a version that saves only while the reading and plan still match these answers.
+   * Older saves kept later edits beside an older result, so without it the results can't be trusted as current.
+   */
+  matched?: boolean;
 };
 
 export type SavedPlan = Session & { id: string; name: string; createdAt: string; savedAt: string };
@@ -37,6 +42,7 @@ export function pickSession(s: Session): Session {
     text: s.text ?? "", language: s.language ?? "English", level: s.level ?? "simple", care: s.care ?? null,
     barriers: Array.isArray(s.barriers) ? s.barriers : [], zip: typeof s.zip === "string" ? s.zip : "", note: s.note ?? "",
     plan: s.plan ?? null, done: s.done ?? {}, removed: s.removed ?? {}, photoChecked: s.photoChecked ?? false,
+    matched: s.matched === true,
   };
 }
 

@@ -6,7 +6,10 @@ import { LANGUAGES } from "./schema";
  * Natural read-aloud voice (ElevenLabs), server only. Browser voices are missing or robotic for several of our
  * languages on many phones. Amharic has no ElevenLabs voice, so the page keeps the phone's own voice for it.
  * The text is never logged or stored; audio is cached in memory by a hash of language + text so a judge replaying
- * the sample does not spend the monthly character allowance twice.
+ * the sample does not spend the monthly character allowance twice. A phone call (`keep: false`) bypasses that cache
+ * and the shared in-flight request entirely, evicts this instance's copy of the same text before and after its own
+ * request, and a page request on this instance that overlaps a call in either order does not cache. Other server
+ * instances are not reached: a page read-aloud there keeps its own copy, as /privacy says of read-aloud.
  */
 export const VOICE_ID = "EXAVITQu4vr4xnSDxMaL"; // "Sarah": warm, reassuring, premade
 export const VOICE_MODEL = "eleven_flash_v2_5";
@@ -32,6 +35,11 @@ const CACHE_MAX = 40;
 const cache = new Map<string, ArrayBuffer>();
 // Identical requests while one is in flight share it, so a double tap or a replay is one paid call, not two.
 const inflight = new Map<string, Promise<ArrayBuffer>>();
+// Phone calls per text in progress, and when (in `seq` order) the last one for a text started (see keep: false). A page
+// request that overlaps a call for the same text does not cache its result.
+const calls = new Map<string, number>();
+const callStarted = new Map<string, number>();
+let seq = 0;
 // A fuse per server instance on top of the per-plan token: at most this many paid characters per hour.
 export const HOURLY_CHAR_BUDGET = 40_000;
 let budget = { hour: -1, used: 0 };
@@ -42,26 +50,48 @@ export function chargeBudget(chars: number, now = Date.now()): boolean {
   budget.used += chars;
   return true;
 }
-export const resetVoiceStateForTests = () => { cache.clear(); inflight.clear(); budget = { hour: -1, used: 0 }; };
+export const resetVoiceStateForTests = () => { cache.clear(); inflight.clear(); calls.clear(); callStarted.clear(); budget = { hour: -1, used: 0 }; };
 // Length-prefixed, never joined on a separator: free text can contain any separator and collide.
 export const cacheKey = (language: string, text: string) => createHash("sha256").update(`${language.length}:${language}${text.length}:${text}`).digest("hex");
 
-export async function synthesize(text: string, language: (typeof LANGUAGES)[number]): Promise<{ audio: ArrayBuffer; cached: boolean }> {
+export async function synthesize(text: string, language: (typeof LANGUAGES)[number], opts: { keep?: boolean } = {}): Promise<{ audio: ArrayBuffer; cached: boolean }> {
+  const keep = opts.keep ?? true;
   const code = VOICE_LANG[language];
   if (!code) throw new VoiceError(`No natural voice for ${language} yet. Using your phone's voice.`, 422);
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) throw new VoiceError("Natural voice is off. Using your phone's voice.", 503);
 
   const k = cacheKey(language, text);
+  if (!keep) {
+    cache.delete(k);
+    if (!chargeBudget(text.length)) throw new VoiceError("Natural voice is resting for a bit. Using your phone's voice.", 429);
+    calls.set(k, (calls.get(k) ?? 0) + 1);
+    callStarted.set(k, ++seq);
+    try { return { audio: await vendor(key, code, text), cached: false }; } finally {
+      const n = (calls.get(k) ?? 1) - 1;
+      if (n > 0) calls.set(k, n); else calls.delete(k);
+      if (!calls.has(k) && !inflight.has(k)) callStarted.delete(k);
+      cache.delete(k); // a page read-aloud of the same text that finished meanwhile must not keep it either
+    }
+  }
   const hit = cache.get(k);
   if (hit) { cache.delete(k); cache.set(k, hit); return { audio: hit, cached: true }; } // refresh LRU order
   const pending = inflight.get(k);
   if (pending) return { audio: await pending, cached: true };
   if (!chargeBudget(text.length)) throw new VoiceError("Natural voice is resting for a bit. Using your phone's voice.", 429);
 
-  const job = vendor(key, code, text).finally(() => inflight.delete(k));
+  const began = ++seq;
+  const callAtStart = calls.has(k); // a call already running for this text when this request began
+  const job = vendor(key, code, text);
   inflight.set(k, job);
-  const audio = await job;
+  let audio: ArrayBuffer;
+  try { audio = await job; } finally {
+    // removed here, not in a .finally on the job, so a call's cleanup can never run between this and the check below
+    if (inflight.get(k) === job) inflight.delete(k);
+  }
+  const overlapped = callAtStart || calls.has(k) || (callStarted.get(k) ?? 0) > began;
+  if (!calls.has(k)) callStarted.delete(k);
+  if (overlapped) return { audio, cached: false };
   cache.set(k, audio);
   if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
   return { audio, cached: false };

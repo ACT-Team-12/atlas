@@ -135,6 +135,11 @@ A("\u039f\u0394\u039f\u03a3 \u039a\u0391\u0399", "\u03bf\u03b4\u03bf\u03c3", "Gr
 A("\u03bf\u03b4\u03bf\u03c2 \u03ba\u03b1\u03b9", "\u039f\u0394\u039f\u03a3", "Greek lowercase final sigma in source, capitals in quote");
 A("\u03a3\u03a3 \u03b4\u03cc\u03c3\u03b7", "\u03c3\u03c2 \u03b4\u03cc\u03c3\u03b7", "Greek sigma pair");
 A("\u{1D400}\u{10400} x", "\u{1D400}\u{10428} x", "math bold A (no case) next to a Deseret capital");
+A("Dose İ 5 mg", "̇ 5 mg", "match starting inside the U+0130 expansion (must refuse)");
+A("Dose İ 5 mg", "Dose i", "match ending inside the U+0130 expansion (must refuse)");
+A("İlaç", "̇laç", "word starting inside the U+0130 expansion (must refuse)");
+A("İ 5 mg, then ̇ 5 mg", "̇ 5 mg", "unaligned occurrence first, aligned one later");
+A("Dose İ 5 mg", "İ 5 MG", "whole U+0130 on both sides");
 A("\u{10400}\u{10401} dose", "\u{10428}\u{10429} dose", "Deseret capitals in source, small letters in quote");
 A("\u{10400}\u{10401} dose", "\u{10400}\u{10401} dose", "Deseret capitals on both sides");
 A("take 1 tablet. take 1 tablet. take 1 tablet.", "take 1 tablet", "repeated substring");
@@ -260,23 +265,48 @@ for (const [i, c] of cases.entries()) {
   out.push({ i, origin: c.origin, source: c.source, quote: c.quote, span: a, same });
 }
 
+// The batch export the browser calls (one mapping per source) must give, quote by quote, what the TS checker gives.
+const bySource = new Map();
+for (const [i, c] of cases.entries()) {
+  const src = resolveSource(c.source);
+  if (!bySource.has(src)) bySource.set(src, []);
+  bySource.get(src).push(i);
+}
+for (const [src, idx] of bySource) {
+  const got = rust.findSpans(src, idx.map((i) => cases[i].quote));
+  idx.forEach((i, k) => {
+    const a = enc(ts.findSpan(src, cases[i].quote));
+    const b = enc(got[k]);
+    if (JSON.stringify(a) !== JSON.stringify(b)) mismatches.push({ what: "findSpans", case: i, quote: cases[i].quote, ts: a, rust: b });
+  });
+}
+
 // Outcomes that must hold in BOTH implementations, not just agree.
 const MUST = [
   ["Take a seat.", "Take ... 5 ... mg", false],
   ["Take 1 tablet by mouth daily.", "Take 1 tablet ... daily", true],
   ["\u039f\u0394\u039f\u03a3 \u039a\u0391\u0399", "\u039f\u0394\u039f\u03a3", true],
   ["\u{10400}\u{10401} dose", "\u{10400}\u{10401} dose", true],
+  ["Dose İ 5 mg", "̇ 5 mg", false],
+  ["Dose İ 5 mg", "Dose i", false],
+  // At the request limits (20,000-character source, 600-character quote): an unaligned occurrence at every odd
+  // position and none aligned. The old search re-compared the whole quote at each one, O(source * quote).
+  ["\u0130".repeat(20000), "\u0307i".repeat(300), false],
 ];
 // Exact spans that must hold in both (the U+0130 map shift used to break these).
 const MUST_SPAN = [
   ["\u0130la\u00e7 g\u00fcnde iki kez", "g\u00fcnde iki kez", 5, 18],
   ["\u0130\u0130\u0130 abc", "abc", 4, 7],
   ["\u0130 take 1 tablet daily with food", "take 1 tablet", 2, 15],
+  ["\u0130 5 mg, then \u0307 5 mg", "\u0307 5 mg", 13, 19],
+  // The one aligned occurrence comes after ~20,000 unaligned ones.
+  ["\u0130".repeat(20000) + " \u0307" + "\u0130".repeat(299), "\u0307i".repeat(299) + "\u0307", 20001, 20301],
 ];
 for (const [src, q, s0, e0] of MUST_SPAN) {
   for (const [name, impl] of [["ts", ts], ["rust", rust]]) {
-    const r = impl.findSpan(src, q);
-    if (!r || r.start !== s0 || r.end !== e0) mismatches.push({ what: "must span", impl: name, source: src, quote: q, got: r, expected: [s0, e0] });
+    for (const r of [impl.findSpan(src, q), ...(name === "rust" ? impl.findSpans(src, [q]) : [])]) {
+      if (!r || r.start !== s0 || r.end !== e0) mismatches.push({ what: "must span", impl: name, source: src, quote: q, got: r, expected: [s0, e0] });
+    }
   }
 }
 for (const [src, q, found] of MUST) {

@@ -16,7 +16,11 @@ const KIND_LABEL: Record<string, string> = {
  * the paper's own line under every step, verified numbers, and room for a helper's notes.
  * Rendered into <body> and shown only while printing it (see .atlas-sheet rules in globals.css).
  */
-export function HandoffSheet({ items, plan, questions, language }: { items: VerifiedItem[]; plan: PlanResponse | null; questions: string[]; language: string }) {
+export function HandoffSheet({ items, plan, questions, language, alsoOnPaper = [] }: {
+  items: VerifiedItem[]; plan: PlanResponse | null; questions: string[]; language: string;
+  /** Instruction-like lines no step quotes (lib/missedLines). Empty when there are none or the check can't read the paper. */
+  alsoOnPaper?: string[];
+}) {
   // true only in the browser, so the portal never renders on the server
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   if (!mounted) return null;
@@ -43,6 +47,14 @@ export function HandoffSheet({ items, plan, questions, language }: { items: Veri
           </li>
         ))}
       </ol>
+
+      {alsoOnPaper.length > 0 && (
+        <>
+          <h2>Also on your paper</h2>
+          <p className="meta">These look like instructions but are not steps above. Read them yourself or ask your helper.</p>
+          <ul>{alsoOnPaper.map((t, n) => <li key={n}>&ldquo;{t}&rdquo;</li>)}</ul>
+        </>
+      )}
 
       {plan && plan.steps.length > 0 && (
         <>

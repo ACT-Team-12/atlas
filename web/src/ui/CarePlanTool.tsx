@@ -26,6 +26,7 @@ import {
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
 import { SPEECH_LANG } from "@/lib/speechLang";
+import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun, type DeviceVerdict } from "@/lib/deviceRun";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -36,7 +37,6 @@ const KIND: Record<string, { label: string; cls: string }> = {
   warning_sign: { label: "Warning sign", cls: "bg-red-soft text-red" },
 };
 
-type DeviceVerdict = "match" | "differ" | "missing";
 
 /** Id for a saved plan. randomUUID needs a secure page; the fallback is fine for a local key. */
 function newPlanId() {
@@ -235,8 +235,9 @@ export function CarePlanTool() {
   const meaningFor = useRef("");
   // The same quote checker, run again on this device (WebAssembly, loaded only after a read). Per step: did the
   // browser find the same words in the same place as the server?
-  // Stored with the reading it belongs to, so a newer read never shows an older result.
-  const [deviceRun, setDeviceRun] = useState<{ for: CarePlanResponse | null; ok: boolean; byId: Record<string, DeviceVerdict> }>({ for: null, ok: false, byId: {} });
+  // Stored with the id of the reading it belongs to (never the reading, which holds the paper), so a newer read
+  // never shows an older result and Clear leaves nothing of the paper behind.
+  const [deviceRun, setDeviceRun] = useState<DeviceRun>(NO_DEVICE_RUN);
   const loaded = useRef(false);
   const [speaking, setSpeaking] = useState(false);
   const speechRun = useRef(0);
@@ -281,7 +282,7 @@ export function CarePlanTool() {
     meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setPhotoChecked(false); setReadLevel(null);
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
-    setTab(1);
+    setTab(1); setDeviceRun(NO_DEVICE_RUN);
   }
 
   // One-time load after hydration (localStorage does not exist during the server render).
@@ -567,9 +568,9 @@ export function CarePlanTool() {
           const mine = spans[k];
           byId[it.id] = sameSpan(it.span, mine) ? "match" : mine ? "differ" : "missing";
         });
-        if (live) setDeviceRun({ for: care, ok: true, byId });
+        if (live) setDeviceRun({ run: runIdFor(care), ok: true, byId });
       })
-      .catch(() => { if (live) setDeviceRun({ for: care, ok: false, byId: {} }); });
+      .catch(() => { if (live) setDeviceRun({ run: runIdFor(care), ok: false, byId: {} }); });
     return () => { live = false; };
   }, [care, deviceWanted]);
 
@@ -598,8 +599,7 @@ export function CarePlanTool() {
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
-  const deviceStatus: "idle" | "loading" | "done" | "error" =
-    !care || needsPhotoCheck || care.items.length === 0 ? "idle" : deviceRun.for !== care ? "loading" : deviceRun.ok ? "done" : "error";
+  const deviceStatus = deviceStatusOf(care, needsPhotoCheck, deviceRun);
   const flow = { hasCare: !!care, hasPlan: !!plan };
   const openName = store.plans.find((p) => p.id === store.active)?.name ?? null;
   // The person changed our reading of their photo. Accepting or re-reading the old text would silently drop their fix.

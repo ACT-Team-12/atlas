@@ -6,7 +6,7 @@ export const MAX_RECORD_SECONDS = 20;
 
 /** The first recording format this browser can make: WebM/Opus on Chrome, Firefox and Android; MP4 on Safari. */
 export function pickMimeType(isSupported: (t: string) => boolean): string | null {
-  for (const t of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]) if (isSupported(t)) return t;
+  for (const t of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]) if (isSupported(t)) return t;
   return null;
 }
 

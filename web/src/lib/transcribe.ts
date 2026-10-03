@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { LANGUAGES } from "./schema";
+import { measureAudio } from "./audioMeasure";
 import {
   CLIENT_DAILY_SECONDS, CLIENT_HOURLY_SECONDS, clientKey, envPrefix, SITE_DAILY_SECONDS, SITE_HOURLY_SECONDS, tokenKey, type Ask, type UsageStore,
 } from "./sttUsage";
@@ -21,7 +22,8 @@ import {
  *
  * Paid per second of audio, so the route only serves a quiz /api/understand issued (a signed quiz token), and every
  * limit in sttUsage.ts (uses per token, audio-seconds per client and for the whole site, per hour and per day) is
- * reserved in one shared all-or-nothing step BEFORE the provider is called, then settled to the length it reports.
+ * reserved in one shared all-or-nothing step BEFORE the provider is called, sized by the length measured from the
+ * file itself (over 35 s is refused unsent), then settled to the length the provider reports.
  */
 export const STT_MODEL = "nova-3";
 export const GATEWAY_STT_MODEL = "spacexai/grok-stt";
@@ -43,16 +45,8 @@ export const PROVIDER_NAME: Record<SttProvider, string> = { deepgram: "Deepgram"
 export const MAX_AUDIO_BYTES = 512_000;
 /** The quiz records 20 s; anything the provider says is longer than this is refused, not returned. */
 export const MAX_AUDIO_SECONDS = 35;
-/**
- * The budget never trusts a length it has not measured: each call reserves the most audio its byte count could
- * hold at the lowest bitrate its codec goes (Opus 6 kbps, AAC 16 kbps), then settles to what the provider reports.
- */
-export function reserveFor(bytes: number, type: string): number {
-  const floor = type === "audio/mp4" ? 16_000 : 6_000;
-  return Math.max(30, Math.ceil((bytes * 8) / floor));
-}
 /** Browsers record WebM/Opus (Chrome, Firefox, Android) or MP4/AAC (Safari); both providers read both containers. */
-export const AUDIO_TYPES = ["audio/webm", "audio/mp4", "audio/ogg"] as const;
+export const AUDIO_TYPES = ["audio/webm", "audio/mp4"] as const;
 export const QUIZ_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 /** Uses per quiz token: one answer per question plus a few retries. A quiz has 1 to 20 questions. */
 export const usesFor = (questions: number) => Math.min(20, Math.max(1, Math.floor(questions))) + 3;
@@ -136,7 +130,11 @@ export async function answerAloud(req: {
   if (questions === null) throw new TranscribeError("Start the quiz again to answer out loud.", 403);
 
   const p = envPrefix(), hour = Math.floor(now / 3_600_000), day = Math.floor(now / 86_400_000);
-  const client = clientKey(req.ip), reserved = reserveFor(req.audio.byteLength, req.type);
+  // Measured from the file (audioMeasure.ts), never from the sender's Content-Type or timestamps.
+  const measured = measureAudio(req.audio);
+  if (!measured || measured.container !== req.type) throw new TranscribeError("We couldn't read that recording. Try again, or tap your answer.", 415);
+  if (measured.seconds > MAX_AUDIO_SECONDS) throw new TranscribeError(TOO_LONG, 413);
+  const client = clientKey(req.ip), reserved = Math.max(1, Math.ceil(measured.seconds));
   const site = [{ bucket: `${p}gh`, win: hour }, { bucket: `${p}gd`, win: day }];
   const mine = [{ bucket: `${p}ch:${client}`, win: hour }, { bucket: `${p}cd:${client}`, win: day }];
   const asks: Ask[] = [

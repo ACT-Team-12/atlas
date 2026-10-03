@@ -21,7 +21,7 @@ export async function GET() {
 }
 
 /**
- * Body: the raw recording (audio/webm, audio/mp4 or audio/ogg, at most 512 KB).
+ * Body: the raw recording (audio/webm with Opus, or audio/mp4 with AAC; at most 512 KB and 35 s, both measured).
  * Query: language and token (the quiz token /api/understand issued). Returns { transcript } and nothing else.
  * Every check that costs nothing runs first; the shared budget is reserved only for a valid recording.
  */

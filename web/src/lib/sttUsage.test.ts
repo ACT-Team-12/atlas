@@ -4,10 +4,10 @@ import { readFileSync } from "node:fs";
 import {
   clientKey, CLIENT_HOURLY_SECONDS, memoryUsageStore, normalizeIp, pgUsageStore, SITE_HOURLY_SECONDS, type UsageStore,
 } from "./sttUsage";
-import { answerAloud, issueQuizToken, reserveFor, usesFor } from "./transcribe";
+import { answerAloud, issueQuizToken, usesFor } from "./transcribe";
 
 const SECRET = "s3cret";
-const audio = (n = 4000) => new Uint8Array(n).fill(3);
+const audio = () => new Uint8Array(readFileSync(new URL("./__fixtures__/short.webm", import.meta.url)));
 const dg = (transcript: string, duration = 4) =>
   new Response(JSON.stringify({ metadata: { duration }, results: { channels: [{ alternatives: [{ transcript }] }] } }), { status: 200 });
 // Real time, not a fixed date: the Postgres store deletes rows whose window has passed by the database clock.
@@ -66,7 +66,7 @@ function budgetRules(name: string, makeStore: () => Promise<{ store: UsageStore;
       fetchMock.mockResolvedValue(new Response("bad audio", { status: 400 }));
       await expect(ask()).rejects.toMatchObject({ status: 502 });
       expect(await s.used("lgh", hour)).toBe(0);
-      expect(await s.used(`lch:${clientKey("1.2.3.4", SECRET)}`, hour)).toBe(reserveFor(4000, "audio/webm"));
+      expect(await s.used(`lch:${clientKey("1.2.3.4", SECRET)}`, hour)).toBe(2); // the measured 1.04 s clip, rounded up
     });
 
     it("a provider outage or timeout leaves no site budget behind (nothing sticks)", async () => {
@@ -99,7 +99,7 @@ function budgetRules(name: string, makeStore: () => Promise<{ store: UsageStore;
 
     it("reserves before calling the provider: an over-budget request never reaches it", async () => {
       await s.store.adjust([]);
-      await s.store.reserve([{ bucket: "lgh", win: hour, amount: SITE_HOURLY_SECONDS - 10, cap: SITE_HOURLY_SECONDS, ttlSec: 7200 }], T);
+      await s.store.reserve([{ bucket: "lgh", win: hour, amount: SITE_HOURLY_SECONDS - 1, cap: SITE_HOURLY_SECONDS, ttlSec: 7200 }], T);
       await expect(ask()).rejects.toMatchObject({ status: 429 });
       expect(fetchMock).not.toHaveBeenCalled();
     });

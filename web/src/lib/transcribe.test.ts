@@ -1,10 +1,11 @@
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const aiMock = vi.hoisted(() => ({ transcribe: vi.fn() }));
 vi.mock("ai", () => ({ gateway: { transcription: (id: string) => ({ id }) }, transcribe: aiMock.transcribe }));
 import { GET, POST } from "@/app/api/transcribe/route";
 import { LANGUAGES } from "./schema";
 import {
-  answerAloud, GATEWAY_STT_MODEL, issueQuizToken, MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS, QUIZ_TOKEN_TTL_MS, reserveFor, STT_LANG, sttProvider, usesFor,
+  answerAloud, GATEWAY_STT_MODEL, issueQuizToken, MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS, QUIZ_TOKEN_TTL_MS, STT_LANG, sttProvider, usesFor,
   verifyQuizToken,
 } from "./transcribe";
 import { localUsageForTests, SITE_HOURLY_SECONDS } from "./sttUsage";
@@ -14,6 +15,7 @@ const resetTranscribeStateForTests = () => { store = localUsageForTests(); };
 
 const SECRET = "s3cret";
 const audio = (n = 4000) => new Uint8Array(n).fill(3);
+const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url)));
 const dg = (transcript: string, duration = 4) =>
   new Response(JSON.stringify({ metadata: { duration }, results: { channels: [{ alternatives: [{ transcript }] }] } }), { status: 200 });
 
@@ -25,7 +27,7 @@ function post(opts: { token?: string | null; language?: string; body?: Uint8Arra
   return POST(new Request(`http://localhost/api/transcribe?${qs}`, {
     method: "POST",
     headers: { "content-type": opts.type ?? "audio/webm", "x-real-ip": `10.0.0.${++ip % 250}`, ...opts.headers },
-    body: (opts.body ?? audio()) as BodyInit,
+    body: (opts.body ?? fixture("short.webm")) as BodyInit,
   }));
 }
 
@@ -103,7 +105,7 @@ describe("say your answer (speech to text)", () => {
 
   it("sends nova-3, the language, smart_format and the model-improvement opt-out, and returns only the transcript", async () => {
     fetchMock.mockResolvedValue(dg(" Two tablets in the morning. "));
-    const r = await post({ language: "Spanish", type: "audio/mp4" });
+    const r = await post({ language: "Spanish", type: "audio/mp4", body: fixture("short.m4a") });
     expect(r.status).toBe(200);
     expect(await r.json()).toEqual({ transcript: "Two tablets in the morning." });
     const [url, init] = fetchMock.mock.calls[0];
@@ -125,7 +127,7 @@ describe("say your answer (speech to text)", () => {
 
   it("refuses Amharic with 422 without calling out", async () => {
     const token = issueQuizToken("Amharic", 5, SECRET)!;
-    await expect(answerAloud({ audio: audio(), type: "audio/webm", language: "Amharic", token, ip: "1.1.1.1", store })).rejects.toMatchObject({ status: 422 });
+    await expect(answerAloud({ audio: fixture("short.webm"), type: "audio/webm", language: "Amharic", token, ip: "1.1.1.1", store })).rejects.toMatchObject({ status: 422 });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -196,10 +198,8 @@ describe("gateway path (no Deepgram key)", () => {
   });
 });
 
-describe("caps cannot be slipped (security review lead, 2026-10-02)", () => {
+describe("the file is measured, not the sender's word (Codex review, 2026-10-02)", () => {
   const fetchMock = vi.fn();
-  const T = Date.UTC(2026, 9, 2, 12);
-  const go = (bytes: number) => answerAloud({ audio: audio(bytes), type: "audio/webm", language: "English", token: issueQuizToken("English", 5, SECRET, T)!, ip: "2.2.2.2", now: T, store });
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("DEEPGRAM_API_KEY", "dg-test");
@@ -210,15 +210,43 @@ describe("caps cannot be slipped (security review lead, 2026-10-02)", () => {
   });
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
-  it("reserves an upper bound from the byte count, so a low-bitrate file cannot sneak hours past the budget", async () => {
-    expect(reserveFor(4000, "audio/webm")).toBe(30);
-    expect(reserveFor(MAX_AUDIO_BYTES, "audio/webm")).toBeGreaterThan(600);
-    await expect(go(MAX_AUDIO_BYTES)).rejects.toMatchObject({ status: 429 });
+  it("refuses a body whose bytes do not match its Content-Type, or that is not a recording at all", async () => {
+    expect((await post({ body: fixture("short.webm"), type: "audio/mp4" })).status).toBe(415);
+    expect((await post({ body: new Uint8Array(4000).fill(3) })).status).toBe(415);
+    expect((await post({ body: fixture("short.webm"), type: "audio/ogg" })).status).toBe(415);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("refuses a recording measured over 35 s before any paid call, however small the file", async () => {
+    expect((await post({ body: fixture("long45.webm") })).status).toBe(413);
+    expect((await post({ body: fixture("long45-frag.mp4"), type: "audio/mp4" })).status).toBe(413);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reserves the measured length, not a guess from the byte count", async () => {
+    fetchMock.mockImplementation(async () => { const hour = Math.floor(Date.now() / 3_600_000); seen.push(store.used("lgh", hour)); return dg("ok", 1); });
+    const seen: number[] = [];
+    expect((await post({ body: fixture("short.webm") })).status).toBe(200);
+    expect(seen).toEqual([2]); // 1.04 s of audio, reserved as 2 s (rounded up) while the call ran
+  });
+});
+
+describe("caps cannot be slipped (security review lead, 2026-10-02)", () => {
+  const fetchMock = vi.fn();
+  const T = Date.UTC(2026, 9, 2, 12);
+  const go = () => answerAloud({ audio: fixture("short.webm"), type: "audio/webm", language: "English", token: issueQuizToken("English", 5, SECRET, T)!, ip: "2.2.2.2", now: T, store });
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("DEEPGRAM_API_KEY", "dg-test");
+    vi.stubEnv("FEEDBACK_SECRET", SECRET);
+    fetchMock.mockReset();
+    resetTranscribeStateForTests();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
+
   it("refuses a recording longer than the quiz allows instead of returning its words", async () => {
     fetchMock.mockResolvedValue(dg("a very long speech", MAX_AUDIO_SECONDS + 10));
-    await expect(go(4000)).rejects.toMatchObject({ status: 413 });
+    await expect(go()).rejects.toMatchObject({ status: 413 });
   });
 });

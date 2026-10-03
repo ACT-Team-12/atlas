@@ -200,3 +200,23 @@ describe("Codex re-review: a conditional mention of arriving is not the arrival 
     ["On the day of your procedure, arrive at 7:00 AM.", "arrival"],
   ])("an instruction or a stated arrival time is still arrival: %s", (q, slot) => expect(placed(q)).toBe(slot));
 });
+
+describe("Codex round 4: a sentence ends at its period whatever the next letter's case", () => {
+  it.each([
+    "Take bisacodyl. stop iron 3 days before your procedure.",
+    "take bisacodyl. stop iron 3 days before your procedure.",
+    "Take bisacodyl.stop iron 3 days before your procedure.",
+    "Take bisacodyl! stop iron 3 days before your procedure.",
+    "Take your pill at 8 a.m. Stop iron 3 days before your procedure.",
+    "Take 5 mg. Stop iron 3 days before your procedure.",
+  ])("%s: the first instruction stays unplaced", (q) => {
+    expect(readWhen(q).slot).toBeNull();
+  });
+
+  it.each([
+    ["Arrive at 6:45 a.m. the morning of your procedure.", "Arrive at 6:45 a.m. the morning of your procedure."],
+    ["Call Dr. Lee 7 days before your procedure.", "Call Dr. Lee 7 days before your procedure."],
+    ["Take 2.5 mg 2 hours before your procedure.", "Take 2.5 mg 2 hours before your procedure."],
+    ["Bring snacks, drinks, etc. Stop iron 3 days before your procedure.", "Bring snacks, drinks, etc."],
+  ])("explicit exceptions: %s", (q, first) => expect(firstClause(q)).toBe(first));
+});

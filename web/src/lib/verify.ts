@@ -1,4 +1,5 @@
 import type { CareItem, VerifiedItem } from "./schema";
+import { LINE_BREAK as LINE_END, sentenceEndAt } from "./sentences";
 
 /**
  * Span verifier: the deterministic check that keeps the AI honest.
@@ -87,31 +88,12 @@ export function findSpan(source: string, quote: string): { start: number; end: n
   return { start: starts[first], end: ends[lastEnd - 1] };
 }
 
-const LINE_END = /[\r\n\v\f\u0085\u2028\u2029]/;
-const CLOSERS = /["'”’)\]]/;
-/** A period after one of these does not end a sentence ("Dr. Lee", "7 a.m. the morning of", "1. Take"). */
-const ABBREVIATION = /(?:^|[^\p{L}\p{N}.])(?:dr|mr|mrs|ms|st|sr|jr|no|vs|etc|approx|apt|ste|ave|rd|blvd|mt|ft|oz|tbsp|tsp|e\.g|i\.e|a\.m|p\.m|[ap]|\d{1,2})$/iu;
-
-/** If a sentence ends at `i` (a . ! or ?), the index just past it and any closing quote or bracket; otherwise -1. */
-function sentenceEndAt(src: string, i: number, lineEnd: number): number {
-  if (!/[.!?]/.test(src[i])) return -1;
-  let k = i + 1;
-  while (k < lineEnd && CLOSERS.test(src[k])) k++;
-  if (k < lineEnd && !/\s/.test(src[k])) return -1;
-  let n = k;
-  while (n < lineEnd && /\s/.test(src[n])) n++;
-  // A lowercase word next ("7 a.m. the morning of") means the sentence goes on.
-  if (n < lineEnd && /\p{Ll}/u.test(src[n])) return -1;
-  if (src[i] === "." && ABBREVIATION.test(src.slice(Math.max(0, i - 12), i))) return -1;
-  return k;
-}
-
 /**
  * The whole sentence (or sentences) around a matched span: back to the start of the sentence the span starts in and
  * on to the end of the sentence it ends in, never past a line break. A list marker ("- ", "1. ", "• ") at the start
  * of the line is left out. Showing this, not the model's copy, means a quote can't leave out the words around it:
  * "take it the morning of your procedure" is shown as "If you take insulin, do not take it the morning of your
- * procedure." Sentence ends are read conservatively, so when in doubt more of the line is shown, never less.
+ * procedure." Sentence ends come from the shared scanner (sentences.ts), the same one prep reads time words with.
  */
 export function enclosingSentence(source: string, span: { start: number; end: number }): { start: number; end: number } {
   let lineStart = span.start;

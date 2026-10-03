@@ -126,3 +126,12 @@ describe("Codex round 4: a sentence too long to carry is refused, never cut to t
     expect(verifyItems(paper, [item("Call us with questions")]).kept[0].source_quote).toBe("Call us with questions.");
   });
 });
+
+describe("Codex round 4: the care plan's sentence ends at a period followed by a lowercase word", () => {
+  it("keeps two lowercase sentences apart, and keeps the explicit exceptions together", () => {
+    const paper = "Take bisacodyl. stop iron 3 days before. See Dr. Lee at 7 a.m. the next day.\n1. Take 2.5 mg daily.";
+    expect(verifyItems(paper, [item("Take bisacodyl")]).kept[0].source_quote).toBe("Take bisacodyl.");
+    expect(verifyItems(paper, [item("Lee at 7")]).kept[0].source_quote).toBe("See Dr. Lee at 7 a.m. the next day.");
+    expect(verifyItems(paper, [item("2.5 mg daily")]).kept[0].source_quote).toBe("Take 2.5 mg daily.");
+  });
+});

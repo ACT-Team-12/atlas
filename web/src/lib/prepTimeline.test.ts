@@ -351,3 +351,19 @@ describe("Codex re-review: a changed number written as a word in another languag
     expect(r.ask[0].numbers_blocked).toBe(false);
   });
 });
+
+describe("Codex round 4: the widened sentence never borrows the next sentence's time", () => {
+  const paper = "PREP SHEET (sample)\n- Take bisacodyl. stop iron 3 days before your procedure.\n- take your pill.Stop drinking 2 hours before your procedure.";
+  const one = (quote: string) => {
+    const r = buildPrepTimeline(paper, [item({ source_quote: quote, plain_language: "" })]);
+    return [...r.timeline.flatMap((g) => g.steps), ...r.ask][0];
+  };
+  it("lowercase after the period", () => {
+    expect(one("Take bisacodyl")).toMatchObject({ source_quote: "Take bisacodyl.", slot: null });
+    expect(one("stop iron 3 days before")).toMatchObject({ source_quote: "stop iron 3 days before your procedure.", slot: "days_before" });
+  });
+  it("OCR text with no space after the period", () => {
+    expect(one("take your pill")).toMatchObject({ source_quote: "take your pill.", slot: null });
+    expect(one("Stop drinking 2 hours")).toMatchObject({ source_quote: "Stop drinking 2 hours before your procedure.", slot: "hours_before" });
+  });
+});

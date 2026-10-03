@@ -8,6 +8,8 @@
  * Pure functions, no network, no AI. Safe to import in the browser.
  */
 
+import { firstSentenceEnd, LINE_BREAK as SENTENCE_LINE_BREAK } from "./sentences";
+
 export const SLOTS = ["days_before", "day_before", "evening_before", "day_of", "hours_before", "morning_of", "arrival", "after"] as const;
 export type Slot = (typeof SLOTS)[number];
 
@@ -88,7 +90,7 @@ const ARRIVAL_AS_TIME = new RegExp(
  * Every character that ends a line. CR and LF are not the only ones: U+0085 (next line), U+2028 (line separator),
  * U+2029 (paragraph separator), vertical tab and form feed all start a new line when a paper is pasted or copied.
  */
-export const LINE_BREAK = /[\r\n\v\f\u0085\u2028\u2029]/;
+export const LINE_BREAK = SENTENCE_LINE_BREAK;
 
 type Hit = { slot: Slot; text: string; at: number };
 
@@ -131,8 +133,9 @@ export function firstClause(quote: string): string {
   const t = quote.replace(/\s+/g, " ").trim();
   const ellipsis = t.search(/\.\.\.|…/);
   const head = ellipsis >= 0 ? t.slice(0, ellipsis) : t;
-  const end = head.search(/[.!?](?=\s+["'(]?[A-Z0-9])/);
-  return (end >= 0 ? head.slice(0, end + 1) : head).trim();
+  // The same sentence scanner the page uses to widen a quote to its sentence (sentences.ts).
+  const end = firstSentenceEnd(head);
+  return (end >= 0 ? head.slice(0, end) : head).trim();
 }
 
 /**

@@ -19,7 +19,7 @@ export type ExplainState = "certified" | "checking" | "flagged" | "unclear" | "n
 
 export const EXPLAIN_NOTE: Record<Exclude<ExplainState, "certified" | "none">, string> = {
   checking: "Checking the plain-words explanation against your paper. Until then, read your paper's words above.",
-  numbers: "Plain-words explanation hidden: it had a number your paper doesn't say. Read your paper's words above.",
+  numbers: "Plain-words explanation hidden: it had a number your paper doesn't say, or one our code couldn't read. Read your paper's words above.",
   negation: "No plain-words explanation for this one: it has a \"do not\", \"stop\" or \"until\" (or is in a language our code can't check for one), so read your paper's own words above.",
   flagged: "Plain-words explanation hidden: a second check found it may not match your paper. Read your paper's words above.",
   unclear: "Plain-words explanation hidden: a second check couldn't confirm it matches your paper. Read your paper's words above.",

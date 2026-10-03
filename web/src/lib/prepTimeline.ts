@@ -2,7 +2,7 @@ import { z } from "zod";
 import { LANGUAGES } from "./schema";
 import { negationBlocked } from "./prepCues";
 import { enclosingSentence, findSpan } from "./verify";
-import { unexpectedNumbersAnyForm } from "./meaning";
+import { numberCheckAnyForm } from "./meaning";
 import { LINE_BREAK, PREP_KINDS, readWhen, SLOTS, SLOT_LABEL, type PrepKind, type Slot, type WhenReason } from "./prepTime";
 
 /**
@@ -122,7 +122,8 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[], langua
     if ((it.ai_slot === "not_stated" ? null : it.ai_slot) !== when.slot) overridden++;
     const plain = clip(it.plain_language, 600);
     // A number in the AI's words (digits or "two", "twice") that the paper's line doesn't have blocks the explanation.
-    const blocked = plain !== "" && unexpectedNumbersAnyForm({ plain_language: plain, source_quote: quote }, language).length > 0;
+    const nums = numberCheckAnyForm({ plain_language: plain, source_quote: quote }, language);
+    const blocked = plain !== "" && (nums.unexpected.length > 0 || nums.uncheckable);
     // A "do not", "stop" or "until" in the paper's sentence or in the explanation blocks it (prepCues.ts).
     const negBlocked = !blocked && plain !== "" && negationBlocked(quote, plain, language);
     kept.push({

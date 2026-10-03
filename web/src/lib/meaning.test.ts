@@ -76,9 +76,9 @@ describe("Codex re-review: number words in every explanation language", () => {
     expect(unexpectedNumbers({ plain_language: "Take 3 tablets.", source_quote: two }, "English")).toEqual(["3"]);
   });
 
-  it("Amharic: a line with a number is never certified, since its number words can't be read", () => {
+  it("Amharic: never certified, with or without a number, since its number words can't be read (Codex round 4)", () => {
     const am = { id: "x", plain_language: "ሁለት ጽላቶችን ይውሰዱ።", when: "", source_quote: two };
     expect(combine("x", am, "same", "", "Amharic").certified).toBe(false);
-    expect(combine("x", { ...am, source_quote: "Take your tablets by mouth." }, "same", "", "Amharic").certified).toBe(true);
+    expect(combine("x", { ...am, source_quote: "Take your tablets by mouth." }, "same", "", "Amharic").certified).toBe(false);
   });
 });

@@ -3,7 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { ExtractError } from "./extract";
 import { LANGUAGES } from "./schema";
-import { numberWords, type NumberLanguage } from "./numberWords";
+import { readNumberWords, type NumberLanguage } from "./numberWords";
 
 /**
  * Meaning check: does each plain-language explanation say the same thing as the line it quotes?
@@ -57,41 +57,57 @@ export function numbersIn(text: string): string[] {
   return [...out];
 }
 
-/** Numbers a quote (or its "when") allows: digits, English words, and number words in the explanation's language. */
-function allowedNumbers(item: { when?: string; source_quote: string }, language?: NumberLanguage): Set<string> {
-  const texts = [item.source_quote, item.when ?? ""];
-  return new Set(texts.flatMap((t) => [...numbersIn(t), ...(language ? numberWords(t, language) : [])]));
+type NumItem = { plain_language: string; when?: string; source_quote: string };
+export type NumberCheck = { unexpected: string[]; uncheckable: boolean };
+const digitsIn = (t: string) => [...t.matchAll(/\d+(?:[.,]\d+)*/g)].map((m) => m[0].replace(/,(?=\d{3}\b)/g, ""));
+
+/**
+ * What a quote (or its "when") allows: digits, English number words, and number words in the explanation's language.
+ * `uncheckable` when the quote itself has numeral text that can't be read ("½ tablet").
+ */
+function quoteNumbers(item: { when?: string; source_quote: string }, language?: NumberLanguage): { allowed: Set<string>; uncheckable: boolean } {
+  const allowed = new Set<string>();
+  let uncheckable = false;
+  for (const t of [item.source_quote, item.when ?? ""]) {
+    numbersIn(t).forEach((n) => allowed.add(n));
+    const en = readNumberWords(t, "English");
+    en.numbers.forEach((n) => allowed.add(n));
+    uncheckable ||= en.uncheckable;
+    if (language && language !== "English" && language !== "Amharic") readNumberWords(t, language).numbers.forEach((n) => allowed.add(n));
+  }
+  return { allowed, uncheckable };
 }
 
 /**
- * Deterministic signal: numbers in the explanation that the quote (or when) does not contain.
+ * Deterministic signal for the care plan: numbers in the explanation that the quote (or when) does not contain.
  * A total the paper states elsewhere in the same quote is fine; an invented dose or interval is not.
- * Digits always count against the explanation. Number words count too when the explanation's language is given and
- * is not English ("Tome tres tabletas" against "Take 2 tablets"); English words stay out on this path, as before,
- * because "one of the lab locations" is not a dose.
+ * Digits always count. Number words count too when the explanation's language is given and is not English ("Tome
+ * tres tabletas" against "Take 2 tablets"); English words stay out on this path, as before, because "one of the lab
+ * locations" is not a dose (the second model covers English words). `uncheckable` (numeral text that can't be read,
+ * or any Amharic explanation) means the explanation can never be certified.
  */
-export function unexpectedNumbers(item: { plain_language: string; when?: string; source_quote: string }, language?: NumberLanguage): string[] {
-  const allowed = allowedNumbers(item, language);
-  const digitsInPlain = [...item.plain_language.matchAll(/\d+(?:[.,]\d+)*/g)].map((m) => m[0].replace(/,(?=\d{3}\b)/g, ""));
-  const wordsInPlain = language && language !== "English" ? numberWords(item.plain_language, language) : [];
-  return [...new Set([...digitsInPlain, ...wordsInPlain].filter((n) => !allowed.has(n)))];
+export function numberCheck(item: NumItem, language?: NumberLanguage): NumberCheck {
+  const q = quoteNumbers(item, language);
+  const plain = language && language !== "English" ? readNumberWords(item.plain_language, language) : null;
+  const foreignDigits = readNumberWords(item.plain_language.replace(/\p{L}/gu, " "), "English").uncheckable;
+  const unexpected = [...new Set([...digitsIn(item.plain_language), ...(plain?.numbers ?? [])])].filter((n) => !q.allowed.has(n));
+  return { unexpected, uncheckable: language === "Amharic" || q.uncheckable || foreignDigits || !!plain?.uncheckable };
 }
-
-/** Amharic number words can't be read (numberWords.ts), so an Amharic explanation of a line with a number can't be checked. */
-export const numbersUncheckable = (item: { when?: string; source_quote: string }, language?: NumberLanguage) =>
-  language === "Amharic" && numbersIn(`${item.source_quote} ${item.when ?? ""}`).length > 0;
+export const unexpectedNumbers = (item: NumItem, language?: NumberLanguage): string[] => numberCheck(item, language).unexpected;
 
 /**
- * Stricter form for prep mode: digits AND English number words ("two", "twice") in the explanation must be in the
- * quote (as digits or words). "Take four tablets" against "Take 2 tablets" is caught; "two" against "2" is fine.
- * Number words in Spanish, French, Vietnamese, Korean and Chinese are read too (numberWords.ts); Amharic ones are not,
- * and prep mode never shows an Amharic explanation. The second-model check still has to certify the explanation.
+ * Stricter form for prep mode: digits AND number words (English, and the explanation's language) in the explanation
+ * must be in the quote, as digits or words. "Take four tablets" or "Tome cuatro tabletas" against "Take 2 tablets" is
+ * caught; "two" or "dos" against "2" is fine. Numeral text that can't be read makes it uncheckable, which blocks it.
  */
-export function unexpectedNumbersAnyForm(item: { plain_language: string; when?: string; source_quote: string }, language: NumberLanguage = "English"): string[] {
-  const allowed = allowedNumbers(item, language);
-  const inPlain = new Set([...numbersIn(item.plain_language), ...numberWords(item.plain_language, language)]);
-  return [...inPlain].filter((n) => !allowed.has(n));
+export function numberCheckAnyForm(item: NumItem, language: NumberLanguage = "English"): NumberCheck {
+  const q = quoteNumbers(item, language);
+  const en = readNumberWords(item.plain_language, "English");
+  const own = language === "English" ? en : readNumberWords(item.plain_language, language);
+  const inPlain = new Set([...numbersIn(item.plain_language), ...en.numbers, ...own.numbers]);
+  return { unexpected: [...inPlain].filter((n) => !q.allowed.has(n)), uncheckable: q.uncheckable || own.uncheckable || (language === "English" && en.uncheckable) };
 }
+export const unexpectedNumbersAnyForm = (item: NumItem, language: NumberLanguage = "English"): string[] => numberCheckAnyForm(item, language).unexpected;
 
 const ModelOutput = z.object({
   results: z.array(z.object({ id: z.string(), verdict: z.enum(["same", "different", "unclear"]), what_differs: z.string() })),
@@ -106,9 +122,8 @@ Compare ONLY: the action (start, stop, take, avoid, call, go), the medicine or t
 Do not invent words that are not in the line. Never judge whether the medical advice is good.`;
 
 export function combine(id: string, item: MeaningRequest["items"][number], verdict: MeaningResult["model_verdict"], what: string, language?: NumberLanguage): MeaningResult {
-  const unexpected = unexpectedNumbers(item, language);
+  const { unexpected, uncheckable } = numberCheck(item, language);
   // An explanation whose numbers can't be read is never certified; with no clash found it shows as "couldn't check".
-  const uncheckable = numbersUncheckable(item, language);
   return {
     id,
     numbers_ok: unexpected.length === 0,

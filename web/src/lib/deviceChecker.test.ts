@@ -261,4 +261,28 @@ describe("the page's cached checker", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(checker.findSpans("Take 1 tablet daily.", ["take 1 tablet"])).toEqual([{ start: 0, end: 13 }]);
   });
+
+  it("Clear aborts a download that never finishes, so nothing waiting on it (and the paper it holds) is kept", async () => {
+    vi.stubGlobal("window", {});
+    // A request that stalls forever unless its signal aborts, as a real fetch does.
+    const signals: AbortSignal[] = [];
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      const signal = init?.signal;
+      if (!signal) return new Promise<Response>(() => {});
+      signals.push(signal);
+      return new Promise<Response>((_, reject) => signal.addEventListener("abort", () => reject(signal.reason)));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const loads: Promise<unknown>[] = [];
+    for (let k = 0; k < 5; k++) {
+      const p = loadDeviceChecker();
+      loads.push(p.then(() => "loaded", () => "settled"));
+      forgetDeviceChecker(); // "Clear it from this device" while the wasm is still downloading
+    }
+    // Every stalled load settles once cleared; without the abort these promises would never resolve.
+    expect(await Promise.all(loads)).toEqual(Array(5).fill("settled"));
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(signals).toHaveLength(5);
+    expect(signals.every((s) => s.aborted)).toBe(true);
+  });
 });

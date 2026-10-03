@@ -112,6 +112,9 @@ let loading: Promise<DeviceChecker> | null = null;
 // Bumped by forgetDeviceChecker. A load started before a Clear never hands out its checker, so a screen still
 // waiting on it cannot copy the cleared paper into it.
 let generation = 0;
+// Aborts the download of the load in flight. Clear calls it, so a stalled request settles now and every screen
+// awaiting it (which holds the paper it meant to check) lets go, instead of waiting on the network indefinitely.
+let abortLoad: AbortController | null = null;
 
 /** Fetches and instantiates the checker once per page. A failed load is not cached, so a later read can retry. */
 export function loadDeviceChecker(): Promise<DeviceChecker> {
@@ -120,8 +123,9 @@ export function loadDeviceChecker(): Promise<DeviceChecker> {
   }
   if (loading) return loading;
   const gen = generation;
+  const ac = new AbortController();
   const p: Promise<DeviceChecker> = (async () => {
-    const res = await fetch(WASM_URL);
+    const res = await fetch(WASM_URL, { signal: ac.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${WASM_URL}`);
     // instantiateStreaming needs the application/wasm content type; fall back to bytes when a host sends another.
     let checker: DeviceChecker;
@@ -139,17 +143,20 @@ export function loadDeviceChecker(): Promise<DeviceChecker> {
     throw e;
   });
   loading = p;
+  abortLoad = ac;
   return p;
 }
 
 /**
  * Drops the cached checker, for "Clear it from this device": the next read loads a fresh instance, and a load still
- * in flight never hands out its checker. Every check already leaves no copy of the paper in the instance's memory;
- * this also lets the instance itself be collected.
+ * in flight is aborted and never hands out its checker. Every check already leaves no copy of the paper in the
+ * instance's memory; this also lets the instance itself be collected.
  */
 export function forgetDeviceChecker(): void {
   generation++;
   loading = null;
+  abortLoad?.abort();
+  abortLoad = null;
 }
 
 /** "match" when the device found the same span as the server (or both found nothing). */

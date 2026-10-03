@@ -219,7 +219,8 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         val text = text; val level = level; val language = language
         task = viewModelScope.launch {
             try {
-                val result = api.extract(text, level, language)
+                // An older server leaves out the language; the steps were still written in the one asked for.
+                val result = api.extract(text, level, language).let { if (it.language == null) it.copy(language = language) else it }
                 care = result
                 plan = null
                 planFp = null
@@ -310,7 +311,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     // ---- Saved on this phone
 
     private fun restore() {
-        val saved = store.load() ?: return
+        val saved = store.load()?.upgraded() ?: return
         restoring = true
         text = saved.text; language = saved.language; level = saved.level
         care = saved.care; barriers.clear(); barriers.addAll(saved.barriers)

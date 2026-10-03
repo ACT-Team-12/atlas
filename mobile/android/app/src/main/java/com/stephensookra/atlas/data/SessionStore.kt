@@ -23,7 +23,25 @@ data class SavedSession(
     val planFingerprint: String? = null,
     /** Epoch milliseconds. */
     val savedAt: Long,
-)
+) {
+    /**
+     * A file saved by the 1.0 app has no fingerprints and its steps carry no language, so the outdated note could never show.
+     * Rebuild both from what was saved: the steps were read from the saved text at the saved language and reading level
+     * (1.0 saved the inputs every time they changed, so these are the last ones entered, the best record there is), and the
+     * plan from the steps still kept, the barriers, the note and the ZIP (the device location is never saved). Files that
+     * already carry fingerprints come back unchanged.
+     */
+    fun upgraded(): SavedSession {
+        val care = care?.let { if (it.language == null) it.copy(language = language) else it }
+        val readFp = readFingerprint ?: care?.let { StaleGuard.readFingerprint(text, it.language ?: language, level) }
+        val planFp = planFingerprint ?: plan?.let {
+            val kept = care?.items.orEmpty().filter { removed[it.id] != true }.map { it.id }
+            val zip = if (Regex("^\\d{5}$").matches(zip)) zip else ""
+            StaleGuard.planFingerprint(kept, barriers, care?.language ?: language, note, StaleGuard.place(null, zip), null)
+        }
+        return copy(care = care, readFingerprint = readFp, planFingerprint = planFp)
+    }
+}
 
 /**
  * JSON in the app's private files directory. The manifest turns off backup and device transfer for

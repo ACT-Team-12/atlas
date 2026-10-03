@@ -44,6 +44,46 @@ class SessionFixesTest {
         )
     }
 
+    // ---- Bug 1: a 1.0 plan never looked outdated
+
+    @Test fun legacyPlanIsUpToDateUntilAHelperLinkChangesTheLanguage() {
+        val dir = tempDir(); legacyFile(dir, savedAt = 1_000L)
+        val model = AppModel(TestApp(dir))
+        assertNotNull(model.care)
+        assertFalse("nothing changed yet", model.careOutdated)
+        model.applyHelperLink(HelperPresets(language = Language.Vietnamese))
+        assertTrue("the helper link picked another language, so the Spanish steps are outdated", model.careOutdated)
+    }
+
+    @Test fun legacyPlanTurnsOutdatedOnAReadingLevelChangeToo() {
+        val dir = tempDir(); legacyFile(dir, savedAt = 1_000L)
+        val model = AppModel(TestApp(dir))
+        model.applyHelperLink(HelperPresets(level = ReadingLevel.detailed))
+        assertTrue(model.careOutdated)
+        model.applyHelperLink(HelperPresets(level = ReadingLevel.simple))
+        assertFalse("back to what it was read at", model.careOutdated)
+    }
+
+    @Test fun legacyPlanGetsAPlanFingerprintSoAChangedLanguageTurnsItsActionsOff() {
+        val dir = tempDir(); legacyFile(dir, savedAt = 1_000L, withPlan = true)
+        val model = AppModel(TestApp(dir))
+        assertNotNull(model.plan)
+        assertFalse(model.planOutdated)
+        model.updateLanguage(Language.Korean)
+        assertTrue(model.planOutdated)
+    }
+
+    @Test fun upgradeLeavesNewFilesAloneAndRecordsTheLanguageOnTheSteps() {
+        val dir = tempDir(); legacyFile(dir, savedAt = 1_000L)
+        val up = SessionStore(dir).load()!!.upgraded()
+        assertEquals(Language.Spanish, up.care!!.language)
+        assertEquals(StaleGuard.readFingerprint(up.text, Language.Spanish, ReadingLevel.simple), up.readFingerprint)
+        val already = up.copy(readFingerprint = "kept as is", planFingerprint = "this too")
+        assertEquals(already, already.upgraded())
+        val empty = SavedSession(text = "", language = Language.English, level = ReadingLevel.simple, savedAt = 1)
+        assertEquals(empty, empty.upgraded())
+    }
+
     // ---- Missed lines follow Remove and Undo
 
     @Test fun missedLinesFollowRemoveAndUndo() {

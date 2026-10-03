@@ -854,6 +854,23 @@ describe("the call flow", () => {
       expect(startRefusal("no-db")[1]).toContain("Nothing was saved"); // only when the delete was confirmed
     });
 
+    it("logs (kind only, never the number) when a cap refusal or a Vonage refusal cannot delete its session", async () => {
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      store.failDrops = true;
+      store.counters.set(`code:${phoneHash(SECRET, "+14045552368")}:2026-10-02`, 3);
+      expect((await startCall(deps(), input())).state).toBe("capped-code");
+      store.counters.clear();
+      store.counterEnds.clear();
+      store.rows.clear();
+      fetchImpl = vi.fn(async () => new Response("nope", { status: 401 })) as unknown as typeof fetchImpl;
+      expect((await startCall(deps(), input())).state).toBe("failed");
+      const logged = err.mock.calls.map((c) => String(c[0]));
+      expect(logged).toContain("call session not deleted after a cap refusal; the sweep will remove it");
+      expect(logged).toContain("call session not deleted after Vonage refused the code call; the sweep will remove it");
+      expect(JSON.stringify(err.mock.calls)).not.toMatch(/4045552368|2368/);
+      err.mockRestore();
+    });
+
     it("an insert error after the row was saved tries the delete, and says kept only when the delete also fails", async () => {
       store.failAfterInsert = true;
       expect(await startCall(deps(), input())).toEqual({ state: "no-db" });

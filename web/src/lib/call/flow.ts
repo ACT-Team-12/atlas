@@ -143,7 +143,7 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
     return (await store.drop(id)) ? { state: "no-db" } : { state: "no-db", kept: true };
   }
   if (!r.ok) {
-    await store.drop(id);
+    if (!(await store.drop(id))) console.error("call session not deleted after a cap refusal; the sweep will remove it");
     return { state: slots[r.refused].why };
   }
   const placed = await placeCall({
@@ -160,7 +160,7 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
       await store.markPlaced(id, "code", "unknown", null, now);
       return { state: "calling", id, last4: last4(phone), uncertain: true };
     }
-    await store.drop(id);
+    if (!(await store.drop(id))) console.error("call session not deleted after Vonage refused the code call; the sweep will remove it");
     return { state: "failed" };
   }
   await store.markPlaced(id, "code", "placed", placed.uuid, now);

@@ -127,6 +127,9 @@ fun CareStepsScreen(model: AppModel) {
             }
         }
 
+        // Where the website puts it: after the steps and the removed, not-in-paper and held-back lists, before moving on.
+        MissedLinesSection(model.missedLines)
+
         if (model.careOutdated) {
             PillButton("Read my paper again", onClick = { speaker.stop(); model.readPaper() },
                 fill = Palette.ink, textColor = Palette.paper, shadow = Palette.mint)

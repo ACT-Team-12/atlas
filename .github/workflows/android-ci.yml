@@ -1,9 +1,9 @@
 name: android-ci
 on:
   push:
-    paths: ["mobile/android/**", ".github/workflows/android-ci.yml"]
+    paths: ["mobile/android/**", "mobile/shared/**", ".github/workflows/android-ci.yml"]
   pull_request:
-    paths: ["mobile/android/**", ".github/workflows/android-ci.yml"]
+    paths: ["mobile/android/**", "mobile/shared/**", ".github/workflows/android-ci.yml"]
 concurrency:
   group: android-ci-${{ github.ref }}
   cancel-in-progress: true

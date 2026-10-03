@@ -94,6 +94,8 @@ data class CarePlanResponse(
     val language: Language? = null,
     val model: String = "",
     val stats: CareStats,
+    /** The "Lines on your paper we didn't turn into steps" check (MissedLines). Missing from older servers and saved plans. */
+    val missed_lines: MissedLinesPayload? = null,
 )
 
 // ---------- /api/plan ----------

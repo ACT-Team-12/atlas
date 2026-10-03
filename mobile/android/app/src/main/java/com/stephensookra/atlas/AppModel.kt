@@ -21,6 +21,8 @@ import com.stephensookra.atlas.data.HelperPresets
 import com.stephensookra.atlas.data.MeaningRequest
 import com.stephensookra.atlas.data.MeaningState
 import com.stephensookra.atlas.data.MeaningStatus
+import com.stephensookra.atlas.data.MissedLines
+import com.stephensookra.atlas.data.MissedLinesView
 import com.stephensookra.atlas.data.StaleGuard
 import com.stephensookra.atlas.data.Language
 import com.stephensookra.atlas.data.LatLng
@@ -112,6 +114,9 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     val canRead: Boolean get() = text.trim().length > 20 && busy == null
     val canPlan: Boolean get() = busy == null && !(barriers.isEmpty() && items.isEmpty()) && !careOutdated
     fun checkFor(id: String): Check = meaning.checkFor(id)
+
+    /** "Lines on your paper we didn't turn into steps", for the steps still kept: follows every Remove and Undo. */
+    val missedLines: MissedLinesView get() = MissedLines.view(care?.missed_lines, items.map { it.id })
 
     /** The steps on screen were read from different text, language or reading level than what is entered now. */
     val careOutdated: Boolean get() = care != null && readFp != null && readFp != StaleGuard.readFingerprint(text, language, level)

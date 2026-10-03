@@ -1,4 +1,8 @@
-import { checkCoverage, splitSentences, type CoverageItem, type CoverageLang, type UncoveredSentence } from "./coverage";
+import {
+  checkCoverage, criticalRanges, instructionSentences, quotedRanges, splitSentences,
+  type CoverageItem, type CoverageLang, type UncoveredSentence,
+} from "./coverage";
+import { normalize } from "./verify";
 
 /**
  * View logic for the "Lines on your paper we didn't turn into steps" section (ui/MissedLines.tsx).
@@ -14,7 +18,8 @@ import { checkCoverage, splitSentences, type CoverageItem, type CoverageLang, ty
  */
 
 export type MissedLinesView =
-  | { show: false; why: "empty" | "unsupported_language" | "no_instructions" }
+  /** "invalid": a missed_lines payload broke a rule in missedLinesPayloadValid (only from missedFromPayload). */
+  | { show: false; why: "empty" | "unsupported_language" | "no_instructions" | "invalid" }
   | { show: true; languages: CoverageLang[]; total: number; covered: number; lines: UncoveredSentence[] };
 
 /* Words that are common in one language and rare in the others. Ambiguous ones (en, de, la, que, no, si)
@@ -143,6 +148,152 @@ export function missedLinesAnnouncement(view: MissedLinesView): string {
   const n = view.lines.length;
   if (n === 0) return "Every instruction-like line on your paper is in a step.";
   return `${n === 1 ? "1 line" : `${n} lines`} on your paper ${n === 1 ? "looks" : "look"} like instructions but ${n === 1 ? "is" : "are"} not in a step. Open "Lines on your paper we didn't turn into steps" to read ${n === 1 ? "it" : "them"}.`;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The same check, returned by POST /api/extract so the phone apps never match text themselves. */
+/* ------------------------------------------------------------------------------------------ */
+
+/** A [start, end) pair of UTF-16 offsets into source_text. Clients only compare these numbers; they never slice with them. */
+export type OffsetRange = [number, number];
+
+/**
+ * `missed_lines` on the /api/extract response (and on the stream's final "done" plan). It lets a client
+ * rebuild missedLinesView for ANY set of removed steps with integer comparisons only: no text matching,
+ * no Unicode normalization.
+ *
+ * Coverage is NOT a per-item property. checkCoverage merges every kept item's quoted stretches first, so a
+ * number can be covered only by two items' quotes together (one ends where the next begins), and a line
+ * also counts as covered when a word-for-word repeat of it elsewhere is covered. So the payload carries
+ * the raw pieces, and the client runs the same small interval check:
+ *
+ *  show false: hide the section and announce nothing. `why` never depends on which steps are kept.
+ *  show true:
+ *   1. R = the `quotes[id]` ranges of every KEPT item id (an id missing from `quotes` adds nothing).
+ *   2. Sort R by start. Merge into M: walking in order, a range whose start <= the last merged end extends
+ *      it (end = max of the two ends); otherwise it starts a new merged range. Touching ranges merge.
+ *   3. Sentence s is matched when some range m in M has m.start < s.end and m.end > s.start, AND for every
+ *      [a, b] in s.critical some m in M has m.start <= a and m.end >= b.
+ *   4. A sentence is covered when ANY sentence with the same `group` is matched.
+ *   5. lines = the sentences that are not covered, in array order; covered = total - lines.length,
+ *      where total = sentences.length.
+ */
+export type MissedLinesPayload =
+  | { show: false; why: "empty" | "unsupported_language" | "no_instructions" }
+  | {
+      show: true;
+      languages: CoverageLang[];
+      /** Each item id's quoted stretches of the paper. Items that quote nothing locatable are left out. */
+      quotes: Record<string, OffsetRange[]>;
+      /** Every instruction-like sentence on the paper, in reading order. */
+      sentences: {
+        text: string;
+        start: number;
+        end: number;
+        reason: UncoveredSentence["reason"];
+        /** Numbers and stop / not / never / avoid words: each must sit inside ONE merged kept range. */
+        critical: OffsetRange[];
+        /** Index (into sentences) of the first sentence with the same normalized text. Its own index if none earlier. */
+        group: number;
+      }[];
+    };
+
+/**
+ * Builds `missed_lines` for a plan. `items` are ALL the kept items, with the spans the verifier found.
+ * Pure and deterministic; no model call.
+ */
+export function missedLinesPayload(source: string, items: (CoverageItem & { id: string })[]): MissedLinesPayload {
+  if (!source.trim()) return { show: false, why: "empty" };
+  const languages = paperLanguages(source);
+  if (!languages) return { show: false, why: "unsupported_language" };
+  const found = instructionSentences(source, { languages });
+  if (found.length === 0) return { show: false, why: "no_instructions" };
+
+  const quotes = Object.fromEntries(
+    items
+      .map((it) => [it.id, quotedRanges(source, it).map((r): OffsetRange => [r.start, r.end])] as const)
+      .filter(([, r]) => r.length > 0),
+  );
+  const firstByText = new Map<string, number>();
+  const sentences = found.map((s, i) => {
+    const key = normalize(s.text);
+    if (!firstByText.has(key)) firstByText.set(key, i);
+    return {
+      text: s.text, start: s.start, end: s.end, reason: s.reason,
+      critical: criticalRanges(s).map((r): OffsetRange => [r.start, r.end]),
+      group: firstByText.get(key)!,
+    };
+  });
+  return { show: true, languages, quotes, sentences };
+}
+
+const isOffset = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 0 && n <= 0x7fffffff;
+
+/**
+ * The rules every client checks before computing anything from a show:true payload (the Android app has the
+ * same rules in MissedLines.valid). `sourceLength` is the UTF-16 length of the response's source_text when known.
+ *  - at least one sentence (with none, "every line is in a step" would be vacuous);
+ *  - every range is two integers with 0 <= start < end, and end <= sourceLength when it is known;
+ *  - each sentence's critical ranges sit inside that sentence;
+ *  - each group points at an earlier-or-same sentence that is its own group's first (group(group) === group);
+ *  - every sentence reads the same as its group's first once normalized: a covered line can only vouch for a
+ *    word-for-word repeat of itself, never for an unrelated line put in its group.
+ * Offsets also fit a 32-bit signed integer, the phone apps' type. It takes `unknown` on purpose: the payload arrives as JSON, and a range like [-1, 2147483647] (which overlaps
+ * every sentence) would otherwise claim the whole paper is covered.
+ */
+export function missedLinesPayloadValid(payload: unknown, sourceLength?: number): boolean {
+  const limit = sourceLength ?? Number.MAX_SAFE_INTEGER;
+  const range = (r: unknown): r is OffsetRange =>
+    Array.isArray(r) && r.length === 2 && isOffset(r[0]) && isOffset(r[1]) && r[0] < r[1] && r[1] <= limit;
+  if (typeof payload !== "object" || payload === null) return false;
+  const p = payload as { show?: unknown; languages?: unknown; quotes?: unknown; sentences?: unknown };
+  if (p.show !== true || !Array.isArray(p.languages) || !Array.isArray(p.sentences) || p.sentences.length === 0) return false;
+  if (!p.languages.every((l) => typeof l === "string")) return false;
+  if (typeof p.quotes !== "object" || p.quotes === null || Array.isArray(p.quotes)) return false;
+  const sentences = p.sentences as unknown[];
+  for (let i = 0; i < sentences.length; i++) {
+    const s = sentences[i] as { text?: unknown; start?: unknown; end?: unknown; critical?: unknown; group?: unknown } | null;
+    if (typeof s !== "object" || s === null || typeof s.text !== "string") return false;
+    if (!range([s.start, s.end])) return false;
+    const [start, end] = [s.start as number, s.end as number];
+    if (!Array.isArray(s.critical) || !s.critical.every((c) => range(c) && c[0] >= start && c[1] <= end)) return false;
+    const g = s.group;
+    if (typeof g !== "number" || !Number.isSafeInteger(g) || g < 0 || g > i) return false;
+    const first = sentences[g] as { group?: unknown; text?: unknown };
+    if (first.group !== g) return false;
+    if (g !== i && normalize(s.text) !== normalize(first.text as string)) return false;
+  }
+  return Object.values(p.quotes).every((rs) => Array.isArray(rs) && rs.every(range));
+}
+
+/**
+ * The reference client: missedLinesView rebuilt from the payload and the ids of the steps still kept.
+ * Equal to missedLinesView(source, keptItems) for every removal set (see missedLines.test.ts). A show:true
+ * payload that breaks a rule in missedLinesPayloadValid is hidden as "invalid": no list, no all-covered claim.
+ */
+export function missedFromPayload(payload: MissedLinesPayload, keptIds: Iterable<string>, sourceLength?: number): MissedLinesView {
+  if (!payload.show) return { show: false, why: payload.why };
+  if (!missedLinesPayloadValid(payload, sourceLength)) return { show: false, why: "invalid" };
+  const ranges: OffsetRange[] = [];
+  for (const id of new Set(keptIds)) if (Object.prototype.hasOwnProperty.call(payload.quotes, id)) ranges.push(...payload.quotes[id]);
+  ranges.sort((a, b) => a[0] - b[0]);
+  const merged: OffsetRange[] = [];
+  for (const [start, end] of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+
+  const matchedGroups = new Set<number>();
+  for (const s of payload.sentences) {
+    const overlaps = merged.some(([a, b]) => a < s.end && b > s.start);
+    if (overlaps && s.critical.every(([a, b]) => merged.some(([ms, me]) => ms <= a && me >= b))) matchedGroups.add(s.group);
+  }
+  const lines = payload.sentences
+    .filter((s) => !matchedGroups.has(s.group))
+    .map(({ text, start, end, reason }) => ({ text, start, end, reason }));
+  const total = payload.sentences.length;
+  return { show: true, languages: payload.languages, total, covered: total - lines.length, lines };
 }
 
 /** "1 line" / "3 lines", for the collapsed heading's badge. */

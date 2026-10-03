@@ -347,7 +347,7 @@ const ELLIPSIS = /\.\.\.|…/;
  * fragment to the last, which would also "cover" whatever the model skipped with "...". So a quote with an
  * ellipsis is located fragment by fragment, in order, inside that envelope.
  */
-function quotedRanges(source: string, it: CoverageItem): { start: number; end: number }[] {
+export function quotedRanges(source: string, it: CoverageItem): { start: number; end: number }[] {
   const env = it.span ?? findSpan(source, it.source_quote);
   if (!env || env.end <= env.start) return [];
   if (!ELLIPSIS.test(it.source_quote)) return [env];
@@ -365,6 +365,29 @@ function quotedRanges(source: string, it: CoverageItem): { start: number; end: n
 
 /** Words and numbers a partial quote must not drop: every one in a sentence has to sit inside a quote. */
 const CRITICAL = /\p{N}+(?:[.,]\p{N}+)*|\b(?:stop|not|don['’]t|dont|never|avoid|no)\b/giu;
+
+/**
+ * The [start, end) offsets, into the paper, of every number and stop / not / never / avoid word in a sentence:
+ * the tokens checkCoverage requires to sit inside one merged quote. Same regex, same order as checkCoverage.
+ */
+export function criticalRanges(s: Sentence): { start: number; end: number }[] {
+  const out: { start: number; end: number }[] = [];
+  const re = new RegExp(CRITICAL.source, CRITICAL.flags);
+  for (let m = re.exec(s.text); m; m = re.exec(s.text)) {
+    out.push({ start: s.start + m.index, end: s.start + m.index + m[0].length });
+  }
+  return out;
+}
+
+/** The paper's instruction-like sentences, in reading order, exactly as checkCoverage finds them. */
+export function instructionSentences(source: string, options: CoverageOptions = {}): UncoveredSentence[] {
+  const out: UncoveredSentence[] = [];
+  for (const s of splitSentences(source)) {
+    const reason = classifySentence(s.text, options);
+    if (reason) out.push({ ...s, reason });
+  }
+  return out;
+}
 
 /**
  * Compares the paper's instruction-like sentences with the kept items' quotes.

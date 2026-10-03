@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { findSpan, verifyItems } from "./verify";
+import { readFileSync } from "node:fs";
+import { findSpan, findSpanIn, indexOfAligned, mapSource, normalize, verifyItem, verifyItems } from "./verify";
 import { SAMPLE_AVS } from "./sample";
+import { PAPERS, fakesFor } from "./checkerTest";
 import { dedupe } from "./extract";
 
 const item = (source_quote: string) => ({
@@ -66,6 +68,128 @@ describe("findSpan", () => {
     // Deseret capitals (surrogate pairs) used to be lower-cased only in the quote.
     expect(findSpan("\u{10400}\u{10401} dose", "\u{10400}\u{10401} dose")).toEqual({ start: 0, end: 9 });
     expect(findSpan("\u{10400}\u{10401} dose", "\u{10428}\u{10429} dose")).toEqual({ start: 0, end: 9 });
+  });
+
+  it("never starts or ends a match inside one character's case expansion", () => {
+    // "İ" lower-cases to "i" + U+0307. A quote may not begin at the U+0307 half...
+    expect(findSpan("Dose İ 5 mg", "̇ 5 mg")).toBeNull();
+    expect(findSpan("İlaç", "̇laç")).toBeNull();
+    // ...nor end at the "i" half, which used to widen the highlight to the whole "İ".
+    expect(findSpan("Dose İ 5 mg", "Dose i")).toBeNull();
+    // The whole character still matches.
+    expect(findSpan("Dose İ 5 mg", "dose İ 5 mg")).toEqual({ start: 0, end: 11 });
+    expect(findSpan("Dose İ 5 mg", "İ 5 mg")).toEqual({ start: 5, end: 11 });
+  });
+
+  it("keeps searching past an unaligned occurrence to a later aligned one", () => {
+    // The first "̇ 5 mg" is inside "İ"; the second is a real combining dot, its own source character.
+    const src = "İ 5 mg, then ̇ 5 mg";
+    expect(findSpan(src, "̇ 5 mg")).toEqual({ start: 13, end: 19 });
+  });
+});
+
+/** The fragment a single-fragment quote must match, by the checker's own rules. */
+const fragmentOf = (q: string) => normalize(q).replace(/^["'\s]+|["'\s]+$/g, "").trim();
+
+describe("oracle: every highlighted slice normalizes to the fragment it matched", () => {
+  const cases: [string, string][] = [];
+  for (const p of PAPERS) {
+    for (const e of [...p.expected, ...p.distractors]) cases.push([p.text, e]);
+    for (const e of p.expected) for (const f of fakesFor(e)) cases.push([p.text, f.text]);
+    // Substrings of each line, including ones that start or end mid-word.
+    for (const line of p.text.split("\n").filter((l) => l.trim().length > 6)) {
+      for (let a = 0; a < line.length - 3; a += 3) for (let b = a + 3; b <= line.length; b += 5) cases.push([p.text, line.slice(a, b)]);
+    }
+  }
+  // Every code-point substring of strings full of case expansions, as-is and upper-cased.
+  for (const src of ["İlaç günde İki kez ΟΔΟΣ \u{10400}\u{10401} \u{1F48A} dose 5 mg", "Dose İ 5 mg, then ̇ 5 mg"]) {
+    const cps = Array.from(src);
+    for (let a = 0; a < cps.length; a++) {
+      for (let b = a + 1; b <= cps.length; b++) {
+        cases.push([src, cps.slice(a, b).join("")]);
+        cases.push([src, cps.slice(a, b).join("").toUpperCase()]);
+      }
+    }
+  }
+
+  it("holds on every case that is found", () => {
+    let found = 0;
+    const bad: string[] = [];
+    // Thousands of quotes against a few papers: map each paper once (findSpan is findSpanIn on a fresh map).
+    const maps = new Map<string, ReturnType<typeof mapSource>>();
+    for (const [src, q] of cases) {
+      if (/\.\.\.|…/.test(q)) continue;
+      if (!maps.has(src)) maps.set(src, mapSource(src));
+      const span = findSpanIn(maps.get(src)!, q);
+      if (!span) continue;
+      found++;
+      if (normalize(src.slice(span.start, span.end)) !== fragmentOf(q)) bad.push(JSON.stringify([q, src.slice(span.start, span.end)]));
+    }
+    expect(found).toBeGreaterThan(1000);
+    expect(bad).toEqual([]);
+  });
+});
+
+describe("findSpan on adversarial input at the request limits", () => {
+  // 20,000-character source, 600-character quote, 40 items (schema.ts limits). Every odd normalized position starts
+  // an occurrence of the quote, and every one of them begins inside a U+0130 expansion, so none may count. A search
+  // that re-compares the whole quote at each such occurrence is O(source * quote) and took ~10 s for 40 items.
+  // Wall-clock time is load-dependent, so these tests count the matcher's steps; scripts/bench-checker.mjs times it.
+  const source = "İ".repeat(20000);
+  const quote = "̇i".repeat(300);
+
+  it("refuses every one of 40 limit-sized items", () => {
+    const { kept, refused } = verifyItems(source, Array.from({ length: 40 }, () => item(quote)));
+    expect(kept).toHaveLength(0);
+    expect(refused).toHaveLength(40);
+  });
+
+  /** Steps the matcher takes for one search of `q` in `src` (pattern preprocessing plus the scan). */
+  const stepsFor = (src: string, q: string) => {
+    const m = mapSource(src);
+    const stats = { steps: 0 };
+    expect(indexOfAligned(m.norm, normalize(q), 0, m.boundary, stats)).toBe(-1);
+    return { steps: stats.steps, hay: m.norm.length, needle: normalize(q).length };
+  };
+
+  it("does at most 2 steps per source unit and quote unit (linear, not source * quote)", () => {
+    const r = stepsFor(source, quote);
+    expect(r.hay).toBe(40000);
+    expect(r.needle).toBe(600);
+    expect(r.steps).toBeLessThanOrEqual(2 * (r.hay + r.needle));
+  });
+
+  it("4x the source and quote costs about 4x the steps, not 16x", () => {
+    const small = stepsFor("İ".repeat(5000), "̇i".repeat(75)).steps;
+    const big = stepsFor("İ".repeat(20000), "̇i".repeat(300)).steps;
+    expect(big / small).toBeLessThanOrEqual(4.5);
+  });
+
+  it("still finds the one aligned occurrence after ~20,000 unaligned ones", () => {
+    // The tail is a standalone U+0307 followed by 299 U+0130: the quote begins on that standalone mark (a boundary)
+    // and ends after the last U+0130's full expansion, so this is the first and only occurrence that may count.
+    const src = "İ".repeat(20000) + " ̇" + "İ".repeat(299);
+    const q = "̇i".repeat(299) + "̇";
+    expect(src.length).toBe(20301);
+    expect(findSpan(src, q)).toEqual({ start: 20001, end: 20301 });
+    expect(findSpanIn(mapSource(src), q)).toEqual({ start: 20001, end: 20301 });
+  });
+});
+
+describe("request-scoped source map", () => {
+  it("findSpanIn on one mapSource gives the same answer as findSpan, quote by quote", () => {
+    const mapped = mapSource(SAMPLE_AVS);
+    for (const q of ["Take 1 tablet by mouth 2 times a day with meals.", "Hemoglobin A1c ... due in 3 months", "Increase insulin to 20 units", ""]) {
+      expect(findSpanIn(mapped, q), q).toEqual(findSpan(SAMPLE_AVS, q));
+    }
+    expect(verifyItem(mapped, item("metformin (GLUCOPHAGE) 500 mg tablet"), 3)).toMatchObject({ id: "item-3", grounded: true });
+  });
+
+  it("verify.ts keeps no module-level mutable state, so no patient paper outlives its request", () => {
+    // A module-level cache in a warm server worker would hold the last paper (and its normalized copy) after the
+    // request ends. Any top-level let or var is refused here; the mapped source is passed explicitly instead.
+    const text = readFileSync(new URL("./verify.ts", import.meta.url), "utf8");
+    expect(text.match(/^(?:export\s+)?(?:let|var)\s+\w+/gm) ?? []).toEqual([]);
   });
 });
 

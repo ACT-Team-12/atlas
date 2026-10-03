@@ -80,6 +80,9 @@ struct CareStepsView: View {
                         }
                     }
 
+                    // Where the website puts it: after the steps and the removed, not-in-paper and held-back lists, before moving on.
+                    MissedLinesSection(view: model.missedLines)
+
                     if model.careOutdated {
                         Button("Read my paper again") {
                             speaker.stop()

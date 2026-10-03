@@ -120,9 +120,12 @@ struct CarePlanResponse: Codable, Hashable, Sendable {
     let language: Language?
     let model: String
     let stats: CareStats
+    /// The "Lines on your paper we didn't turn into steps" check (MissedLines). Missing from older servers and saved plans.
+    let missed_lines: MissedLinesPayload?
 
     enum CodingKeys: String, CodingKey {
         case source_text, source_kind, items, refused, questions_for_doctor, not_in_document, has_warning_signs, language, model, stats
+        case missed_lines
     }
 
     init(from decoder: Decoder) throws {
@@ -138,6 +141,8 @@ struct CarePlanResponse: Codable, Hashable, Sendable {
         language = (try? c.decodeIfPresent(Language.self, forKey: .language)) ?? nil
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
         stats = try c.decode(CareStats.self, forKey: .stats)
+        // A payload this app cannot read hides the section (fails closed) rather than failing the whole read.
+        missed_lines = (try? c.decodeIfPresent(MissedLinesPayload.self, forKey: .missed_lines)) ?? nil
     }
 }
 

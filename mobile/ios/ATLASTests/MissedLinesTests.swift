@@ -1,0 +1,187 @@
+import Foundation
+import Testing
+@testable import ATLAS
+
+/// The phone rebuilds "Lines on your paper we didn't turn into steps" from `missed_lines` and the ids of the steps still
+/// kept. mobile/shared/missed-lines-vectors.json (a test resource referenced from project.yml, the same file Android
+/// replays) holds the website's own answer (missedLinesView) for every fixture and kept set; this replays each one
+/// through MissedLines.view and asserts the same result.
+struct MissedLinesTests {
+    private struct Vectors: Decodable {
+        let fixtures: [Fixture]
+        struct Fixture: Decodable {
+            let name: String
+            let payload: MissedLinesPayload
+            let cases: [Case]
+        }
+        struct Case: Decodable {
+            let kept: [String]
+            let expected: Expected
+        }
+        struct Expected: Decodable {
+            let show: Bool
+            let why: String?
+            let languages: [String]?
+            let total: Int?
+            let covered: Int?
+            let lines: [String]?
+        }
+    }
+
+    static func vectorsData() throws -> Data {
+        let url = try #require(Bundle(for: Fixture.BundleToken.self).url(forResource: "missed-lines-vectors", withExtension: "json"))
+        return try Data(contentsOf: url)
+    }
+
+    private static func summary(_ e: Vectors.Expected) -> String {
+        e.show ? "show \(e.languages ?? []) \(e.total ?? -1) \(e.covered ?? -1) \(e.lines ?? [])" : "hidden \(e.why ?? "")"
+    }
+
+    private static func summary(_ v: MissedLinesView) -> String {
+        switch v {
+        case let .shown(languages, total, covered, lines): "show \(languages) \(total) \(covered) \(lines.map(\.text))"
+        case let .hidden(why): "hidden \(why)"
+        }
+    }
+
+    @Test func matchesTheWebReferenceForEveryVector() throws {
+        // The payload goes through the app's own decoder, exactly as a response or a saved plan is read.
+        let vectors = try JSONDecoder().decode(Vectors.self, from: Self.vectorsData())
+        var cases = 0, passed = 0, shownWithLines = 0
+        for f in vectors.fixtures {
+            for c in f.cases {
+                let got = MissedLines.view(f.payload, keptIDs: c.kept)
+                let want = Self.summary(c.expected), have = Self.summary(got)
+                #expect(have == want, "\(f.name) kept=\(c.kept)")
+                if have == want { passed += 1 }
+                if case let .shown(_, _, _, lines) = got, !lines.isEmpty { shownWithLines += 1 }
+                cases += 1
+            }
+        }
+        #expect(vectors.fixtures.count == 17)
+        #expect(cases == 576)
+        #expect(passed == 576)
+        #expect(shownWithLines > 400, "too few cases with missed lines: \(shownWithLines)")
+        print("missed_lines vectors: \(vectors.fixtures.count) fixtures, \(passed) of \(cases) kept sets equal to the web reference")
+    }
+
+    // MARK: Beyond the vectors
+
+    private func s(_ text: String, _ start: Int, _ end: Int, group: Int, critical: [[Int]] = []) -> MissedSentence {
+        MissedSentence(text: text, start: start, end: end, reason: "imperative", critical: critical, group: group)
+    }
+
+    private func lineCount(_ v: MissedLinesView) -> Int? {
+        if case let .shown(_, _, _, lines) = v { return lines.count }
+        return nil
+    }
+
+    @Test func absentFieldHidesTheSectionAndOldResponsesStillDecode() throws {
+        let old = try JSONDecoder().decode(CarePlanResponse.self, from: Data(#"{"items":[],"stats":{"extracted":0,"grounded":0,"refused":0,"ms":1}}"#.utf8))
+        #expect(old.missed_lines == nil)
+        let v = MissedLines.view(old.missed_lines, keptIDs: [])
+        #expect(v == .hidden(why: "missing"))
+        #expect(MissedLines.announcement(v) == "")
+    }
+
+    @Test func decodesTheServerShape() throws {
+        let care = try JSONDecoder().decode(CarePlanResponse.self, from: Data(#"""
+            {"items":[],"stats":{"extracted":0,"grounded":0,"refused":0,"ms":1},
+             "missed_lines":{"show":true,"languages":["en"],"quotes":{"a":[[0,10]]},
+             "sentences":[{"text":"Take 1 tablet daily.","start":0,"end":20,"reason":"imperative","critical":[[5,6]],"group":0}]}}
+            """#.utf8))
+        let p = try #require(care.missed_lines)
+        #expect(p.quotes["a"] == [[0, 10]])
+        #expect(MissedLines.view(p, keptIDs: ["a"]) == .shown(languages: ["en"], total: 1, covered: 1, lines: []))
+        #expect(lineCount(MissedLines.view(p, keptIDs: [])) == 1)
+        let hidden = try JSONDecoder().decode(MissedLinesPayload.self, from: Data(#"{"show":false,"why":"unsupported_language"}"#.utf8))
+        #expect(MissedLines.view(hidden, keptIDs: ["a"]) == .hidden(why: "unsupported_language"))
+        // Saved and loaded again (a saved plan keeps the check).
+        let again = try JSONDecoder().decode(CarePlanResponse.self, from: JSONEncoder().encode(care))
+        #expect(again.missed_lines == p)
+    }
+
+    @Test func aPayloadThisAppCannotReadHidesTheSectionButKeepsTheRead() throws {
+        let care = try JSONDecoder().decode(CarePlanResponse.self, from: Data(#"""
+            {"items":[],"stats":{"extracted":0,"grounded":0,"refused":0,"ms":1},
+             "missed_lines":{"show":true,"languages":["en"],"quotes":{},"sentences":[{"text":"Take it.","start":"zero","end":8,"group":0}]}}
+            """#.utf8))
+        #expect(care.missed_lines == nil)
+        #expect(MissedLines.view(care.missed_lines, keptIDs: []) == .hidden(why: "missing"))
+    }
+
+    @Test func showWithoutSentencesNeverClaimsAllCovered() {
+        #expect(MissedLines.view(MissedLinesPayload(show: true, languages: ["en"]), keptIDs: ["a"]) == .hidden(why: "no_instructions"))
+    }
+
+    @Test func touchingRangesMergeAndMalformedRangesNeverCoverALine() {
+        // A number split across two quotes: only the two together hold it.
+        let p = MissedLinesPayload(show: true, languages: ["en"],
+                                   quotes: ["a": [[0, 18]], "b": [[18, 25]], "bad": [[0]]],
+                                   sentences: [s("Take 1 tablet for 10 days.", 0, 26, group: 0, critical: [[17, 19]])])
+        func missed(_ ids: String...) -> Int? { lineCount(MissedLines.view(p, keptIDs: ids)) }
+        #expect(missed("a") == 1)
+        #expect(missed("b") == 1)
+        #expect(missed("a", "b") == 0)
+        #expect(missed("bad") == 1)
+        #expect(missed("a", "b", "a", "nope") == 0)
+        var badCritical = p
+        badCritical.sentences = [s("Take 1 tablet for 10 days.", 0, 26, group: 0, critical: [[17]])]
+        #expect(lineCount(MissedLines.view(badCritical, keptIDs: ["a", "b"])) == 1)
+    }
+
+    @Test func announcementAndBadgeMatchTheWebsiteWording() {
+        let one = MissedLinesView.shown(languages: ["en"], total: 2, covered: 1, lines: [s("Call 911.", 0, 9, group: 0)])
+        let two = MissedLinesView.shown(languages: ["en"], total: 2, covered: 0, lines: [s("Call 911.", 0, 9, group: 0), s("Take it.", 10, 18, group: 1)])
+        #expect(MissedLines.announcement(one) == "1 line on your paper looks like instructions but is not in a step. Open \"Lines on your paper we didn't turn into steps\" to read it.")
+        #expect(MissedLines.announcement(two) == "2 lines on your paper look like instructions but are not in a step. Open \"Lines on your paper we didn't turn into steps\" to read them.")
+        #expect(MissedLines.announcement(.shown(languages: ["en"], total: 2, covered: 2, lines: [])) == "Every instruction-like line on your paper is in a step.")
+        #expect(MissedLines.lineCountLabel(1) == "1 line")
+        #expect(MissedLines.lineCountLabel(3) == "3 lines")
+        #expect(MissedLines.announcement(.hidden(why: "empty")) == "")
+    }
+
+    @Test func webWordingIsCopiedExactly() throws {
+        let web = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("web/src/ui/MissedLines.tsx")
+        let src = try String(contentsOf: web, encoding: .utf8).replacingOccurrences(of: "&apos;", with: "'")
+        for text in [MissedLines.title, MissedLines.allInAStep, MissedLines.allInAStepNote, MissedLines.readThese, MissedLines.canMiss] {
+            #expect(src.contains(text), "not in MissedLines.tsx: \(text)")
+        }
+        let lib = web.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("lib/missedLines.ts")
+        let ts = try String(contentsOf: lib, encoding: .utf8)
+        #expect(ts.contains("Open \"Lines on your paper we didn't turn into steps\" to read"))
+    }
+
+    /// Recomputed from the kept steps on every Remove and Undo, through the real AppModel on a saved file.
+    @MainActor @Test func missedLinesFollowRemoveAndUndo() throws {
+        var care = try #require(JSONSerialization.jsonObject(with: Fixture.data("extract_sample_live")) as? [String: Any])
+        // Built by the server (PR 66) for this exact response; taken from the shared vectors so it is the real payload.
+        let vectors = try #require(JSONSerialization.jsonObject(with: Self.vectorsData()) as? [String: Any])
+        let fixtures = try #require(vectors["fixtures"] as? [[String: Any]])
+        let live = try #require(fixtures.first { $0["name"] as? String == "live-12-items" })
+        care["missed_lines"] = live["payload"]
+        let saved: [String: Any] = ["text": "x", "language": "English", "level": "simple", "care": care, "barriers": [String](),
+                                    "zip": "", "note": "", "done": [String: Bool](), "removed": [String: Bool](),
+                                    "savedAt": "2026-10-01T12:00:00Z"]
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = SessionStore(directory: dir)
+        try JSONSerialization.data(withJSONObject: saved).write(to: store.url)
+
+        let model = AppModel(store: store)
+        #expect(model.care?.missed_lines != nil)
+        let all = model.missedLines
+        let allCount = try #require(lineCount(all))
+        var changed = 0
+        for id in model.items.map(\.id) {
+            model.removed[id] = true
+            let after = try #require(lineCount(model.missedLines))
+            #expect(after >= allCount, "removing a step can only add lines")
+            if after > allCount { changed += 1 }
+            model.removed[id] = nil
+            #expect(model.missedLines == all, "Undo restores the section exactly")
+        }
+        #expect(changed > 0, "some removal must surface a line")
+    }
+}

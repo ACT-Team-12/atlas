@@ -76,6 +76,9 @@ final class AppModel {
 
     func check(for id: String) -> Check { meaning.check(for: id) }
 
+    /// "Lines on your paper we didn't turn into steps", for the steps still kept: follows every Remove and Undo.
+    var missedLines: MissedLinesView { MissedLines.view(care?.missed_lines, keptIDs: items.map(\.id)) }
+
     /// The steps on screen were read from different text, language or reading level than what is entered now.
     var careOutdated: Bool {
         guard care != nil, let readFingerprint else { return false }

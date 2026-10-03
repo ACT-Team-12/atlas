@@ -59,6 +59,9 @@ targets:
     platform: iOS
     sources:
       - path: ATLASTests
+      # The web reference vectors shared with Android (referenced, not copied): MissedLinesTests replays every case.
+      - path: ../shared/missed-lines-vectors.json
+        buildPhase: resources
     dependencies:
       - target: ATLAS
     settings:

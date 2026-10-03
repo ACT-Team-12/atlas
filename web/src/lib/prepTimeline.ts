@@ -10,7 +10,8 @@ import { LINE_BREAK, PREP_KINDS, readWhen, SLOTS, SLOT_LABEL, type PrepKind, typ
  * and some procedures get canceled on arrival because the prep was done wrong.
  *
  * The AI reads the prep paper and lists each instruction with a word-for-word quote. Our code then:
- * 1. checks every quote is in the paper (findSpan); anything it can't find is held back and counted, never shown;
+ * 1. checks every quote is in the paper (findSpan); anything it can't find, or any quote with an ellipsis, is held back
+ *    and counted, never shown. A kept step carries the paper's own text at the matched place, not the model's copy;
  * 2. places each kept step on the timeline from the time words in its own quote (prepTime.ts), never from the AI;
  * 3. makes the paper's own quote the step's headline. The AI's plain-words explanation is never the headline. It is
  *    blocked here when it has a number (digits or English number words) the quote doesn't, and otherwise the page
@@ -86,6 +87,8 @@ export function withinOneLine(source: string, span: { start: number; end: number
   return span.end <= lineEnd;
 }
 const clip = (s: string, n: number) => s.trim().slice(0, n);
+/** Any way of writing an ellipsis: "...", "..", ". . .", "…" (U+2026), "⋯" (U+22EF), "᠁" (U+1801), "︙" (U+FE19). */
+export const ELLIPSIS = /\.\s*\.|[\u2026\u22EF\u1801\uFE19]/;
 
 /** The deterministic part of prep mode: verify, place, group. `source` is the paper the person pasted. */
 export function buildPrepTimeline(source: string, items: PrepModelItem[]): Omit<PrepResponse, "model" | "ms"> {
@@ -93,9 +96,14 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[]): Omit<
   const heldKinds: PrepKind[] = [];
   let overridden = 0;
   items.slice(0, MAX_ITEMS).forEach((it, i) => {
-    const quote = it.source_quote.trim();
-    const span = quote ? findSpan(source, quote) : null;
+    const asked = it.source_quote.trim();
+    // An ellipsis lets a quote skip words ("If you take insulin ... take it the morning of", with "do not" dropped),
+    // and findSpan accepts the pieces in order. In prep mode such a quote is held back like one not in the paper.
+    const span = asked && !ELLIPSIS.test(asked) ? findSpan(source, asked) : null;
     if (!span) { heldKinds.push(it.kind); return; }
+    // From here on the quote is the paper's own text at the matched place, never the model's copy of it: it is what
+    // the page shows and speaks, and what the time words and the number check read.
+    const quote = source.slice(span.start, span.end);
     const multiLine = !withinOneLine(source, span);
     const when = readWhen(quote, multiLine);
     if ((it.ai_slot === "not_stated" ? null : it.ai_slot) !== when.slot) overridden++;

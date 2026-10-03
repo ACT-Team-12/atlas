@@ -188,7 +188,7 @@ export function PrepMode() {
                 </p>
                 {res.held_back.count > 0 && (
                   <p className="mt-1 text-xs font-semibold text-ink/70">
-                    {res.held_back.count} {res.held_back.count === 1 ? "step was" : "steps were"} left out because the AI&apos;s quote wasn&apos;t found in your paper.
+                    {res.held_back.count} {res.held_back.count === 1 ? "step was" : "steps were"} left out because the AI&apos;s quote wasn&apos;t found word for word in your paper.
                   </p>
                 )}
                 {placed + res.ask.length > 0 && (

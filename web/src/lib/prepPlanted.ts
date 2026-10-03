@@ -11,8 +11,8 @@ import type { MeaningResult } from "./meaning";
  * would give: each instruction, its exact line, and the slot a person reading that line would put it in (or "ask"
  * when the line itself doesn't say when). Then we plant the mistakes a wrong AI could make: claiming a wrong time,
  * changing or adding time words in the quote, inventing a step, borrowing the time from the next line, cutting the
- * time words off the quote, changing a number (digits or words) in the explanation, and reversing what the explanation
- * says ("do not take insulin" explained as "take insulin"). Our code must catch each one.
+ * time words off the quote, skipping the line's "do not" with an ellipsis, changing a number (digits or words) in the
+ * explanation, and reversing what the explanation says ("do not take insulin" explained as "take insulin"). Our code must catch each one.
  *
  * What this does NOT test: whether the second model (the meaning check) notices a reversal. That needs the AI. It
  * tests our gate: an explanation is never shown unless that check certified it, and the headline is the paper's words.
@@ -54,7 +54,7 @@ const TIME_SWAPS: [RegExp, string][] = [
 export const PREP_PLANT_KINDS = [
   "wrong time claimed", "untimed step given a time", "time words changed in the quote", "time words added to the quote",
   "invented step", "time borrowed from the next line", "time words cut off the quote", "number changed in the explanation",
-  "number word changed in the explanation", "meaning reversed in the explanation",
+  "number word changed in the explanation", "meaning reversed in the explanation", "words skipped with an ellipsis",
 ] as const;
 
 /** Explanations that say the opposite of their line. Digits match, so only the meaning check could catch these. */
@@ -132,6 +132,11 @@ export function prepPlants(paper = SAMPLE_PREP, truth = PREP_TRUTH): Plant[] {
     const quoteNums = new Set(t.quote.match(/\d+/g) ?? []);
     const word = WORDS.find((_w, k) => !quoteNums.has(String(k + 1)));
     if (num && word) p("number word changed in the explanation", "explanation hidden", { plain_language: t.plain.replace(num[0], word) }, `${num[0]} changed to "${word}" in the explanation`);
+
+    // The quote skips the line's "do not" with an ellipsis. Every piece is in the paper, in order, so only the
+    // ellipsis rule holds it back; shown, it would read "Your paper says: ... take it the morning of".
+    const neg = t.quote.match(/\b(?:do not|Do not|not|Stop)\b/);
+    if (neg) p("words skipped with an ellipsis", "held back", { source_quote: t.quote.replace(neg[0], "...") }, `"${neg[0]}" replaced by "..." in "${short}"`);
 
     // The explanation says the opposite of the line. Its numbers still match, so our number check can't see it.
     const rev = REVERSALS.find(([q]) => t.quote.includes(q));

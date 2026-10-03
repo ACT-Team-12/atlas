@@ -236,3 +236,30 @@ describe("Codex review: the explanation fails closed (negation reversal)", () =>
     expect(meaningItems(r)).toEqual([{ id: s.id, plain_language: "Take insulin that morning.", when: "the morning of your procedure", source_quote: insulin }]);
   });
 });
+
+describe("Codex review: an ellipsis quote can drop the paper's \"do not\"", () => {
+  const paper = "PREP SHEET (sample)\nIf you take insulin, do not take it the morning of your procedure.\n";
+  const dropped = "If you take insulin ... take it the morning of your procedure";
+
+  it("findSpan itself accepts the fragments, which is why prep mode must refuse them", () => {
+    expect(buildPrepTimeline(paper, [item({ source_quote: "If you take insulin, do not take it the morning of your procedure." })]).timeline).toHaveLength(1);
+  });
+
+  it.each([["three dots", "..."], ["ellipsis character", "…"], ["spaced dots", ". . ."], ["two dots", ".."], ["midline ellipsis", "⋯"]])(
+    "a quote with %s is held back, never shown, spoken, or placed",
+    (_name, e) => {
+      const r = buildPrepTimeline(paper, [item({ source_quote: dropped.replace("...", e), plain_language: "", ai_slot: "morning_of" })]);
+      expect(r.timeline).toEqual([]);
+      expect(r.ask).toEqual([]);
+      expect(r.held_back.count).toBe(1);
+      expect(prepSpeechLines(r).map((l) => l.text).join(" ")).not.toContain("take it the morning");
+    },
+  );
+
+  it("an accepted quote is replaced by the paper's own text (case, quote marks, spacing)", () => {
+    const r = buildPrepTimeline(paper, [item({ source_quote: "if you take INSULIN,   do not take it the morning of your procedure", plain_language: "" })]);
+    const s = r.timeline[0].steps[0];
+    expect(s.source_quote).toBe("If you take insulin, do not take it the morning of your procedure");
+    expect(prepSpeechLines(r)).toContainEqual({ text: "If you take insulin, do not take it the morning of your procedure", voice: "paper" });
+  });
+});

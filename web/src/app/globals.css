@@ -241,6 +241,13 @@ html.js-motion [data-reveal] {
   .atlas-prep-sheet .quote { font-style: italic; font-size: 12pt; border-left: 3pt solid #000; padding-left: 6pt; overflow-wrap: anywhere; }
 }
 
+/* An outdated plan is never printed: from the browser menu, only a note that it is out of date. */
+.outdated-print-note { display: none; }
+@media print {
+  .plan-outdated > :not(.outdated-print-note) { display: none !important; }
+  .plan-outdated > .outdated-print-note { display: block !important; font-size: 14pt; font-weight: 700; }
+}
+
 /* Print: only the plan and the patient's own steps, plain and readable. */
 @media print {
   header, footer, #how, #why, #trust, .hero-bg, #try > div > .flex:first-child, #try button, #try input, #try select, #try textarea, #try label { display: none !important; }

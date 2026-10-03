@@ -17,7 +17,10 @@ export function DeviceParity({ set }: { set: ParitySet }) {
       .then(async ({ loadDeviceChecker, sameSpan }) => {
         const checker = await loadDeviceChecker();
         const t0 = performance.now();
-        const differ = set.cases.filter((c) => !sameSpan(c.server, checker.findSpan(set.papers[c.paper], c.quote)));
+        // One call per paper, so each paper is mapped once.
+        const mine = set.papers.map((paper, i) => checker.findSpans(paper, set.cases.filter((c) => c.paper === i).map((c) => c.quote)));
+        const next = set.papers.map(() => 0);
+        const differ = set.cases.filter((c) => !sameSpan(c.server, mine[c.paper][next[c.paper]++]));
         const ms = performance.now() - t0;
         if (live) setR({ status: "done", same: set.cases.length - differ.length, total: set.cases.length, ms, differ });
       })

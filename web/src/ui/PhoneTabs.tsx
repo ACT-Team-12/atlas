@@ -26,21 +26,39 @@ export const panelId = (t: Tab) => `step-${t}`;
 
 const LABEL: Record<Tab, string> = { 1: "Paper", 2: "Your needs", 3: "Plan" };
 
+/** A scroll the page itself started: how, the element it brings up, and from which window.scrollY to which. */
+export type PageScroll = { behavior: "smooth" | "auto"; el: HTMLElement; from: number; to: number };
+
+/** The window.scrollY that puts `el` at the top, under its scroll margin, as the page is laid out now. */
+export function scrollTargetY(el: HTMLElement): number {
+  const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+  const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  return Math.min(max, Math.max(0, window.scrollY + el.getBoundingClientRect().top - margin));
+}
+
+/** Scrolls `el` to the top (under its scroll margin) and says where the window is headed (measured before it moves). */
+export function scrollElementToTop(el: HTMLElement, behavior: "smooth" | "auto"): PageScroll {
+  const from = window.scrollY;
+  const to = scrollTargetY(el);
+  el.scrollIntoView({ behavior, block: "start" });
+  return { behavior, el, from, to };
+}
+
 /**
  * Scrolls a step card to the top, just under the sticky tab bar. With `onlyIfHidden`, it only moves
  * when the card's top is already scrolled up under the bar, so a tap near the top does not jump.
+ * Says how and where it scrolled (null when it did not), so the caller can tell its own scroll from the person's.
  */
-export function scrollToPanel(t: Tab, onlyIfHidden = false) {
+export function scrollToPanel(t: Tab, onlyIfHidden = false): PageScroll | null {
   const el = document.getElementById(panelId(t));
-  if (!el) return;
+  if (!el) return null;
   const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
-  if (onlyIfHidden && el.getBoundingClientRect().top >= margin - 1) return;
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  if (onlyIfHidden && el.getBoundingClientRect().top >= margin - 1) return null;
+  return scrollElementToTop(el, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
 }
 
 /** Sticky tab bar for phones. Hidden from md up, where all three steps show at once. */
-export function PhoneTabBar({ shown, state, onPick }: { shown: Tab; state: FlowState; onPick: (t: Tab) => void }) {
+export function PhoneTabBar({ shown, state, onPick, notice }: { shown: Tab; state: FlowState; onPick: (t: Tab) => void; notice?: string | null }) {
   const info = tabInfo(state);
   const refs = useRef<Record<number, HTMLButtonElement | null>>({});
   const closed = TABS.filter((t) => !info[t].available);
@@ -78,6 +96,10 @@ export function PhoneTabBar({ shown, state, onPick }: { shown: Tab; state: FlowS
           );
         })}
       </div>
+      <p className="sr-only" role="status" aria-live="polite">{notice ?? ""}</p>
+      {notice && (
+        <p className="mx-auto mt-1.5 w-fit rounded-full bg-sun px-3 py-0.5 text-center text-xs font-bold" aria-hidden="true">{notice}</p>
+      )}
       {closed.length > 0 && (
         <p id="tabs-why" className="mx-auto mt-1.5 w-fit rounded-full bg-mint-soft px-3 py-0.5 text-center text-xs font-bold text-ink/75">
           {closed.map((t) => `${t} · ${LABEL[t]}: ${info[t].why}`).join(". ")}.

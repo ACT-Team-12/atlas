@@ -6,7 +6,8 @@ import { bookableItem, bookingTarget, buildIcs, callScript, eventDescription, ty
 import { TIME_CHIPS, dayOptions, describeStart, formatTime, googleCalendarUrl, localStart, timeOptions } from "@/lib/calendarLinks";
 
 /** "Book it now" for one plan step: call script, call button, add-to-calendar file, and why it still matters. */
-export function BookIt({ items, barriers, language }: { items: BookableItem[]; barriers: Barrier[]; language: string }) {
+/** `offReason` turns booking off (the plan is outdated, so its script and barriers may not fit) and says why. */
+export function BookIt({ items, barriers, language, offReason }: { items: BookableItem[]; barriers: Barrier[]; language: string; offReason?: string }) {
   const item = bookableItem(items);
   const target = useMemo(() => (item ? bookingTarget(item) : null), [item]);
   const [open, setOpen] = useState(false);
@@ -51,11 +52,12 @@ export function BookIt({ items, barriers, language }: { items: BookableItem[]; b
 
   return (
     <div className="mt-4 print:hidden">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId}
-        className="rounded-full border-2 border-ink bg-paper px-4 py-2 text-sm font-bold">
-        📅 {open ? "Hide booking help" : "Book it now"}
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open && !offReason} aria-controls={panelId} disabled={!!offReason}
+        className="rounded-full border-2 border-ink bg-paper px-4 py-2 text-sm font-bold disabled:opacity-40">
+        📅 {open && !offReason ? "Hide booking help" : "Book it now"}
       </button>
-      {open && (
+      {offReason && <span className="ml-3 text-xs font-bold text-peach-deep">{offReason}</span>}
+      {open && !offReason && (
         <div id={panelId} className="mt-3 rounded-2xl border-2 border-ink bg-paper p-4 space-y-4">
           <div>
             <p className="font-extrabold">1. Call {target ? "the number on your paper" : "the place your paper names, or the clinic that gave it to you"}</p>

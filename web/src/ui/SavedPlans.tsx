@@ -9,11 +9,18 @@ type Props = {
   /** A read or a plan is running: opening another plan waits. */
   busy: boolean;
   saveFailed: boolean;
+  /** The last delete (or Clear) did not reach this device's storage, so the plan is still there. */
+  deleteFailed: boolean;
   onOpen: (id: string) => void;
   onRename: (id: string, name: string) => void;
-  onDelete: (id: string) => void;
+  /** False when storage still holds the plan: then nothing was deleted. */
+  onDelete: (id: string) => boolean;
   onNew: () => void;
 };
+
+/** Shown when a delete or Clear did not reach this device's storage. */
+export const DELETE_FAILED =
+  "This plan could not be deleted from this device and is still saved here. Try again. If it still will not go, clear this site's data in your browser settings.";
 
 const savedDate = (iso: string) => {
   const d = new Date(iso);
@@ -21,7 +28,7 @@ const savedDate = (iso: string) => {
 };
 
 /** "My saved plans": a personal file on this device. Open, rename and delete; progress per plan. */
-export function SavedPlans({ plans, activeId, busy, saveFailed, onOpen, onRename, onDelete, onNew }: Props) {
+export function SavedPlans({ plans, activeId, busy, saveFailed, deleteFailed, onOpen, onRename, onDelete, onNew }: Props) {
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -40,7 +47,7 @@ export function SavedPlans({ plans, activeId, busy, saveFailed, onOpen, onRename
     (document.getElementById(id) ?? toggle.current)?.focus();
   });
 
-  if (plans.length === 0 && !saveFailed) return null;
+  if (plans.length === 0 && !saveFailed && !deleteFailed) return null;
   const active = plans.find((p) => p.id === activeId);
 
   function saveName(p: SavedPlan) {
@@ -61,6 +68,7 @@ export function SavedPlans({ plans, activeId, busy, saveFailed, onOpen, onRename
       </div>
       <p className="sr-only" role="status" aria-live="polite">{said}</p>
       {saveFailed && <p role="alert" className="mt-3 rounded-xl bg-red-soft p-2 text-sm font-bold text-red">This device would not save your plan (storage may be full). Delete an old plan to make room.</p>}
+      {deleteFailed && <p role="alert" className="mt-3 rounded-xl bg-red-soft p-2 text-sm font-bold text-red" data-delete-failed>{DELETE_FAILED}</p>}
       <div id="saved-plans-list" hidden={!open} className="mt-4">
         <p className="text-xs font-semibold text-ink/70">Saved only on this device. Nothing goes to ATLAS, and your location is never saved.</p>
         <ul className="mt-3 space-y-3" aria-label="Saved plans">
@@ -90,7 +98,12 @@ export function SavedPlans({ plans, activeId, busy, saveFailed, onOpen, onRename
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold" role="group" aria-label={`Delete ${p.name}?`}>
                         <span>Delete {p.name} from this device? This can&apos;t be undone.</span>
                         <button id={`saved-yes-${p.id}`} type="button" className="rounded-full border-2 border-red bg-red-soft px-3 py-1.5 text-red"
-                          onClick={() => { onDelete(p.id); setSaid(`Deleted ${p.name}.`); setConfirming(null); focusAfter.current = "saved-plans-toggle-fallback"; }}>Yes, delete</button>
+                          onClick={() => {
+                            const deleted = onDelete(p.id);
+                            setSaid(deleted ? `Deleted ${p.name}.` : `${p.name} was not deleted. ${DELETE_FAILED}`);
+                            setConfirming(null);
+                            focusAfter.current = deleted ? "saved-plans-toggle-fallback" : `saved-delete-${p.id}`;
+                          }}>Yes, delete</button>
                         <button type="button" className="rounded-full border-2 border-ink px-3 py-1.5"
                           onClick={() => { setConfirming(null); focusAfter.current = `saved-delete-${p.id}`; }}>Keep it</button>
                       </div>

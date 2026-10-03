@@ -1,0 +1,298 @@
+{
+  "ran_at": "2026-10-02T06:05:25.349Z",
+  "base_url": "https://atlas-team12.vercel.app",
+  "label": "SIMULATED: AI-generated hypothesis personas run through the live product. Not customer evidence.",
+  "runs": [
+    {
+      "persona": {
+        "id": "refugee-parent-clarkston",
+        "who": "Parent who resettled in Clarkston, speaks Amharic, child just left the ED with asthma",
+        "paper": "pediatric-asthma",
+        "language": "Amharic",
+        "reading_level": "simple",
+        "barriers": [
+          "language",
+          "transport",
+          "cost"
+        ],
+        "zip": "30021",
+        "note": "No car. I work mornings."
+      },
+      "read": {
+        "ms": 18737,
+        "extracted": 5,
+        "grounded": 5,
+        "held_back": 0,
+        "warning": true,
+        "not_in_document": 4,
+        "in_requested_language": true
+      },
+      "plan": {
+        "ms": 29642,
+        "steps": 6,
+        "dropped_refs": 0,
+        "candidates": 11,
+        "located": "Near ZIP 30021",
+        "ask_a_person": true,
+        "nearest_clinic_km": 0.1,
+        "clinics": [
+          "Ethne Health - Main (0.1 km)",
+          "Ethne Health - Dental (0.2 km)",
+          "MedCura Clarkston (0.3 km)",
+          "MedCura Health, Inc. (2.8 km)"
+        ],
+        "programs": [
+          "MARTA Mobility (ADA paratransit)",
+          "MARTA information in another language or accessible format",
+          "MARTA Reduced Fare Program",
+          "Georgia Gateway (apply for Medicaid, SNAP, WIC, TANF)",
+          "Georgia Medicaid: how to apply",
+          "Grady Health System Financial Assistance Program",
+          "Lifeline phone and internet discount (federal, USAC/FCC)"
+        ],
+        "barriers_covered": [
+          "transport",
+          "cost",
+          "language"
+        ],
+        "summary": "ልጅዎ የአስም (መተንፈስ) ህክምና ተሰጥቶታል። ዋናዎቹ ስራዎች፦ መድሃኒቱን ማግኘትና በትክክል መስጠት፣ በ2-3 ቀን ውስጥ የሕፃናት ሐኪም ማየት፣ እና የአደጋ ምልክቶችን ማወቅ። መኪና ስለሌለዎትና ጠዋት ስለሚሰሩ፣ ቅርብ ያሉ ክሊኒኮችንና የክፍያ እርዳታዎችን እንጠቁማለን። ከንፈሩ ሰማያዊ ከሆነ ወይም መተንፈስ ከከበደው ወዲያውኑ ወደ ድንገተኛ ክፍል ይሂዱ።",
+        "in_requested_language": true
+      },
+      "sample_step": {
+        "title": "አልቡቴሮል መተንፈሻ (ኢንሄለር)",
+        "plain_language": "ልጅዎ ሲያፏጭ ወይም ሲያስል በስፔሰር 2 ጊዜ ይሳብ። ቢያንስ 4 ሰዓት ልዩነት ይኑር። ሲያስፈልግ ብቻ ይጠቀሙ።",
+        "quote": "Albuterol inhaler: 2 puffs with spacer every 4 hours as needed for wheezing or cough."
+      }
+    },
+    {
+      "persona": {
+        "id": "night-shift-doraville",
+        "who": "Night-shift warehouse worker in Doraville, Spanish first, new diabetes medicine and a fasting lab",
+        "paper": "diabetes-hypertension",
+        "language": "Spanish",
+        "reading_level": "simple",
+        "barriers": [
+          "schedule",
+          "transport"
+        ],
+        "zip": "30340",
+        "note": "I work nights and sleep in the day."
+      },
+      "read": {
+        "ms": 14746,
+        "extracted": 8,
+        "grounded": 8,
+        "held_back": 0,
+        "warning": true,
+        "not_in_document": 7,
+        "in_requested_language": true
+      },
+      "plan": {
+        "ms": 16675,
+        "steps": 7,
+        "dropped_refs": 0,
+        "candidates": 7,
+        "located": "Near ZIP 30340",
+        "ask_a_person": true,
+        "nearest_clinic_km": 5.1,
+        "clinics": [
+          "MedCura Northlake (5.1 km)",
+          "Mercy Care Chamblee (5.4 km)",
+          "Recovery Consultants: Tucker (6.5 km)",
+          "Ethne Health - Dental (10.1 km)"
+        ],
+        "programs": [
+          "MARTA Mobility (ADA paratransit)",
+          "MARTA information in another language or accessible format",
+          "MARTA Reduced Fare Program"
+        ],
+        "barriers_covered": [
+          "schedule",
+          "transport",
+          ""
+        ],
+        "summary": "Usted trabaja de noche y duerme de día, y no tiene carro fácil. Este plan le ayuda a hacer sus exámenes de sangre, tomar bien sus medicinas y estar listo para la cita de los ojos, en horarios que le sirvan y con transporte público cerca.",
+        "in_requested_language": true
+      },
+      "sample_step": {
+        "title": "Empezar metformina 500 mg",
+        "plain_language": "Empiece a tomar metformina. Tome 1 pastilla de 500 mg por la boca, 2 veces al día, con las comidas.",
+        "quote": "START metformin 500 mg tablet. Take 1 tablet by mouth 2 times a day with meals."
+      }
+    },
+    {
+      "persona": {
+        "id": "teen-caregiver-tucker",
+        "who": "Teenager who translates for a grandparent after a heart failure hospital stay",
+        "paper": "heart-failure-discharge",
+        "language": "Vietnamese",
+        "reading_level": "standard",
+        "barriers": [
+          "language",
+          "referrals",
+          "tech"
+        ],
+        "zip": "30084",
+        "note": "I translate for my grandma. She does not use a smartphone."
+      },
+      "read": {
+        "ms": 16239,
+        "extracted": 8,
+        "grounded": 8,
+        "held_back": 0,
+        "warning": true,
+        "not_in_document": 8,
+        "in_requested_language": true
+      },
+      "plan": {
+        "ms": 20672,
+        "steps": 7,
+        "dropped_refs": 0,
+        "candidates": 7,
+        "located": "Near ZIP 30084",
+        "ask_a_person": true,
+        "nearest_clinic_km": 2.6,
+        "clinics": [
+          "Recovery Consultants: Tucker (2.6 km)",
+          "MedCura Northlake (3 km)",
+          "Ethne Health - Main (5.6 km)",
+          "Ethne Health - Dental (5.7 km)"
+        ],
+        "programs": [
+          "MARTA information in another language or accessible format",
+          "Georgia Gateway (apply for Medicaid, SNAP, WIC, TANF)",
+          "Lifeline phone and internet discount (federal, USAC/FCC)"
+        ],
+        "barriers_covered": [
+          "language",
+          "tech",
+          "referrals"
+        ],
+        "summary": "Bà của bạn có kế hoạch chăm sóc tim sau lần khám: uống thuốc furosemide mỗi sáng, ngừng ibuprofen và naproxen, cân mỗi sáng, ăn ít muối, làm xét nghiệm máu và tái khám tim mạch trong 7 ngày. Vì bà không dùng điện thoại thông minh, bạn có thể giúp bà nhận cuộc gọi của phòng khám, hỏi về xét nghiệm, và tìm hiểu cách được giảm giá điện thoại. Hãy nhớ: nếu bà không thở được, gọi 911 ngay.",
+        "in_requested_language": true
+      },
+      "sample_step": {
+        "title": "Furosemide 40 mg",
+        "plain_language": "Uống 1 viên furosemide 40 mg mỗi buổi sáng.",
+        "quote": "Furosemide 40 mg: take 1 tablet every morning."
+      }
+    },
+    {
+      "persona": {
+        "id": "uninsured-worker-south-atlanta",
+        "who": "Day laborer without insurance after an urgent care visit",
+        "paper": "uti-urgent-care",
+        "language": "English",
+        "reading_level": "simple",
+        "barriers": [
+          "insurance",
+          "cost",
+          "food"
+        ],
+        "zip": "30315",
+        "note": ""
+      },
+      "read": {
+        "ms": 9668,
+        "extracted": 4,
+        "grounded": 4,
+        "held_back": 0,
+        "warning": true,
+        "not_in_document": 6,
+        "in_requested_language": true
+      },
+      "plan": {
+        "ms": 11206,
+        "steps": 5,
+        "dropped_refs": 0,
+        "candidates": 12,
+        "located": "Near ZIP 30315",
+        "ask_a_person": false,
+        "nearest_clinic_km": 2.8,
+        "clinics": [
+          "SOUTHSIDE MEDICAL CENTER - Main Center / Corporate HQ (2.8 km)",
+          "SOUTHSIDE MEDICAL CENTER - East Point Clinic (4.6 km)",
+          "THE FAMILY HEALTH CENTER AT WEST END (4.9 km)",
+          "Mercy Care at Gateway Center (5.1 km)"
+        ],
+        "programs": [
+          "United Way of Greater Atlanta 211",
+          "MARTA Reduced Fare Program",
+          "Georgia Gateway (apply for Medicaid, SNAP, WIC, TANF)",
+          "Georgia Medicaid: how to apply",
+          "Grady Health System Financial Assistance Program",
+          "Atlanta Community Food Bank food pantry map and Text for Help",
+          "Atlanta Community Food Bank help applying for SNAP and Medicaid",
+          "Lifeline phone and internet discount (federal, USAC/FCC)"
+        ],
+        "barriers_covered": [
+          "cost",
+          "insurance",
+          "food"
+        ],
+        "summary": "You were treated for a urine infection. Your plan is to take all of your nitrofurantoin, drink plenty of water, and watch for warning signs. Below are ways to get help paying for care and medicine, applying for coverage, and getting food.",
+        "in_requested_language": true
+      },
+      "sample_step": {
+        "title": "Take nitrofurantoin",
+        "plain_language": "Take nitrofurantoin 100 mg by mouth 2 times a day for 5 days. Take all of it, even if you start to feel better.",
+        "quote": "Take nitrofurantoin 100 mg by mouth 2 times a day for 5 days. Finish all of it even if you feel better."
+      }
+    },
+    {
+      "persona": {
+        "id": "chw-west-end",
+        "who": "Community health worker helping a client with a new blood pressure medicine between other visits",
+        "paper": "hypertension-new-med",
+        "language": "English",
+        "reading_level": "detailed",
+        "barriers": [
+          "referrals",
+          "schedule",
+          "housing"
+        ],
+        "zip": "30310",
+        "note": "Helping a client today. Need the fastest path to the cardiology referral."
+      },
+      "read": {
+        "ms": 15893,
+        "extracted": 7,
+        "grounded": 7,
+        "held_back": 0,
+        "warning": true,
+        "not_in_document": 11,
+        "in_requested_language": true
+      },
+      "plan": {
+        "ms": 17980,
+        "steps": 6,
+        "dropped_refs": 0,
+        "candidates": 5,
+        "located": "Near ZIP 30310",
+        "ask_a_person": true,
+        "nearest_clinic_km": 1.3,
+        "clinics": [
+          "Healing Community Center - Abernathy (1.3 km)",
+          "THE FAMILY HEALTH CENTER AT WEST END (1.6 km)",
+          "SOUTHSIDE MEDICAL CENTER - Main Center / Corporate HQ (3.4 km)",
+          "Mercy Care at City of Refuge (3.9 km)"
+        ],
+        "programs": [
+          "United Way of Greater Atlanta 211"
+        ],
+        "barriers_covered": [
+          "referrals",
+          "schedule",
+          "housing"
+        ],
+        "summary": "The fastest path to cardiology is to call the number on the after-visit paper today. The paper says the patient must make that call themselves, and it gives no deadline. Below are steps for the referral call, the lab, fitting care around work, and finding a safe place to stay. Keep the emergency warning signs in mind the whole time.",
+        "in_requested_language": true
+      },
+      "sample_step": {
+        "title": "Start amlodipine 5 mg",
+        "plain_language": "You have been prescribed a new medicine called amlodipine, at a strength of 5 mg. Take one tablet each morning.",
+        "quote": "New medicine: amlodipine 5 mg, take 1 tablet every morning."
+      }
+    }
+  ]
+}

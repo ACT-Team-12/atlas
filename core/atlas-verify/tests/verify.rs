@@ -3,7 +3,7 @@
 
 mod common;
 
-use atlas_verify::{find_span, normalize, verify_quotes, Span};
+use atlas_verify::{find_span, find_spans, normalize, verify_quotes, Span};
 
 /// `SAMPLE_AVS.slice(start, end)` with UTF-16 offsets.
 fn slice16(s: &str, span: Span) -> String {
@@ -174,4 +174,112 @@ fn a_quote_must_match_whole_words_and_whole_numbers() {
     assert_eq!(find_span("Use \u{FF11}10 mg.", "10 mg"), None);
     // Chinese has no spaces between words, so a match mid-run still counts.
     assert!(find_span("请每天服用两片药。", "服用两片").is_some());
+}
+
+#[test]
+fn never_starts_or_ends_a_match_inside_one_characters_case_expansion() {
+    // U+0130 lower-cases to "i" + U+0307: no match may begin at the U+0307 half or end at the "i" half.
+    assert_eq!(find_span("Dose \u{0130} 5 mg", "\u{0307} 5 mg"), None);
+    assert_eq!(find_span("\u{0130}la\u{00E7}", "\u{0307}la\u{00E7}"), None);
+    assert_eq!(find_span("Dose \u{0130} 5 mg", "Dose i"), None);
+    assert_eq!(find_span("Dose \u{0130} 5 mg", "dose \u{0130} 5 mg"), span(0, 11));
+    assert_eq!(find_span("Dose \u{0130} 5 mg", "\u{0130} 5 mg"), span(5, 11));
+}
+
+#[test]
+fn keeps_searching_past_an_unaligned_occurrence_to_a_later_aligned_one() {
+    let src = "\u{0130} 5 mg, then \u{0307} 5 mg";
+    assert_eq!(find_span(src, "\u{0307} 5 mg"), span(13, 19));
+}
+
+/// The fragment a single-fragment quote must match, by the checker's own rules.
+fn fragment_of(q: &str) -> String {
+    normalize(q)
+        .trim_matches(|c: char| c == '"' || c == '\'' || c == ' ')
+        .to_string()
+}
+
+#[test]
+fn oracle_every_highlighted_slice_normalizes_to_the_fragment_it_matched() {
+    let mut cases: Vec<(String, String)> = Vec::new();
+    for (p, distractors) in common::papers() {
+        for e in p.expected.iter().chain(distractors.iter()) {
+            cases.push((p.text.clone(), e.clone()));
+        }
+        for e in &p.expected {
+            for f in atlas_verify::fakes_for(e) {
+                cases.push((p.text.clone(), f.text));
+            }
+        }
+    }
+    for src in [
+        "\u{0130}la\u{00E7} g\u{00FC}nde \u{0130}ki kez \u{039F}\u{0394}\u{039F}\u{03A3} \u{10400}\u{10401} \u{1F48A} dose 5 mg",
+        "Dose \u{0130} 5 mg, then \u{0307} 5 mg",
+    ] {
+        let cps: Vec<char> = src.chars().collect();
+        for a in 0..cps.len() {
+            for b in a + 1..=cps.len() {
+                let q: String = cps[a..b].iter().collect();
+                cases.push((src.to_string(), q.to_uppercase()));
+                cases.push((src.to_string(), q));
+            }
+        }
+    }
+    let mut found = 0;
+    let mut bad = Vec::new();
+    for (src, q) in &cases {
+        if q.contains("...") || q.contains('\u{2026}') {
+            continue;
+        }
+        if let Some(s) = find_span(src, q) {
+            found += 1;
+            let slice = slice16(src, s);
+            if normalize(&slice) != fragment_of(q) {
+                bad.push((q.clone(), slice));
+            }
+        }
+    }
+    assert!(found > 500, "found {found}");
+    assert!(bad.is_empty(), "{bad:?}");
+}
+
+// Wall-clock time is load-dependent, so nothing here times the checker: the step-count bounds are unit tests in
+// src/lib.rs, and `cargo run --release --example bench_limits` prints absolute timings without gating anything.
+
+#[test]
+fn refuses_forty_limit_sized_adversarial_items() {
+    // 20,000-character source, 600-character quote, 40 items (web/src/lib/schema.ts limits). Every odd normalized
+    // position starts an occurrence of the quote, each inside a U+0130 expansion, so none may count.
+    let source = "\u{0130}".repeat(20000);
+    let quote = "\u{0307}i".repeat(300);
+    let quotes: Vec<&str> = (0..40).map(|_| quote.as_str()).collect();
+    let (kept, refused) = verify_quotes(&source, &quotes);
+    assert!(kept.is_empty());
+    assert_eq!(refused.len(), 40);
+    assert_eq!(find_spans(&source, &quotes), vec![None; 40]);
+}
+
+#[test]
+fn finds_the_one_aligned_occurrence_after_twenty_thousand_unaligned_ones() {
+    // A standalone U+0307 then 299 U+0130: the quote begins on that mark and ends after the last full expansion.
+    let src = format!("{} \u{0307}{}", "\u{0130}".repeat(20000), "\u{0130}".repeat(299));
+    let q = format!("{}\u{0307}", "\u{0307}i".repeat(299));
+    assert_eq!(src.encode_utf16().count(), 20301);
+    assert_eq!(find_span(&src, &q), span(20001, 20301));
+    assert_eq!(find_spans(&src, &[q.as_str()]), vec![span(20001, 20301)]);
+}
+
+#[test]
+fn find_spans_gives_find_span_for_every_quote() {
+    let avs = common::sample_avs();
+    let quotes = [
+        "Take 1 tablet by mouth 2 times a day with meals.",
+        "Hemoglobin A1c ... due in 3 months",
+        "Increase insulin to 20 units",
+        "",
+        "metformin (GLUCOPHAGE) 500 mg tablet",
+    ];
+    let one_by_one: Vec<Option<Span>> = quotes.iter().map(|q| find_span(&avs, q)).collect();
+    assert_eq!(find_spans(&avs, &quotes), one_by_one);
+    assert!(find_spans(&avs, &[]).is_empty());
 }

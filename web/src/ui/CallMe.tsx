@@ -197,7 +197,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
                       {busy ? "Calling you with a code..." : st ? "Call me again" : "Call me with a code"}
                     </button>
                   </div>
-                  <p className="text-xs font-semibold text-ink/70">First we call once with a 4-digit code, to check it is your phone. Then we call with your plan: enter the same code on the keypad to hear it, so voicemail or anyone else who answers hears nothing about it.</p>
+                  <p className="text-xs font-semibold text-ink/70">First we call once with a 4-digit code, to check it is your phone. Then we call with your plan: enter the same code on the keypad to hear it, so voicemail or anyone else who answers hears only a request for a code from ATLAS, nothing about your plan.</p>
                 </form>
               )}
             </>

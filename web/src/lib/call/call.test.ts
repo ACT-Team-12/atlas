@@ -5,7 +5,7 @@ import { callConfig, normalizePem, strongSecret, publicBaseUrl, signTicket, veri
 import { audioFor, CODE_CALL_GAP_MS, CODE_CALLS_PER_HOUR, CODE_CALLS_PER_IP, CODE_CALLS_PER_NUMBER, handleEvent, handleInput, publicStatus, startCall, verifyAndCall, type Deps } from "./flow";
 import { MemoryCallStore } from "./memoryStore";
 import { verifyRefusal } from "./messages";
-import { canCallIn, codeNcco, MAX_REPLAYS, planLengthSeconds, planNcco, talkChunks, TALK_CHUNK, VONAGE_TTS } from "./ncco";
+import { canCallIn, codeNcco, gateNcco, MAX_REPLAYS, planLengthSeconds, planNcco, talkChunks, TALK_CHUNK, VONAGE_TTS } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
 import { CallStoreDown, PREPARING_MAX_MS, reserveSlots, UNCONFIRMED_PLAN_MS } from "./store";
@@ -200,6 +200,15 @@ describe("encryption at rest", () => {
 });
 
 describe("NCCO", () => {
+  it("before the code, says nothing about a plan in any language, so voicemail records only a code request", () => {
+    const planWord: Record<string, RegExp> = { English: /plan|health/i, Spanish: /plan|salud/i, Vietnamese: /kế hoạch|sức khỏe/i, Korean: /계획|건강/, Chinese: /计划|健康/, French: /plan|santé/i };
+    for (const [language, word] of Object.entries(planWord)) {
+      for (const retry of [false, true]) {
+        const [prompt] = gateNcco({ language: language as "English", inputUrl: "https://x/i", retry });
+        expect(String(prompt.text), `${language} retry=${retry}`).not.toMatch(word);
+      }
+    }
+  });
   it("speaks the code digit by digit in the plan's language", () => {
     expect(codeNcco("1234", "Spanish")).toEqual([{ action: "talk", text: expect.stringContaining("1, 2, 3, 4"), language: "es-US" }]);
     expect(codeNcco("0907", "Chinese")[0]).toMatchObject({ language: "cmn-CN", text: expect.stringContaining("0, 9, 0, 7") });

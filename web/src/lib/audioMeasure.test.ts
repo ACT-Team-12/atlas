@@ -136,10 +136,16 @@ describe("parsing is bounded (Codex round 2, 2026-10-02)", () => {
     return new Uint8Array([...fx("short.m4a"), ...box("moof", [...box("mfhd", [0, 0, 0, 0, 0, 0, 0, 1]), ...box("traf", [...tfhd, ...trun])])]);
   };
 
+  /**
+   * Refused before any per-sample loop. The ceiling is a generous backstop, not a benchmark: a loop over billions of
+   * samples (or a 100 MB walk) takes far longer than 2 s, while a loaded CI box can take 70 ms to parse a small file.
+   */
+  const BACKSTOP_MS = 2_000;
+
   it("a trun claiming billions of samples is refused at once", () => {
     const t0 = performance.now();
     expect(measureAudio(tinyBomb())).toBeNull();
-    expect(performance.now() - t0).toBeLessThan(50);
+    expect(performance.now() - t0).toBeLessThan(BACKSTOP_MS);
   });
 
   it("a sample table listing more frames than 35 s could hold is refused", () => {
@@ -155,7 +161,7 @@ describe("parsing is bounded (Codex round 2, 2026-10-02)", () => {
     b.set([0x05, 0xf5, 0xe1, 0x00], i + 12); // mp4a entry size = 100,000,000 bytes
     const t0 = performance.now();
     expect(measureAudio(b)).toBeNull();
-    expect(performance.now() - t0).toBeLessThan(50);
+    expect(performance.now() - t0).toBeLessThan(BACKSTOP_MS);
   });
 
   it("a fragment whose tfdt starts it far along the timeline is measured to that end (Codex round 4)", () => {

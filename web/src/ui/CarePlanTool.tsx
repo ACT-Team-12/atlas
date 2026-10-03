@@ -243,7 +243,7 @@ export function CarePlanTool() {
   const ownScrollEl = useRef<HTMLElement | null>(null);
   // Device location requests: a generation so only the latest answer counts, and whether one is out.
   const locGen = useRef(0);
-  const [locating, setLocating] = useState(false);
+  const [locating, setLocatingState] = useState(false);
   const layoutShift = useRef<LayoutShift>(NO_LAYOUT_SHIFT);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
@@ -266,7 +266,7 @@ export function CarePlanTool() {
   const [planFp, setPlanFp] = useState<string | null>(null);
   // The inputs a read or plan is built from, written the moment they change (before React re-renders).
   // A reply is checked against these when it lands, so a change whose render or effect has not run yet still counts.
-  const live = useRef({ text, photo, language, level, care, removed, barriers, zip, loc, note });
+  const live = useRef({ text, photo, language, level, care, removed, barriers, zip, loc, locating, note });
   const setText = (v: string) => { live.current.text = v; setTextState(v); };
   const setPhoto = (v: File | null) => { live.current.photo = v; setPhotoState(v); };
   const setLanguage = (v: (typeof LANGUAGES)[number]) => { live.current.language = v; setLanguageState(v); };
@@ -274,6 +274,7 @@ export function CarePlanTool() {
   const setCare = (v: CarePlanResponse | null) => { live.current.care = v; setCareState(v); };
   const setZip = (v: string) => { live.current.zip = v; setZipState(v); };
   const setLoc = (v: { lat: number; lng: number } | null) => { live.current.loc = v; setLocState(v); };
+  const setLocating = (v: boolean) => { live.current.locating = v; setLocatingState(v); };
   const setNote = (v: string) => { live.current.note = v; setNoteState(v); };
   const setBarriers = (v: Barrier[] | ((b: Barrier[]) => Barrier[])) => {
     const next = typeof v === "function" ? v(live.current.barriers) : v;
@@ -290,7 +291,7 @@ export function CarePlanTool() {
   const livePlanFp = () => {
     const l = live.current;
     const careIds = (l.care?.items ?? []).filter((i) => !l.removed[i.id]).map((i) => i.id);
-    return planFingerprint({ careIds, barriers: l.barriers, language: l.language, note: l.note, place: planPlace(!!l.loc, l.zip), location: l.loc });
+    return planFingerprint({ careIds, barriers: l.barriers, language: l.language, note: l.note, place: planPlace(!!l.loc, l.zip, l.locating), location: l.loc });
   };
   // Photo reads: the quote check runs against the AI's own reading of the photo, so the person checks that reading first.
   const [transcript, setTranscript] = useState<string | null>(null);
@@ -391,7 +392,7 @@ export function CarePlanTool() {
   const careOutdated = !!care && careFp !== null && readFingerprint({ text: photo ? null : text, photo: photoId(photo), language, level }) !== careFp;
   const planOutdated = !!plan && planFp !== null && (careOutdated || planFingerprint({
     careIds: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id),
-    barriers, language, note, place: planPlace(!!loc, zip), location: loc,
+    barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc,
   }) !== planFp);
   const resultsCurrent = !careOutdated && !planOutdated;
   const actionsOffReason = careOutdated ? "Read your paper again first" : "Update the plan first";
@@ -540,12 +541,13 @@ export function CarePlanTool() {
   }
 
   async function makePlan() {
-    if (needsPhotoCheck) return;
+    // No plan while a location request is out: it would be made for a place the person is replacing.
+    if (needsPhotoCheck || live.current.locating) return;
     const run = ++planRun.current;
     pendingPlan.current?.abort.abort();
     const abort = new AbortController();
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
-    pendingPlan.current = { run, abort, at: performance.now(), fp: planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip), location: loc }) };
+    pendingPlan.current = { run, abort, at: performance.now(), fp: planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc }) };
     setPlanning(true); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null);
     try {
       const body = {
@@ -772,9 +774,9 @@ export function CarePlanTool() {
     const p = pendingPlan.current;
     if (!p || p.run !== planRun.current) return;
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
-    if (planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip), location: loc }) === p.fp) return;
+    if (planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc }) === p.fp) return;
     stopStalePlan();
-  }, [care, removed, barriers, language, note, loc, zip]);
+  }, [care, removed, barriers, language, note, loc, zip, locating]);
 
   // Runs after every render; does nothing unless a tab change or a reply asked for a scroll.
   useEffect(() => {
@@ -1122,7 +1124,7 @@ export function CarePlanTool() {
             </label>
           </div>
           <div className="mt-6">
-            <SquashButton onClick={makePlan} disabled={planning || needsPhotoCheck || (barriers.length === 0 && items.length === 0)} bg="var(--ink)" accent="var(--mint)">
+            <SquashButton onClick={makePlan} disabled={planning || needsPhotoCheck || locating || (barriers.length === 0 && items.length === 0)} bg="var(--ink)" accent="var(--mint)">
               {planning ? "Building your plan..." : "Make my plan"}
             </SquashButton>
             {needsPhotoCheck && <p className="mt-3 text-sm font-bold text-ink/70">First check how we read your photo in step 1.</p>}
@@ -1149,7 +1151,7 @@ export function CarePlanTool() {
                           ? "This plan used your location from before, and your location is never saved. Use my location again or enter a ZIP in step 2, then update the plan."
                           : "You changed your answers after this plan was made, so it may not fit them. Changes are not saved until you update it."}
                       </p>
-                      <button type="button" onClick={makePlan} disabled={planning || needsPlace || (barriers.length === 0 && items.length === 0)}
+                      <button type="button" onClick={makePlan} disabled={planning || needsPlace || locating || (barriers.length === 0 && items.length === 0)}
                         className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">Update plan</button>
                     </>}
               </div>

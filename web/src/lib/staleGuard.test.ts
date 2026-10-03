@@ -44,6 +44,10 @@ describe("planFingerprint", () => {
 
 describe("planPlace", () => {
   it("device location wins", () => expect(planPlace(true, "30030")).toBe("device"));
+  it("while a location request is out, the place is locating (matches no plan)", () => {
+    expect(planPlace(true, "30030", true)).toBe("locating");
+    expect(planPlace(false, "30030", true)).toBe("locating");
+  });
   it("a full ZIP is sent, a partial one is not", () => {
     expect(planPlace(false, "30030")).toBe("30030");
     expect(planPlace(false, "300")).toBe("");

@@ -46,9 +46,12 @@ export function photoId(f: { name: string; size: number; lastModified: number } 
   return f ? `${f.name}:${f.size}:${f.lastModified}` : null;
 }
 
-/** What the plan request sends for place: the device location wins, else a valid 5 digit ZIP. */
-export function planPlace(hasDeviceLocation: boolean, zip: string): string {
-  return hasDeviceLocation ? "device" : /^\d{5}$/.test(zip) ? zip : "";
+/**
+ * What the plan request sends for place: the device location wins, else a valid 5 digit ZIP. While a location
+ * request is out the place is "locating", which no plan is made from, so nothing is current until it answers.
+ */
+export function planPlace(hasDeviceLocation: boolean, zip: string, locating = false): string {
+  return locating ? "locating" : hasDeviceLocation ? "device" : /^\d{5}$/.test(zip) ? zip : "";
 }
 
 /** True for controls a person types into. Buttons, checkboxes and radios are not editing. */

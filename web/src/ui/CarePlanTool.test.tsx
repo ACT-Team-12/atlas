@@ -767,6 +767,44 @@ describe("refreshing the device location", () => {
     expect(byText("Or use my location")).toBeTruthy();
   });
 
+  it("no plan can be made while a location request is out", async () => {
+    act(() => byText("Getting there").click());
+    controlledGeo();
+    act(() => byText("Or use my location").click());
+    expect(byText("Make my plan").disabled).toBe(true);
+    const before = fetchCalls.length;
+    act(() => byText("Make my plan").click());
+    expect(fetchCalls.length).toBe(before);
+    act(() => calls[0].ok(pos(34.05, -84.6)));
+    expect(byText("Make my plan").disabled).toBe(false);
+  });
+
+  it("a plan already on its way is dropped when a location request starts, even if it lands first", async () => {
+    act(() => byText("Getting there").click());
+    act(() => typeInto(host.querySelector<HTMLInputElement>("#zip")!, "30030"));
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    controlledGeo();
+    act(() => byText("Or use my location").click());
+    await release(req, ready(planFor("Plan near the old ZIP")));
+    expect(screenText()).not.toContain("Plan near the old ZIP");
+  });
+
+  it("a ZIP plan is outdated while a location request is out, and current again if it fails (the ZIP still stands)", async () => {
+    act(() => byText("Getting there").click());
+    act(() => typeInto(host.querySelector<HTMLInputElement>("#zip")!, "30030"));
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    await release(req, ready(planFor("Plan near 30030")));
+    expect(byText("Read it out loud").disabled).toBe(false);
+    controlledGeo();
+    act(() => byText("Or use my location").click());
+    expect(byText("Read it out loud").disabled).toBe(true);
+    expect(byText("Update plan").disabled).toBe(true);
+    act(() => calls[0].fail());
+    expect(byText("Read it out loud").disabled).toBe(false);
+  });
+
   it("a ZIP typed while a refresh is pending wins over its later answer", async () => {
     await devicePlan();
     act(() => byText("Using your location").click());

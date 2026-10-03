@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { Pool } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { ensureSchema, PgCallStore, reserveSlots, WIPE, type NewSession } from "./store";
 
 /**
@@ -139,5 +140,57 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
     await store.sweep(NOW + 3 * 24 * 3600_000);
     const { rows } = await pool.query("select (select count(*) from atlas_calls)::int as s, (select count(*) from atlas_call_counters)::int as c");
     expect(rows[0]).toEqual({ s: 0, c: 0 });
+  });
+});
+
+/** The first shape of the call tables (commit ea00157), before the one-live-session index existed. */
+const FIRST_SCHEMA = `
+create table atlas_calls (
+  id text primary key, phone_hash text not null, last4 text not null check (last4 ~ '^[0-9]{4}$'), language text not null,
+  phase text not null check (phase in ('code', 'code_missed', 'expired', 'calling', 'done', 'failed')),
+  code_hash text, attempts smallint not null default 0, code_expires_at timestamptz, code_status text, plan_status text,
+  plan_mode text check (plan_mode in ('stream', 'talk')), note text, sealed_phone bytea, sealed_text bytea, sealed_token bytea,
+  sealed_audio bytea, created_at timestamptz not null default now(), expires_at timestamptz not null);
+create unique index atlas_calls_one_code_uq on atlas_calls (phone_hash) where phase = 'code';
+create table atlas_call_counters (id text primary key, n integer not null check (n >= 0), expires_at timestamptz not null);
+`;
+const migration = (name: string) => readFileSync(new URL(`../../../db/migrations/${name}`, import.meta.url), "utf8");
+
+describe.skipIf(!url)("call migrations (real Postgres)", () => {
+  let pool: Pool;
+  beforeAll(async () => {
+    pool = new Pool({ connectionString: url, max: 4 });
+    await pool.query("drop table if exists atlas_calls; drop table if exists atlas_call_counters;");
+    await pool.query(FIRST_SCHEMA);
+    // What the old race could leave: one number with a live plan call AND a live code, neither expired.
+    await pool.query(`insert into atlas_calls (id, phone_hash, last4, language, phase, code_status, plan_status, sealed_phone, sealed_text, created_at, expires_at) values
+      ('plan', 'dup', '2368', 'English', 'calling', 'completed', 'answered', '\\x01', '\\x02', now() - interval '5 minutes', now() + interval '25 minutes'),
+      ('code', 'dup', '2368', 'English', 'code', null, null, '\\x03', '\\x04', now() - interval '1 minute', now() + interval '29 minutes'),
+      ('old', 'old', '1111', 'English', 'calling', null, null, '\\x05', null, now() - interval '40 minutes', now() - interval '10 minutes'),
+      ('ok', 'solo', '2222', 'English', 'code', null, null, '\\x06', null, now(), now() + interval '30 minutes')`);
+  });
+  afterAll(async () => { await pool?.end(); });
+
+  it("a duplicate live pair keeps the runtime path from building the index, and says so instead of failing silently", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await ensureSchema(pool)).toBe(false);
+    expect(JSON.stringify(spy.mock.calls)).toContain("one-live-session index missing");
+    spy.mockRestore();
+  });
+
+  it("the versioned migration resolves the pair (the plan call survives), builds the index, and is idempotent", async () => {
+    await pool.query(migration("003_atlas_calls.sql"));
+    await pool.query(migration("006_atlas_calls_one_live.sql"));
+    await pool.query(migration("006_atlas_calls_one_live.sql"));
+    const { rows } = await pool.query("select id, phase, last4, sealed_phone, sealed_text from atlas_calls order by id");
+    expect(rows).toEqual([
+      { id: "code", phase: "failed", last4: null, sealed_phone: null, sealed_text: null },
+      { id: "ok", phase: "code", last4: "2222", sealed_phone: Buffer.from([6]), sealed_text: null },
+      { id: "old", phase: "expired", last4: null, sealed_phone: null, sealed_text: null },
+      { id: "plan", phase: "calling", last4: "2368", sealed_phone: Buffer.from([1]), sealed_text: Buffer.from([2]) },
+    ]);
+    const idx = await pool.query("select 1 from pg_indexes where tablename = 'atlas_calls' and indexname = 'atlas_calls_one_live_uq'");
+    expect(idx.rowCount).toBe(1);
+    expect(await ensureSchema(pool)).toBe(true);
   });
 });

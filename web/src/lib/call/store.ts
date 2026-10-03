@@ -114,11 +114,20 @@ alter table atlas_calls add column if not exists code_uuid text;
 alter table atlas_calls add column if not exists plan_uuid text;
 alter table atlas_calls add column if not exists placed_at timestamptz;
 create unique index if not exists atlas_calls_one_code_uq on atlas_calls (phone_hash) where phase = 'code';
--- One live session per number: a code, or a plan call (live or unconfirmed). This index, not a check in the insert,
--- is what holds when a code is typed while a new code starts for the same number. Expired rows go first so an old
--- leftover can never make the index fail to build.
-delete from atlas_calls where expires_at < now();
-create unique index if not exists atlas_calls_one_live_uq on atlas_calls (phone_hash) where phase in ('code', 'calling');
+-- One live session per number (a code, or a plan call live or unconfirmed): see LIVE_INDEX and
+-- db/migrations/006_atlas_calls_one_live.sql. Built here only when it cannot fail (no duplicate live rows), so a
+-- request never fails on it; otherwise ensureSchema reports it missing and the migration resolves the duplicates.
+do $$
+begin
+  if not exists (select 1 from pg_indexes where tablename = 'atlas_calls' and indexname = 'atlas_calls_one_live_uq')
+     and not exists (select 1 from atlas_calls where phase in ('code', 'calling') and expires_at > now()
+                     group by phone_hash having count(*) > 1) then
+    update atlas_calls set phase = 'expired', code_hash = null, last4 = null, sealed_phone = null, sealed_text = null,
+      sealed_token = null, sealed_audio = null
+    where phase in ('code', 'calling') and expires_at <= now();
+    create unique index if not exists atlas_calls_one_live_uq on atlas_calls (phone_hash) where phase in ('code', 'calling');
+  end if;
+end $$;
 create index if not exists atlas_calls_expires_idx on atlas_calls (expires_at);
 create table if not exists atlas_call_counters (
   id         text primary key,
@@ -131,11 +140,21 @@ create index if not exists atlas_call_counters_expires_idx on atlas_call_counter
 type Q = Pick<Pool, "query">;
 const ready = new WeakSet<object>();
 
-/** Creates the tables on first use (idempotent), so the feature needs no manual migration step to go live. */
+/**
+ * Creates the tables on first use (idempotent), so the feature needs no manual migration step to go live on a fresh
+ * database. Then checks that the one-live-session index exists: without it two live sessions could exist for one
+ * number, so calls stay OFF (fail closed) and the log says why, until db/migrations/006_atlas_calls_one_live.sql runs
+ * (or the duplicate rows expire and the next request builds it).
+ */
 export async function ensureSchema(db: Q): Promise<boolean> {
   if (ready.has(db)) return true;
   try {
     await db.query(SCHEMA_SQL);
+    const idx = await db.query("select 1 from pg_indexes where tablename = 'atlas_calls' and indexname = 'atlas_calls_one_live_uq'");
+    if ((idx.rowCount ?? 0) !== 1) {
+      console.error("call schema: one-live-session index missing (duplicate live rows); run db/migrations/006_atlas_calls_one_live.sql");
+      return false;
+    }
     ready.add(db);
     return true;
   } catch (e) {

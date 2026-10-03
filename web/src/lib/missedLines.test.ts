@@ -87,6 +87,22 @@ describe("paperLanguages", () => {
     expect(paperLanguages(`${EN_PAPER}\n\n${KO_PAPER}`)).toBeNull();
   });
 
+  it("refuses English papers that carry instructions in German, Italian or Somali, even a single line", () => {
+    const de = "Nehmen Sie 1 Tablette zweimal täglich mit dem Essen.\nBei Brustschmerzen rufen Sie sofort 911 an und nehmen Sie kein Ibuprofen.";
+    const it_ = "Prenda 1 compressa due volte al giorno per 10 giorni.\nNon prenda ibuprofene e chiami il 911 se ha dolore al petto.";
+    const so = "Qaado 1 kiniin maalintii laba jeer iyo cunto.\nHaddii aad dareento xanuun laabta ka ah, wac 911 oo ha qaadan ibuprofen.";
+    const header = "AFTER VISIT SUMMARY\nPatient instructions are listed below. Call the clinic with any problems.\n";
+    for (const [name, other] of Object.entries({ de, it_, so })) {
+      expect(paperLanguages(header + other), name).toBeNull();
+      expect(paperLanguages(`${EN_PAPER}\n${other.split("\n")[1]}`), `${name} one line`).toBeNull();
+    }
+  });
+
+  it("refuses a paper where several long sentences have no English or Spanish word at all", () => {
+    const unlisted = "Ota yksi tabletti kahdesti päivässä ruoan kanssa.\nJos sinulla on rintakipua soita heti hätänumeroon.\nÄlä ota ibuprofeenia tämän lääkkeen kanssa koskaan.";
+    expect(paperLanguages(`${EN_PAPER}\n${unlisted}`)).toBeNull();
+  });
+
   it("refuses text too short or too bare to tell", () => {
     expect(paperLanguages("")).toBeNull();
     expect(paperLanguages("12/01/2026 404-555-0100")).toBeNull();
@@ -133,6 +149,12 @@ describe("missedLinesView", () => {
       expect(v).toEqual({ show: false, why: "unsupported_language" });
       expect(missedLineTexts(v)).toEqual([]);
     }
+  });
+
+  it("an English paper with German instructions never reaches 'all covered'", () => {
+    const paper = `${EN_PAPER}\nBei Brustschmerzen rufen Sie sofort 911 an und nehmen Sie kein Ibuprofen.`;
+    const v = missedLinesView(paper, kept(paper, EN_PAPER.split("\n").slice(1)));
+    expect(v).toEqual({ show: false, why: "unsupported_language" });
   });
 
   it("hides the section when the check finds no instruction-like line at all", () => {

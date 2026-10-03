@@ -1,4 +1,4 @@
-import { checkCoverage, type CoverageItem, type CoverageLang, type UncoveredSentence } from "./coverage";
+import { checkCoverage, splitSentences, type CoverageItem, type CoverageLang, type UncoveredSentence } from "./coverage";
 
 /**
  * View logic for the "Lines on your paper we didn't turn into steps" section (ui/MissedLines.tsx).
@@ -22,16 +22,22 @@ export type MissedLinesView =
 const EN_WORDS = new Set([
   "the", "and", "you", "your", "to", "of", "for", "with", "is", "if", "this", "are", "be", "will", "or", "at",
   "take", "call", "each", "after", "before", "have", "has", "by", "on", "it", "what", "when", "do", "not",
+  "as", "from", "until", "then", "up", "out", "any", "all", "once", "twice", "daily", "every", "day", "days",
+  "due", "week", "weeks", "month", "months", "times", "today", "visit", "clinic", "doctor", "mouth", "tablet",
+  "tablets", "blood", "pain", "fever", "office", "our", "we", "was", "were", "may", "can", "should", "need",
+  "use", "new", "than", "without", "about", "into", "get", "go", "see", "stop", "start", "keep", "eat", "drink",
 ]);
 const ES_WORDS = new Set([
   "el", "los", "las", "usted", "su", "sus", "para", "con", "por", "una", "y", "del", "al", "es", "está",
   "esta", "cada", "día", "dia", "tome", "llame", "pero", "cuando", "tiene", "debe", "hasta", "después", "antes", "como",
 ]);
-/** Latin-script languages the check does NOT support (French, Portuguese, Haitian Creole). */
+/** Latin-script languages the check does NOT support (French, Portuguese, Haitian Creole, German, Italian, Somali). */
 const OTHER_WORDS = new Set([
   "le", "les", "des", "vous", "votre", "vos", "et", "pour", "avec", "une", "du", "au", "aux", "est", "sont", "pas",
   "ne", "dans", "sur", "prenez", "appelez", "jours", "chaque", "você", "seu", "sua", "com", "os", "não", "uma",
   "dos", "das", "ao", "pou", "ak", "nan", "yo", "ou", "pa",
+  "sie", "die", "der", "und", "mit", "nicht", "bei", "ist", "ein", "eine", "il", "di", "che", "per", "della",
+  "non", "sono", "iyo", "ka", "ku", "waa", "haddii", "oo",
 ]);
 /** Letters that only Vietnamese uses among the app's languages (Spanish accents are not in this set). */
 const VIETNAMESE = /[ăđơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/giu;
@@ -43,6 +49,13 @@ const MIN_HITS = 3;
 const MIN_SHARE_OF_WORDS = 0.06;
 /** Any unsupported language above this share of the recognized marker words hides the section. */
 const MAX_OTHER_SHARE = 0.2;
+/** Sentence-level check: sentences with at least this many words must each be readable as English or Spanish. */
+const LONG_SENTENCE_WORDS = 5;
+/**
+ * Long sentences with no English or Spanish marker word at all (terse clinical lines such as "ED attending
+ * reviewed chest x-ray: no pneumonia.", or an unlisted language): up to 1, or up to this share, is allowed.
+ */
+const MAX_UNMARKED_SHARE = 0.2;
 
 const count = (s: string, re: RegExp) => s.match(re)?.length ?? 0;
 
@@ -69,11 +82,37 @@ export function paperLanguages(source: string): CoverageLang[] | null {
   if (recognized === 0) return null;
   if (other >= MIN_HITS && other / recognized > MAX_OTHER_SHARE) return null;
 
+  if (!sentencesAssignable(source)) return null;
+
   const present = (hits: number) => hits >= MIN_HITS && hits / words.length >= MIN_SHARE_OF_WORDS;
   const langs: CoverageLang[] = [];
   if (present(en)) langs.push("en");
   if (present(es)) langs.push("es");
   return langs.length > 0 ? langs : null;
+}
+
+/**
+ * Fails closed on a paper that mixes in a language the check cannot read, sentence by sentence, so a few
+ * English lines cannot vouch for German or Somali instructions. A long sentence that has more
+ * unsupported-language marker words than English or Spanish ones hides the section on its own. Long
+ * sentences with no marker word of any language (an unlisted language, or a terse drug line) are allowed
+ * only up to MAX_UNMARKED_SHARE of the long sentences.
+ */
+function sentencesAssignable(source: string): boolean {
+  let long = 0, unmarked = 0;
+  for (const s of splitSentences(source)) {
+    const words = s.text.toLowerCase().match(/\p{L}+/gu) ?? [];
+    if (words.length < LONG_SENTENCE_WORDS) continue;
+    long++;
+    let supported = 0, other = 0;
+    for (const w of words) {
+      if (EN_WORDS.has(w) || ES_WORDS.has(w)) supported++;
+      if (OTHER_WORDS.has(w)) other++;
+    }
+    if (other > supported) return false;
+    if (supported === 0) unmarked++;
+  }
+  return unmarked <= 1 || unmarked / long <= MAX_UNMARKED_SHARE;
 }
 
 /**

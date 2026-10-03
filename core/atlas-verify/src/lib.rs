@@ -220,8 +220,15 @@ fn utf8_len(first: u8) -> usize {
 /// on a boundary. Same answer as re-running `indexOf` from each rejected occurrence, but Knuth-Morris-Pratt over
 /// UTF-16 units enumerates every occurrence (overlapping ones included, in start order) in one O(hay + needle) pass,
 /// where re-running a search re-compares the whole needle at every rejected occurrence: O(hay * needle) on a run of
-/// U+0130 against a "U+0307 i" quote. `needle` is never empty here.
-fn index_of_aligned(hay: &[u16], needle: &[u16], from: usize, on_boundary: impl Fn(usize) -> bool) -> Option<usize> {
+/// U+0130 against a "U+0307 i" quote. `needle` is never empty here. `steps` counts loop steps, so tests can assert
+/// linear work without timing anything.
+fn index_of_aligned(
+    hay: &[u16],
+    needle: &[u16],
+    from: usize,
+    on_boundary: impl Fn(usize) -> bool,
+    steps: &mut usize,
+) -> Option<usize> {
     let m = needle.len();
     if m == 0 {
         return None;
@@ -230,8 +237,10 @@ fn index_of_aligned(hay: &[u16], needle: &[u16], from: usize, on_boundary: impl 
     let mut pi = vec![0usize; m];
     let mut j = 0;
     for k in 1..m {
+        *steps += 1;
         while j > 0 && needle[k] != needle[j] {
             j = pi[j - 1];
+            *steps += 1;
         }
         if needle[k] == needle[j] {
             j += 1;
@@ -240,8 +249,10 @@ fn index_of_aligned(hay: &[u16], needle: &[u16], from: usize, on_boundary: impl 
     }
     j = 0;
     for (i, &c) in hay.iter().enumerate().skip(from) {
+        *steps += 1;
         while j > 0 && c != needle[j] {
             j = pi[j - 1];
+            *steps += 1;
         }
         if c == needle[j] {
             j += 1;
@@ -262,8 +273,14 @@ pub fn find_span(source: &str, quote: &str) -> Option<Span> {
     find_span_in(&normalize_with_map(source), quote)
 }
 
-/// [`find_span`] against an already mapped source, so checking many quotes against one document maps it once (the
-/// TS side keeps the last mapped source for the same reason).
+/// [`find_span`] for every quote against one source, mapped once (`mapSource` + `findSpanIn` in verify.ts). The
+/// WebAssembly export the browser calls, so 40 items cost one mapping of the paper, not 40.
+pub fn find_spans(source: &str, quotes: &[&str]) -> Vec<Option<Span>> {
+    let mapped = normalize_with_map(source);
+    quotes.iter().map(|q| find_span_in(&mapped, q)).collect()
+}
+
+/// [`find_span`] against an already mapped source (`findSpanIn` in verify.ts).
 fn find_span_in(mapped: &Mapped, quote: &str) -> Option<Span> {
     let frags = fragments(quote);
     if frags.is_empty() {
@@ -282,7 +299,7 @@ fn find_span_in(mapped: &Mapped, quote: &str) -> Option<Span> {
     for f in &frags {
         // The first occurrence that starts AND ends between source characters; one inside a case expansion is
         // skipped and the search goes on past it.
-        let at = index_of_aligned(norm, f, cursor, on_boundary)?;
+        let at = index_of_aligned(norm, f, cursor, on_boundary, &mut 0)?;
         if first.is_none() {
             first = Some(at);
         }
@@ -309,9 +326,7 @@ pub struct Verified {
 pub fn verify_quotes(source: &str, quotes: &[&str]) -> (Vec<Verified>, Vec<Verified>) {
     let mut kept = Vec::new();
     let mut refused = Vec::new();
-    let mapped = normalize_with_map(source);
-    for (i, q) in quotes.iter().enumerate() {
-        let span = find_span_in(&mapped, q);
+    for (i, span) in find_spans(source, quotes).into_iter().enumerate() {
         let v = Verified {
             id: format!("item-{i}"),
             grounded: span.is_some(),
@@ -343,4 +358,35 @@ pub fn json_string(s: &str) -> String {
     }
     out.push('"');
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Steps the matcher takes for one search of `q` in `src`, with the normalized lengths.
+    fn steps_for(src: &str, q: &str) -> (usize, usize, usize) {
+        let m = normalize_with_map(src);
+        let needle: Vec<u16> = normalize(q).encode_utf16().collect();
+        let on_boundary = |k: usize| m.boundary.get(k).copied().unwrap_or(false);
+        let mut steps = 0;
+        assert_eq!(index_of_aligned(&m.norm, &needle, 0, on_boundary, &mut steps), None);
+        (steps, m.norm.len(), needle.len())
+    }
+
+    #[test]
+    fn at_most_two_steps_per_source_and_quote_unit_at_the_request_limits() {
+        // 20,000 U+0130 against 300 "U+0307 i": an unaligned occurrence at every odd position. Re-running the search
+        // from each one is O(source * quote); this must stay O(source + quote).
+        let (steps, hay, needle) = steps_for(&"\u{0130}".repeat(20000), &"\u{0307}i".repeat(300));
+        assert_eq!((hay, needle), (40000, 600));
+        assert!(steps <= 2 * (hay + needle), "{steps} steps");
+    }
+
+    #[test]
+    fn four_times_the_input_costs_about_four_times_the_steps_not_sixteen() {
+        let (small, _, _) = steps_for(&"\u{0130}".repeat(5000), &"\u{0307}i".repeat(75));
+        let (big, _, _) = steps_for(&"\u{0130}".repeat(20000), &"\u{0307}i".repeat(300));
+        assert!(big as f64 / small as f64 <= 4.5, "{small} -> {big}");
+    }
 }

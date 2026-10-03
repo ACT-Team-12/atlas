@@ -4,7 +4,7 @@
 //! loader. Strings cross as UTF-8 bytes the caller writes into memory it got from `atlas_alloc`. Results are kept in
 //! module-level cells the caller reads right after the call (the module is single-threaded).
 
-use crate::{fakes_for, find_span, json_string, normalize};
+use crate::{fakes_for, find_span, find_spans, json_string, normalize};
 use std::cell::{Cell, RefCell};
 
 thread_local! {
@@ -62,6 +62,47 @@ pub unsafe extern "C" fn atlas_find_span(src: *const u8, src_len: usize, quote: 
             1
         }
     }
+}
+
+/// Every quote against one source, which is mapped once (a 20,000-character paper costs milliseconds to map, so 40
+/// separate `atlas_find_span` calls spend most of their time re-mapping it). `quotes` is a sequence of frames, each a
+/// little-endian u32 byte length followed by that many UTF-8 bytes. The result, in the output buffer, is JSON:
+/// `[[start,end],null,...]`, one entry per quote in order. Returns its byte length, or -1 when an input was not valid
+/// UTF-8 or the frames do not exactly fill `quotes`.
+///
+/// # Safety
+/// Both pointer/length pairs must describe readable memory.
+#[no_mangle]
+pub unsafe extern "C" fn atlas_find_spans(src: *const u8, src_len: usize, quotes: *const u8, quotes_len: usize) -> i32 {
+    let Some(s) = read(src, src_len) else { return -1 };
+    let buf: &[u8] = if quotes_len == 0 {
+        &[]
+    } else {
+        std::slice::from_raw_parts(quotes, quotes_len)
+    };
+    let mut qs: Vec<&str> = Vec::new();
+    let mut at = 0;
+    while at < buf.len() {
+        let Some(head) = buf.get(at..at + 4) else { return -1 };
+        let len = u32::from_le_bytes([head[0], head[1], head[2], head[3]]) as usize;
+        at += 4;
+        let Some(end) = at.checked_add(len) else { return -1 };
+        let Some(bytes) = buf.get(at..end) else { return -1 };
+        let Ok(q) = std::str::from_utf8(bytes) else { return -1 };
+        qs.push(q);
+        at = end;
+    }
+    let items: Vec<String> = find_spans(s, &qs)
+        .into_iter()
+        .map(|r| match r {
+            None => "null".to_string(),
+            Some(span) => format!("[{},{}]", span.start, span.end),
+        })
+        .collect();
+    let json = format!("[{}]", items.join(","));
+    let l = json.len() as i32;
+    set_out(json);
+    l
 }
 
 #[no_mangle]

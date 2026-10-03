@@ -3,7 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { ExtractError, MODEL } from "./extract";
 import { LANGUAGES } from "./schema";
-import { findSpan } from "./verify";
+import { findSpanIn, mapSource } from "./verify";
 import { numbersIn } from "./meaning";
 
 /**
@@ -70,7 +70,8 @@ export function checkQuestions(
   items: UnderstandRequest["items"],
   drafts: DraftQuestion[],
 ): Pick<UnderstandResponse, "questions" | "dropped"> {
-  const stepSpans = new Map(items.map((i) => [i.id, findSpan(source, i.source_quote)]));
+  const paper = mapSource(source);
+  const stepSpans = new Map(items.map((i) => [i.id, findSpanIn(paper, i.source_quote)]));
   const seen = new Set<string>();
   const questions: CheckedQuestion[] = [];
   const dropped: UnderstandResponse["dropped"] = [];
@@ -84,7 +85,7 @@ export function checkQuestions(
       dropped.push({ item_id: q.item_id, reason: "bad_options" });
       continue;
     }
-    const span = findSpan(source, q.answer_quote);
+    const span = findSpanIn(paper, q.answer_quote);
     if (!span) { dropped.push({ item_id: q.item_id, reason: "quote_not_in_paper" }); continue; }
     if (span.start < step.start || span.end > step.end) { dropped.push({ item_id: q.item_id, reason: "quote_outside_step" }); continue; }
     // The quote is real, but does it back THIS answer? (Codex review, 2026-10-02: correct="3 times daily" with

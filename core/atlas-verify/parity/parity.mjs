@@ -265,6 +265,22 @@ for (const [i, c] of cases.entries()) {
   out.push({ i, origin: c.origin, source: c.source, quote: c.quote, span: a, same });
 }
 
+// The batch export the browser calls (one mapping per source) must give, quote by quote, what the TS checker gives.
+const bySource = new Map();
+for (const [i, c] of cases.entries()) {
+  const src = resolveSource(c.source);
+  if (!bySource.has(src)) bySource.set(src, []);
+  bySource.get(src).push(i);
+}
+for (const [src, idx] of bySource) {
+  const got = rust.findSpans(src, idx.map((i) => cases[i].quote));
+  idx.forEach((i, k) => {
+    const a = enc(ts.findSpan(src, cases[i].quote));
+    const b = enc(got[k]);
+    if (JSON.stringify(a) !== JSON.stringify(b)) mismatches.push({ what: "findSpans", case: i, quote: cases[i].quote, ts: a, rust: b });
+  });
+}
+
 // Outcomes that must hold in BOTH implementations, not just agree.
 const MUST = [
   ["Take a seat.", "Take ... 5 ... mg", false],
@@ -288,8 +304,9 @@ const MUST_SPAN = [
 ];
 for (const [src, q, s0, e0] of MUST_SPAN) {
   for (const [name, impl] of [["ts", ts], ["rust", rust]]) {
-    const r = impl.findSpan(src, q);
-    if (!r || r.start !== s0 || r.end !== e0) mismatches.push({ what: "must span", impl: name, source: src, quote: q, got: r, expected: [s0, e0] });
+    for (const r of [impl.findSpan(src, q), ...(name === "rust" ? impl.findSpans(src, [q]) : [])]) {
+      if (!r || r.start !== s0 || r.end !== e0) mismatches.push({ what: "must span", impl: name, source: src, quote: q, got: r, expected: [s0, e0] });
+    }
   }
 }
 for (const [src, q, found] of MUST) {

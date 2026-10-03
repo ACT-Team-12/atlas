@@ -64,8 +64,12 @@ quotes that are.
    unaligned occurrence re-compared the whole quote every time: a 20,000 `"İ"` source against a 600-unit
    `"̇i̇i…"` quote has an unaligned occurrence at every odd position, so 40 such items cost seconds. The search is now
    one Knuth-Morris-Pratt pass that enumerates every occurrence and returns the first aligned one (same answer,
-   O(source + quote)), and a source is mapped once per batch of quotes. TS and Rust tests at the request limits hold
-   40 items under 500 ms, and parity checks both give the same answers there.
+   O(source + quote)). A source is mapped once per batch of quotes and held only by the caller for that batch
+   (`mapSource` + `findSpanIn` in TS, `find_spans` in Rust; no module state keeps a paper). The browser uses the
+   `atlas_find_spans` export, one call per care plan, so 40 items map the paper once. Tests count matcher steps (at
+   most 2 per source and quote unit, about 4x the steps for 4x the input) instead of timing; absolute latency is in
+   `cargo run --release --example bench_limits` and `web/scripts/bench-checker.mjs`. Parity checks `findSpans` on
+   every case.
 
 Known input class the two cannot be compared on: a JS string with a lone surrogate. Rust `&str` cannot hold one and
 `TextEncoder` turns it into U+FFFD at the WebAssembly boundary. The parity corpus does not include them.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { findSpan, normalize, verifyItems } from "./verify";
+import { readFileSync } from "node:fs";
+import { findSpan, findSpanIn, indexOfAligned, mapSource, normalize, verifyItem, verifyItems } from "./verify";
 import { SAMPLE_AVS } from "./sample";
 import { PAPERS, fakesFor } from "./checkerTest";
 import { dedupe } from "./extract";
@@ -114,9 +115,12 @@ describe("oracle: every highlighted slice normalizes to the fragment it matched"
   it("holds on every case that is found", () => {
     let found = 0;
     const bad: string[] = [];
+    // Thousands of quotes against a few papers: map each paper once (findSpan is findSpanIn on a fresh map).
+    const maps = new Map<string, ReturnType<typeof mapSource>>();
     for (const [src, q] of cases) {
       if (/\.\.\.|…/.test(q)) continue;
-      const span = findSpan(src, q);
+      if (!maps.has(src)) maps.set(src, mapSource(src));
+      const span = findSpanIn(maps.get(src)!, q);
       if (!span) continue;
       found++;
       if (normalize(src.slice(span.start, span.end)) !== fragmentOf(q)) bad.push(JSON.stringify([q, src.slice(span.start, span.end)]));
@@ -130,16 +134,35 @@ describe("findSpan on adversarial input at the request limits", () => {
   // 20,000-character source, 600-character quote, 40 items (schema.ts limits). Every odd normalized position starts
   // an occurrence of the quote, and every one of them begins inside a U+0130 expansion, so none may count. A search
   // that re-compares the whole quote at each such occurrence is O(source * quote) and took ~10 s for 40 items.
+  // Wall-clock time is load-dependent, so these tests count the matcher's steps; scripts/bench-checker.mjs times it.
   const source = "İ".repeat(20000);
   const quote = "̇i".repeat(300);
 
-  it("refuses every item and stays linear (40 items under 500 ms)", () => {
-    const t0 = performance.now();
+  it("refuses every one of 40 limit-sized items", () => {
     const { kept, refused } = verifyItems(source, Array.from({ length: 40 }, () => item(quote)));
-    const ms = performance.now() - t0;
     expect(kept).toHaveLength(0);
     expect(refused).toHaveLength(40);
-    expect(ms).toBeLessThan(500);
+  });
+
+  /** Steps the matcher takes for one search of `q` in `src` (pattern preprocessing plus the scan). */
+  const stepsFor = (src: string, q: string) => {
+    const m = mapSource(src);
+    const stats = { steps: 0 };
+    expect(indexOfAligned(m.norm, normalize(q), 0, m.boundary, stats)).toBe(-1);
+    return { steps: stats.steps, hay: m.norm.length, needle: normalize(q).length };
+  };
+
+  it("does at most 2 steps per source unit and quote unit (linear, not source * quote)", () => {
+    const r = stepsFor(source, quote);
+    expect(r.hay).toBe(40000);
+    expect(r.needle).toBe(600);
+    expect(r.steps).toBeLessThanOrEqual(2 * (r.hay + r.needle));
+  });
+
+  it("4x the source and quote costs about 4x the steps, not 16x", () => {
+    const small = stepsFor("İ".repeat(5000), "̇i".repeat(75)).steps;
+    const big = stepsFor("İ".repeat(20000), "̇i".repeat(300)).steps;
+    expect(big / small).toBeLessThanOrEqual(4.5);
   });
 
   it("still finds the one aligned occurrence after ~20,000 unaligned ones", () => {
@@ -147,11 +170,26 @@ describe("findSpan on adversarial input at the request limits", () => {
     // and ends after the last U+0130's full expansion, so this is the first and only occurrence that may count.
     const src = "İ".repeat(20000) + " ̇" + "İ".repeat(299);
     const q = "̇i".repeat(299) + "̇";
-    const t0 = performance.now();
-    const span = findSpan(src, q);
-    expect(performance.now() - t0).toBeLessThan(500);
-    expect(span).toEqual({ start: 20001, end: src.length });
     expect(src.length).toBe(20301);
+    expect(findSpan(src, q)).toEqual({ start: 20001, end: 20301 });
+    expect(findSpanIn(mapSource(src), q)).toEqual({ start: 20001, end: 20301 });
+  });
+});
+
+describe("request-scoped source map", () => {
+  it("findSpanIn on one mapSource gives the same answer as findSpan, quote by quote", () => {
+    const mapped = mapSource(SAMPLE_AVS);
+    for (const q of ["Take 1 tablet by mouth 2 times a day with meals.", "Hemoglobin A1c ... due in 3 months", "Increase insulin to 20 units", ""]) {
+      expect(findSpanIn(mapped, q), q).toEqual(findSpan(SAMPLE_AVS, q));
+    }
+    expect(verifyItem(mapped, item("metformin (GLUCOPHAGE) 500 mg tablet"), 3)).toMatchObject({ id: "item-3", grounded: true });
+  });
+
+  it("verify.ts keeps no module-level mutable state, so no patient paper outlives its request", () => {
+    // A module-level cache in a warm server worker would hold the last paper (and its normalized copy) after the
+    // request ends. Any top-level let or var is refused here; the mapped source is passed explicitly instead.
+    const text = readFileSync(new URL("./verify.ts", import.meta.url), "utf8");
+    expect(text.match(/^(?:export\s+)?(?:let|var)\s+\w+/gm) ?? []).toEqual([]);
   });
 });
 

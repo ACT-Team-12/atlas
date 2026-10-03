@@ -8,7 +8,11 @@
  */
 
 export type Span = { start: number; end: number };
-export type DeviceChecker = { findSpan(source: string, quote: string): Span | null };
+export type DeviceChecker = {
+  findSpan(source: string, quote: string): Span | null;
+  /** findSpan for every quote, in order, with the source mapped once (use this for a whole care plan). */
+  findSpans(source: string, quotes: readonly string[]): (Span | null)[];
+};
 
 export const WASM_URL = "/atlas_verify.wasm";
 
@@ -19,6 +23,8 @@ type Exports = {
   atlas_find_span(sp: number, sl: number, qp: number, ql: number): number;
   atlas_span_start(): number;
   atlas_span_end(): number;
+  atlas_find_spans(sp: number, sl: number, qp: number, ql: number): number;
+  atlas_out_ptr(): number;
 };
 
 /** Wraps an instantiated module. Strings cross as UTF-8; offsets come back as UTF-16 units (JS string indices). */
@@ -30,7 +36,35 @@ export function wrap(x: Exports): DeviceChecker {
     new Uint8Array(x.memory.buffer, ptr, bytes.length).set(bytes);
     return [ptr, bytes.length];
   };
+  // Quotes cross as frames: a little-endian u32 byte length, then the UTF-8 bytes.
+  const putFrames = (strings: readonly string[]): [number, number] => {
+    const parts = strings.map((s) => enc.encode(s));
+    const total = parts.reduce((n, b) => n + 4 + b.length, 0);
+    const ptr = x.atlas_alloc(total);
+    const view = new DataView(x.memory.buffer, ptr, total);
+    const bytes = new Uint8Array(x.memory.buffer, ptr, total);
+    let at = 0;
+    for (const b of parts) {
+      view.setUint32(at, b.length, true);
+      bytes.set(b, at + 4);
+      at += 4 + b.length;
+    }
+    return [ptr, total];
+  };
   return {
+    findSpans(source, quotes) {
+      const [sp, sl] = put(source);
+      const [qp, ql] = putFrames(quotes);
+      try {
+        const len = x.atlas_find_spans(sp, sl, qp, ql);
+        if (len < 0) throw new Error("atlas_verify: input was not valid UTF-8");
+        const json = new TextDecoder().decode(new Uint8Array(x.memory.buffer, x.atlas_out_ptr(), len));
+        return (JSON.parse(json) as ([number, number] | null)[]).map((r) => (r === null ? null : { start: r[0], end: r[1] }));
+      } finally {
+        x.atlas_free(qp, ql);
+        x.atlas_free(sp, sl);
+      }
+    },
     findSpan(source, quote) {
       const [sp, sl] = put(source);
       const [qp, ql] = put(quote);

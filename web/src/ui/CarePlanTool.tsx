@@ -558,10 +558,12 @@ export function CarePlanTool() {
       .then(async ({ loadDeviceChecker, sameSpan }) => {
         const checker = await loadDeviceChecker();
         const byId: Record<string, DeviceVerdict> = {};
-        for (const it of care.items) {
-          const mine = checker.findSpan(care.source_text, it.source_quote);
+        // One call for the whole plan: the paper is mapped once, not once per step.
+        const spans = checker.findSpans(care.source_text, care.items.map((it) => it.source_quote));
+        care.items.forEach((it, k) => {
+          const mine = spans[k];
           byId[it.id] = sameSpan(it.span, mine) ? "match" : mine ? "differ" : "missing";
-        }
+        });
         if (live) setDeviceRun({ for: care, ok: true, byId });
       })
       .catch(() => { if (live) setDeviceRun({ for: care, ok: false, byId: {} }); });

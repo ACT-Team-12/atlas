@@ -3,7 +3,7 @@
 
 mod common;
 
-use atlas_verify::{find_span, normalize, verify_quotes, Span};
+use atlas_verify::{find_span, find_spans, normalize, verify_quotes, Span};
 
 /// `SAMPLE_AVS.slice(start, end)` with UTF-16 offsets.
 fn slice16(s: &str, span: Span) -> String {
@@ -209,20 +209,20 @@ fn oracle_every_highlighted_slice_normalizes_to_the_fragment_it_matched() {
     assert!(bad.is_empty(), "{bad:?}");
 }
 
+// Wall-clock time is load-dependent, so nothing here times the checker: the step-count bounds are unit tests in
+// src/lib.rs, and `cargo run --release --example bench_limits` prints absolute timings without gating anything.
+
 #[test]
-fn adversarial_input_at_the_request_limits_stays_linear() {
+fn refuses_forty_limit_sized_adversarial_items() {
     // 20,000-character source, 600-character quote, 40 items (web/src/lib/schema.ts limits). Every odd normalized
-    // position starts an occurrence of the quote, each inside a U+0130 expansion, so none may count. Re-running the
-    // search from each rejected occurrence is O(source * quote) and took ~10 s for 40 items in the wasm build.
+    // position starts an occurrence of the quote, each inside a U+0130 expansion, so none may count.
     let source = "\u{0130}".repeat(20000);
     let quote = "\u{0307}i".repeat(300);
     let quotes: Vec<&str> = (0..40).map(|_| quote.as_str()).collect();
-    let t0 = std::time::Instant::now();
     let (kept, refused) = verify_quotes(&source, &quotes);
-    let elapsed = t0.elapsed();
     assert!(kept.is_empty());
     assert_eq!(refused.len(), 40);
-    assert!(elapsed.as_millis() < 500, "40 items took {elapsed:?}");
+    assert_eq!(find_spans(&source, &quotes), vec![None; 40]);
 }
 
 #[test]
@@ -230,9 +230,22 @@ fn finds_the_one_aligned_occurrence_after_twenty_thousand_unaligned_ones() {
     // A standalone U+0307 then 299 U+0130: the quote begins on that mark and ends after the last full expansion.
     let src = format!("{} \u{0307}{}", "\u{0130}".repeat(20000), "\u{0130}".repeat(299));
     let q = format!("{}\u{0307}", "\u{0307}i".repeat(299));
-    let t0 = std::time::Instant::now();
-    let found = find_span(&src, &q);
-    assert!(t0.elapsed().as_millis() < 500, "took {:?}", t0.elapsed());
     assert_eq!(src.encode_utf16().count(), 20301);
-    assert_eq!(found, span(20001, 20301));
+    assert_eq!(find_span(&src, &q), span(20001, 20301));
+    assert_eq!(find_spans(&src, &[q.as_str()]), vec![span(20001, 20301)]);
+}
+
+#[test]
+fn find_spans_gives_find_span_for_every_quote() {
+    let avs = common::sample_avs();
+    let quotes = [
+        "Take 1 tablet by mouth 2 times a day with meals.",
+        "Hemoglobin A1c ... due in 3 months",
+        "Increase insulin to 20 units",
+        "",
+        "metformin (GLUCOPHAGE) 500 mg tablet",
+    ];
+    let one_by_one: Vec<Option<Span>> = quotes.iter().map(|q| find_span(&avs, q)).collect();
+    assert_eq!(find_spans(&avs, &quotes), one_by_one);
+    assert!(find_spans(&avs, &[]).is_empty());
 }

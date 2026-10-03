@@ -4,6 +4,7 @@
 //   const atlas = await load(bytes);            // Node: fs.readFileSync(".../atlas_verify.wasm")
 //   const atlas = await load(fetch(wasmUrl));   // browser
 //   atlas.findSpan(source, quote)               // same contract as web/src/lib/verify.ts findSpan
+//   atlas.findSpans(source, quotes)             // findSpan for each quote, mapping the source once
 //
 // Strings cross the boundary as UTF-8. A JS string holding a lone surrogate is encoded as U+FFFD by TextEncoder, so
 // for that one input class the result can differ from the TS checker (see the crate README).
@@ -33,6 +34,21 @@ function wrap(x) {
     if (len < 0) throw new Error("atlas_verify: input was not valid UTF-8");
     return dec.decode(new Uint8Array(x.memory.buffer, x.atlas_out_ptr(), len));
   };
+  // Quotes cross as frames: a little-endian u32 byte length, then the UTF-8 bytes.
+  const putFrames = (strings) => {
+    const parts = strings.map((s) => enc.encode(s));
+    const total = parts.reduce((n, b) => n + 4 + b.length, 0);
+    const ptr = x.atlas_alloc(total);
+    const view = new DataView(x.memory.buffer, ptr, total);
+    const bytes = new Uint8Array(x.memory.buffer, ptr, total);
+    let at = 0;
+    for (const b of parts) {
+      view.setUint32(at, b.length, true);
+      bytes.set(b, at + 4);
+      at += 4 + b.length;
+    }
+    return [ptr, total];
+  };
   const withString = (s, fn) => {
     const [p, l] = put(s);
     try {
@@ -53,6 +69,17 @@ function wrap(x) {
           return { start: x.atlas_span_start(), end: x.atlas_span_end() };
         }),
       );
+    },
+    /** findSpan for every quote, in order, with the source mapped once. */
+    findSpans(source, quotes) {
+      return withString(source, (sp, sl) => {
+        const [qp, ql] = putFrames(quotes);
+        try {
+          return JSON.parse(out(x.atlas_find_spans(sp, sl, qp, ql))).map((r) => (r === null ? null : { start: r[0], end: r[1] }));
+        } finally {
+          x.atlas_free(qp, ql);
+        }
+      });
     },
     normalize(s) {
       return withString(s, (p, l) => out(x.atlas_normalize(p, l)));

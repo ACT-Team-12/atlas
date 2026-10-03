@@ -12,6 +12,8 @@ Fixtures: the English, Spanish and bilingual papers, the six eval papers, the sa
 states. A plan with up to 7 steps has every kept subset; a larger one has all, none and 58 seeded random subsets.
 
 Android replays it in `mobile/android/app/src/test/java/com/stephensookra/atlas/MissedLinesTest.kt`.
+iOS replays it in `mobile/ios/ATLASTests/MissedLinesTests.swift` (the file is a test resource referenced from
+`mobile/ios/project.yml`, not a copy).
 
 Regenerate (needs a checkout where `web/src/lib/missedLines.ts` has `missedLinesPayload`):
 

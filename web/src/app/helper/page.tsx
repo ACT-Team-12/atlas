@@ -34,10 +34,10 @@ export default function HelperPage() {
               </div>
             </div>
             <div className="card p-6 sm:p-8 bg-paper">
-              <h2 className="display text-2xl sm:text-3xl">Nothing about either of you is stored</h2>
+              <h2 className="display text-2xl sm:text-3xl">We keep nothing about either of you</h2>
               <div className="mt-3 space-y-3 font-semibold text-ink-soft leading-7">
                 <p>This page makes the link and the QR code on your device. We do not save what you pick.</p>
-                <p>The choices live only in the link itself, after the #, a part of a link that browsers do not send to our server. Once ATLAS has put them into the page, it clears them from the address bar, so they do not linger in the browser history or in a link shared again. When a plan is built from the link, we add one to an anonymous count of plans built from helper links, and nothing more. The ZIP is used once to find nearby clinics, the same as typing it, and is not saved. <a className="underline decoration-2 underline-offset-4" href="/privacy">Privacy</a>.</p>
+                <p>The choices live only in the link itself, after the #, a part of a link that browsers do not send to our server. Once ATLAS has put them into the page, it clears them from the address bar, so they do not linger in the browser history or in a link shared again. When the first plan is built from the link, we add one to an anonymous count of plans built from helper links, and nothing more. The ZIP is used to find nearby clinics, the same as typing it: we do not keep it, and like a typed ZIP it stays only in the person&apos;s own saved plans on their phone until they clear them. <a className="underline decoration-2 underline-offset-4" href="/privacy">Privacy</a>.</p>
               </div>
             </div>
           </div>

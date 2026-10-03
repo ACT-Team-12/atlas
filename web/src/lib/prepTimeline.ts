@@ -98,6 +98,57 @@ export function withinOneLine(source: string, span: { start: number; end: number
   return span.end <= lineEnd;
 }
 const clip = (s: string, n: number) => s.trim().slice(0, n);
+
+/** A break between two parts of one sentence: a semicolon, colon, comma, dash or bullet, or a joining word. */
+const CLAUSE_BREAK = /[;:,•]|\s[-–—]\s|(?<![\p{L}\p{M}])(?:and|then|or|but|also|y|o|luego|et|ou|puis|và|rồi|hoặc)(?![\p{L}\p{M}])/iu;
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+
+/** Words a time phrase is made of ("3 days before your procedure", "the morning of your exam"). */
+const TIME_PHRASE_WORD = new Set([
+  "a", "an", "the", "your", "my", "of", "on", "at", "in", "by", "before", "after", "prior", "to", "until", "from",
+  "starting", "beginning", "day", "days", "night", "nights", "morning", "evening", "afternoon", "week", "weeks",
+  "hour", "hours", "minute", "minutes", "hr", "hrs", "min", "mins", "am", "pm", "a.m", "p.m", "noon", "midnight",
+  "procedure", "exam", "test", "appointment", "surgery", "colonoscopy", "endoscopy", "scan", "visit", "arrival",
+  "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "fourteen",
+  "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "seventy-two", "forty-eight", "twenty-four",
+]);
+
+/**
+ * True when a time phrase in the sentence is cut off from the model's matched words by a clause break and is not a
+ * bare time phrase: "Take your pill; stop drinking 2 hours before your procedure." with the model quoting "Take your
+ * pill" (Codex round 6). That time belongs to another instruction, so the step is not placed. A fronted time phrase
+ * ("5 hours before your procedure, drink the second half") is only time words and still places. A time word we
+ * can't find again counts as cut off (fail closed).
+ */
+export function timeOutsideClause(quote: string, matched: { start: number; end: number }, words: string[]): boolean {
+  const breakRe = new RegExp(CLAUSE_BREAK.source, "giu");
+  for (const w of words) {
+    const m = new RegExp(escapeRe(w.trim()), "i").exec(quote);
+    if (!m) return true;
+    const ws = m.index, we = m.index + m[0].length;
+    if (ws < matched.end && matched.start < we) continue;
+    const after = ws >= matched.end;
+    const gap = after ? quote.slice(matched.end, ws) : quote.slice(we, matched.start);
+    if (!CLAUSE_BREAK.test(gap)) continue;
+    // The part of the sentence that holds the time phrase, on the far side of the break.
+    let region: string;
+    if (after) {
+      breakRe.lastIndex = we;
+      const next = breakRe.exec(quote);
+      region = quote.slice(matched.end, next ? next.index : quote.length);
+    } else {
+      let lastEnd = 0;
+      for (const b of quote.slice(0, ws).matchAll(breakRe)) lastEnd = b.index + b[0].length;
+      region = quote.slice(lastEnd, matched.start);
+    }
+    const others = [...region.toLowerCase().matchAll(/[\p{L}\p{M}'’.-]+/gu)]
+      .map((x) => x[0].replace(/^[.'’-]+|[.'’-]+$/g, ""))
+      .filter((x) => x !== "" && !TIME_PHRASE_WORD.has(x) && !CLAUSE_BREAK.test(x));
+    if (others.length > 0) return true;
+  }
+  return false;
+}
+
 /** Any way of writing an ellipsis: "...", "..", ". . .", "…" (U+2026), "⋯" (U+22EF), "᠁" (U+1801), "︙" (U+FE19). */
 export const ELLIPSIS = /\.\s*\.|[\u2026\u22EF\u1801\uFE19]/;
 
@@ -118,7 +169,14 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[], langua
     const span = enclosingSentence(source, found);
     const quote = source.slice(span.start, span.end);
     const multiLine = !withinOneLine(source, span);
-    const when = readWhen(quote, multiLine);
+    const read = readWhen(quote, multiLine);
+    // The model's words appear more than once in the paper: we can't tell which line it meant (Codex round 6).
+    const repeated = findSpan(source.slice(found.end), asked) !== null;
+    const otherClause = read.slot !== null && timeOutsideClause(quote, { start: found.start - span.start, end: found.end - span.start }, read.words);
+    const when = read.slot === null ? read
+      : repeated ? { slot: null, reason: "repeated" as const, words: read.words }
+      : otherClause ? { slot: null, reason: "other_clause" as const, words: read.words }
+      : read;
     if ((it.ai_slot === "not_stated" ? null : it.ai_slot) !== when.slot) overridden++;
     const plain = clip(it.plain_language, 600);
     // A number in the AI's words (digits or "two", "twice") that the paper's line doesn't have blocks the explanation.

@@ -414,3 +414,31 @@ describe("Codex round 5: a fraction in the paper never lets a whole-number expla
     expect(s).toMatchObject({ source_quote: line, numbers_blocked: true });
   });
 });
+
+describe("Codex round 6: a step never borrows the time of another part of its sentence", () => {
+  const one = (line: string, quote: string) => {
+    const r = buildPrepTimeline(`PREP SHEET (sample)\n- ${line}`, [item({ source_quote: quote, plain_language: "" })]);
+    return [...r.timeline.flatMap((g) => g.steps), ...r.ask][0];
+  };
+  it.each([
+    ["Take your pill; stop drinking 2 hours before your procedure.", "Take your pill"],
+    ["Take your pill, and stop drinking 2 hours before your procedure.", "Take your pill"],
+    ["Take your pill - stop drinking 2 hours before your procedure.", "Take your pill"],
+    ["Stop drinking 2 hours before your procedure; take your pill.", "take your pill"],
+    ["Take your pill, then refrain from drinking 3 days before your procedure.", "Take your pill"],
+  ])("%j quoted as %j is not placed", (line, quote) => {
+    expect(one(line, quote)).toMatchObject({ slot: null, reason: "other_clause" });
+  });
+  it.each([
+    ["5 hours before your procedure, drink the second half of the bowel prep.", "drink the second half of the bowel prep", "hours_before"],
+    ["Stop aspirin 3 days before your procedure, and call us with questions.", "Stop aspirin", "days_before"],
+    ["Stop drinking 2 hours before your procedure.", "Stop drinking", "hours_before"],
+  ])("%j quoted as %j is still placed", (line, quote, slot) => {
+    expect(one(line, quote)).toMatchObject({ slot });
+  });
+  it("words that appear twice in the paper are never placed from the first one", () => {
+    const paper = "PREP SHEET (sample)\n- Take your pill 3 days before your procedure.\n- Take your pill the morning of your procedure.";
+    const r = buildPrepTimeline(paper, [item({ source_quote: "Take your pill", plain_language: "" })]);
+    expect([...r.timeline.flatMap((g) => g.steps), ...r.ask][0]).toMatchObject({ slot: null, reason: "repeated" });
+  });
+});

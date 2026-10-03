@@ -71,6 +71,25 @@ function fragments(quote: string): string[] {
   return frags.some((f) => f.length < 3) ? [] : frags;
 }
 
+/** A letter or digit in a script that puts spaces between words (a Chinese or Korean match may sit mid-run). */
+const WORD_CHAR = /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}\p{N}\p{M}]/u;
+const DIGIT = /\p{N}/u;
+
+/**
+ * True when `f` at `at` in `norm` starts and ends on a word or number boundary: "take it" is not in "mistake it",
+ * "10 mg" is not in "110 mg" or "2.10 mg", "5 mg" is not in "2.5 mg" (Codex round 9).
+ */
+function onBoundary(norm: string, f: string, at: number): boolean {
+  const end = at + f.length;
+  const before = norm[at - 1] ?? "";
+  const after = norm[end] ?? "";
+  if (WORD_CHAR.test(f[0]) && WORD_CHAR.test(before)) return false;
+  if (WORD_CHAR.test(f[f.length - 1]) && WORD_CHAR.test(after)) return false;
+  if (DIGIT.test(f[0]) && /[.,]/.test(before) && DIGIT.test(norm[at - 2] ?? "")) return false;
+  if (DIGIT.test(f[f.length - 1]) && /[.,]/.test(after) && DIGIT.test(norm[end + 1] ?? "")) return false;
+  return true;
+}
+
 export function findSpan(source: string, quote: string): { start: number; end: number } | null {
   const frags = fragments(quote);
   if (frags.length === 0) return null;
@@ -79,7 +98,8 @@ export function findSpan(source: string, quote: string): { start: number; end: n
   let first = -1;
   let lastEnd = -1;
   for (const f of frags) {
-    const at = norm.indexOf(f, cursor);
+    let at = norm.indexOf(f, cursor);
+    while (at >= 0 && !onBoundary(norm, f, at)) at = norm.indexOf(f, at + 1);
     if (at < 0) return null;
     if (first < 0) first = at;
     lastEnd = at + f.length;

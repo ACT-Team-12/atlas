@@ -150,3 +150,20 @@ describe("Codex round 7: a \"...\" quote never joins two lines or two sentences"
     expect(kept[0]).toMatchObject({ grounded: true, source_quote: "If you take insulin, do not take it the morning of your procedure." });
   });
 });
+
+describe("Codex round 9: a quote must match whole words and whole numbers", () => {
+  it.each([
+    ["Don't make a mistake it is easy to fix.", "take it"],
+    ["Take 110 mg every morning.", "10 mg"],
+    ["Take 2.5 mg every morning.", "5 mg every morning"],
+    ["Take 10 mgs daily.", "Take 10 mg"],
+  ])("%j does not ground %j", (paper, quote) => {
+    expect(findSpan(paper, quote)).toBeNull();
+    expect(verifyItems(paper, [item(quote)]).kept).toEqual([]);
+  });
+  it("a whole-word match later in the paper is still found", () => {
+    const paper = "Don't make a mistake it is easy. Take it with food.";
+    expect(findSpan(paper, "take it with food")).toEqual({ start: paper.indexOf("Take it"), end: paper.length - 1 });
+    expect(findSpan("Take 110 mg. Then take 10 mg.", "take 10 mg")).not.toBeNull();
+  });
+});

@@ -37,13 +37,18 @@ const NO_WORDS = W([
   "skip", "skips", "skipping", "skipped", "refrain", "discontinue", "discontinued", "quit", "cease", "withhold", "npo", "nil",
   "fast", "fasts", "fasting", "fasted", "omit", "omits", "omitting", "omitted", "withheld", "withholding", "pause",
   "pauses", "paused", "pausing", "suspend", "suspends", "suspended", "suspending", "abstain", "abstaining", "exclude",
+  "avoided", "prohibit", "prohibits", "prohibited", "contraindicated", "contraindication", "forbid", "forbids",
+  "forbidden", "ban", "banned", "disallowed", "restrict", "restricted", "restriction", "withdraw", "withdrawn",
+  "ceased", "quitting", "refrained", "excluded", "unsafe",
   // Spanish
   "nunca", "jamás", "jamas", "ni", "nada", "nadie", "ningún", "ningun", "ninguno", "ninguna", "tampoco", "sin",
   "deje", "dejar", "deja", "dejen", "suspenda", "suspender", "suspende", "suspendan", "pare", "parar", "detenga", "detener",
   "evite", "evitar", "evita", "eviten", "omita", "omitir", "omite", "ayuno", "ayunas", "ayunar", "ayune",
+  "prohibido", "prohibida", "prohíbe", "contraindicado", "contraindicada", "evitarse", "evitado", "suspendido",
   // French
   "ne", "pas", "jamais", "rien", "aucun", "aucune", "sans", "arrêtez", "arrêter", "arrête", "cessez", "cesser",
   "évitez", "éviter", "évite", "interrompez", "interrompre", "jeûne", "jeûner", "jeûnez", "à jeun", "omettez", "omettre",
+  "interdit", "interdite", "interdits", "contre-indiqué", "contre-indiquée", "déconseillé", "déconseillée", "évité",
   // Vietnamese
   "không", "đừng", "chớ", "ngừng", "ngưng", "dừng", "tránh", "cấm", "chưa", "bỏ", "nhịn",
 ]);

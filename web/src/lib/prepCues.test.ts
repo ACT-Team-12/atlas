@@ -156,3 +156,18 @@ describe("Codex round 9: fast and omit are do-not words too", () => {
     expect(cues("Eat breakfast at 7.").no).toBe(false);
   });
 });
+
+describe("Codex round 11: passive and adjectival prohibitions are do-not words", () => {
+  it.each([
+    ["Aspirin should be avoided 7 days before your procedure.", "Take aspirin 7 days before your procedure."],
+    ["Ibuprofen is prohibited 3 days before your procedure.", "Take ibuprofen 3 days before your procedure."],
+    ["Fish oil is contraindicated 7 days before your procedure.", "Take fish oil 7 days before your procedure."],
+    ["El hierro está prohibido 7 días antes del procedimiento.", "Tome hierro 7 días antes del procedimiento."],
+    ["Le fer est interdit 7 jours avant la procédure.", "Prenez du fer 7 jours avant la procédure."],
+  ])("%s / %s: never shown, even on a false same", (quote, plain) => {
+    const r = buildPrepTimeline(`PREP SHEET (sample)\n- ${quote}`, [item(quote, plain)]);
+    const s = [...r.timeline.flatMap((g) => g.steps), ...r.ask][0];
+    expect(s).toMatchObject({ source_quote: quote, negation_blocked: true, plain_language: "" });
+    expect(shownExplanation(s, falseSame([{ id: s.id, plain_language: plain, source_quote: quote }]))).toBeNull();
+  });
+});

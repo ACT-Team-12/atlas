@@ -156,12 +156,13 @@ export const ELLIPSIS = /\.\s*\.|[\u2026\u22EF\u1801\uFE19]/;
 /**
  * True when the sentence holds two instructions and its time sits in only one of them: "Take your pill; stop drinking
  * 2 hours before your procedure." even when the model quotes the whole sentence (Codex round 7). Parts are split at a
- * semicolon, bullet or spaced dash, and at a comma plus "and", "then", "or" or "but" before an instruction word
- * ("..., and call us"). Then we can't tell which action the time is for, so the step is not placed.
+ * semicolon, bullet or spaced dash, at a comma (with or without "and", "then", "or", "but") before an instruction
+ * word ("..., and call us"), and at a bare "and", "then" or "but" before one ("Take your medicine and stop drinking
+ * 2 hours before", Codex round 9). A bare "or" is left alone: "Do not eat or drink" is one instruction. Then we can't tell which action the time is for, so the step is not placed.
  */
 export function timeForOneOfTwoActions(quote: string, words: string[]): boolean {
   const verbs = [...INSTRUCTION_START].map((v) => escapeRe(v)).join("|");
-  const splitter = new RegExp(String.raw`[;•]|\s[-–—]\s|,\s*(?:(?:and\s+then|and|then|or|but|y|et|và)\s+)?(?=(?:${verbs})(?![\p{L}\p{M}]))`, "giu");
+  const splitter = new RegExp(String.raw`[;•]|\s[-–—]\s|,\s*(?:(?:and\s+then|and|then|or|but|y|et|và)\s+)?(?=(?:${verbs})(?![\p{L}\p{M}]))|\s(?:and\s+then|and|then|but|y|luego|et|puis|và|rồi)\s+(?=(?:${verbs})(?![\p{L}\p{M}]))`, "giu");
   const cuts: { start: number; end: number }[] = [];
   let last = 0;
   for (const m of quote.matchAll(splitter)) { cuts.push({ start: last, end: m.index }); last = m.index + m[0].length; }

@@ -221,6 +221,8 @@ function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [strin
       value = /^once$/i.test(tok) ? "1" : "2";
       cls = "times";
     } else {
+      // The "a" of "once a day" or "half a tablet" is not a number (numberWords.ts reads it with the word before).
+      if (/^an?$/i.test(tok) && /^(?:once|twice|times?|half|quarter|per|every|each|and)$/i.test(toks[i - 1] ?? "")) continue;
       for (const lang of languages) {
         const both = readNumberWords(`${tok} ${next ?? ""}`, lang).numbers;
         if (both.length === 1 && readNumberWords(next ?? "", lang).numbers.length === 0) { value = both[0]; break; }

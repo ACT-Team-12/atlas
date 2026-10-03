@@ -7,8 +7,8 @@
  * "½", "፪"), or any Amharic, whose number words take prefixes and suffixes a list can't follow. Callers must treat
  * uncheckable as "can't certify", never as "no number" (meaning.ts).
  *
- * Words that are also an article ("un", "una", "une", "một", "一") count as 1 only right before a dose, count or time
- * word ("una tableta", "一片"), since "Llame a un médico" is not a dose.
+ * Words that are also an article ("a", "an", "un", "una", "une", "một", "一") count as 1 only right before a dose, count
+ * or time word ("a tablet", "una tableta", "一片"), since "Llame a un médico" is not a dose.
  *
  * Pure functions, no network. Safe to import in the browser.
  */
@@ -47,13 +47,18 @@ const FR = map({
 });
 const VI = map({ "một": 1, "mốt": 1, hai: 2, ba: 3, "bốn": 4, "tư": 4, "năm": 5, "lăm": 5, "sáu": 6, "bảy": 7, "tám": 8, "chín": 9, "mười": 10 });
 
+const EN_COUNT = /^(?:tablets?|pills?|capsules?|doses?|times?|drops?|puffs?|minutes?|seconds?|hours?|days?|weeks?|months?|years?|mg|mcg|g|ml|l|grams?|liters?|litres?|ounces?|oz|units?|patch(?:es)?|injections?|cups?|glasses?|bottles?|packets?|spoons?|teaspoons?|tablespoons?)$/;
 const EN_LEX: Lexicon = {
-  count: /^(?:tablets?|pills?|capsules?|doses?|times?|drops?|puffs?|minutes?|seconds?|hours?|days?|weeks?|months?|years?|mg|mcg|g|ml|l|grams?|liters?|litres?|ounces?|oz|units?|patch(?:es)?|injections?|cups?|glasses?|bottles?|packets?|spoons?|teaspoons?|tablespoons?)$/,
-  word: (w, _p, next) => {
+  count: EN_COUNT,
+  word: (w, prev, next) => {
     if (w === "hundred") return { kind: "mul", v: 100 };
     if (w === "thousand") return { kind: "mul", v: 1000 };
     if (w === "and") return { kind: "conn" };
     if (w === "a" && (next === "hundred" || next === "thousand")) return { kind: "n", v: 1 };
+    // "a tablet", "an hour" are 1 (Codex round 9), but not the "a" of "once a day", "2 times a week", "half a tablet".
+    // "2 tablets a day" also reads as 1 here: a per-day "a" and "a day before" can't be told apart from one word, so
+    // it fails closed (the explanation must match the paper's wording, or it isn't certified).
+    if ((w === "a" || w === "an") && !/^(?:once|twice|times?|half|quarter|per|every|each|and)$/.test(prev ?? "")) return { kind: "n", v: 1, article: true };
     const v = EN.get(w);
     return v === undefined ? null : { kind: "n", v };
   },

@@ -95,3 +95,26 @@ describe("Codex round 5: a singular time or unit word after an article is still 
     expect(readNumberWords("이 병은 위험합니다.", "Korean").numbers).toEqual([]);
   });
 });
+
+describe("Codex round 9: English \"a\" and \"an\" before a unit are 1", () => {
+  it("reads \"a tablet\" and \"an hour\" as 1, but not \"a doctor\", \"once a day\" or \"half a tablet\"", () => {
+    expect(readNumberWords("Take a tablet.", "English").numbers).toEqual(["1"]);
+    expect(readNumberWords("Stop eating an hour before.", "English").numbers).toEqual(["1"]);
+    expect(readNumberWords("Call a doctor.", "English").numbers).toEqual([]);
+    expect(readNumberWords("Take it once a day.", "English").numbers).toEqual(["1"]);
+    expect(readNumberWords("Take it twice a day.", "English").numbers).toEqual(["2"]);
+    expect(readNumberWords("Take half a tablet.", "English").numbers).toEqual([]);
+  });
+  it.each([
+    ["Take 2 tablets.", "Take a tablet."],
+    ["Take 1 tablet.", "Take two tablets."],
+    ["Stop 2 days before your procedure.", "Stop a day before your procedure."],
+  ])("paper %j, explanation %j: caught in prep, never certified", (quote, plain) => {
+    const any = numberCheckAnyForm({ plain_language: plain, source_quote: quote });
+    expect(any.unexpected.length > 0 || any.uncheckable).toBe(true);
+    expect(combine("x", { id: "x", when: "", source_quote: quote, plain_language: plain }, "same", "").certified).toBe(false);
+  });
+  it("\"a tablet\" against \"Take 1 tablet\" still certifies", () => {
+    expect(combine("x", { id: "x", when: "", source_quote: "Take 1 tablet.", plain_language: "Take a tablet." }, "same", "").certified).toBe(true);
+  });
+});

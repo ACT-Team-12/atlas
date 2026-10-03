@@ -143,7 +143,7 @@ export async function sweepSttUsage(pool: Pool): Promise<number> {
 }
 
 /**
- * The two-day deletion is guaranteed only when the hourly sweep can run, and the sweep refuses everyone without
+ * Deletion is done by the hourly sweep (plus every write and readiness check), and the sweep refuses everyone without
  * CRON_SECRET. So on a database, no CRON_SECRET means no rows are ever written: the feature stays off (no mic).
  * Memory (local runs only) needs no sweep: its rows expire in the process and vanish with it.
  */

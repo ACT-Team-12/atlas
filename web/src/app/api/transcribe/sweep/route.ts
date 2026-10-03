@@ -6,7 +6,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * Hourly Vercel cron (vercel.json): deletes "Say your answer" usage counters whose window has ended, so the keyed
- * network-address hashes are gone within two days. Vercel sends "Authorization: Bearer $CRON_SECRET"; anything
+ * network-address hashes older than two days are deleted on each run (and each run renews the heartbeat that keeps
+ * the feature on; see sweepSttUsage). Vercel sends "Authorization: Bearer $CRON_SECRET"; anything
  * else is refused, and without CRON_SECRET the route refuses everyone.
  */
 export async function GET(request: Request) {

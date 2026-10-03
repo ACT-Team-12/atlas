@@ -327,11 +327,14 @@ export function CarePlanTool() {
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
     setPlan(v.plan); setDone(v.done); setRemoved(v.removed); setPhotoChecked(v.photoChecked ?? false);
-    // Saved plans are only written while their results match their inputs, so what comes back is current.
+    // Saved plans are only written while their results match their inputs, so what comes back is current,
+    // except a plan built from the device location: the position is never saved, so nothing on this page can
+    // match it ("device" with no coordinates). It comes back outdated until a fresh position or a ZIP is given.
     setCareFp(v.care ? readFingerprint({ text: v.text, photo: null, language: v.language, level: v.level }) : null);
+    const fromDevice = v.plan?.located.by === "device";
     setPlanFp(v.plan ? planFingerprint({
       careIds: (v.care?.items ?? []).filter((i) => !v.removed[i.id]).map((i) => i.id),
-      barriers: v.barriers, language: v.language, note: v.note, place: planPlace(false, v.zip), location: null,
+      barriers: v.barriers, language: v.language, note: v.note, place: fromDevice ? "device" : planPlace(false, v.zip), location: null,
     }) : null);
     setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan }));
   }
@@ -372,6 +375,8 @@ export function CarePlanTool() {
   }) !== planFp);
   const resultsCurrent = !careOutdated && !planOutdated;
   const actionsOffReason = careOutdated ? "Read your paper again first" : "Update the plan first";
+  // A plan made near the device's position, with no position or ZIP now: it needs a place before it can be updated.
+  const needsPlace = !!plan && plan.located.by === "device" && !loc && !/^\d{5}$/.test(zip);
 
   // Every change to the open plan is saved into it; the first read or plan of a new one creates it.
   // While a result on screen is outdated, nothing is saved, so a saved plan never sits beside answers it was not built for.
@@ -1095,8 +1100,12 @@ export function CarePlanTool() {
                 {careOutdated
                   ? <p>This plan was made from your earlier paper. Read it again in step 1, then make a new plan.</p>
                   : <>
-                      <p className="flex-1 min-w-[14rem]">You changed your answers after this plan was made, so it may not fit them. Changes are not saved until you update it.</p>
-                      <button type="button" onClick={makePlan} disabled={planning || (barriers.length === 0 && items.length === 0)}
+                      <p className="flex-1 min-w-[14rem]">
+                        {needsPlace
+                          ? "This plan used your location from before, and your location is never saved. Use my location again or enter a ZIP in step 2, then update the plan."
+                          : "You changed your answers after this plan was made, so it may not fit them. Changes are not saved until you update it."}
+                      </p>
+                      <button type="button" onClick={makePlan} disabled={planning || needsPlace || (barriers.length === 0 && items.length === 0)}
                         className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">Update plan</button>
                     </>}
               </div>

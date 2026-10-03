@@ -38,7 +38,7 @@ function careFor(text: string, title = "Metformin"): CarePlanResponse {
 
 function planFor(summary: string): PlanResponse {
   return {
-    summary, steps: [], resources: {}, located: { by: "device", label: "Near your current location" },
+    summary, steps: [], resources: {}, located: { by: "none", label: "No location given" },
     ask_a_person: false, ask_a_person_reason: "", model: "test",
     stats: { steps: 0, candidates: 0, dropped_refs: 0 },
   } as unknown as PlanResponse;
@@ -496,5 +496,73 @@ describe("an outdated plan cannot be acted on", () => {
     act(() => byText("Update plan").click());
     await release(req, ready(planWithLab("Updated plan")));
     expect(enabled()).toEqual(all(true));
+  });
+});
+
+describe("reopening a plan built from the device location", () => {
+  const LOCATION_AGAIN = "Use my location again or enter a ZIP";
+  function remount() {
+    act(() => root.unmount());
+    root = createRoot(host);
+    act(() => root.render(<CarePlanTool />));
+  }
+  async function devicePlanThenReopen() {
+    act(() => byText("Getting there").click());
+    act(() => byText("Or use my location").click());
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    const devicePlan = planFor("Plan near the old position");
+    devicePlan.located = { by: "device", label: "Near your current location" };
+    await release(req, ready(devicePlan));
+    const raw = localStorage.getItem("atlas-plans-v2") ?? "";
+    expect(raw).toContain("Plan near the old position");
+    expect(raw).not.toContain("33.75"); // the position itself is never saved
+    remount();
+    expect(screenText()).toContain("Plan near the old position");
+  }
+
+  it("comes back outdated, asks for a place, and keeps its actions off", async () => {
+    await devicePlanThenReopen();
+    expect(screenText()).toContain(LOCATION_AGAIN);
+    expect(byText("Update plan").disabled).toBe(true);
+    expect(byText("Read it out loud").disabled).toBe(true);
+    expect(byText("Print a handoff sheet").disabled).toBe(true);
+  });
+
+  it("a fresh position, then Update plan, makes it current again", async () => {
+    await devicePlanThenReopen();
+    geo = { lat: 34.05, lng: -84.6 };
+    act(() => byText("Or use my location").click());
+    expect(byText("Update plan").disabled).toBe(false);
+    const req = hold("/api/plan");
+    act(() => byText("Update plan").click());
+    expect(fetchCalls.at(-1)?.body.location).toEqual({ lat: 34.05, lng: -84.6 });
+    await release(req, ready(planFor("Plan near the new position")));
+    expect(screenText()).not.toContain(LOCATION_AGAIN);
+    expect(byText("Read it out loud").disabled).toBe(false);
+  });
+
+  it("a ZIP works too", async () => {
+    await devicePlanThenReopen();
+    act(() => typeInto(host.querySelector<HTMLInputElement>("#zip")!, "30340"));
+    expect(screenText()).not.toContain(LOCATION_AGAIN);
+    const req = hold("/api/plan");
+    act(() => byText("Update plan").click());
+    expect(fetchCalls.at(-1)?.body.zip).toBe("30340");
+    await release(req, ready(planFor("Plan near 30340")));
+    expect(byText("Read it out loud").disabled).toBe(false);
+  });
+
+  it("a reopened ZIP plan is still current", async () => {
+    act(() => byText("Getting there").click());
+    act(() => typeInto(host.querySelector<HTMLInputElement>("#zip")!, "30030"));
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    const zipPlan = planFor("Plan near 30030");
+    zipPlan.located = { by: "zip", label: "Near ZIP 30030" };
+    await release(req, ready(zipPlan));
+    remount();
+    expect(screenText()).toContain("Plan near 30030");
+    expect(byText("Read it out loud").disabled).toBe(false);
   });
 });

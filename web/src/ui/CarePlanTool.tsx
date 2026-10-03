@@ -8,8 +8,11 @@ import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
-import { BARRIERS, BARRIER_LABEL, type Barrier, formatHours, openNow, opensEvenings, opensWeekends } from "@/lib/resources";
-import type { PlanResponse, ResourceCard } from "@/lib/plan";
+import { BARRIERS, BARRIER_LABEL, type Barrier } from "@/lib/resources";
+import type { PlanResponse } from "@/lib/plan";
+import { topResources } from "@/lib/planTop";
+import { ProblemRow, TopCalls } from "./PlanStart";
+import { DockLabel } from "./DockLabel";
 import { restoredPlan } from "@/lib/planText";
 import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
@@ -167,77 +170,17 @@ function StepHeader({ n, title, done, note }: { n: number; title: string; done?:
   );
 }
 
-/** While the plan is outdated, `off` says why and the call, website, directions and open links are not offered: the place may be wrong. */
-/** A source link, or just its name while the plan is outdated (no link out to a place picked from old answers). */
-function SourceLink({ href, label, off }: { href: string; label: string; off?: string }) {
-  return off ? <span>{label}</span> : <a className="underline" href={href} target="_blank" rel="noreferrer">{label}</a>;
-}
-
 type ScrollRequest = { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number };
 
 /** The fingerprint of a save from before results were checked against answers: no inputs ever match it. */
 const UNMATCHED_SAVE = "saved-before-results-were-checked";
 
-function ResourceLinksOff({ off }: { off: string }) {
-  return <p className="mt-3 text-sm font-bold text-peach-deep">{off}: calls, websites and directions for this plan are off until then.</p>;
-}
-
-function Resource({ r, off }: { r: ResourceCard; off?: string }) {
-  if (r.type === "clinic") {
-    const c = r.clinic;
-    const hours = formatHours(c.hours);
-    const open = openNow(c);
-    return (
-      <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="chip bg-mint text-teal-deep">Health center</span>
-          {r.km != null && <span className="text-xs font-bold text-ink/70">{r.km} km away</span>}
-          {open != null && <span className={`chip ${open ? "bg-teal text-paper" : "bg-paper border border-ink/30 text-ink/70"}`}>{open ? "Listed as open now" : "Listed as closed now"}</span>}
-          {(opensEvenings(c) || opensWeekends(c)) && <span className="chip bg-sun text-ink">{[opensEvenings(c) && "Evenings", opensWeekends(c) && "Weekends"].filter(Boolean).join(" + ")}</span>}
-        </div>
-        <p className="font-extrabold mt-2">{c.name}</p>
-        <p className="text-sm font-semibold text-ink/75">{c.address}, {c.city} {c.zip}</p>
-        <p className="text-sm font-semibold mt-1">Fees adjust to your income and family size (federal health center rule).</p>
-        {c.nearest_rail && <p className="text-sm mt-1">🚆 {c.nearest_rail.name}, {(c.nearest_rail.meters / 1000).toFixed(1)} km straight-line</p>}
-        {c.nearest_bus && <p className="text-sm">🚌 Bus stop: {c.nearest_bus.name}</p>}
-        {hours && c.hours_source_id === "clinic-site" && (
-          <>
-            <p className="text-sm mt-1">🕘 Hours: {hours}</p>
-            <p className="text-xs italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{c.hours_quote}&rdquo;</p>
-          </>
-        )}
-        {hours && c.hours_source_id !== "clinic-site" && <p className="text-sm mt-1">🕘 Listed hours: {hours} <span className="text-ink/70">(call to confirm)</span></p>}
-        {off ? <ResourceLinksOff off={off} /> : <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
-          {c.phone && <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${c.phone.replace(/[^\d]/g, "")}`}>Call {c.phone}</a>}
-          {c.website && <a className="rounded-full border-2 border-ink px-3 py-1" href={c.website} target="_blank" rel="noreferrer">Website ↗</a>}
-          <a className="rounded-full border-2 border-ink px-3 py-1" target="_blank" rel="noreferrer"
-            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(c.city.includes(",") ? `${c.address}, ${c.city} ${c.zip}` : `${c.address}, ${c.city}, GA ${c.zip}`)}&travelmode=transit`}>Transit directions ↗</a>
-        </div>}
-        <p className="mt-2 text-[11px] text-ink/70">
-          Source: HRSA health center data{c.source_id === "hrsa-national" ? " (nationwide list, Oct 2)" : ""}
-          {hours && c.hours_source_id === "clinic-site" && c.hours_url
-            ? <> · hours quoted from <SourceLink href={c.hours_url} label={new URL(c.hours_url).hostname.replace(/^www\./, "")} off={off} />, checked Oct 2</>
-            : hours ? " · hours from its Google Maps listing, checked Oct 2" : c.hours_per_week ? ` · ${c.hours_per_week} hrs/week listed, times not listed` : " · hours not listed"}
-        </p>
-      </div>
-    );
-  }
-  const p = r.program;
-  return (
-    <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
-      <span className="chip bg-sky text-sky-deep">Program</span>
-      <p className="font-extrabold mt-2">{p.name}</p>
-      {/* The quote and the how-to text can hold a number to call or text: not offered while the plan is outdated. */}
-      {!off && <p className="text-sm italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{p.evidence_quote}&rdquo;</p>}
-      {off ? <ResourceLinksOff off={off} /> : <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
-        {p.access.phone && <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${p.access.phone.replace(/[^\d]/g, "")}`}>Call {p.access.phone}</a>}
-        {p.access.url && <a className="rounded-full border-2 border-ink px-3 py-1" href={p.access.url} target="_blank" rel="noreferrer">Open ↗</a>}
-      </div>}
-      {p.access.text && !off && <p className="text-sm mt-2">{p.access.text}</p>}
-      <p className="mt-2 text-[11px] text-ink/70">Verified on the official page: <SourceLink href={p.source_url} label={new URL(p.source_url).hostname} off={off} /></p>
-    </div>
-  );
-}
+/**
+ * A plan step's done tick, kept in the same saved `done` record as the paper's steps (whose keys are care ids, never
+ * starting with "plan:"), so it is saved and reopened with the plan. Cleared when a new plan replaces it.
+ */
+const planTickKey = (i: number) => `plan:${i}`;
+const dropPlanTicks = (d: Record<string, boolean>) => Object.fromEntries(Object.entries(d).filter(([k]) => !k.startsWith("plan:")));
 
 export function CarePlanTool() {
   const [text, setTextState] = useState("");
@@ -353,6 +296,18 @@ export function CarePlanTool() {
   // The card an automatic scroll brought up, kept in place briefly while late content above it loads.
   const scrollAnchor = useRef<{ t: Tab; at: number } | null>(null);
   const [tapToPlay, setTapToPlay] = useState(false);
+  // The plan card, and whether it is off screen: on phones the plan's action bar shows only while the card is on screen.
+  // With no IntersectionObserver the bar simply stays.
+  const planCard = useRef<HTMLDivElement | null>(null);
+  const [dockAway, setDockAway] = useState(() => typeof IntersectionObserver !== "undefined");
+  const hasPlan = !!plan;
+  useEffect(() => {
+    const el = planCard.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((entries) => setDockAway(!entries.some((e) => e.isIntersecting)));
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasPlan]);
 
   // "My saved plans": saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
   const [store, setStore] = useState<Store>(emptyStore);
@@ -655,6 +610,7 @@ export function CarePlanTool() {
       pendingPlan.current = null;
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
+      setDone(dropPlanTicks); // ticks belong to the plan's steps; a new plan starts with none
       setPlanFp(sent.fp);
       consumeHelperSession();
       // Step 3 only exists after this render; what happens next is decided once it is on the page.
@@ -983,6 +939,8 @@ export function CarePlanTool() {
     const b = bookableItem(s.care_ids.map((id) => careById[id]).filter(Boolean));
     if (b && !bookAt.has(b.id)) bookAt.set(b.id, i);
   });
+  // "Start with these 3": the verified places that help with the most plan steps (lib/planTop.ts, no AI).
+  const top = plan ? topResources(plan) : [];
   const items = (care?.items ?? []).filter((i) => !removed[i.id]);
   // Every grounded step the plan could point at, removed or not: a plan step's paper quote never drops out (round 12).
   const planItems = (care?.items ?? []).filter((i) => i.grounded);
@@ -1270,7 +1228,7 @@ export function CarePlanTool() {
 
         {/* Step 3 */}
         {plan && (
-          <div {...panel(3)} data-outdated={planOutdated || undefined} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 scroll-mt-24 max-md:scroll-mt-44 ${planOutdated ? "plan-outdated" : ""} ${onPhone(3)}`}>
+          <div {...panel(3)} ref={planCard} data-outdated={planOutdated || undefined} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 max-md:pb-36 scroll-mt-24 max-md:scroll-mt-44 ${planOutdated ? "plan-outdated" : ""} ${onPhone(3)}`}>
             {/* Printing from the browser menu while the plan is outdated prints only this, never the outdated plan. */}
             {planOutdated && <p className="outdated-print-note">This plan is out of date, so it is not printed. {actionsOffReason}, then print again.</p>}
             <StepHeader n={3} title="Your plan" done note={plan.located.label} />
@@ -1291,55 +1249,53 @@ export function CarePlanTool() {
             )}
             <p className="mt-4 text-xs font-bold uppercase tracking-wide text-ink/70">Suggestions from ATLAS, not your paper. If anything differs, follow your paper.</p>
             <p className="mt-1 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
-            <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
-              {/* An outdated plan can't be read aloud, printed, sent, booked or called from; the on-screen note says why. */}
-              {planOutdated && <span id="plan-actions-off" className="basis-full text-sm font-bold text-peach-deep">{actionsOffReason}: read aloud, printing, the handoff sheet, Send to family, Book it now and the calls, websites and directions below are off until then.</span>}
+            {/* An outdated plan can't be read aloud, printed, sent, booked or called from; the on-screen note says why. */}
+            {planOutdated && <p id="plan-actions-off" className="mt-3 text-sm font-bold text-peach-deep">{actionsOffReason}: read aloud, printing, the handoff sheet, Send to family, Book it now and the calls, websites and directions below are off until then.</p>}
+            {/* One set of plan actions. Wider screens: a row under the summary. Phones: a bar fixed to the bottom while
+                this card is on screen (globals.css, .plan-dock). Screen only; the print stylesheet leaves it out. */}
+            <div role="group" aria-label="Plan actions" data-away={dockAway || undefined} data-lenis-prevent
+              className="plan-dock mt-4 flex flex-wrap items-center gap-3 text-sm font-bold">
               {tapToPlay
-                ? <button type="button" onClick={() => void startAudio(speechRun.current)} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink bg-sun px-4 py-2 disabled:opacity-40">▶ Tap to play</button>
+                ? <button type="button" onClick={() => void startAudio(speechRun.current)} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink bg-sun px-4 py-2 disabled:opacity-40"><DockLabel icon="▶" short="Play" long="Tap to play" /></button>
                 : <button type="button" onClick={speak} aria-pressed={speaking} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined}
                     className={`rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40 ${speaking ? "bg-ink text-paper" : "bg-sun"}`}>
-                    {speaking ? "⏹ Stop reading" : "🔊 Read it out loud"}
+                    {speaking ? <DockLabel icon="⏹" short="Stop" long="Stop reading" /> : <DockLabel icon="🔊" short="Listen" long="Read it out loud" />}
                   </button>}
-              {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2">Cancel</button>}
-              <span role="status" className={voiceNote ? "self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
-              <button type="button" onClick={() => { if (!planOutdated) window.print(); }} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40">🖨️ Print for the next visit</button>
-              <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40">📄 Print a handoff sheet</button>
-              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} />}
-              {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} />}
-              <span className="self-center text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
+              {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2"><DockLabel icon="✕" short="Cancel" long="Cancel" /></button>}
+              {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} short="Call me" />}
+              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short="Send" />}
+              <button type="button" onClick={() => { if (!planOutdated) window.print(); }} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short="Print" long="Print for the next visit" /></button>
+              <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short="Handoff" long="Print a handoff sheet" /></button>
+              <span role="status" className={voiceNote ? "dock-note self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
             </div>
-            {plan.ask_a_person && (
-              <div className="mt-5 rounded-2xl border-2 border-peach-deep bg-peach p-4">
-                <p className="font-extrabold text-peach-deep">This needs a person too</p>
-                <p className="text-sm font-semibold">{plan.ask_a_person_reason} Call 211 (United Way of Greater Atlanta) or your community health worker.</p>
-                <p className="mt-2 text-xs font-semibold"><a className="underline decoration-2 underline-offset-4" href="/helper">Helping someone? Make them a link</a></p>
-              </div>
-            )}
-            <ol className="mt-6 space-y-5">
-              {plan.steps.map((s, i) => (
-                <li key={i} className="rounded-3xl border-2 border-ink bg-mint-soft/60 p-5">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="display text-3xl text-teal">{i + 1}</span>
-                    <p className="display text-2xl">{s.title}</p>
-                    {s.barrier && <span className="chip bg-paper border border-ink/30">{BARRIER_LABEL[s.barrier as Barrier] ?? s.barrier}</span>}
-                  </div>
-                  <p className="mt-2 font-semibold">{s.action}</p>
-                  {s.why && <p className="mt-1 text-sm text-ink/75">Why: {s.why}</p>}
-                  {/* The plan step is a suggestion, never certified: the paper's own words for its steps go with it. */}
-                  {planStepQuotes(s, planItems).map((q, k) => (
-                    <p key={k} data-paper-quote="" className="mt-2 border-l-4 border-sun pl-2 text-sm font-semibold">📄 Your paper says: &ldquo;{q}&rdquo;</p>
+            <p className="mt-3 text-xs font-bold text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</p>
+            <TopCalls top={top} total={plan.steps.length} language={language} off={planOutdated ? actionsOffReason : undefined} offId={planOutdated ? "plan-actions-off" : undefined} />
+            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
+              {/* First in reading order (right after the three calls); on wide screens it sits beside the list. */}
+              {plan.ask_a_person && (
+                <div className="rounded-2xl border-2 border-peach-deep bg-peach p-4 lg:col-start-2 lg:row-start-1 lg:sticky lg:top-24">
+                  <p className="font-extrabold text-peach-deep">This needs a person too</p>
+                  <p className="text-sm font-semibold">{plan.ask_a_person_reason} Call 211 (United Way of Greater Atlanta) or your community health worker.</p>
+                  <p className="mt-2 text-xs font-semibold"><a className="underline decoration-2 underline-offset-4" href="/helper">Helping someone? Make them a link</a></p>
+                </div>
+              )}
+              <section aria-labelledby="plan-rows-title" className="min-w-0 lg:col-start-1 lg:row-start-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <h4 id="plan-rows-title" className="display text-2xl">Your {plan.steps.length} {plan.steps.length === 1 ? "problem" : "problems"}</h4>
+                  <p className="text-xs font-bold text-ink/70">Tap one for the full plan. Tick it off when it&apos;s done.</p>
+                </div>
+                <ol className="mt-3 space-y-2.5">
+                  {plan.steps.map((s, i) => (
+                    <ProblemRow key={i} step={s} index={i} quotes={planStepQuotes(s, planItems)} resources={plan.resources}
+                      done={!!done[planTickKey(i)]} onDone={(on) => setDone((d) => ({ ...d, [planTickKey(i)]: on }))}
+                      off={planOutdated ? actionsOffReason : undefined}
+                      bookIt={[...bookAt.values()].includes(i)
+                        ? <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean).map((i) => bookSafe(i, checkFor(i.id)))} barriers={barriers} language={language} offReason={planOutdated ? actionsOffReason : undefined} />
+                        : undefined} />
                   ))}
-                  {s.resource_ids.length > 0 && (
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      {s.resource_ids.map((id) => plan.resources[id] && <Resource key={id} r={plan.resources[id]} off={planOutdated ? actionsOffReason : undefined} />)}
-                    </div>
-                  )}
-                  {[...bookAt.values()].includes(i) && (
-                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean).map((i) => bookSafe(i, checkFor(i.id)))} barriers={barriers} language={language} offReason={planOutdated ? actionsOffReason : undefined} />
-                  )}
-                </li>
-              ))}
-            </ol>
+                </ol>
+              </section>
+            </div>
             {care && care.questions_for_doctor.length > 0 && (
               <div className="mt-6 rounded-2xl border-2 border-ink/70 bg-paper p-5">
                 <p className="display text-2xl">Questions for your next visit</p>

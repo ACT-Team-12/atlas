@@ -244,10 +244,13 @@ export function PrepTimeline({ res, meaning }: { res: Pick<PrepResponse, "timeli
                   </span>
                 </button>
               </h3>
-              {folded > 0 && <p className="mt-1 text-xs font-semibold text-ink/70" data-folded-count="">{folded} more {folded === 1 ? "step" : "steps"} in this group. Tap {g.label.toLowerCase()} to see {folded === 1 ? "it" : "them"}.</p>}
-              <ul id={listId} className="mt-2 space-y-2">
+              <ul id={listId} className={`space-y-2 ${folded === g.steps.length ? "" : "mt-2"}`}>
                 {g.steps.map((s) => <Step key={s.id} s={s} meaning={meaning} folded={shut && !prepMustSee(s)} />)}
               </ul>
+              {/* Only when must-see steps show in a closed group: say that more sit behind its heading. */}
+              {folded > 0 && folded < g.steps.length && (
+                <p className="mt-2 text-xs font-semibold text-ink/70" data-folded-count="">+ {folded} more {folded === 1 ? "step" : "steps"} here. Tap the heading to see {folded === 1 ? "it" : "them"}.</p>
+              )}
             </li>
           );
         })}

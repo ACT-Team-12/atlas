@@ -107,7 +107,12 @@ describe("time groups: in order, only the next one open", () => {
     const morning = groups().find((g) => g.dataset.prepGroup === "morning_of")!;
     const bp = byQuote("The morning of your procedure, take your blood pressure pill");
     expect(visible(stepLi(bp.id))).toBe(false);
-    expect(morning.querySelector("[data-folded-count]")!.textContent).toContain("1 more step");
+    expect(groupToggle(morning).textContent).toContain("1 step");
+    // A group with nothing must-see folds whole: no extra line under it.
+    expect(morning.querySelector("[data-folded-count]")).toBeNull();
+    // A closed group showing a must-see step says more sit behind its heading.
+    const hours = groups().find((g) => g.dataset.prepGroup === "hours_before")!;
+    expect(hours.querySelector("[data-folded-count]")!.textContent).toContain("+ 1 more step here");
     act(() => groupToggle(morning).click());
     expect(groupToggle(morning).getAttribute("aria-expanded")).toBe("true");
     expect(visible(stepLi(bp.id))).toBe(true);
@@ -130,6 +135,8 @@ describe("must-see steps are never folded", () => {
       "Stop taking iron pills and fish oil 7 days before your procedure.",
       "Starting 3 days before your procedure, do not eat nuts, seeds, popcorn, or raw vegetables.",
       "Stop drinking all liquids 2 hours before your procedure.",
+      // A limit ("only", "until") is a warning too: drinking anything but clear liquids can cancel the procedure.
+      "The day before your procedure, drink only clear liquids all day: water, clear broth, apple juice, and plain gelatin.",
       "Call 404-555-0199 if you cannot finish the prep, or if you have bad stomach pain or vomiting.",
     ]));
     for (const s of must) {
@@ -144,6 +151,10 @@ describe("must-see steps are never folded", () => {
     expect(groupToggle(hours).getAttribute("aria-expanded")).toBe("false");
     expect(visible(stepLi(byQuote("Stop drinking all liquids").id))).toBe(true);
     expect(visible(stepLi(byQuote("5 hours before your procedure").id))).toBe(false);
+    // Not every step is loud: plain actions still fold.
+    expect(prepMustSee(byQuote("Take 2 bisacodyl tablets"))).toBe(false);
+    expect(prepMustSee(byQuote("Bring your photo ID"))).toBe(false);
+    expect(prepMustSee({ kind: "other", source_quote: "If you have chest pain, go to the emergency room." })).toBe(true);
   });
 });
 

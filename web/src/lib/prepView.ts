@@ -52,12 +52,15 @@ export function shownExplanation(step: PrepStep, m: MeaningState): string | null
 }
 
 /**
- * A step that must never be folded away: its paper sentence has a "do not" / "stop" word (prepCues.ts, the same list
- * that hides explanations: "Stop drinking", "Do not eat", "Nothing red", "fasting"), it is a "when to call" step, or it
- * names 911 or the emergency room. Its row stays visible in a closed group and keeps its whole sentence.
+ * A step that must never be folded away: its paper sentence has a "do not" / "stop" word or an "only" / "until" /
+ * "unless" limit (prepCues.ts, the same lists that hide explanations: "Stop drinking", "Do not eat", "drink only clear
+ * liquids", "fasting"), it can't be read for those words (Ethiopic script), it is a "when to call" step, or it names
+ * 911 or the emergency room. Its row stays visible in a closed group and keeps its whole sentence.
  */
 export function prepMustSee(s: Pick<PrepStep, "kind" | "source_quote">): boolean {
-  return s.kind === "call" || cues(s.source_quote).no || /(?<![\p{L}\p{N}])(?:911|emergency|emergencia|urgencias)(?![\p{L}\p{N}])/iu.test(s.source_quote);
+  const c = cues(s.source_quote);
+  return s.kind === "call" || c.no || c.limit || cuesForbid(s.source_quote, "") ||
+    /(?<![\p{L}\p{N}])(?:911|emergency|emergencia|urgencias)(?![\p{L}\p{N}])/iu.test(s.source_quote);
 }
 
 /**

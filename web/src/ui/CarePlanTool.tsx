@@ -18,7 +18,7 @@ import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
 import { restoredTab, scrollTargetAfter, shownTab, type Tab } from "@/lib/phoneTabs";
 import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
-import { isPhoneNow, panelId, PhoneTabBar, scrollElementToTop, scrollToPanel, tabId, useIsPhone, type PageScroll } from "./PhoneTabs";
+import { isPhoneNow, panelId, PhoneTabBar, scrollElementToTop, scrollTargetY, scrollToPanel, tabId, useIsPhone, type PageScroll } from "./PhoneTabs";
 import { speechLines } from "@/lib/speechText";
 import {
   closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan, saveSession,
@@ -26,7 +26,7 @@ import {
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
 import {
-  anchorHolds, isEditable, OWN_INSTANT_SCROLL_MS, OWN_SCROLL_MS, ownScrollEndedByPerson, photoId, planFingerprint, planPlace, readFingerprint,
+  anchorHolds, isEditable, OWN_INSTANT_SCROLL_MS, OWN_SCROLL_MS, ownScrollEndedByPerson, photoId, planFingerprint, planPlace, readFingerprint, rebaseOwnScroll,
   scrollIsPersons, shouldAutoScroll, type OwnScroll,
 } from "@/lib/staleGuard";
 import { SPEECH_LANG } from "@/lib/speechLang";
@@ -227,6 +227,7 @@ export function CarePlanTool() {
   // The page's own automatic scroll in progress (where it is headed), and when the page last changed size.
   // Scrolls along that path, or caused by a size change, are not the person and do not cancel an automatic scroll.
   const ownScroll = useRef<OwnScroll | null>(null);
+  const ownScrollEl = useRef<HTMLElement | null>(null);
   const layoutChangedAt = useRef(-Infinity);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
@@ -692,11 +693,18 @@ export function CarePlanTool() {
       if (!own) return;
       ownScroll.current = null;
       const now = performance.now();
-      if (now <= own.until && ownScrollEndedByPerson({ y: window.scrollY, own, layoutChangedAt: layoutChangedAt.current })) lastInteraction.current = now;
+      if (now <= own.until && ownScrollEndedByPerson({ y: window.scrollY, own, layoutChangedAt: layoutChangedAt.current, now })) lastInteraction.current = now;
     };
     window.addEventListener("scroll", onScroll, opts);
     window.addEventListener("scrollend", onScrollEnd, opts);
-    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => { layoutChangedAt.current = performance.now(); });
+    // A size change while the page's own scroll is moving re-aims its path at where the target sits now,
+    // so a drag off that path is still seen once the browser's own adjustment has passed.
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
+      const now = performance.now();
+      layoutChangedAt.current = now;
+      const own = ownScroll.current, el = ownScrollEl.current;
+      if (own && el?.isConnected && now <= own.until) ownScroll.current = rebaseOwnScroll(own, { y: window.scrollY, to: scrollTargetY(el) });
+    });
     ro?.observe(document.body);
     return () => {
       kinds.forEach((k) => window.removeEventListener(k, mark, opts));
@@ -710,6 +718,7 @@ export function CarePlanTool() {
     if (!s) return;
     const now = performance.now();
     ownScroll.current = { start: now, until: now + (s.behavior === "smooth" ? OWN_SCROLL_MS : OWN_INSTANT_SCROLL_MS), from: s.from, to: s.to };
+    ownScrollEl.current = s.el;
   }
 
   function runScroll(req: { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number }) {

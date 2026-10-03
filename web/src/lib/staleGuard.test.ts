@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  anchorHolds, ANCHOR_MS, isEditable, LAYOUT_SCROLL_MS, OWN_SCROLL_SLACK_PX, ownScrollEndedByPerson, photoId, planFingerprint, planPlace,
+  anchorHolds, ANCHOR_MS, isEditable, LAYOUT_SCROLL_MS, OWN_SCROLL_SLACK_PX, ownScrollEndedByPerson, photoId, rebaseOwnScroll, planFingerprint, planPlace,
   readFingerprint, scrollIsPersons, shouldAutoScroll,
 } from "./staleGuard";
 
@@ -104,14 +104,25 @@ describe("scrollIsPersons", () => {
     expect(scrollIsPersons({ ...quiet, layoutChangedAt: 10_000 - LAYOUT_SCROLL_MS + 1 })).toBe(false);
     expect(scrollIsPersons({ ...quiet, layoutChangedAt: 10_000 - LAYOUT_SCROLL_MS - 1 })).toBe(true);
   });
-  it("if the page changed size during its own scroll, the path is unreliable and the time window decides", () => {
-    expect(scrollIsPersons({ ...quiet, own, y: 5_000, layoutChangedAt: 9_500 })).toBe(false);
+  it("a size change during the page's own scroll does not switch the check off: once settled, off the (rebased) path is the person", () => {
+    expect(scrollIsPersons({ ...quiet, own, y: 5_000, layoutChangedAt: 9_500 })).toBe(true);
+    expect(scrollIsPersons({ ...quiet, own, y: 1_200, layoutChangedAt: 9_500 })).toBe(false);
   });
 });
 
 describe("ownScrollEndedByPerson", () => {
   const own = { start: 9_000, until: 10_500, from: 2_000, to: 500 };
-  it("ending at the target is the page", () => expect(ownScrollEndedByPerson({ y: 500 + OWN_SCROLL_SLACK_PX, own, layoutChangedAt: 0 })).toBe(false));
-  it("ending elsewhere is the person", () => expect(ownScrollEndedByPerson({ y: 1_200, own, layoutChangedAt: 0 })).toBe(true));
-  it("unless the page changed size meanwhile", () => expect(ownScrollEndedByPerson({ y: 1_200, own, layoutChangedAt: 9_500 })).toBe(false));
+  it("ending at the target is the page", () => expect(ownScrollEndedByPerson({ y: 500 + OWN_SCROLL_SLACK_PX, own, layoutChangedAt: 0, now: 10_000 })).toBe(false));
+  it("ending elsewhere is the person", () => expect(ownScrollEndedByPerson({ y: 1_200, own, layoutChangedAt: 0, now: 10_000 })).toBe(true));
+  it("a size change meanwhile still counts the (rebased) target", () => expect(ownScrollEndedByPerson({ y: 1_200, own, layoutChangedAt: 9_500, now: 10_000 })).toBe(true));
+  it("but not a scroll end right after a size change (the browser keeping content in place)", () => {
+    expect(ownScrollEndedByPerson({ y: 1_200, own, layoutChangedAt: 9_950, now: 10_000 })).toBe(false);
+  });
+});
+
+describe("rebaseOwnScroll", () => {
+  it("re-aims the path from where the page is now to where its target sits now", () => {
+    const own = { start: 9_000, until: 10_500, from: 2_000, to: 500 };
+    expect(rebaseOwnScroll(own, { y: 1_400, to: 800 })).toEqual({ ...own, from: 1_400, to: 800 });
+  });
 });

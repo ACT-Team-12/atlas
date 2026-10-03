@@ -26,17 +26,22 @@ export const panelId = (t: Tab) => `step-${t}`;
 
 const LABEL: Record<Tab, string> = { 1: "Paper", 2: "Your needs", 3: "Plan" };
 
-/** A scroll the page itself started: how, and from which window.scrollY to which (measured before it moves). */
-export type PageScroll = { behavior: "smooth" | "auto"; from: number; to: number };
+/** A scroll the page itself started: how, the element it brings up, and from which window.scrollY to which. */
+export type PageScroll = { behavior: "smooth" | "auto"; el: HTMLElement; from: number; to: number };
 
-/** Scrolls `el` to the top (under its scroll margin) and says where the window is headed. */
-export function scrollElementToTop(el: HTMLElement, behavior: "smooth" | "auto"): PageScroll {
+/** The window.scrollY that puts `el` at the top, under its scroll margin, as the page is laid out now. */
+export function scrollTargetY(el: HTMLElement): number {
   const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
-  const from = window.scrollY;
   const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  const to = Math.min(max, Math.max(0, from + el.getBoundingClientRect().top - margin));
+  return Math.min(max, Math.max(0, window.scrollY + el.getBoundingClientRect().top - margin));
+}
+
+/** Scrolls `el` to the top (under its scroll margin) and says where the window is headed (measured before it moves). */
+export function scrollElementToTop(el: HTMLElement, behavior: "smooth" | "auto"): PageScroll {
+  const from = window.scrollY;
+  const to = scrollTargetY(el);
   el.scrollIntoView({ behavior, block: "start" });
-  return { behavior, from, to };
+  return { behavior, el, from, to };
 }
 
 /**

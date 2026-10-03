@@ -566,3 +566,47 @@ describe("reopening a plan built from the device location", () => {
     expect(byText("Read it out loud").disabled).toBe(false);
   });
 });
+
+describe("a size change during the page's own scroll", () => {
+  let observers: ResizeObserverCallback[];
+  beforeEach(() => {
+    observers = [];
+    vi.stubGlobal("ResizeObserver", class { constructor(cb: ResizeObserverCallback) { observers.push(cb); } observe() {} unobserve() {} disconnect() {} });
+    Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: 5_000 });
+    // Remount so the component picks up the stubbed ResizeObserver.
+    act(() => root.unmount());
+    root = createRoot(host);
+    act(() => root.render(<CarePlanTool />));
+  });
+  afterEach(() => { delete (document.documentElement as unknown as { scrollHeight?: number }).scrollHeight; });
+
+  async function readThenLayoutShift() {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    expect(scrolls).toEqual(["step-2"]); // the page's own smooth scroll has started
+    // Content above grows; the browser keeps the view in place, which moves scrollY.
+    setScrollY(300);
+    act(() => observers.forEach((cb) => cb([], {} as ResizeObserver)));
+    await new Promise((r) => setTimeout(r, 140)); // past the moment right after the size change
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    return req;
+  }
+
+  it("a scrollbar drag off the re-aimed path still counts as the person", async () => {
+    const req = await readThenLayoutShift();
+    setScrollY(900);
+    window.dispatchEvent(new Event("scroll"));
+    await release(req, ready(planFor("The new plan")));
+    expect(scrolls).toEqual(["step-2"]);
+  });
+
+  it("staying on the re-aimed path does not", async () => {
+    const req = await readThenLayoutShift();
+    window.dispatchEvent(new Event("scroll"));
+    await release(req, ready(planFor("The new plan")));
+    expect(scrolls).toEqual(["step-2", "step-3"]);
+  });
+});

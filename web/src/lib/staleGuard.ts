@@ -89,23 +89,33 @@ export type OwnScroll = { start: number; until: number; from: number; to: number
  * A scroll counts as the person using the page, except: right after the page changed size (the browser
  * shifting the view to keep content in place), or while the page's own scroll is moving and the page is
  * still on its way from start to target. Off that path (a scrollbar drag the other way, or past the
- * target) it is the person. If the page changed size since its own scroll began, the path is unreliable,
- * so the time window alone decides.
+ * target) it is the person. When the page changes size mid-scroll, the caller re-aims the path
+ * (rebaseOwnScroll), so the check keeps working instead of switching off.
  */
 export function scrollIsPersons(s: { now: number; y: number; own: OwnScroll | null; layoutChangedAt: number }): boolean {
   if (s.now - s.layoutChangedAt <= LAYOUT_SCROLL_MS) return false;
   const own = s.own;
   if (!own || s.now > own.until) return true;
-  if (s.layoutChangedAt >= own.start) return false;
   const lo = Math.min(own.from, own.to) - OWN_SCROLL_SLACK_PX;
   const hi = Math.max(own.from, own.to) + OWN_SCROLL_SLACK_PX;
   return s.y < lo || s.y > hi;
 }
 
-/** The page's own scroll has ended (scrollend). Ending away from its target means the person stopped or moved it. */
-export function ownScrollEndedByPerson(s: { y: number; own: OwnScroll; layoutChangedAt: number }): boolean {
-  if (s.layoutChangedAt >= s.own.start) return false;
+/**
+ * The page's own scroll has ended (scrollend). Ending away from its (re-aimed) target means the person stopped
+ * or moved it, unless the page changed size a moment ago (the browser just shifted the view).
+ */
+export function ownScrollEndedByPerson(s: { y: number; own: OwnScroll; layoutChangedAt: number; now: number }): boolean {
+  if (s.now - s.layoutChangedAt <= LAYOUT_SCROLL_MS) return false;
   return Math.abs(s.y - s.own.to) > OWN_SCROLL_SLACK_PX;
+}
+
+/**
+ * The page changed size while its own scroll was moving: content above the target grew or shrank, and the
+ * browser shifted the view. Re-aim the path from where the page is now to where the target sits now.
+ */
+export function rebaseOwnScroll(own: OwnScroll, at: { y: number; to: number }): OwnScroll {
+  return { ...own, from: at.y, to: at.to };
 }
 
 /** Scroll for them only if they have not touched the page since they pressed the button, and are not typing. */

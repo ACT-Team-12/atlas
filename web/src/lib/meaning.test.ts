@@ -169,3 +169,25 @@ describe("Codex round 6: an English number word with a unit is a quantity on the
     expect(combine("x", { ...base, source_quote: "Go to any lab location.", plain_language: "Go to one of the lab locations." }, "same", "").certified).toBe(true);
   });
 });
+
+describe("Codex round 7: doses swapped between two medicines are never certified", () => {
+  const base = { id: "x", when: "" };
+  const paper = "Take warfarin 2 mg and vitamin K 5 mg.";
+  const caught = (plain: string, lang?: "English" | "Spanish") => {
+    const any = numberCheckAnyForm({ source_quote: paper, plain_language: plain }, lang ?? "English");
+    return { certified: combine("x", { ...base, source_quote: paper, plain_language: plain }, "same", "", lang).certified, prepBlocked: any.unexpected.length > 0 || any.uncheckable };
+  };
+  it.each([
+    "Take warfarin 5 mg and vitamin K 2 mg.",
+    "Take warfarin 5 mg.",
+    "Take vitamin K 2 mg.",
+    "Take 5 mg of warfarin and 2 mg of vitamin K.",
+  ])("%j: never certified, blocked in prep", (plain) => {
+    expect(caught(plain)).toEqual({ certified: false, prepBlocked: true });
+  });
+  it("the same doses on the same medicines still certify", () => {
+    expect(caught("Take warfarin 2 mg and vitamin K 5 mg each day.")).toEqual({ certified: true, prepBlocked: false });
+    expect(caught("Take warfarin 2 mg.")).toEqual({ certified: true, prepBlocked: false });
+    expect(combine("x", { ...base, source_quote: lisinopril, plain_language: "Take 2 tablets (20 mg total) once a day." }, "same", "").certified).toBe(true);
+  });
+});

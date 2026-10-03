@@ -153,13 +153,37 @@ function unitClass(word: string | undefined): string | null {
  * Each number in `text` with the kind of unit right after it ("2 puffs" is 2 dose, "every 4 hours" is 4 hour,
  * "twice" is 2 times). `words` also reads number words in the given languages. `found` is every value read here.
  */
+const CONTEXT_STOP = new Set([
+  "take", "use", "give", "apply", "inhale", "drink", "eat", "the", "a", "an", "and", "or", "of", "with", "by", "at", "to",
+  "for", "your", "then", "also", "every", "each", "per", "total", "daily", "once", "twice", "mouth", "in", "on", "is",
+  "it", "you", "should", "please", "do", "not", "start", "stop", "continue", "keep",
+]);
 const HALF_WORD_ONE = /^(?:half|halves|medio|media|medias|mitad|demi|demie|demis|moitié|nửa|半|반)$/iu;
 const QUARTER_WORD_ONE = /^(?:quarter|quarters|cuarto|cuartos|cuarta|quart|quarts)$/iu;
 
-function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [string, string | null][]; found: Set<string> } {
+function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [string, string | null][]; ctxs: string[][]; found: Set<string> } {
   const toks = [...text.matchAll(/\d{3}[-.]\d{3}[-.]\d{4}|\d{1,2}:\d{2}|\d+(?:st|nd|rd|th)(?![\p{L}\p{M}])|\d+(?:[.,]\d+)*(?:\s*[/⁄∕]\s*\d+)?|[ap]\.\s?m\.?|[\p{L}\p{M}]+/giu)].map((m) => m[0]);
   const pairs: [string, string | null][] = [];
+  const ctxs: string[][] = [];
   const found = new Set<string>();
+  // The words that name what a number is for: up to three words just before it, back to the previous number,
+  // leaving out small words ("warfarin" in "Take warfarin 2 mg", "vitamin k" in "and vitamin K 5 mg").
+  const ctxBefore = (i: number, cls: string | null): string[] => {
+    const out: string[] = [];
+    for (let k = i - 1; k >= 0 && out.length < 3; k--) {
+      const t = toks[k];
+      if (/^\d/.test(t)) break;
+      const w = t.toLowerCase();
+      // A unit of the same kind belongs to the previous number ("2 mg and vitamin K 5 mg"); another kind names what
+      // this one counts ("2 tablets (20 mg total)").
+      const u = unitClass(w);
+      if ((u && (u === cls || cls === null)) || CONTEXT_STOP.has(w)) continue;
+      if (languages.some((l) => readNumberWords(w, l).numbers.length > 0)) break;
+      out.push(w);
+    }
+    return out;
+  };
+  const push = (v: string, c: string | null, i: number) => { pairs.push([v, c]); ctxs.push(ctxBefore(i, c)); };
   const isNumberTok = (t: string | undefined) => !!t && (/^\d/.test(t) || languages.some((l) => readNumberWords(t, l).numbers.length > 0));
   // The unit right after a number, or one or two words on ("2 bisacodyl tablets"), never past another number.
   const unitAfter = (i: number): string | null => {
@@ -174,14 +198,14 @@ function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [strin
     const tok = toks[i];
     const next = toks[i + 1];
     if (/^\d{1,2}:\d{2}$/.test(tok) || /^\d{3}[-.]\d{3}[-.]\d{4}$/.test(tok)) {
-      const cls = tok.includes(":") ? "clock" : "phone";
-      for (const part of tok.split(/[:.-]/)) { found.add(part); pairs.push([part, cls]); }
+      // A clock time's hour is a "clock" number; its minutes, and a phone number's groups, never need lining up.
+      tok.split(/[:.-]/).forEach((part, k) => { found.add(part); push(part, tok.includes(":") ? (k === 0 ? "clock" : "clockmin") : "phone", i); });
       continue;
     }
     if (HALF_WORD_ONE.test(tok) || QUARTER_WORD_ONE.test(tok)) {
       const v = HALF_WORD_ONE.test(tok) ? "1/2" : "1/4";
       found.add(v);
-      pairs.push([v, unitAfter(i) ?? "portion"]);
+      push(v, unitAfter(i) ?? "portion", i);
       continue;
     }
     let value: string | null = null;
@@ -204,9 +228,9 @@ function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [strin
     }
     if (value === null) continue;
     found.add(value);
-    pairs.push([value, cls]);
+    push(value, cls, i);
   }
-  return { pairs, found };
+  return { pairs, ctxs, found };
 }
 
 /**
@@ -217,12 +241,24 @@ function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [strin
  * we can't tell which quantity it is, so the step is not certified.
  */
 function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<string>, languages: NumberLanguage[]): boolean {
-  const q = quoteTexts.flatMap((t) => numberUnits(t, ["English", ...languages.filter((l) => l !== "English")]).pairs);
+  const qRead = quoteTexts.map((t) => numberUnits(t, ["English", ...languages.filter((l) => l !== "English")]));
+  const q = qRead.flatMap((r) => r.pairs);
+  const qCtx = qRead.flatMap((r) => r.ctxs);
   if (new Set(q.map(([n]) => n)).size < 2 || plainNumbers.size === 0) return false;
   const p = numberUnits(plain, languages);
   if ([...plainNumbers].some((n) => !p.found.has(n))) return true;
   // Only the numbers the caller counts ("one of the lab locations" is not a quantity on the care-plan path).
-  p.pairs = p.pairs.filter(([n]) => plainNumbers.has(n));
+  const keep = p.pairs.map(([n]) => plainNumbers.has(n));
+  const pCtx = p.ctxs.filter((_, k) => keep[k]);
+  p.pairs = p.pairs.filter((_, k) => keep[k]);
+  // When the quote gives one kind of unit two different values ("warfarin 2 mg and vitamin K 5 mg"), a number in the
+  // explanation must also share a naming word with the quote's same number, or the doses may have swapped places
+  // between medicines (Codex round 7). Can't tell: not certified.
+  const values = (c: string) => new Set(q.filter(([, qc]) => qc === c).map(([n]) => n));
+  const aligned = (n: string, c: string, ctx: string[]) =>
+    q.some(([qn, qc], k) => qn === n && qc === c && qCtx[k].some((w) => ctx.includes(w)));
+  const free = new Set(["clockmin", "phone"]);
+  if (p.pairs.some(([n, c], k) => c !== null && !free.has(c) && values(c).size >= 2 && !aligned(n, c, pCtx[k]))) return true;
   const known = new Set(q.map(([n, c]) => `${n}|${c}`));
   // A number with no unit is fine only where the quote never gives that number a unit either ("100 Sample Street").
   const unitless = (n: string) => q.some(([m]) => m === n) && q.every(([m, c]) => m !== n || c === null);

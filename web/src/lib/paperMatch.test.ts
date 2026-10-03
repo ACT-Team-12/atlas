@@ -220,4 +220,14 @@ describe("guessOcrLang", () => {
     expect(guessOcrLang("Tome 1 tableta por la boca dos veces al día con las comidas. Llame a su médico si tiene fiebre. Regrese en dos semanas para una cita de control de la presión.")).toBe("spa");
     expect(guessOcrLang("Take your metformin. Call Dr. de la Cruz if you have a fever.")).toBe("eng");
   });
+  it("returns null for papers in a language there is no reading data for", () => {
+    expect(guessOcrLang("하루에 한 번 아침 식사 후 약을 한 알 드세요. 열이 나면 의사에게 전화하세요.")).toBeNull();
+    expect(guessOcrLang("每天早餐后服用一片药。如果发烧，请给医生打电话。")).toBeNull();
+    expect(guessOcrLang("በየቀኑ ጠዋት ከምግብ በኋላ አንድ ክኒን ይውሰዱ። ትኩሳት ካለብዎ ለሐኪምዎ ይደውሉ።")).toBeNull();
+    expect(guessOcrLang("Uống 1 viên thuốc mỗi ngày vào buổi sáng sau khi ăn. Gọi cho bác sĩ nếu bạn bị sốt.")).toBeNull();
+    expect(guessOcrLang("Prenez un comprimé par jour avec le petit déjeuner. Appelez votre médecin si vous avez de la fièvre. Revenez dans deux semaines.")).toBeNull();
+  });
+  it("keeps English for an English paper that names a person or clinic in another script", () => {
+    expect(guessOcrLang(`Patient: Nguyễn Văn Đức\nClinic: 华人社区诊所\n${SAMPLE_AVS}`)).toBe("eng");
+  });
 });

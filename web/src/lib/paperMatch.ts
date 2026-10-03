@@ -271,12 +271,28 @@ export function matchOnPhoto(sourceText: string, span: Span | null, words: OcrWo
 const ES = new Set(["el", "la", "los", "las", "de", "del", "que", "y", "en", "por", "para", "con", "una", "su", "sus", "se", "al", "es", "cada", "dia", "dias", "usted", "medico", "tome", "llame"]);
 const EN = new Set(["the", "and", "to", "of", "a", "in", "for", "with", "your", "you", "is", "take", "call", "day", "days", "if", "or", "on", "by", "at"]);
 
+// French words that are not also in ES or EN (so "la", "de", "que", "en" and "a" never count for French).
+const FR = new Set(["le", "les", "des", "du", "et", "est", "vous", "votre", "vos", "avec", "pour", "dans", "une", "un", "pas", "ne", "au", "aux", "ce", "cette", "sur", "qui", "jour", "jours", "fois", "prenez", "appelez", "medecin", "avez"]);
+// Letters only Vietnamese uses among Latin-script languages: ă đ ơ ư and the stacked tone marks (U+1EA0 to U+1EF9).
+const VI = /[ăĂđĐơƠưƯẠ-ỹ]/u;
+
 /**
- * Which reading data to load for the photo: Spanish only when the text we already read from it is clearly Spanish.
- * One language is loaded at a time to keep the download small.
+ * Which reading data to load for the photo, from the text we already read from it: Spanish only when that text is
+ * clearly Spanish, English otherwise. One language is loaded at a time to keep the download small.
+ * null when the paper is in a language we have no reading data for (any non-Latin script such as Korean, Chinese or
+ * Amharic, or Vietnamese or French text): the reader would download about 7 MB and still not find the words.
  */
-export function guessOcrLang(text: string): "eng" | "spa" {
-  let es = 0, en = 0;
-  for (const t of tokenize(text)) { if (ES.has(t.norm)) es++; if (EN.has(t.norm)) en++; }
+export function guessOcrLang(text: string): "eng" | "spa" | null {
+  let letters = 0, other = 0, vi = 0;
+  for (const ch of text.normalize("NFC")) {
+    if (!/\p{L}/u.test(ch)) continue;
+    letters++;
+    if (!/\p{Script=Latin}/u.test(ch)) other++;
+    else if (VI.test(ch)) vi++;
+  }
+  if (letters > 0 && (other / letters > 0.2 || (vi >= 3 && vi / letters > 0.02))) return null;
+  let es = 0, en = 0, fr = 0;
+  for (const t of tokenize(text)) { if (ES.has(t.norm)) es++; if (EN.has(t.norm)) en++; if (FR.has(t.norm)) fr++; }
+  if (fr >= 5 && fr > es * 1.5 && fr > en * 1.5) return null;
   return es >= 5 && es > en * 1.5 ? "spa" : "eng";
 }

@@ -2,14 +2,15 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
-import { spanContext, type Bbox } from "@/lib/paperMatch";
-import { locateOnPhoto, progressMessage, type Stage } from "@/lib/photoLocate";
+import { guessOcrLang, spanContext, type Bbox } from "@/lib/paperMatch";
+import { locateOnPhoto, progressMessage, UNSUPPORTED_MESSAGE, type Stage } from "@/lib/photoLocate";
 import type { OcrPage } from "@/lib/paperOcr";
 
 /**
  * "Show on my paper": one tap shows where a step's words are on the person's own paper.
  * Pasted text: the paper with the verified span highlighted. Photo: the photo, read on this device, with boxes over
- * the same words; if we are not sure where they are, we say so and show the text view instead. Nothing new leaves
+ * the same words; if we are not sure where they are, or the paper is in a language the reader has no data for (only
+ * English and Spanish), we say so and show the text view instead. Nothing new leaves
  * the device: the text is already here, and the photo is read in this browser tab.
  */
 export function ShowOnPaper({ care, item, photo }: { care: CarePlanResponse; item: VerifiedItem; photo: File | null }) {
@@ -24,6 +25,7 @@ export function ShowOnPaper({ care, item, photo }: { care: CarePlanResponse; ite
   }, [open]);
 
   if (!spanContext(care.source_text, item.span)) return null;
+  const readsPhoto = care.source_kind === "image" && photo !== null && guessOcrLang(care.source_text) !== null;
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} aria-label={`Show on my paper: ${item.title}`} aria-haspopup="dialog"
@@ -46,7 +48,7 @@ export function ShowOnPaper({ care, item, photo }: { care: CarePlanResponse; ite
             <div className="overflow-y-auto p-4" data-lenis-prevent>
               <Panel care={care} item={item} photo={care.source_kind === "image" ? photo : null} statusId={statusId} />
               <p className="mt-4 text-xs font-semibold text-ink/70">
-                🔒 Nothing new is sent to any server for this: it uses only what is already on this device{care.source_kind === "image" && photo ? ", and your photo is read right here" : ""}.
+                🔒 Nothing new is sent to any server for this: it uses only what is already on this device{readsPhoto ? ", and your photo is read right here" : ""}.
               </p>
             </div>
           </div>
@@ -64,9 +66,11 @@ type PhotoState =
 
 function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: VerifiedItem; photo: File | null; statusId: string }) {
   const [state, setState] = useState<PhotoState>({ kind: "reading", stage: "loading", pct: 0, message: progressMessage("loading", 0) });
+  // Decided from the text we already read, before any OCR code or data is fetched.
+  const unsupported = photo !== null && guessOcrLang(care.source_text) === null;
 
   useEffect(() => {
-    if (!photo) return;
+    if (!photo || unsupported) return;
     let live = true;
     let url: string | null = null;
     locateOnPhoto(care.source_text, item.span, photo, (p) => { if (live) setState({ kind: "reading", ...p }); })
@@ -78,8 +82,16 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
       })
       .catch(() => { if (live) setState({ kind: "error" }); });
     return () => { live = false; if (url) URL.revokeObjectURL(url); };
-  }, [photo, care.source_text, item.span]);
+  }, [photo, unsupported, care.source_text, item.span]);
 
+  if (unsupported) {
+    return (
+      <>
+        <p id={statusId} role="status" className="mb-3 text-sm font-bold">{UNSUPPORTED_MESSAGE}</p>
+        <TextPaper text={care.source_text} span={item.span!} />
+      </>
+    );
+  }
   if (!photo) {
     return (
       <>

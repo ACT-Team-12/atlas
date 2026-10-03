@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LANGUAGES } from "./schema";
-import { findSpan } from "./verify";
+import { findSpanIn, mapSource } from "./verify";
 import { unexpectedNumbers } from "./meaning";
 import { PREP_KINDS, PREP_KIND_LABEL, readWhen, SLOTS, SLOT_LABEL, type PrepKind, type Slot, type WhenReason } from "./prepTime";
 
@@ -70,9 +70,10 @@ export function buildPrepTimeline(source: string, items: PrepModelItem[]): Omit<
   const kept: { step: PrepStep; at: number }[] = [];
   const heldKinds: PrepKind[] = [];
   let overridden = 0;
+  const paper = mapSource(source);
   items.slice(0, MAX_ITEMS).forEach((it, i) => {
     const quote = it.source_quote.trim();
-    const span = quote ? findSpan(source, quote) : null;
+    const span = quote ? findSpanIn(paper, quote) : null;
     if (!span) { heldKinds.push(it.kind); return; }
     const multiLine = /[\r\n]/.test(source.slice(span.start, span.end));
     const when = readWhen(quote, multiLine);

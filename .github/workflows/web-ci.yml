@@ -10,18 +10,24 @@ concurrency:
 jobs:
   web:
     runs-on: ubuntu-latest
-    # A throwaway Postgres for the call store's real-SQL tests (web/src/lib/call/store.pg.test.ts).
+    # A throwaway Postgres so database tests (gated on these URLs) run in CI instead of skipping.
     services:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: calltest
-        ports: ["5432:5432"]
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas
+          POSTGRES_DB: atlas_test
+        ports:
+          - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+          --health-cmd "pg_isready -U atlas -d atlas_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
-      CALL_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/calltest
+      CALL_TEST_DATABASE_URL: postgres://atlas:atlas@localhost:5432/atlas_test
+      TEST_DATABASE_URL: postgres://atlas:atlas@localhost:5432/atlas_test
     defaults:
       run:
         working-directory: web

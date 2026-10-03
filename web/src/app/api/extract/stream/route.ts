@@ -66,6 +66,8 @@ export async function POST(request: Request) {
         finished(plan);
       } catch (e) {
         finished(null);
+        // The person cleared the paper or left: an expected end, so nothing is logged and no error is sent.
+        if (abort.signal.aborted || request.signal.aborted) return;
         if (e instanceof ExtractError) emit({ type: "error", error: e.message, status: e.status });
         else {
           // Log the kind of error only, never the request or message, so a paper can never land in the host logs.

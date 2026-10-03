@@ -8,6 +8,7 @@ on:
       - "web/src/lib/sample.ts"
       - "web/src/lib/sampleLabs.ts"
       - "web/src/data/eval/**"
+      - "web/public/atlas_verify.wasm"
       - ".github/workflows/rust-ci.yml"
   pull_request:
     paths:
@@ -17,6 +18,7 @@ on:
       - "web/src/lib/sample.ts"
       - "web/src/lib/sampleLabs.ts"
       - "web/src/data/eval/**"
+      - "web/public/atlas_verify.wasm"
       - ".github/workflows/rust-ci.yml"
 concurrency:
   group: rust-ci-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
@@ -57,3 +59,6 @@ jobs:
       # Proves the committed package came from this source (and that parity.json, which is deterministic, is current).
       - name: Committed pkg and parity.json match the fresh build
         run: git diff --exit-code -- pkg/atlas_verify.wasm pkg/atlas_verify.mjs parity.json
+      # The browser downloads web/public/atlas_verify.wasm; it must be this exact build.
+      - name: Web copy of the wasm is the committed build
+        run: cmp pkg/atlas_verify.wasm ../../web/public/atlas_verify.wasm

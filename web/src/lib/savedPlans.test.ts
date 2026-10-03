@@ -37,6 +37,14 @@ describe("pickSession", () => {
   });
 });
 
+describe("pickSession matched", () => {
+  it("keeps matched only when it is exactly true (older saves have none)", () => {
+    expect(pickSession({ ...session(), matched: true }).matched).toBe(true);
+    expect(pickSession(session()).matched).toBe(false);
+    expect(pickSession({ ...session(), matched: "yes" } as unknown as Session).matched).toBe(false);
+  });
+});
+
 describe("loadStore", () => {
   it("migrates the old single saved session into the list and opens it", () => {
     const old = JSON.stringify({ ...session({ done: { a: true } }), savedAt: "2026-10-01T10:00:00.000Z" });

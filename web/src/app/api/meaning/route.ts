@@ -17,8 +17,10 @@ export async function POST(request: Request) {
   const parsed = MeaningRequestSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   try {
-    return Response.json(await checkMeaning(parsed.data));
+    return Response.json(await checkMeaning(parsed.data, request.signal));
   } catch (e) {
+    // The person cleared the paper, deleted the plan or read a new one: nobody is waiting, so nothing is logged.
+    if (request.signal.aborted) return new Response(null, { status: 499 });
     if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status });
     // Log the kind of error only, never the request or message, so a paper can never land in the host logs.
     console.error("meaning failed", e instanceof Error ? e.name : typeof e, (e as { status?: number })?.status ?? "");

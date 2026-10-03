@@ -7,7 +7,6 @@ import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
 import { BARRIERS, BARRIER_LABEL, type Barrier, formatHours, openNow, opensEvenings, opensWeekends } from "@/lib/resources";
 import type { PlanResponse, ResourceCard } from "@/lib/plan";
-import type { MeaningResponse, MeaningResult } from "@/lib/meaning";
 import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
@@ -23,7 +22,7 @@ import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollToPanel, tabId, useIsPhone } from "./PhoneTabs";
 import { speechLines } from "@/lib/speechText";
 import {
-  closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan, saveSession,
+  closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan,
   STORE_KEY, type Session, type Store,
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
@@ -32,7 +31,9 @@ import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun
 // Static, so erasing never waits on a chunk download; the WebAssembly itself is still fetched only after a read.
 import { forgetDeviceChecker, loadDeviceChecker, sameSpan } from "@/lib/deviceChecker";
 import { streamThenPlain } from "@/lib/readCancel";
-import { persistDeletion } from "@/lib/persistDeletion";
+import { DeletedPlans, deleteOnDevice, dropDeleted, saveStore, watchDeletions } from "@/lib/tombstones";
+import { autosaveStore } from "@/lib/autosave";
+import { fetchMeaning, IDLE_MEANING, RunFence, runMeaningCheck, type MeaningState } from "@/lib/meaningRun";
 import { consumeHelperSession, entryHeaders } from "@/lib/helperLink";
 import { HelperBanner, useHelperArrival } from "./HelperArrival";
 
@@ -241,8 +242,9 @@ export function CarePlanTool() {
   const [transcript, setTranscript] = useState<string | null>(null);
   const [photoChecked, setPhotoChecked] = useState(false);
   // Second-model meaning check: does each explanation say the same thing as its quoted line?
-  const [meaning, setMeaning] = useState<{ status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult> }>({ status: "idle", byId: {} });
-  const meaningFor = useRef("");
+  const [meaning, setMeaning] = useState<MeaningState>(IDLE_MEANING);
+  // One check at a time, with its own id and abort: Clear, Delete, a new read and unmount cancel it (lib/meaningRun.ts).
+  const [meaningFence] = useState(() => new RunFence());
   // The same quote checker, run again on this device (WebAssembly, loaded only after a read). Per step: did the
   // browser find the same words in the same place as the server?
   // Stored with the id of the reading it belongs to (never the reading, which holds the paper), so a newer read
@@ -268,18 +270,27 @@ export function CarePlanTool() {
   const storeRef = useRef<Store>(emptyStore());
   const [saveFailed, setSaveFailed] = useState(false);
   const [deleteFailed, setDeleteFailed] = useState(false);
+  // Ids of plans deleted on this device, from any tab (lib/tombstones.ts). Ids only, never paper text.
+  const [deleted] = useState(() => new DeletedPlans(() => localStorage));
+  // Session epoch: bumped whenever the open session ends (deleted, cleared, another plan opened, a new plan), so a save
+  // scheduled by an earlier render never writes that session's paper back (lib/autosave.ts).
+  const sessionEpoch = useRef(0);
+  const [epoch, setEpoch] = useState(0);
+  function endSession() { setEpoch(++sessionEpoch.current); }
 
+  /** Saves the list. A plan another tab deleted is never written back; if it is the one open here, its paper is erased. */
   function writeStore(next: Store) {
     if (next === storeRef.current) return;
-    storeRef.current = next;
-    setStore(next);
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(next)); setSaveFailed(false); } catch { setSaveFailed(true); }
+    const r = saveStore(() => localStorage, deleted, next);
+    storeRef.current = r.store; setStore(r.store); setSaveFailed(!r.ok);
+    if (r.openWasDeleted) eraseOpenPaper();
   }
 
   /** Puts a saved plan into the tool. Anything still running belongs to the plan being left, so it is dropped. */
   function applySession(v: Session) {
+    endSession();
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
-    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
+    meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setLoc(null);
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
@@ -289,8 +300,9 @@ export function CarePlanTool() {
 
   /** Empties the tool for a new plan. Saved plans stay as they are. */
   function resetTool() {
+    endSession();
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
-    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
+    meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setPhotoChecked(false); setReadLevel(null);
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
     setTab(1); setDeviceRun(NO_DEVICE_RUN);
@@ -302,9 +314,11 @@ export function CarePlanTool() {
   useEffect(() => {
     let raw: string | null = null, old: string | null = null;
     try { raw = localStorage.getItem(STORE_KEY); old = localStorage.getItem(OLD_KEY); } catch {}
-    const { store: s, migrated } = loadStore(raw, old, newPlanId());
+    const { store: found, migrated } = loadStore(raw, old, newPlanId());
+    // A plan deleted on this device stays deleted, even if a tab without this check wrote it back.
+    const s = dropDeleted(found, deleted.all()).store;
     storeRef.current = s; setStore(s);
-    if (migrated) { try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); localStorage.removeItem(OLD_KEY); } catch {} }
+    if (migrated || s !== found) { try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); if (migrated) localStorage.removeItem(OLD_KEY); } catch {} }
     const open = s.plans.find((p) => p.id === s.active);
     if (open) { applySession(open); setRestoredAt(open.savedAt); }
     loaded.current = true;
@@ -316,10 +330,14 @@ export function CarePlanTool() {
 
   // Every change to the open plan is saved into it; the first read or plan of a new one creates it.
   useEffect(() => {
-    if (!loaded.current) return;
-    if (!care && !plan) return;
-    writeStore(saveSession(storeRef.current, { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked }, new Date().toISOString(), newPlanId()));
-  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked]);
+    const next = autosaveStore({
+      loaded: loaded.current, epoch, currentEpoch: sessionEpoch.current, store: storeRef.current,
+      session: { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked }, now: new Date().toISOString(), newId: newPlanId(),
+    });
+    if (next) writeStore(next);
+    // writeStore only touches refs, setters and localStorage; a new render's copy changes nothing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, epoch]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /**
@@ -333,15 +351,25 @@ export function CarePlanTool() {
   }
 
   /**
-   * Deletes plan `id` from this device's storage, read back to be sure. When storage still holds it, nothing changes
-   * on screen and the person is told it was not deleted (a reload would bring it back).
+   * Deletes plan `id` from this device's storage (recorded for other tabs first), read back to be sure. When storage
+   * still holds it, nothing changes on screen and the person is told it was not deleted (a reload would bring it back).
    */
   function deleteFromDevice(id: string): boolean {
-    const next = deletePlan(storeRef.current, id);
-    if (!persistDeletion(() => localStorage, STORE_KEY, next, id)) { setDeleteFailed(true); return false; }
-    storeRef.current = next; setStore(next); setSaveFailed(false); setDeleteFailed(false);
+    const r = deleteOnDevice(() => localStorage, deleted, deletePlan(storeRef.current, id), id);
+    if (!r) { setDeleteFailed(true); return false; }
+    storeRef.current = r.store; setStore(r.store); setSaveFailed(false); setDeleteFailed(false);
+    if (r.openWasDeleted) eraseOpenPaper(); // another tab had already deleted the plan open here
     return true;
   }
+
+  // Another tab deleted plans: drop them here too, and erase the open paper if it was one of them.
+  useEffect(() => watchDeletions(window, () => localStorage, deleted, (dead) => {
+    const r = dropDeleted(storeRef.current, dead);
+    if (r.store !== storeRef.current) { storeRef.current = r.store; setStore(r.store); }
+    if (r.openWasDeleted) eraseOpenPaper();
+    // Subscribes once: the handler only uses refs, setters and eraseOpenPaper (which does the same).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []);
 
   /** "Clear it from this device": deletes the open plan. Other saved plans stay. */
   function clearSaved() {
@@ -353,6 +381,7 @@ export function CarePlanTool() {
     const p = storeRef.current.plans.find((x) => x.id === id);
     if (!p) return;
     writeStore(openPlan(storeRef.current, id));
+    if (storeRef.current.active !== id) return; // deleted in another tab meanwhile
     applySession(p);
     setRestoredAt(p.savedAt);
   }
@@ -369,25 +398,12 @@ export function CarePlanTool() {
     resetTool();
   }
 
-  async function checkMeaningFor(c: CarePlanResponse) {
-    const key = `${c.source_text.length}:${c.items.length}:${c.stats.ms}`;
-    meaningFor.current = key;
-    if (c.items.length === 0) return setMeaning({ status: "idle", byId: {} });
-    setMeaning({ status: "loading", byId: {} });
-    try {
-      const res = await fetch("/api/meaning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: c.items.slice(0, 40).map(({ id, plain_language, when, source_quote }) => ({ id, plain_language, when, source_quote })) }),
-      });
-      const json: MeaningResponse = await res.json();
-      if (meaningFor.current !== key) return; // a newer paper was read meanwhile
-      if (!res.ok) throw new Error();
-      setMeaning({ status: "done", byId: Object.fromEntries(json.results.map((r) => [r.id, r])) });
-    } catch {
-      if (meaningFor.current === key) setMeaning({ status: "error", byId: {} });
-    }
+  function checkMeaningFor(c: CarePlanResponse) {
+    return runMeaningCheck(meaningFence, c.items, fetchMeaning, setMeaning);
   }
+
+  // Leaving the page cancels a meaning check still in flight.
+  useEffect(() => () => meaningFence.cancel(), [meaningFence]);
 
   async function readPaper(corrected?: string, levelOverride?: (typeof READING_LEVELS)[number]) {
     const usedLevel = levelOverride ?? level;
@@ -395,7 +411,7 @@ export function CarePlanTool() {
     const openSavedPlan = storeRef.current.plans.find((p) => p.id === storeRef.current.active);
     const fresh = corrected === undefined;
     if (readStartsNewPlan({ openPlanHasPaper: !!openSavedPlan?.care, fresh, isPhoto: fresh && !!photo, sameText: openSavedPlan?.text === text })) writeStore(closePlan(storeRef.current));
-    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
+    meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setReading(true); setError(null); setCare(null); setPlan(null); setDone({}); setRemoved({}); setRestoredAt(null);
     setTranscript(null); setPhotoChecked(false); setPartial([]); setTab(1);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }

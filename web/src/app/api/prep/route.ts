@@ -21,10 +21,16 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   }
-  // A ceiling shared by every server instance, in Postgres. Without a database the per-instance guard above is all
-  // there is; the header says which one applied.
+  // A ceiling shared by every server instance, in Postgres (db/migrations/004_daily_usage.sql). It fails closed: if the
+  // count can't be read or written (no database, the table missing, Postgres down), no paid model call is made.
   const slot = await takeDailySlot("prep", PREP_DAILY_LIMIT);
-  const limitHeader = { "x-atlas-limit": slot.status === "unavailable" ? "instance-only" : "shared-daily" };
+  if (slot.status === "unavailable") {
+    return Response.json(
+      { error: "ATLAS can't build prep timelines right now because its daily limit can't be checked. Please try again later, or call your clinic." },
+      { status: 503, headers: { "x-atlas-limit": "unavailable", "Retry-After": "300" } },
+    );
+  }
+  const limitHeader = { "x-atlas-limit": "shared-daily" };
   if (slot.status === "over") {
     const wait = secondsToUtcMidnight();
     return Response.json(

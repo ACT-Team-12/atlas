@@ -80,9 +80,9 @@ export async function recordEvent(e: AtlasEvent, isTest: boolean): Promise<Recor
 /**
  * A shared daily ceiling for a paid AI route, counted in Postgres so every server instance shares it (the guard in
  * guard.ts is per instance). One atomic upsert per request: the count goes up first, then we compare, so two
- * instances racing at the limit can't both slip under it. "unavailable" means no database or a database error; the
- * caller keeps the per-instance guard and goes on, since a database hiccup should not take the route down.
- * Counts only (route name, UTC day), never the paper or the IP (db/migrations/003_daily_usage.sql).
+ * instances racing at the limit can't both slip under it. "unavailable" means no database, a missing table or a
+ * database error; /api/prep then refuses with 503 rather than make an uncounted paid model call (fails closed).
+ * Counts only (route name, UTC day), never the paper or the IP (db/migrations/004_daily_usage.sql).
  */
 export type DailySlot = { status: "ok" | "over"; used: number; limit: number } | { status: "unavailable" };
 

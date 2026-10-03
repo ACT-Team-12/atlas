@@ -37,12 +37,15 @@ describe("/api/prep shared daily ceiling", () => {
     expect(r.headers.get("x-atlas-limit")).toBe("shared-daily");
   });
 
-  it("without a database, falls back to the per-instance guard and says so", async () => {
+  it("fails closed: when the shared ceiling can't be read, refuses with 503 and never calls the model (Codex review)", async () => {
     takeDailySlot.mockResolvedValue({ status: "unavailable" });
     preparePrep.mockResolvedValue(ok);
     const r = await POST(req({ text: SAMPLE_PREP }));
-    expect(r.status).toBe(200);
-    expect(r.headers.get("x-atlas-limit")).toBe("instance-only");
+    expect(r.status).toBe(503);
+    expect(preparePrep).not.toHaveBeenCalled();
+    expect(r.headers.get("x-atlas-limit")).toBe("unavailable");
+    expect(Number(r.headers.get("retry-after"))).toBeGreaterThan(0);
+    expect((await r.json()).error).toMatch(/call your clinic/);
   });
 
   it("an invalid request is refused before it spends a slot", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { entryOf, eventInsert, isTestRequest, recordEvent, surfaceOf, liveStats, type AtlasEvent } from "./db";
+import { entryOf, eventInsert, helperFunnel, isTestRequest, recordEvent, surfaceOf, liveStats, type AtlasEvent } from "./db";
 
 const req = (headers: Record<string, string> = {}) => new Request("https://atlas-team12.vercel.app/api/plan", { method: "POST", headers });
 
@@ -44,5 +44,14 @@ describe("measurement helpers", () => {
     const plain = eventInsert(leaky, false, "production", false);
     expect(plain.sql).not.toContain("entry");
     expect(eventInsert({ surface: "web", kind: "plan" }, false, "production").sql).not.toContain("entry");
+  });
+});
+
+describe("helper-link funnel without a database", () => {
+  it("says not available instead of reporting zeros", async () => {
+    const saved = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
+    await expect(helperFunnel()).resolves.toEqual({ available: false, reason: "no-database" });
+    if (saved) process.env.DATABASE_URL = saved;
   });
 });

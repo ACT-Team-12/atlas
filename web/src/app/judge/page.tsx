@@ -5,7 +5,9 @@ import results from "@/data/eval/results.json";
 import meaning from "@/data/eval/meaning.json";
 import { DATASET } from "@/lib/resources";
 import { NATIONAL } from "@/lib/national";
-import { liveStats } from "@/lib/db";
+import { helperFunnel, liveStats } from "@/lib/db";
+import type { Count, HelperFunnelResult } from "@/lib/helperFunnel";
+import { publicStats } from "@/lib/publicStats";
 
 export const metadata: Metadata = {
   title: "For judges · ATLAS",
@@ -29,11 +31,70 @@ function Stop({ n, min, title, href, cta, children }: { n: number; min: string; 
   );
 }
 
+const show = (n: Count) => (typeof n === "number" ? n.toLocaleString("en-US") : n);
+
+/** Plans from helper links vs all plans. Counts under 10 arrive already hidden as "<10" (lib/helperFunnel.ts). */
+function HelperFunnelCard({ result }: { result: HelperFunnelResult }) {
+  return (
+    <section className="mt-10 card p-6 sm:p-8 bg-paper" aria-labelledby="helper-funnel-title">
+      <h2 id="helper-funnel-title" className="display text-2xl sm:text-3xl">Helper links: how people arrive</h2>
+      <p className="mt-2 font-semibold text-ink-soft">
+        A helper, like a community health worker, makes a link at <a className="underline decoration-2 underline-offset-4" href="/helper">/helper</a> for
+        someone they help. This counts the plans built after opening one, out of all plans.
+      </p>
+      {result.available ? (
+        <>
+          <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+            {([["Last 7 days", result.funnel.last_7_days], ["All time", result.funnel.all_time]] as const).map(([label, c]) => (
+              <div key={label} className="rounded-2xl border-2 border-ink p-4">
+                <dt className="font-bold text-ink-soft">{label}</dt>
+                <dd className="mt-1 text-lg font-semibold"><b className="text-2xl">{show(c.helper_link_plans)}</b> of {show(c.all_plans)} plans came from a helper link</dd>
+              </div>
+            ))}
+          </dl>
+          {result.funnel.by_language.length > 0 ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-left font-semibold text-ink-soft">
+                <caption className="sr-only">Plans from helper links by language</caption>
+                <thead>
+                  <tr className="border-b-2 border-ink">
+                    <th scope="col" className="py-2 pr-4">Language</th>
+                    <th scope="col" className="py-2 pr-4">Last 7 days (helper / all)</th>
+                    <th scope="col" className="py-2">All time (helper / all)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.funnel.by_language.map((r) => (
+                    <tr key={r.language} className="border-b border-ink/20">
+                      <th scope="row" className="py-2 pr-4 font-bold text-ink">{r.language}</th>
+                      <td className="py-2 pr-4">{show(r.last_7_days.helper_link_plans)} / {show(r.last_7_days.all_plans)}</td>
+                      <td className="py-2">{show(r.all_time.helper_link_plans)} / {show(r.all_time.all_plans)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <p className="mt-4 text-lg font-bold">Not available yet.</p>
+      )}
+      <p className="mt-4 text-sm font-semibold text-ink-soft">
+        Honest note: these counts are reported by the person&apos;s browser, not proven, and exclude our own test runs and preview sites.
+        Any number under 10 shows as &lt;10, languages with fewer than 10 plans are grouped together, and a number marked hidden is 10 or more
+        but would let a number under 10 be worked out by subtracting (from the total, from all plans, or from all time), so no small group can be picked out.
+        No ZIP or location is ever kept.
+      </p>
+    </section>
+  );
+}
+
 /** Every number on this page is read from the committed eval files or the live database, not typed in. */
 export default async function JudgePage() {
   const T = results.totals;
   const M = meaning.totals;
-  const live = await liveStats();
+  const [raw, funnel] = await Promise.all([liveStats(), helperFunnel()]);
+  const live = raw ? publicStats(raw, funnel) : null;
   return (
     <>
       <Nav />
@@ -66,10 +127,12 @@ export default async function JudgePage() {
               </p>
               <p>
                 Real use, counted anonymously (our own tests excluded):{" "}
-                {live ? <><b>{live.reads}</b> papers read, <b>{live.plans}</b> plans, <b>{live.feedback}</b> feedback answers so far{live.helper_link_plans !== null ? <>, and <b>{live.helper_link_plans}</b> plans built from helper links (as reported by the browser)</> : null}. Raw: <a className="underline decoration-2 underline-offset-4" href="/api/stats">/api/stats</a>.</> : "not reachable right now."}
+                {live ? <><b>{show(live.reads)}</b> papers read, <b>{show(live.plans)}</b> plans, <b>{show(live.feedback)}</b> feedback answers so far. Raw: <a className="underline decoration-2 underline-offset-4" href="/api/stats">/api/stats</a>.</> : "not reachable right now."}
               </p>
             </Stop>
           </ol>
+
+          <HelperFunnelCard result={funnel} />
 
           <div className="mt-10 grid gap-5 lg:grid-cols-3">
             <div className="card p-6 bg-paper">

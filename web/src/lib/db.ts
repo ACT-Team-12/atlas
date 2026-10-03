@@ -1,5 +1,6 @@
 import { attachDatabasePool } from "@vercel/functions";
 import { Pool } from "pg";
+import { buildFunnel, type HelperFunnelResult, type PlanCounts } from "./helperFunnel";
 
 /**
  * Anonymous measurement. Columns are counts, timings, categories and ratings only:
@@ -161,5 +162,29 @@ export async function liveStats(): Promise<LiveStats | null> {
   } catch (err) {
     console.error("liveStats failed", err instanceof Error ? err.name : typeof err);
     return null;
+  }
+}
+
+/**
+ * The helper-link funnel for /judge (see lib/helperFunnel.ts): production plans only, test runs excluded, counted by language.
+ * Not available (rather than zeros) when there is no database, migration 007 is missing, or the query fails.
+ */
+export async function helperFunnel(): Promise<HelperFunnelResult> {
+  const p = getPool();
+  if (!p) return { available: false, reason: "no-database" };
+  try {
+    const recent = `at >= now() - interval '7 days'`;
+    const r = await p.query<PlanCounts>(`select language,
+        count(*) filter (where entry = 'helper-link' and ${recent})::int as helper_7d,
+        count(*) filter (where ${recent})::int as all_7d,
+        count(*) filter (where entry = 'helper-link')::int as helper_all,
+        count(*)::int as all_all
+      from atlas_events where env = 'production' and not is_test and kind = 'plan' group by language`);
+    return { available: true, funnel: buildFunnel(r.rows) };
+  } catch (err) {
+    // 42703 = undefined column: migration 007 has not been applied, so there is no entry to count yet.
+    if ((err as { code?: string })?.code === "42703") return { available: false, reason: "not-migrated" };
+    console.error("helperFunnel failed", err instanceof Error ? err.name : typeof err);
+    return { available: false, reason: "error" };
   }
 }

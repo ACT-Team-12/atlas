@@ -51,17 +51,21 @@ object MissedLines {
 
     /**
      * missedFromPayload in web/src/lib/missedLines.ts. `keptIds`: the ids of the steps the person still has (not removed).
-     * An id the payload does not know adds nothing; repeats count once.
+     * An id the payload does not know adds nothing; repeats count once. `sourceLength`: the UTF-16 length of the
+     * response's source_text when known, which every offset must stay within.
+     *
+     * A payload that breaks any rule in [valid] is hidden as "invalid": no list, no "every line is in a step", nothing
+     * announced. One bad range (say [-1, 2147483647], which overlaps every sentence) would otherwise make the safety
+     * claim for the whole paper.
      */
-    fun view(payload: MissedLinesPayload?, keptIds: Iterable<String>): MissedLinesView {
+    fun view(payload: MissedLinesPayload?, keptIds: Iterable<String>, sourceLength: Int? = null): MissedLinesView {
         if (payload == null) return MissedLinesView.Hidden("missing")
         if (!payload.show) return MissedLinesView.Hidden(payload.why)
-        // The server never sends show:true without sentences; if it ever did, "every line is in a step" would be vacuous.
-        if (payload.sentences.isEmpty()) return MissedLinesView.Hidden("no_instructions")
+        if (!valid(payload, sourceLength)) return MissedLinesView.Hidden(INVALID)
 
         val ranges = ArrayList<IntArray>()
         for (id in LinkedHashSet(keptIds.toList())) {
-            for (r in payload.quotes[id].orEmpty()) if (r.size == 2) ranges.add(intArrayOf(r[0], r[1]))
+            for (r in payload.quotes[id].orEmpty()) ranges.add(intArrayOf(r[0], r[1]))
         }
         ranges.sortBy { it[0] }
         val merged = ArrayList<IntArray>()
@@ -73,13 +77,36 @@ object MissedLines {
         val matchedGroups = HashSet<Int>()
         for (s in payload.sentences) {
             val overlaps = merged.any { it[0] < s.end && it[1] > s.start }
-            // A malformed critical range can never be held, so its sentence stays on the list (fail toward showing it).
-            val criticalHeld = s.critical.all { c -> c.size == 2 && merged.any { it[0] <= c[0] && it[1] >= c[1] } }
+            val criticalHeld = s.critical.all { c -> merged.any { it[0] <= c[0] && it[1] >= c[1] } }
             if (overlaps && criticalHeld) matchedGroups.add(s.group)
         }
         val lines = payload.sentences.filter { it.group !in matchedGroups }
         val total = payload.sentences.size
         return MissedLinesView.Shown(payload.languages, total, total - lines.size, lines)
+    }
+
+    /** `why` of a show:true payload that breaks a rule in [valid]. */
+    const val INVALID = "invalid"
+
+    /**
+     * missedLinesPayloadValid in web/src/lib/missedLines.ts, the same rules on every client:
+     *  - at least one sentence (with none, "every line is in a step" would be vacuous);
+     *  - every range is two integers with 0 <= start < end, and end <= sourceLength when it is known;
+     *  - each sentence's critical ranges sit inside that sentence;
+     *  - each group points at an earlier-or-same sentence that is its own group's first (group(group) == group).
+     */
+    fun valid(payload: MissedLinesPayload, sourceLength: Int? = null): Boolean {
+        val limit = sourceLength ?: Int.MAX_VALUE
+        fun ok(start: Int, end: Int) = start in 0 until end && end <= limit
+        fun ok(r: List<Int>) = r.size == 2 && ok(r[0], r[1])
+        val sentences = payload.sentences
+        if (sentences.isEmpty()) return false
+        for ((i, s) in sentences.withIndex()) {
+            if (!ok(s.start, s.end)) return false
+            if (!s.critical.all { ok(it) && it[0] >= s.start && it[1] <= s.end }) return false
+            if (s.group !in 0..i || sentences[s.group].group != s.group) return false
+        }
+        return payload.quotes.values.all { ranges -> ranges.all { ok(it) } }
     }
 
     /** missedLinesAnnouncement: what a screen reader hears (politely) when the result arrives or changes. */

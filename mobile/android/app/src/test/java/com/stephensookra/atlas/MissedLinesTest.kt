@@ -89,19 +89,59 @@ class MissedLinesTest {
     }
 
     @Test fun showWithoutSentencesNeverClaimsAllCovered() {
-        assertEquals(MissedLinesView.Hidden("no_instructions"), MissedLines.view(MissedLinesPayload(show = true, languages = listOf("en")), listOf("a")))
+        val v = MissedLines.view(MissedLinesPayload(show = true, languages = listOf("en")), listOf("a"))
+        assertEquals(MissedLinesView.Hidden(MissedLines.INVALID), v)
+        assertEquals("", MissedLines.announcement(v))
     }
 
-    @Test fun touchingRangesMergeAndMalformedRangesNeverCoverALine() {
+    @Test fun touchingRangesMerge() {
         // A number split across two quotes: only the two together hold it.
         val p = MissedLinesPayload(show = true, languages = listOf("en"),
-            quotes = mapOf("a" to listOf(listOf(0, 18)), "b" to listOf(listOf(18, 25)), "bad" to listOf(listOf(0))),
+            quotes = mapOf("a" to listOf(listOf(0, 18)), "b" to listOf(listOf(18, 25))),
             sentences = listOf(s("Take 1 tablet for 10 days.", 0, 26, 0, critical = listOf(listOf(17, 19)))))
-        fun missed(vararg ids: String) = (MissedLines.view(p, ids.toList()) as MissedLinesView.Shown).lines.size
+        fun missed(vararg ids: String) = (MissedLines.view(p, ids.toList(), sourceLength = 26) as MissedLinesView.Shown).lines.size
         assertEquals(1, missed("a")); assertEquals(1, missed("b")); assertEquals(0, missed("a", "b"))
-        assertEquals(1, missed("bad"))
-        val badCritical = p.copy(sentences = listOf(s("Take 1 tablet for 10 days.", 0, 26, 0, critical = listOf(listOf(17)))))
-        assertEquals(1, (MissedLines.view(badCritical, listOf("a", "b")) as MissedLinesView.Shown).lines.size)
+    }
+
+    /** One sentence the kept quote does not touch, so a valid payload always shows it as missed. */
+    private val good = MissedLinesPayload(show = true, languages = listOf("en"),
+        quotes = mapOf("a" to listOf(listOf(30, 40))),
+        sentences = listOf(s("Take 1 tablet for 10 days.", 0, 26, 0, critical = listOf(listOf(5, 6), listOf(18, 20)))))
+
+    @Test fun malformedPayloadsAreHiddenWithNoAllCoveredClaim() {
+        assertEquals(1, (MissedLines.view(good, listOf("a"), sourceLength = 40) as MissedLinesView.Shown).lines.size)
+        val one = good.sentences[0]
+        val bad = mapOf(
+            "kept range [-1, MAX] overlaps everything" to good.copy(quotes = mapOf("a" to listOf(listOf(-1, Int.MAX_VALUE)))),
+            "one number" to good.copy(quotes = mapOf("a" to listOf(listOf(0)))),
+            "three numbers" to good.copy(quotes = mapOf("a" to listOf(listOf(0, 26, 30)))),
+            "start after end" to good.copy(quotes = mapOf("a" to listOf(listOf(26, 0)))),
+            "empty range" to good.copy(quotes = mapOf("a" to listOf(listOf(5, 5)))),
+            "negative start" to good.copy(quotes = mapOf("a" to listOf(listOf(-3, 26)))),
+            "past the paper" to good.copy(quotes = mapOf("a" to listOf(listOf(0, 41)))),
+            "an unkept item's bad range still poisons the payload" to good.copy(quotes = good.quotes + ("z" to listOf(listOf(-1, 2)))),
+            "sentence end before start" to good.copy(sentences = listOf(one.copy(start = 26, end = 0))),
+            "sentence negative" to good.copy(sentences = listOf(one.copy(start = -1))),
+            "sentence past the paper" to good.copy(sentences = listOf(one.copy(end = 41))),
+            "critical outside its sentence" to good.copy(sentences = listOf(one.copy(critical = listOf(listOf(30, 35))))),
+            "critical one number" to good.copy(sentences = listOf(one.copy(critical = listOf(listOf(17))))),
+            "critical reversed" to good.copy(sentences = listOf(one.copy(critical = listOf(listOf(19, 17))))),
+            "group out of range" to good.copy(sentences = listOf(one.copy(group = 1))),
+            "group negative" to good.copy(sentences = listOf(one.copy(group = -1))),
+            "group points forward" to good.copy(sentences = listOf(one, s("Call 911.", 27, 36, 2), s("Call 911.", 37, 40, 2))),
+            "group points at a non-first sentence" to good.copy(sentences = listOf(one, s("Call 911.", 27, 36, 0), s("Take 1 tablet for 10 days.", 37, 40, 1))),
+        )
+        for ((name, p) in bad) {
+            for (kept in listOf(listOf("a"), listOf("a", "z"), emptyList())) {
+                val v = MissedLines.view(p, kept, sourceLength = 40)
+                assertEquals(name, MissedLinesView.Hidden(MissedLines.INVALID), v)
+                assertEquals(name, "", MissedLines.announcement(v))
+            }
+        }
+        // Without a known paper length the bounds that need it cannot be checked, but [-1, MAX] is still refused.
+        assertEquals(MissedLinesView.Hidden(MissedLines.INVALID), MissedLines.view(bad.getValue("kept range [-1, MAX] overlaps everything"), listOf("a")))
+        assertEquals(MissedLinesView.Hidden(MissedLines.INVALID),
+            MissedLines.view(good.copy(quotes = mapOf("a" to listOf(listOf(0, Int.MAX_VALUE)))), listOf("a"), sourceLength = 40))
     }
 
     @Test fun announcementAndBadgeMatchTheWebsiteWording() {

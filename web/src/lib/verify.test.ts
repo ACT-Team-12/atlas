@@ -107,3 +107,22 @@ describe("Codex re-review: the care plan shows the whole sentence a quote came f
     expect(verifyItems(SAMPLE_AVS, [item(q)]).kept[0].source_quote).toBe(q);
   });
 });
+
+describe("Codex round 4: a sentence too long to carry is refused, never cut to the fragment", () => {
+  const filler = Array.from({ length: 40 }, (_, i) => `item ${i} of your list`).join(", ");
+  const sentence = `Do not take insulin, ${filler}, or anything else, and do not take it the morning of your procedure.`;
+  const paper = `Medicines:\n${sentence}\nCall us with questions.`;
+  it("the test sentence is longer than the 800-character quote limit and starts with its do-not", () => {
+    expect(sentence.length).toBeGreaterThan(800);
+    expect(sentence.startsWith("Do not")).toBe(true);
+  });
+  it("a fragment of it is not kept with only the suffix", () => {
+    const { kept, refused } = verifyItems(paper, [item("take it the morning of your procedure")]);
+    expect(kept).toEqual([]);
+    expect(refused).toHaveLength(1);
+    expect(refused[0]).toMatchObject({ grounded: false, span: null, held_reason: "sentence_too_long" });
+  });
+  it("a short sentence elsewhere in the same paper is still kept", () => {
+    expect(verifyItems(paper, [item("Call us with questions")]).kept[0].source_quote).toBe("Call us with questions.");
+  });
+});

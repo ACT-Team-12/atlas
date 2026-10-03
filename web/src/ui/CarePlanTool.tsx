@@ -704,7 +704,7 @@ export function CarePlanTool() {
                   <p className="text-sm font-semibold">If you have any of them right now, do what your paper says: call your clinic, or call 911.</p>
                 </div>
               )}
-              <p className="text-sm font-bold text-ink/70">{care.stats.grounded} steps found in your paper · {care.stats.refused} held back because we couldn&apos;t find the words · {(care.stats.ms / 1000).toFixed(1)}s</p>
+              <p className="text-sm font-bold text-ink/70">{care.stats.grounded} steps found in your paper · {care.stats.refused} held back because we couldn&apos;t show their words from your paper · {(care.stats.ms / 1000).toFixed(1)}s</p>
               {deviceStatus === "loading" && <p className="mt-1 text-xs font-semibold text-ink/70">Checking each step again on this device...</p>}
               {deviceStatus === "error" && <p className="mt-1 text-xs font-semibold text-ink/70">This device couldn&apos;t run its own check, so each step shows our server&apos;s check only.</p>}
               {simplerOk && (
@@ -792,8 +792,10 @@ export function CarePlanTool() {
                   {care.refused.length > 0 && (
                     <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4">
                       <p className="font-extrabold">Held back to protect you ({care.refused.length})</p>
-                      <p className="text-xs text-ink/70">The AI suggested these, but the words aren&apos;t in your paper.</p>
-                      <ul className="mt-2 list-disc pl-5 text-sm">{care.refused.map((r) => <li key={r.id}>{r.title}</li>)}</ul>
+                      <p className="text-xs text-ink/70">The AI suggested these, but we couldn&apos;t show their words from your paper.</p>
+                      <ul className="mt-2 list-disc pl-5 text-sm">{care.refused.map((r) => (
+                        <li key={r.id}>{r.title}{r.held_reason === "sentence_too_long" ? " (its sentence in your paper is too long to show here: read it in your paper)" : ""}</li>
+                      ))}</ul>
                     </div>
                   )}
                 </div>

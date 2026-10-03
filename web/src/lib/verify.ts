@@ -144,13 +144,14 @@ const MAX_QUOTE = 800;
 /**
  * Checks one item. `index` is its place in the model's full list, which sets its id. A grounded item carries the
  * whole sentence its quote sits in, from the paper itself (enclosingSentence), so a fragment can't drop a "do not".
- * If that sentence is longer than the routes accept, the matched words themselves are kept.
+ * If that sentence is longer than the routes accept, the item is held back: it is never cut down to the fragment,
+ * since the words left out could be the "do not" (the person reads that sentence in the paper instead).
  */
 export function verifyItem(source: string, item: CareItem, index: number): VerifiedItem {
   const found = findSpan(source, item.source_quote);
   if (!found) return { ...item, id: `item-${index}`, grounded: false, span: null };
-  const whole = enclosingSentence(source, found);
-  const span = whole.end - whole.start <= MAX_QUOTE ? whole : found;
+  const span = enclosingSentence(source, found);
+  if (span.end - span.start > MAX_QUOTE) return { ...item, id: `item-${index}`, grounded: false, span: null, held_reason: "sentence_too_long" };
   return { ...item, source_quote: source.slice(span.start, span.end), id: `item-${index}`, grounded: true, span };
 }
 

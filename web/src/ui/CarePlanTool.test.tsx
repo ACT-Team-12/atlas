@@ -510,8 +510,9 @@ describe("an outdated plan cannot be acted on", () => {
   const ACTIONS = ["Read it out loud", "Print for the next visit", "Print a handoff sheet", "Send to family", "Book it now"];
   /** Every place link the plan offers: 7 in the plan rows plus 3 in "Start with these 3" (was 7 before the top three). */
   const PLACE_LINKS = 10;
-  /** Every link out of the plan's place cards: calls, websites, directions, and their source pages. */
-  const placeLinks = () => [...host.querySelectorAll<HTMLAnchorElement>("li a")].map((a) => a.getAttribute("href") ?? "");
+  /** Every link out of the plan's place cards: calls, websites, directions, and their source pages. Scoped to the plan
+   *  card (step 3), since each care step now has its own "Remind me" calendar link. */
+  const placeLinks = () => [...host.querySelectorAll<HTMLAnchorElement>("#step-3 li a")].map((a) => a.getAttribute("href") ?? "");
   const enabled = () => Object.fromEntries(ACTIONS.map((t) => [t, !byText(t).disabled]));
   const all = (v: boolean) => Object.fromEntries(ACTIONS.map((t) => [t, v]));
   let speech: { speak: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> };
@@ -907,5 +908,43 @@ describe("refreshing the device location", () => {
     expect(fetchCalls.at(-1)?.body).toMatchObject({ zip: "30340" });
     expect(fetchCalls.at(-1)?.body.location).toBeUndefined();
     await release(req, ready(planFor("Plan near 30340")));
+  });
+});
+
+describe("your steps, grouped by when (CareSteps inside the real tool)", () => {
+  async function read() {
+    act(() => typeInto(paperBox(), PAPER));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    const care = careFor(PAPER, "AI title for metformin");
+    care.not_in_document = ["How long to keep taking it"];
+    await release(req, ready(care));
+  }
+
+  it("the missed-lines check and 'What your paper does not say' are still on the screen", async () => {
+    await read();
+    expect(screenText()).toContain("Lines on your paper we didn't turn into steps");
+    expect(screenText()).toContain("What your paper does not say");
+    expect(screenText()).toContain("How long to keep taking it");
+  });
+
+  it("the meaning check certified nothing: the row shows the paper's words and the step sits in its paper time group", async () => {
+    await read();
+    const row = host.querySelector('li[data-step="c1"]')!;
+    expect(row.closest("[data-when-group]")?.getAttribute("data-when-group")).toBe("daily"); // "twice a day" in the quote
+    const toggle = row.querySelector("button[aria-expanded]")!;
+    expect(toggle.textContent).toContain("“metformin 500 mg twice a day”");
+    expect(toggle.textContent).not.toContain("AI title for metformin");
+  });
+
+  it("done is saved, and Remove moves a step to 'You removed', with Undo", async () => {
+    await read();
+    act(() => host.querySelector<HTMLInputElement>('input[aria-label="Mark step 1 done"]')!.click());
+    expect(JSON.parse(localStorage.getItem("atlas-plans-v2")!).plans[0].done).toEqual({ c1: true });
+    act(() => (host.querySelector('button[aria-label="Remove step 1"]') as HTMLButtonElement).click());
+    expect(host.querySelector('li[data-step="c1"]')).toBeNull();
+    expect(screenText()).toContain("You removed 1");
+    act(() => byText("Undo").click());
+    expect(host.querySelector('li[data-step="c1"]')).not.toBeNull();
   });
 });

@@ -3,7 +3,7 @@
 import { bookSafe, careStepView, checkOf, type Check } from "@/lib/paperFirst";
 import { PaperFirst } from "./PaperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { WorkingCard } from "./WorkingCard";
@@ -40,7 +40,7 @@ import {
   scrollIsPersons, shouldAutoScroll, type LayoutShift, type OwnScroll,
 } from "@/lib/staleGuard";
 import { SPEECH_LANG } from "@/lib/speechLang";
-import { ShowOnPaper } from "./ShowOnPaper";
+import { CareSteps, KIND } from "./CareSteps";
 import { SessionSummary } from "./SessionSummary";
 import { helperSessionKey } from "@/lib/sessionSummary";
 import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun, type DeviceVerdict } from "@/lib/deviceRun";
@@ -52,16 +52,6 @@ import { autosaveStore } from "@/lib/autosave";
 import { fetchMeaning, IDLE_MEANING, RunFence, runMeaningCheck, type MeaningState } from "@/lib/meaningRun";
 import { consumeHelperSession, entryHeaders } from "@/lib/helperLink";
 import { HelperBanner, useHelperArrival } from "./HelperArrival";
-
-const KIND: Record<string, { label: string; cls: string }> = {
-  medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
-  lab_test: { label: "Lab test", cls: "bg-lilac text-ink" },
-  referral: { label: "Referral", cls: "bg-peach text-peach-deep" },
-  follow_up_visit: { label: "Next visit", cls: "bg-mint text-teal-deep" },
-  self_care: { label: "Daily care", cls: "bg-mint-soft text-teal-deep" },
-  warning_sign: { label: "Warning sign", cls: "bg-red-soft text-red" },
-};
-
 
 /** Id for a saved plan. randomUUID needs a secure page; the fallback is fine for a local key. */
 function newPlanId() {
@@ -138,28 +128,6 @@ function StreamingSteps({ items }: { items: VerifiedItem[] }) {
   );
 }
 
-function Highlighted({ text, items, active }: { text: string; items: VerifiedItem[]; active: string | null }) {
-  const parts = useMemo(() => {
-    const spans = items.filter((i) => i.span).map((i) => ({ ...i.span!, id: i.id })).sort((a, b) => a.start - b.start);
-    const out: { t: string; id?: string }[] = [];
-    let at = 0;
-    for (const s of spans) {
-      if (s.start < at) continue;
-      out.push({ t: text.slice(at, s.start) }, { t: text.slice(s.start, s.end), id: s.id });
-      at = s.end;
-    }
-    out.push({ t: text.slice(at) });
-    return out;
-  }, [text, items]);
-  return (
-    <pre className="whitespace-pre-wrap font-sans text-sm leading-6 text-ink/80">
-      {parts.map((p, i) => p.id
-        ? <mark key={i} className={`rounded px-0.5 transition-colors ${active === p.id ? "bg-sun" : "bg-sun/35"}`}>{p.t}</mark>
-        : <span key={i}>{p.t}</span>)}
-    </pre>
-  );
-}
-
 function StepHeader({ n, title, done, note }: { n: number; title: string; done?: boolean; note?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -226,7 +194,6 @@ export function CarePlanTool() {
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
-  const [active, setActive] = useState<string | null>(null);
   const [removed, setRemovedState] = useState<Record<string, boolean>>({});
   const [restoredAt, setRestoredAt] = useState<string | null>(null);
   // What the reading and the plan on screen were made from. If the inputs move on, the result is labelled
@@ -1072,110 +1039,14 @@ export function CarePlanTool() {
           )}
 
           {care && !needsPhotoCheck && (
-            <div className="mt-8">
-              {care.has_warning_signs && (
-                <div className="mb-5 rounded-2xl border-2 border-red bg-red-soft p-4 text-red">
-                  <p className="font-extrabold">Your paper lists warning signs (marked red).</p>
-                  <p className="text-sm font-semibold">If you have any of them right now, do what your paper says: call your clinic, or call 911.</p>
-                </div>
-              )}
-              <p className="text-sm font-bold text-ink/70">{care.stats.grounded} steps found in your paper · {care.stats.refused} held back because we couldn&apos;t show their words from your paper · {(care.stats.ms / 1000).toFixed(1)}s</p>
-              {deviceStatus === "loading" && <p className="mt-1 text-xs font-semibold text-ink/70">Checking each step again on this device...</p>}
-              {deviceStatus === "error" && <p className="mt-1 text-xs font-semibold text-ink/70">This device couldn&apos;t run its own check, so each step shows our server&apos;s check only.</p>}
-              {simplerOk && (
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <button type="button" onClick={makeSimpler} aria-describedby="simpler-why"
-                    className="rounded-full border-2 border-ink bg-sun px-4 py-2 text-sm font-bold shadow-[0_2px_0_var(--ink)] hover:bg-mint focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-                    Too much? Make it simpler
-                  </button>
-                  <span id="simpler-why" className="text-xs font-semibold text-ink/70">Reads your paper again in plainer words, in the same language.</span>
-                </div>
-              )}
-              <div className="mt-4 grid gap-5 lg:grid-cols-[1.15fr_1fr]">
-                <ul className="space-y-3">
-                  {items.map((it, n) => (
-                    <li key={it.id} onMouseEnter={() => setActive(it.id)} onMouseLeave={() => setActive(null)}
-                      className={`rounded-2xl border-2 p-4 ${it.kind === "warning_sign" ? "border-red bg-red-soft/50" : "border-ink/70 bg-paper"}`}>
-                      <div className="flex items-start gap-3">
-                        <input type="checkbox" aria-label={`Mark step ${n + 1} done`} className="mt-1 h-5 w-5 accent-[var(--teal)]"
-                          checked={!!done[it.id]} onChange={(e) => setDone((d) => ({ ...d, [it.id]: e.target.checked }))} />
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`chip ${KIND[it.kind]?.cls}`}>{KIND[it.kind]?.label}</span>
-                            {checkFor(it.id) === "certified" && <span className="font-extrabold">{it.title}</span>}
-                            {checkFor(it.id) === "certified" && it.when && <span className="text-xs font-bold text-ink/70">· {it.when}</span>}
-                          </div>
-                          <PaperFirst v={careStepView(it, checkFor(it.id))} />
-                          {it.needs_clarification && it.question_for_clinic && <p className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">Ask your clinic: {it.question_for_clinic}</p>}
-                          <ShowOnPaper care={care} item={it} photo={readPhoto?.for === care ? readPhoto.file : null} />
-                          {deviceStatus === "done" && deviceRun.byId[it.id] === "match" && (
-                            <p className="mt-1 text-[11px] font-bold text-teal-deep" data-device-check="match">✓ Checked on this device: same words, same place in your paper</p>
-                          )}
-                          {deviceStatus === "done" && deviceRun.byId[it.id] && deviceRun.byId[it.id] !== "match" && (
-                            <p role="note" className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep" data-device-check="differ">
-                              Double-check this one: this device&apos;s own check {deviceRun.byId[it.id] === "missing" ? "could not find these words in your paper" : "found these words in a different place in your paper"}. Read the line from your paper above.
-                            </p>
-                          )}
-                          {meaning.status === "loading" && <p className="mt-1 text-[11px] font-semibold text-ink/70">Double-checking this against your paper...</p>}
-                          {meaning.status === "done" && meaning.byId[it.id]?.flagged && (
-                            <p role="note" className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">
-                              Double-check this one with your clinic: our second check says the explanation may not match your paper.
-                              {meaning.byId[it.id].what_differs ? ` ${meaning.byId[it.id].what_differs.charAt(0).toUpperCase()}${meaning.byId[it.id].what_differs.slice(1)}` : ""}
-                              {meaning.byId[it.id].unexpected_numbers.length > 0 ? ` (Number not in your paper: ${meaning.byId[it.id].unexpected_numbers.join(", ")}.)` : ""}
-                            </p>
-                          )}
-                          {meaning.status === "done" && meaning.byId[it.id]?.certified && (
-                            <p className="mt-1 text-[11px] font-bold text-teal-deep">✓ Double-checked: the explanation matches this line</p>
-                          )}
-                          {meaning.status === "done" && meaning.byId[it.id] && !meaning.byId[it.id].flagged && !meaning.byId[it.id].certified && (
-                            <p className="mt-1 text-[11px] font-semibold text-ink/70">Not double-checked: our second check couldn&apos;t confirm this one. Read the line from your paper above.</p>
-                          )}
-                        </div>
-                        <button type="button" aria-label={`Remove step ${n + 1}`} className="text-xs font-bold text-ink/70 hover:text-red"
-                          onClick={() => setRemoved((r) => ({ ...r, [it.id]: true }))}>Remove</button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                <div className="space-y-4">
-                  <div className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
-                    <p className="font-extrabold mb-2">Your paper, every step highlighted</p>
-                    {/* Focusable so keyboard users can scroll the paper (axe scrollable-region-focusable). */}
-                    <div data-lenis-prevent tabIndex={0} role="region" aria-label="Your paper with every step highlighted"
-                      className="max-h-[26rem] overflow-auto rounded-lg focus-visible:outline-2 focus-visible:outline-teal"><Highlighted text={care.source_text} items={items} active={active} /></div>
-                  </div>
-                  {removedItems.length > 0 && (
-                    <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4 text-sm">
-                      <p className="font-extrabold">You removed {removedItems.length}</p>
-                      <ul className="mt-2 space-y-1">
-                        {removedItems.map((r) => (
-                          <li key={r.id} className="flex items-center justify-between gap-2">
-                            <span data-paper-quote="">{KIND[r.kind]?.label ?? "Step"}: your paper says &ldquo;{r.source_quote}&rdquo;</span>
-                            <button type="button" className="font-bold underline" onClick={() => setRemoved((x) => { const n = { ...x }; delete n[r.id]; return n; })}>Undo</button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {care.not_in_document.length > 0 && (
-                    <div className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
-                      <p className="font-extrabold">What your paper does not say</p>
-                      <p className="text-xs text-ink/70">Worth asking your clinic about.</p>
-                      <ul className="mt-2 list-disc pl-5 text-sm">{care.not_in_document.map((q, i) => <li key={i}>{q}</li>)}</ul>
-                    </div>
-                  )}
-                  {care.refused.length > 0 && (
-                    <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4">
-                      <p className="font-extrabold">Held back to protect you ({care.refused.length})</p>
-                      <p className="text-xs text-ink/70">The AI suggested these, but we couldn&apos;t show their words from your paper, so we don&apos;t show what it said. Read your paper itself.</p>
-                      {/* Never the AI's title: a held-back step has no paper words to stand next to it (Codex round 13). */}
-                      <ul className="mt-2 list-disc pl-5 text-sm">{care.refused.map((r, n) => (
-                        <li key={r.id}>Held back {n + 1}: {r.held_reason === "sentence_too_long" ? "its sentence in your paper is too long to show here." : r.held_reason === "skips_across" ? "its words come from different lines of your paper." : "its words are not in your paper."}</li>
-                      ))}</ul>
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div>
+              {/* "Your steps", grouped by when (CareSteps.tsx). Every row follows the paper-first rule. */}
+              <CareSteps key={runIdFor(care)} care={care} items={items} removedItems={removedItems} checkFor={checkFor} meaning={meaning}
+                deviceRun={deviceRun} deviceStatus={deviceStatus} done={done} language={language}
+                onDone={(id, v) => setDone((d) => ({ ...d, [id]: v }))}
+                onRemove={(id) => setRemoved((r) => ({ ...r, [id]: true }))}
+                onUndoRemove={(id) => setRemoved((x) => { const n = { ...x }; delete n[id]; return n; })}
+                photo={readPhoto?.for === care ? readPhoto.file : null} simpler={{ ok: simplerOk, onClick: makeSimpler }} />
               <MissedLines view={missed} />
               <Understand key={`${care.source_text.length}:${items.map((i) => i.id).join(",")}:${language}`} care={care} items={items} language={language} />
               <button type="button" onClick={() => pickTab(2, false)}

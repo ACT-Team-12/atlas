@@ -180,7 +180,10 @@ describe("Codex round 13: titles, held-back steps and bookings", () => {
     for (const l of callScript(b, [], "English")) for (const w of [TITLE, PARA]) expect(l).not.toContain(w);
   });
   it("no UI file puts an AI title next to a held-back or removed step, or in an aria-label", () => {
-    const src = readFileSync(fileURLToPath(new URL("../ui/CarePlanTool.tsx", import.meta.url)), "utf8");
+    // The step list (and the held-back and removed lists) moved to CareSteps.tsx; ShowOnPaper names each step.
+    const src = ["../ui/CarePlanTool.tsx", "../ui/CareSteps.tsx", "../ui/ShowOnPaper.tsx"]
+      .map((f) => readFileSync(fileURLToPath(new URL(f, import.meta.url)), "utf8")).join("\n");
+    expect(src).toMatch(/care\.refused\.map\(/); // the guard below still has the list to look at
     expect(src).not.toMatch(/aria-label=\{`[^`]*\$\{\w+\.title\}/);
     expect(src).not.toMatch(/refused\.map\([^)]*\)\s*=>\s*\(\s*<li[^>]*>\{r\.title\}/);
     expect(src).not.toMatch(/<span>\{r\.title\}<\/span>/);

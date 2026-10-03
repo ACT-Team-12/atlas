@@ -18,11 +18,11 @@ import { BARRIER_LABEL, type Barrier } from "./resources";
 
 /** The headings, in order. English only: the app has no translation table for helper-facing text. */
 export const SESSION_HEADINGS = [
-  "Upstream drivers discussed",
+  "Upstream drivers the person picked",
   "Action plan (steps from the paper)",
-  "Community resources given",
-  "Education given",
-  "Appointment help",
+  "Community resources in the plan",
+  "Education topics in the plan",
+  "Appointments on the paper",
   "Time by activity (minutes, total)",
   "Consent",
   "Helper notes",
@@ -67,7 +67,7 @@ export type SessionSummary = {
 
 export const SUMMARY_TITLE = "Helper session summary (draft)";
 export const SUMMARY_FOOT =
-  "Draft made with ATLAS for the helper's own notes. The helper and the clinic review it and decide what goes in a record.";
+  "Draft made with ATLAS for the helper's own notes. It lists what ATLAS showed; it does not say what the helper did, so add that in the notes. The helper and the clinic review it and decide what goes in a record.";
 
 const APPOINTMENT_KINDS = new Set(["follow_up_visit", "referral", "lab_test"]);
 const KIND_LABEL: Record<string, string> = {
@@ -100,7 +100,7 @@ export function sessionSummary(state: SessionPlanState, helper: HelperEntry): Se
   const title = (i: VerifiedItem) => `${KIND_LABEL[i.kind] ?? i.kind}: ${maskNumbers(i.title)}${i.when.trim() ? ` (${maskNumbers(i.when.trim())})` : ""}`;
   const action: string[] = grounded.map((i) => `- ${i.kind === "warning_sign" ? "" : `${tick(!!state.done[i.id])}: `}${title(i)}`);
   if (steps.length) {
-    action.push("Goals agreed (ATLAS plan, suggestions; the paper wins if they differ):");
+    action.push("Goals suggested in the ATLAS plan (the paper wins if they differ):");
     steps.forEach((s, n) => action.push(`  ${n + 1}. ${maskNumbers(s.title)}`));
   }
 
@@ -114,9 +114,9 @@ export function sessionSummary(state: SessionPlanState, helper: HelperEntry): Se
   if (state.plan?.ask_a_person) resources.push(`- Needs a person too: ${maskNumbers(state.plan.ask_a_person_reason.trim()).replace(/\.+$/, "") || "no verified resource for every need"}. ATLAS suggested calling 211.`);
 
   const education: string[] = [];
-  if (grounded.length) education.push(`- Went over ${grounded.length} ${grounded.length === 1 ? "step" : "steps"} from the paper in plain words (${state.language}, ${state.readingLevel} reading level).`);
+  if (grounded.length) education.push(`- ${grounded.length} ${grounded.length === 1 ? "step" : "steps"} from the paper, explained in plain words by ATLAS (${state.language}, ${state.readingLevel} reading level).`);
   const warnings = grounded.filter((i) => i.kind === "warning_sign");
-  if (warnings.length) education.push(`- Warning signs reviewed: ${warnings.map((w) => maskNumbers(w.title)).join("; ")}.`);
+  if (warnings.length) education.push(`- Warning signs on the paper: ${warnings.map((w) => maskNumbers(w.title)).join("; ")}.`);
   for (const s of steps) if (s.barrier) education.push(`- ${BARRIER_LABEL[s.barrier as Barrier] ?? s.barrier}: ${maskNumbers(s.title)}`);
   if (state.questions.length) {
     education.push("- Questions to ask at the next visit:");
@@ -132,8 +132,8 @@ export function sessionSummary(state: SessionPlanState, helper: HelperEntry): Se
   const sections: SessionSection[] = [
     { heading: SESSION_HEADINGS[0], lines: drivers.length ? drivers : ["- None picked"] },
     { heading: SESSION_HEADINGS[1], lines: action.length ? action : ["- No steps from the paper"] },
-    { heading: SESSION_HEADINGS[2], lines: resources.length ? resources : ["- None given"] },
-    { heading: SESSION_HEADINGS[3], lines: education.length ? education : ["- None recorded"] },
+    { heading: SESSION_HEADINGS[2], lines: resources.length ? resources : ["- None in the plan"] },
+    { heading: SESSION_HEADINGS[3], lines: education.length ? education : ["- None in the plan"] },
     { heading: SESSION_HEADINGS[4], lines: appointments.length ? appointments : ["- No appointments on the paper"] },
     { heading: SESSION_HEADINGS[5], lines: time },
     { heading: SESSION_HEADINGS[6], lines: [helper.consentDiscussed ? "- Consent discussed: yes" : "- Consent discussed: no"] },

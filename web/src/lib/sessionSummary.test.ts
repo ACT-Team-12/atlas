@@ -91,13 +91,13 @@ describe("helper session summary", () => {
   it("puts barriers, education, appointments and consent where they belong", () => {
     const s = sessionSummary(state(), helper({ consentDiscussed: false }));
     const sec = (h: string) => s.sections.find((x) => x.heading === h)!.lines.join("\n");
-    expect(sec("Upstream drivers discussed")).toContain("Getting there (no car, long bus ride)");
-    expect(sec("Education given")).toContain("Went over 3 steps from the paper in plain words (English, simple reading level).");
-    expect(sec("Education given")).toContain("Warning signs reviewed: Chest pain.");
-    expect(sec("Education given")).toContain("  - Do I need to fast?");
-    expect(sec("Appointment help")).toContain("Blood test");
-    expect(sec("Appointment help")).toContain("See a heart doctor");
-    expect(sec("Appointment help")).not.toContain("Chest pain");
+    expect(sec("Upstream drivers the person picked")).toContain("Getting there (no car, long bus ride)");
+    expect(sec("Education topics in the plan")).toContain("3 steps from the paper, explained in plain words by ATLAS (English, simple reading level).");
+    expect(sec("Education topics in the plan")).toContain("Warning signs on the paper: Chest pain.");
+    expect(sec("Education topics in the plan")).toContain("  - Do I need to fast?");
+    expect(sec("Appointments on the paper")).toContain("Blood test");
+    expect(sec("Appointments on the paper")).toContain("See a heart doctor");
+    expect(sec("Appointments on the paper")).not.toContain("Chest pain");
     expect(sec("Consent")).toBe("- Consent discussed: no");
     expect(sessionSummary(state(), helper()).text).toContain("- Consent discussed: yes");
   });
@@ -125,6 +125,13 @@ describe("helper session summary", () => {
     expect(t).toContain("Lab at 1450 Peachtree Rd [number removed]");
   });
 
+  it("says only what ATLAS showed, never that the helper did something the helper has not entered", () => {
+    const s = sessionSummary(state(), { minutes: {}, notes: "", consentDiscussed: false });
+    const claims = s.sections.filter((x) => x.heading !== "Consent").flatMap((x) => [x.heading, ...x.lines]).join("\n");
+    expect(claims).not.toMatch(/\b(agreed|reviewed|given|went over|discussed|helped)\b/i);
+    expect(s.text).toContain("does not say what the helper did");
+  });
+
   it("works with nothing filled in", () => {
     const s = sessionSummary(
       { barriers: [], items: [], done: {}, plan: null, questions: [], language: "English", readingLevel: "simple" },
@@ -134,7 +141,7 @@ describe("helper session summary", () => {
     expect(s.totalMinutes).toBe(0);
     expect(s.text).toContain("- None picked");
     expect(s.text).toContain("- No steps from the paper");
-    expect(s.text).toContain("- None given");
+    expect(s.text).toContain("- None in the plan");
     expect(s.text).toContain("- No appointments on the paper");
     expect(s.text).toContain("- Total: 0 min");
     expect(s.sections.at(-1)!.lines).toEqual(["- None"]);

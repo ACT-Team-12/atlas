@@ -277,3 +277,102 @@ describe("automatic scroll after a reply", () => {
     expect(scrolls).toEqual(["step-2", "step-3"]);
   });
 });
+
+describe("a result the person changed their answers after", () => {
+  const saved = () => {
+    const raw = localStorage.getItem("atlas-plans-v2");
+    return raw ? (JSON.parse(raw).plans as { note: string; zip: string; text: string; plan: { summary: string } | null; care: { items: { title: string }[] } | null }[]) : [];
+  };
+  const PLAN_OUTDATED = "You changed your answers after this plan was made";
+  const CARE_OUTDATED = "You changed your paper or settings after we read it";
+
+  function remount() {
+    act(() => root.unmount());
+    root = createRoot(host);
+    act(() => root.render(<CarePlanTool />));
+  }
+
+  async function makePlan(summary: string) {
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    await release(req, ready(planFor(summary)));
+    expect(screenText()).toContain(summary);
+  }
+
+  it("plan: a later note keeps the plan on screen, labelled outdated, and does not save the new note beside it", async () => {
+    act(() => byText("Getting there").click());
+    await makePlan("Plan for no note");
+    expect(saved()[0]).toMatchObject({ note: "", plan: { summary: "Plan for no note" } });
+    expect(screenText()).not.toContain(PLAN_OUTDATED);
+
+    act(() => typeInto(noteBox(), "I work mornings"));
+    expect(screenText()).toContain("Plan for no note"); // not silently gone
+    expect(screenText()).toContain(PLAN_OUTDATED);
+    expect(saved()[0]).toMatchObject({ note: "", plan: { summary: "Plan for no note" } }); // the saved pair still matches
+
+    // One tap rebuilds it for the new answers; then it is current and saved with them.
+    const req = hold("/api/plan");
+    act(() => byText("Update plan").click());
+    expect(fetchCalls.at(-1)?.body.note).toBe("I work mornings");
+    await release(req, ready(planFor("Plan for mornings")));
+    expect(screenText()).not.toContain(PLAN_OUTDATED);
+    expect(saved()[0]).toMatchObject({ note: "I work mornings", plan: { summary: "Plan for mornings" } });
+  });
+
+  it("plan: a ZIP typed after a plan for the device location marks it outdated", async () => {
+    act(() => byText("Getting there").click());
+    act(() => byText("Or use my location").click());
+    await makePlan("Plan near the device");
+    act(() => typeInto(host.querySelector<HTMLInputElement>("#zip")!, "30340"));
+    expect(screenText()).toContain(PLAN_OUTDATED);
+    expect(saved()[0].zip).toBe("");
+  });
+
+  it("plan: removing a step the plan was built from marks it outdated", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    await makePlan("Plan with metformin");
+    act(() => (host.querySelector('button[aria-label="Remove Metformin"]') as HTMLButtonElement).click());
+    expect(screenText()).toContain(PLAN_OUTDATED);
+  });
+
+  it("reopening: a saved plan comes back current, with the answers it was built for", async () => {
+    act(() => byText("Getting there").click());
+    await makePlan("Plan for no note");
+    act(() => typeInto(noteBox(), "I work mornings")); // outdated, not saved
+    remount();
+    expect(screenText()).toContain("Plan for no note");
+    expect(noteBox().value).toBe("");
+    expect(screenText()).not.toContain(PLAN_OUTDATED);
+  });
+
+  it("read: editing the paper after it was read keeps the steps, labelled outdated, and does not save the new text", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER, "Metformin twice a day")));
+    expect(saved()[0].text).toBe(PAPER);
+
+    act(() => typeInto(paperBox(), `${PAPER} Walk for 20 minutes a day.`));
+    expect(screenText()).toContain("Metformin twice a day");
+    expect(screenText()).toContain(CARE_OUTDATED);
+    expect(saved()[0].text).toBe(PAPER);
+
+    remount();
+    expect(paperBox().value).toBe(PAPER);
+    expect(screenText()).not.toContain(CARE_OUTDATED);
+  });
+
+  it("read: a plan built from steps of an older paper is outdated too", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    await makePlan("Plan from the first paper");
+    act(() => typeInto(paperBox(), "A different paper about a knee brace, worn every day for six weeks."));
+    expect(screenText()).toContain(CARE_OUTDATED);
+    expect(screenText()).toContain("Read it again in step 1, then make a new plan");
+  });
+});

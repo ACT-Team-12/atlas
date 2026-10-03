@@ -242,6 +242,10 @@ export function CarePlanTool() {
   const [active, setActive] = useState<string | null>(null);
   const [removed, setRemovedState] = useState<Record<string, boolean>>({});
   const [restoredAt, setRestoredAt] = useState<string | null>(null);
+  // What the reading and the plan on screen were made from. If the inputs move on, the result is labelled
+  // outdated (still shown) and not saved again until it is redone or the inputs come back.
+  const [careFp, setCareFp] = useState<string | null>(null);
+  const [planFp, setPlanFp] = useState<string | null>(null);
   // The inputs a read or plan is built from, written the moment they change (before React re-renders).
   // A reply is checked against these when it lands, so a change whose render or effect has not run yet still counts.
   const live = useRef({ text, photo, language, level, care, removed, barriers, zip, loc, note });
@@ -322,6 +326,12 @@ export function CarePlanTool() {
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
     setPlan(v.plan); setDone(v.done); setRemoved(v.removed); setPhotoChecked(v.photoChecked ?? false);
+    // Saved plans are only written while their results match their inputs, so what comes back is current.
+    setCareFp(v.care ? readFingerprint({ text: v.text, photo: null, language: v.language, level: v.level }) : null);
+    setPlanFp(v.plan ? planFingerprint({
+      careIds: (v.care?.items ?? []).filter((i) => !v.removed[i.id]).map((i) => i.id),
+      barriers: v.barriers, language: v.language, note: v.note, place: planPlace(false, v.zip), location: null,
+    }) : null);
     setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan }));
   }
 
@@ -333,6 +343,7 @@ export function CarePlanTool() {
     meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setPhotoChecked(false); setReadLevel(null);
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null);
+    setCareFp(null); setPlanFp(null);
     setTab(1);
   }
 
@@ -352,12 +363,22 @@ export function CarePlanTool() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Is the reading (or the plan) on screen still the one these inputs would get? A plan built from an outdated reading is outdated too.
+  const careOutdated = !!care && careFp !== null && readFingerprint({ text: photo ? null : text, photo: photoId(photo), language, level }) !== careFp;
+  const planOutdated = !!plan && planFp !== null && (careOutdated || planFingerprint({
+    careIds: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id),
+    barriers, language, note, place: planPlace(!!loc, zip), location: loc,
+  }) !== planFp);
+  const resultsCurrent = !careOutdated && !planOutdated;
+
   // Every change to the open plan is saved into it; the first read or plan of a new one creates it.
+  // While a result on screen is outdated, nothing is saved, so a saved plan never sits beside answers it was not built for.
   useEffect(() => {
     if (!loaded.current) return;
     if (!care && !plan) return;
+    if (!resultsCurrent) return;
     writeStore(saveSession(storeRef.current, { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked }, new Date().toISOString(), newPlanId()));
-  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked]);
+  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, resultsCurrent]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /** "Clear it from this device": deletes the open plan. Other saved plans stay. */
@@ -449,6 +470,7 @@ export function CarePlanTool() {
       pendingRead.current = null;
       setPartial([]);
       setCare(json);
+      setCareFp(sent.fp);
       setReadLevel(usedLevel);
       if (json.source_kind === "image") { setTranscript(json.source_text); return; }
       void checkMeaningFor(json);
@@ -513,6 +535,7 @@ export function CarePlanTool() {
       pendingPlan.current = null;
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
+      setPlanFp(sent.fp);
       // Step 3 only exists after this render; what happens next is decided once it is on the page.
       planNav.current = { plan: json, submittedAt: sent.at };
     } catch (e) {
@@ -855,6 +878,13 @@ export function CarePlanTool() {
           </div>
 
           {readNote && <p role="status" className="mt-4 rounded-2xl border-2 border-sun bg-paper p-3 text-sm font-bold">{readNote}</p>}
+          {careOutdated && !reading && (
+            <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-paper p-3 text-sm font-bold">
+              <p className="flex-1 min-w-[14rem]">You changed your paper or settings after we read it. The steps below are from the earlier version, and changes are not saved until you read it again.</p>
+              <button type="button" onClick={() => readPaper()} disabled={!photo && text.trim().length < 20}
+                className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">Read it again</button>
+            </div>
+          )}
           {/* Always mounted so screen readers hear each count change; one update per verified step, never per word. */}
           <p className="sr-only" role="status" aria-live="polite">
             {reading && partial.length > 0 ? `${partial.length} ${partial.length === 1 ? "step" : "steps"} found so far` : ""}
@@ -1042,6 +1072,17 @@ export function CarePlanTool() {
         {plan && (
           <div {...panel(3)} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 scroll-mt-24 max-md:scroll-mt-44 ${onPhone(3)}`}>
             <StepHeader n={3} title="Your plan" done note={plan.located.label} />
+            {planOutdated && (
+              <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-sun/30 p-3 text-sm font-bold">
+                {careOutdated
+                  ? <p>This plan was made from your earlier paper. Read it again in step 1, then make a new plan.</p>
+                  : <>
+                      <p className="flex-1 min-w-[14rem]">You changed your answers after this plan was made, so it may not fit them. Changes are not saved until you update it.</p>
+                      <button type="button" onClick={makePlan} disabled={planning || (barriers.length === 0 && items.length === 0)}
+                        className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">Update plan</button>
+                    </>}
+              </div>
+            )}
             <p className="mt-4 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
               {tapToPlay

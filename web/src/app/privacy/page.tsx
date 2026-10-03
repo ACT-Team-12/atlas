@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "What ATLAS does with your visit paper, your location and your plan, on the website and in the mobile apps.",
 };
 
-const UPDATED = "October 2, 2026";
+const UPDATED = "October 3, 2026";
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -37,7 +37,7 @@ export default function PrivacyPage() {
               <p>In the ATLAS phone apps, the photo is read on your phone and never leaves it. Only the text you check and confirm is sent.</p>
             </Block>
             <Block title="Your location">
-              <p>If you type a ZIP code or tap Use my location, it is sent once to find nearby health centers for your plan. We do not save it, and it is never stored on your device.</p>
+              <p>If you type a ZIP code or tap Use my location, it is sent once to find nearby health centers for your plan. We do not save it on our side. A ZIP you type stays with that plan in your saved plans on this device until you clear it; a location from Use my location is never stored.</p>
             </Block>
             <Block title="What stays on your device">
               <p>Your last checklist and plan are saved in this browser (or in the app) so you can come back to them. Nothing is uploaded when you do that. Clear it from this device removes it, and so does clearing your browser data or deleting the app.</p>
@@ -46,6 +46,7 @@ export default function PrivacyPage() {
             <Block title="What our server keeps">
               <p>To stop abuse, the server counts requests per network address for 10 minutes, in memory only. Our host (Vercel) keeps standard request logs such as time, page and network address. If a request fails we log the kind of error, not your paper.</p>
               <p>To show how ATLAS is used, we count each read, plan and feedback answer without anything about you: the language, how many steps, how long it took, which kinds of barriers were picked, and your three feedback taps. No paper text, no name, no ZIP or location, no network address, no free text. The totals are public on our tests page.</p>
+              <p>Helper links (made at /helper by someone helping you) carry a language, reading level and ZIP only inside the link, after the #, which is not sent to our server; ATLAS clears them from the address bar once it has filled them in, and if you build a plan from one, that plan&apos;s anonymous record (described above) is marked as coming from a helper link, which is how we count plans built from helper links (your browser reports this, so it is a count, not proof).</p>
               <p>We do not sell data, run ads, or add tracking or analytics tools of our own.</p>
               <p>One exception to know about: the Android app reads your paper with Google&apos;s ML Kit, which runs on your phone. Google says ML Kit sends it diagnostics that cannot be turned off: device model and system version, the app version, an installation identifier, how long reading took, and the image size. Google&apos;s list does not include the photo or the words on it (<a className="underline decoration-2 underline-offset-4" href="https://developers.google.com/ml-kit/android-data-disclosure" target="_blank" rel="noreferrer">ML Kit data disclosure</a>). The iPhone app uses Apple&apos;s built-in reading and sends nothing extra.</p>
             </Block>

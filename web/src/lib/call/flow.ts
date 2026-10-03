@@ -191,9 +191,9 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
   }
   // Exactly one request moves a session past its code.
   // The code's hash stays: the plan call asks for the same code before it plays anything (handleInput).
-  // plan_played starts false here, before any call exists, so the right code on the call (gateInput) can only ever
+  // gate_passed starts false here, before any call exists, so the right code on the call (gateInput) can only ever
   // move it to true, never race a later write back to false.
-  const moved = await store.update(id, { phase: "calling", placed_at: new Date(now), plan_played: false }, ["code"]);
+  const moved = await store.update(id, { phase: "calling", placed_at: new Date(now), gate_passed: false }, ["code"]);
   if (moved === "error") return { state: "no-db" };
   if (moved !== "updated") return { state: "expired" };
   // "done" only when the wipe was written. Otherwise the session stays "preparing" and is wiped by the sweep after
@@ -412,8 +412,9 @@ export async function handleInput(deps: Hook, t: CallTicket, digits: unknown, uu
  * code, compared in constant time against its hash, on a call Vonage reports live; a wrong code or silence each use a
  * try (GATE_TRIES in all), then goodbye. After silence the first prompt plays again ("Enter the 4-digit code..."); only
  * an entry that was typed and did not match hears "That code did not match".
- * Before the plan is returned, plan_played is set on the session: a non-sensitive yes/no that the wipe keeps, so the
- * person's page can say plainly when a call ended before the plan was read.
+ * Before the plan is returned, gate_passed is set on the session: a non-sensitive yes/no that the wipe keeps. It says
+ * the right code was entered and the plan was handed to Vonage, not that the person heard it (ATLAS cannot know that),
+ * so the page only ever says "ATLAS could not confirm your plan was read" when it is false.
  */
 async function gateInput(deps: Hook, t: CallTicket, digits: unknown, uuid: unknown, now: number): Promise<NccoAction[]> {
   const tries = (t.g ?? 0) + 1;
@@ -438,10 +439,11 @@ async function gateInput(deps: Hook, t: CallTicket, digits: unknown, uuid: unkno
   }
   const text = openText(deps.cfg.secret, "text", t.k, row.sealed_text, now);
   if (!text) return goodbyeNcco(language);
-  // Recorded before the plan plays. If the write fails the plan still plays (the person on the phone comes first); the
-  // page then says the plan was not read, which is wrong only in that rare case, and the log says why.
-  const played = await deps.store.update(t.k, { plan_played: true }, ["calling"]);
-  if (played !== "updated") console.error("call: plan_played not recorded", played);
+  // Recorded before the plan is returned. If the write fails the plan still plays (the person on the phone comes
+  // first); the flag then stays false and the page says only that ATLAS could not confirm the plan was read, which is
+  // still true of what ATLAS knows. The log says why.
+  const passed = await deps.store.update(t.k, { gate_passed: true }, ["calling"]);
+  if (passed !== "updated") console.error("call: gate_passed not recorded", passed);
   return planNcco({
     text, language, replays: 0,
     audioUrl: row.has_audio ? `${base}/audio?t=${ticket(deps.cfg, { k: t.k, p: "audio" }, now)}` : null,
@@ -463,7 +465,7 @@ export function publicStatus(row: SessionRow | null) {
   return {
     phase: row.phase, last4: row.last4, code_status: row.code_status, plan_status: row.plan_status, plan_mode: row.plan_mode,
     attempts_left: Math.max(0, CODE_ATTEMPTS - row.attempts),
-    /** Whether the right code was entered on the plan call and the plan played; null when not known. */
-    plan_played: row.plan_played,
+    /** true: the right code was entered on the plan call and the plan was handed to Vonage. false: not recorded. null: unknown. */
+    gate_passed: row.gate_passed,
   };
 }

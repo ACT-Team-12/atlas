@@ -529,7 +529,7 @@ describe("the call flow", () => {
     expect(JSON.stringify([retry, again, out])).not.toContain("blue pill");
     expect(JSON.stringify([retry, again, out])).not.toContain("/api/call/audio"); // no plan audio URL before the right code
     expect((await gate(id, "4821", 3)).map((a) => a.action)).toEqual(["talk"]); // past the tries, even the right code
-    expect(store.rows.get(id)!.plan_played).toBe(false);
+    expect(store.rows.get(id)!.gate_passed).toBe(false);
   });
 
   it.each([[""], [undefined]])("silence (%s) replays the FIRST prompt, never 'did not match', and ends after 3 tries", async (digits) => {
@@ -574,41 +574,45 @@ describe("the call flow", () => {
     expect((await gate(id, "4821", 0)).map((a) => a.action)).toEqual(["talk"]);
   });
 
-  it("records whether the plan played: false once the code is typed, true only after the right code on the call, kept by the wipe", async () => {
+  it("records whether the gate passed: false once the code is typed, true only after the right code on the call, kept by the wipe", async () => {
     const id = await started();
-    expect(store.rows.get(id)!.plan_played).toBeNull();
+    expect(store.rows.get(id)!.gate_passed).toBeNull();
     await verifyAndCall(deps(), { id, code: "4821" });
-    expect(store.rows.get(id)!.plan_played).toBe(false);
+    expect(store.rows.get(id)!.gate_passed).toBe(false);
     await gate(id, "1111", 0);
-    expect(store.rows.get(id)!.plan_played).toBe(false);
+    expect(store.rows.get(id)!.gate_passed).toBe(false);
     await gate(id, "4821", 1);
-    expect(store.rows.get(id)!.plan_played).toBe(true);
+    expect(store.rows.get(id)!.gate_passed).toBe(true);
     truth.set("call-2", { status: "completed" });
     await handleEvent(hk(), { k: id, p: "event", c: "plan", exp: NOW + 60_000 }, "call-2");
     const row = store.rows.get(id)!;
-    expect([row.phase, row.sealed_text, row.plan_played]).toEqual(["done", null, true]);
-    expect(publicStatus(row)).toMatchObject({ phase: "done", plan_status: "completed", plan_played: true });
+    expect([row.phase, row.sealed_text, row.gate_passed]).toEqual(["done", null, true]);
+    expect(publicStatus(row)).toMatchObject({ phase: "done", plan_status: "completed", gate_passed: true });
   });
 
-  it("a plan call that ends before the code is entered reports plan_played false after the wipe", async () => {
+  it.each([[["", ""]], [["1111", "2222", "3333"]]])("a plan call that ends without the right code (%j) reports gate_passed false after the wipe", async (entries) => {
     const id = await started();
     await verifyAndCall(deps(), { id, code: "4821" });
-    await gate(id, "", 0); // the person was still finding the keypad
+    for (const [g, d] of entries.entries()) await gate(id, d, g); // silence while finding the keypad, or wrong codes
     truth.set("call-2", { status: "completed" });
     await handleEvent(hk(), { k: id, p: "event", c: "plan", exp: NOW + 60_000 }, "call-2");
     const row = store.rows.get(id)!;
     expect([row.phase, row.sealed_text, row.sealed_phone]).toEqual(["done", null, null]);
-    expect(publicStatus(row)).toMatchObject({ phase: "done", plan_status: "completed", plan_played: false });
+    expect(publicStatus(row)).toMatchObject({ phase: "done", plan_status: "completed", gate_passed: false });
   });
 
-  it("still plays the plan when recording plan_played fails, and logs it", async () => {
+  it("still plays the plan when recording gate_passed fails, logs it, and the status then claims nothing it cannot know", async () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const id = await started();
     await verifyAndCall(deps(), { id, code: "4821" });
-    store.failWhen = (p) => "plan_played" in p && p.plan_played === true;
+    store.failWhen = (p) => "gate_passed" in p && p.gate_passed === true;
     expect((await gate(id, "4821", 0)).map((a) => a.action)).toEqual(["talk", "stream", "talk", "input"]);
-    expect(JSON.stringify(err.mock.calls)).toContain("plan_played not recorded");
+    expect(JSON.stringify(err.mock.calls)).toContain("gate_passed not recorded");
     store.failWhen = undefined;
+    truth.set("call-2", { status: "completed" });
+    await handleEvent(hk(), { k: id, p: "event", c: "plan", exp: NOW + 60_000 }, "call-2");
+    // false here means "not recorded"; the page turns it into "could not confirm", never "was not read" (CallMe.test.tsx)
+    expect(publicStatus(store.rows.get(id)!)).toMatchObject({ phase: "done", gate_passed: false });
     err.mockRestore();
   });
 

@@ -20,8 +20,8 @@ type Status = {
   code_status?: string | null;
   plan_status?: string | null;
   attempts_left?: number;
-  /** false: the plan call ended before the right code was entered, so the plan was never read. null/absent: not known. */
-  plan_played?: boolean | null;
+  /** true: the right code was entered on the plan call. false: ATLAS has no record of that. null/absent: not known. */
+  gate_passed?: boolean | null;
 };
 
 const MAX_CALL_CHARS = 4000; // same limit as the natural voice (lib/voice.ts)
@@ -50,8 +50,9 @@ export function line(s: Status, suffix: string, typed: string): string {
     case "done":
       if (s.plan_status && MISSED.includes(s.plan_status)) return `No one answered at ${n}. Your number and plan text were deleted.`;
       // Only an explicit false: an older server, or a status that does not know, keeps the plain wording.
-      if (s.plan_played === false) {
-        return "The call ended before the code was entered, so your plan was not read. Your number and plan text were deleted. You can start a new call below; if it says ATLAS can't call yet, wait up to 10 minutes and try again.";
+      // false covers silence, wrong codes and a record that failed to save, so it says only what is true of all three.
+      if (s.gate_passed === false) {
+        return "The call ended, and ATLAS could not confirm your plan was read: it plays only after the 4-digit code is entered on the phone keypad. Your number and plan text were deleted. You can ask for a new call below.";
       }
       return `Call finished. Your number and plan text were deleted.`;
     case "code_missed":

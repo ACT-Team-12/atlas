@@ -58,7 +58,7 @@ export class MemoryCallStore implements CallStore {
       if ((r.code_expires_at?.getTime() ?? 0) < now) { r.phase = "expired"; r.code_hash = null; } else return "in-flight" as const;
     }
     this.rows.set(s.id, {
-      ...s, phase: "code", attempts: 0, code_status: null, plan_status: null, plan_mode: null, note: null, code_uuid: null, plan_uuid: null, placed_at: null, sealed_audio: null, has_audio: false, plan_played: null, created_at: new Date(now),
+      ...s, phase: "code", attempts: 0, code_status: null, plan_status: null, plan_mode: null, note: null, code_uuid: null, plan_uuid: null, placed_at: null, sealed_audio: null, has_audio: false, gate_passed: null, created_at: new Date(now),
     });
     return this.failAfterInsert ? "error" as const : "ok" as const;
   }

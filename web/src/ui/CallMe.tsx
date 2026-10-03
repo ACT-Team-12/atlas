@@ -178,7 +178,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
                   </label>
                   <label className="flex items-start gap-2 text-sm font-semibold">
                     <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 h-4 w-4" />
-                    <span>ATLAS may call this number about this plan. We never call for anything else, and you can hang up any time.</span>
+                    <span>ATLAS may call this number about this plan. Only enter your own number. We never call for anything else, and you can hang up any time.</span>
                   </label>
                   <div>
                     <button type="submit" disabled={busy || !consent || phone.replace(/\D/g, "").length < 10} className={button}>

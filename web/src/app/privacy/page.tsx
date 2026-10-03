@@ -39,6 +39,11 @@ export default function PrivacyPage() {
             <Block title="Your location">
               <p>If you type a ZIP code or tap Use my location, it is sent once to find nearby health centers for your plan. We do not save it, and it is never stored on your device.</p>
             </Block>
+            <Block title="Phone calls (Call me with my plan)">
+              <p>Only enter your own number. ATLAS calls only after you type a number and tick the box: first a short call that says a 4-digit code, then, once you type that code, a call that reads your plan.</p>
+              <p>The calls go through Vonage, our phone provider, which gets the number and plays the call. The natural voice, when it is used, is made by ElevenLabs from your plan text; otherwise Vonage reads it. Your number, plan text and that recording are kept encrypted on our server only until the call ends, at most 30 minutes; a code nobody types is wiped after 10 minutes.</p>
+              <p>To limit calls, we count them per number and per network for 2 days under a scrambled key, never the number or the address itself. After a call we keep only its status until the session expires.</p>
+            </Block>
             <Block title="What stays on your device">
               <p>Your last checklist and plan are saved in this browser (or in the app) so you can come back to them. Nothing is uploaded when you do that. Clear it from this device removes it, and so does clearing your browser data or deleting the app.</p>
               <p>Reminders you set in the app are stored on your phone only.</p>

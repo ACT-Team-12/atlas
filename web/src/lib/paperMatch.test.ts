@@ -195,6 +195,17 @@ describe("matchOnPhoto", () => {
     expect(matchOnPhoto(source, spanOf(source, source), ocr(photo)).status).toBe("not_found");
   });
 
+  it("boxes only the words that matched, never an extra word between them", () => {
+    const source = "Take 1 tablet by mouth daily with meals";
+    const photo = "Take 1 tablet by mouth XYZZY daily with meals";
+    const ws = ocr(photo);
+    const m = matchOnPhoto(source, spanOf(source, source), ws);
+    expect(m.status).toBe("found");
+    if (m.status !== "found") return;
+    const extra = ws.find((w) => w.text === "XYZZY")!.bbox;
+    for (const b of m.boxes) expect(b.x1 <= extra.x0 || b.x0 >= extra.x1, `box ${JSON.stringify(b)} covers the extra word`).toBe(true);
+  });
+
   it("says when the photo had no readable words, and refuses without a span", () => {
     expect(matchOnPhoto("Take 1 tablet.", { start: 0, end: 14 }, [])).toEqual({ status: "not_found", reason: "no_words" });
     expect(matchOnPhoto("Take 1 tablet.", null, ocr("Take 1 tablet.")).status).toBe("not_found");

@@ -200,14 +200,22 @@ function occurrence(tokens: Token[], first: number, words: string[]): { k: numbe
   return { k, count };
 }
 
-function unionBoxesByLine(words: OcrWord[], first: number, last: number): Bbox[] {
-  const byLine = new Map<number, Bbox>();
-  for (let i = first; i <= last; i++) {
+/**
+ * One box per run of matched OCR words that sit next to each other on the same line. An OCR word the quote did not
+ * match breaks the run, so it is never drawn as if it were part of the quote.
+ */
+function matchedBoxes(words: OcrWord[], wordIdx: number[]): Bbox[] {
+  const out: Bbox[] = [];
+  let prev = -2;
+  for (const i of wordIdx) {
     const { line, bbox } = words[i];
-    const b = byLine.get(line);
-    byLine.set(line, b ? { x0: Math.min(b.x0, bbox.x0), y0: Math.min(b.y0, bbox.y0), x1: Math.max(b.x1, bbox.x1), y1: Math.max(b.y1, bbox.y1) } : { ...bbox });
+    const b = out[out.length - 1];
+    if (b && i === prev + 1 && words[prev].line === line) {
+      b.x0 = Math.min(b.x0, bbox.x0); b.y0 = Math.min(b.y0, bbox.y0); b.x1 = Math.max(b.x1, bbox.x1); b.y1 = Math.max(b.y1, bbox.y1);
+    } else out.push({ ...bbox });
+    prev = i;
   }
-  return [...byLine.values()];
+  return out;
 }
 
 /** How many quote words must be found (exactly or as a close OCR misread). Short quotes need every word. */
@@ -254,7 +262,8 @@ export function matchOnPhoto(sourceText: string, span: Span | null, words: OcrWo
   }
   if (!pick) return { status: "not_found", reason: "ambiguous" };
   const firstWord = ot[pick.a].first, lastWord = ot[pick.b].last;
-  return { status: "found", first: firstWord, last: lastWord, boxes: unionBoxesByLine(words, firstWord, lastWord), matched: pick.matched, total: q.length };
+  const wordIdx = pick.hits.flatMap((h) => Array.from({ length: ot[h].last - ot[h].first + 1 }, (_, n) => ot[h].first + n));
+  return { status: "found", first: firstWord, last: lastWord, boxes: matchedBoxes(words, wordIdx), matched: pick.matched, total: q.length };
 }
 
 // ---------- OCR language ----------

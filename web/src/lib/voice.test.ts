@@ -60,6 +60,25 @@ describe("natural voice", () => {
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
+  it("a page read-aloud that starts during a call and ends after it does not cache either", async () => {
+    let releaseCall!: () => void;
+    let releasePage!: () => void;
+    const callGate = new Promise<void>((r) => { releaseCall = r; });
+    const pageGate = new Promise<void>((r) => { releasePage = r; });
+    fetchMock.mockImplementationOnce(async () => { await callGate; return new Response(mp3(), { status: 200 }); });
+    fetchMock.mockImplementationOnce(async () => { await pageGate; return new Response(mp3(), { status: 200 }); });
+    const text = `Your plan ${Math.random()}`;
+    const call = synthesize(text, "English", { keep: false });
+    const page = synthesize(text, "English");
+    releaseCall();
+    await call;
+    releasePage();
+    await page;
+    fetchMock.mockImplementation(async () => new Response(mp3(), { status: 200 }));
+    expect((await synthesize(text, "English")).cached).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it("a page read-aloud of the same text running during a call does not leave it cached", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => { release = r; });

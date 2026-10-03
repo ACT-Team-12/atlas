@@ -7,8 +7,9 @@ import { LANGUAGES } from "./schema";
  * languages on many phones. Amharic has no ElevenLabs voice, so the page keeps the phone's own voice for it.
  * The text is never logged or stored; audio is cached in memory by a hash of language + text so a judge replaying
  * the sample does not spend the monthly character allowance twice. A phone call (`keep: false`) bypasses that cache
- * and the shared in-flight request entirely, and evicts any copy of the same text before and after its own request,
- * so the call's only copy is the encrypted one deleted when the call ends (lib/call).
+ * and the shared in-flight request entirely, evicts this instance's copy of the same text before and after its own
+ * request, and a page request on this instance that overlaps a call in either order does not cache. Other server
+ * instances are not reached: a page read-aloud there keeps its own copy, as /privacy says of read-aloud.
  */
 export const VOICE_ID = "EXAVITQu4vr4xnSDxMaL"; // "Sarah": warm, reassuring, premade
 export const VOICE_MODEL = "eleven_flash_v2_5";
@@ -80,6 +81,7 @@ export async function synthesize(text: string, language: (typeof LANGUAGES)[numb
   if (!chargeBudget(text.length)) throw new VoiceError("Natural voice is resting for a bit. Using your phone's voice.", 429);
 
   const began = ++seq;
+  const callAtStart = calls.has(k); // a call already running for this text when this request began
   const job = vendor(key, code, text);
   inflight.set(k, job);
   let audio: ArrayBuffer;
@@ -87,7 +89,7 @@ export async function synthesize(text: string, language: (typeof LANGUAGES)[numb
     // removed here, not in a .finally on the job, so a call's cleanup can never run between this and the check below
     if (inflight.get(k) === job) inflight.delete(k);
   }
-  const overlapped = calls.has(k) || (callStarted.get(k) ?? 0) > began;
+  const overlapped = callAtStart || calls.has(k) || (callStarted.get(k) ?? 0) > began;
   if (!calls.has(k)) callStarted.delete(k);
   if (overlapped) return { audio, cached: false };
   cache.set(k, audio);

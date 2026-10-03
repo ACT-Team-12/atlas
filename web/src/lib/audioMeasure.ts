@@ -8,6 +8,11 @@
  *   - MP4 (Safari): AAC frames are 1,024 samples each at the sample rate in the codec config, so the total is the
  *     number of frames the sample tables list (plain or fragmented) times 1,024 over that rate.
  * Anything else, or anything this cannot read, is refused (null): a file we cannot measure is never sent.
+ *
+ * Fail closed against parser differentials (security review, 2026-10-02): only one audio track; every element or
+ * box must be one we know, in the place it belongs, inside its parent and the file, with nothing after the end;
+ * no lacing, no edit list that repeats or skips media; and where two parts of the file disagree on length or
+ * sample rate, the longer reading wins. Crafted files for each case are in __fixtures__/crafted-*.
  */
 export type Container = "audio/webm" | "audio/mp4";
 export type Measured = { container: Container; seconds: number };
@@ -26,8 +31,19 @@ export function measureAudio(b: Uint8Array): Measured | null {
 }
 
 // ---------- WebM / Matroska with Opus ----------
-const MASTER = new Set([0x18538067, 0x1f43b675, 0xa0, 0x1654ae6b, 0xae]); // Segment, Cluster, BlockGroup, Tracks, TrackEntry
-const SIMPLE_BLOCK = 0xa3, BLOCK = 0xa1, CODEC_ID = 0x86, TRACK_ENTRY = 0xae;
+const SEGMENT = 0x18538067, CLUSTER = 0x1f43b675, BLOCK_GROUP = 0xa0, TRACKS = 0x1654ae6b, TRACK_ENTRY = 0xae;
+const SIMPLE_BLOCK = 0xa3, BLOCK = 0xa1, CODEC_ID = 0x86, TRACK_NUMBER = 0xd7, TRACK_TYPE = 0x83, VOID = 0xec, ROOT = -1;
+const MASTERS = new Set([SEGMENT, CLUSTER, BLOCK_GROUP, TRACKS, TRACK_ENTRY]);
+/** Every element we accept, and the one parent it may sit in. Anything else is refused. */
+const WEBM_PARENT = new Map<number, number>([
+  [0x1a45dfa3, ROOT], [SEGMENT, ROOT],
+  [0x114d9b74, SEGMENT], [0x1549a966, SEGMENT], [TRACKS, SEGMENT], [0x1c53bb6b, SEGMENT], [0x1254c367, SEGMENT], [CLUSTER, SEGMENT],
+  [TRACK_ENTRY, TRACKS],
+  ...[TRACK_NUMBER, 0x73c5, 0x9c, 0x22b59c, 0x22b59d, 0x88, 0xb9, 0x55aa, CODEC_ID, 0x56aa, 0x56bb, TRACK_TYPE, 0xe1, 0x63a2, 0x536e, 0x23e383, 0x258688]
+    .map((id) => [id, TRACK_ENTRY] as [number, number]),
+  [0xe7, CLUSTER], [SIMPLE_BLOCK, CLUSTER], [BLOCK_GROUP, CLUSTER], [0xab, CLUSTER], [0xa7, CLUSTER],
+  [BLOCK, BLOCK_GROUP], [0x9b, BLOCK_GROUP], [0x75a2, BLOCK_GROUP], [0xfb, BLOCK_GROUP],
+]);
 
 function vint(b: Uint8Array, pos: number, keepMarker: boolean): { value: number; len: number; unknown: boolean } | null {
   const first = b[pos];
@@ -55,26 +71,49 @@ export function opusPacketMs(p: Uint8Array): number | null {
   return frames < 1 || ms > 120 ? null : ms;
 }
 
+const uint = (b: Uint8Array, start: number, end: number) => { let v = 0; for (let i = start; i < end; i++) v = v * 256 + b[i]; return v; };
+
 function webmOpusSeconds(b: Uint8Array): number | null {
-  let pos = 0, ms = 0, tracks = 0, opus = false;
+  const stack: { id: number; end: number; unknown: boolean }[] = [{ id: ROOT, end: b.length, unknown: false }];
+  let pos = 0, ms = 0, tracks = 0, opus = false, audio = false, trackNumber = -1;
+  const blockTracks = new Set<number>();
   while (pos < b.length) {
+    // Close every parent that ends here.
+    while (stack.length > 1 && !stack[stack.length - 1].unknown && pos === stack[stack.length - 1].end) stack.pop();
     const id = vint(b, pos, true);
     if (!id) return null;
+    const parent = WEBM_PARENT.get(id.value);
+    if (parent === undefined && id.value !== VOID) return null; // an element we do not know
+    // An unknown-size parent (a live Segment or Cluster) ends where an element of its own level or above begins.
+    if (id.value !== VOID) {
+      while (stack[stack.length - 1].id !== parent) {
+        const top = stack.pop();
+        if (!top || !top.unknown || stack.length === 0) return null; // misplaced element
+      }
+    }
     const size = vint(b, pos + id.len, false);
     if (!size) return null;
     const data = pos + id.len + size.len;
-    if (MASTER.has(id.value)) {
+    const limit = stack[stack.length - 1].end;
+    if (MASTERS.has(id.value)) {
+      if (size.unknown && id.value !== SEGMENT && id.value !== CLUSTER) return null;
+      const end = size.unknown ? limit : data + size.value;
+      if (end > limit) return null;
       if (id.value === TRACK_ENTRY) tracks++;
-      pos = data; // step inside (works for live recordings whose Segment and Cluster sizes are "unknown")
+      stack.push({ id: id.value, end, unknown: size.unknown });
+      pos = data;
       continue;
     }
     if (size.unknown) return null;
     const end = data + size.value;
-    if (end > b.length) break; // a cut-off final element is not played either
+    if (end > limit) return null; // runs past its parent or the file: a decoder may resync and play what follows
     if (id.value === CODEC_ID) opus = new TextDecoder().decode(b.subarray(data, end)) === "A_OPUS";
+    if (id.value === TRACK_TYPE) audio = uint(b, data, end) === 2;
+    if (id.value === TRACK_NUMBER) trackNumber = uint(b, data, end);
     if (id.value === SIMPLE_BLOCK || id.value === BLOCK) {
       const track = vint(b, data, false);
       if (!track) return null;
+      blockTracks.add(track.value);
       const flags = b[data + track.len + 2];
       if (flags === undefined || flags & 0x06) return null; // laced blocks: not produced by browsers, refuse
       const packet = opusPacketMs(b.subarray(data + track.len + 3, end));
@@ -83,14 +122,29 @@ function webmOpusSeconds(b: Uint8Array): number | null {
     }
     pos = end;
   }
-  return tracks === 1 && opus ? ms / 1000 : null;
+  if (pos !== b.length) return null;
+  const oneTrack = tracks === 1 && opus && audio && [...blockTracks].every((t) => t === trackNumber);
+  return oneTrack ? ms / 1000 : null;
 }
 
 // ---------- MP4 with AAC ----------
-const CONTAINERS = new Set(["moov", "trak", "mdia", "minf", "stbl", "moof", "traf", "mvex"]);
+/** Every box we accept, by parent. Containers are walked; everything else is read or skipped. Anything else is refused. */
+const MP4_CHILDREN: Record<string, Set<string>> = {
+  "": new Set(["ftyp", "free", "skip", "mdat", "moov", "moof"]),
+  moov: new Set(["mvhd", "trak", "mvex", "udta", "free"]),
+  trak: new Set(["tkhd", "edts", "mdia", "udta"]),
+  edts: new Set(["elst"]),
+  mdia: new Set(["mdhd", "hdlr", "minf"]),
+  minf: new Set(["smhd", "dinf", "stbl"]),
+  stbl: new Set(["stsd", "stts", "stsc", "stsz", "stco", "co64", "sgpd", "sbgp", "stss"]),
+  mvex: new Set(["trex", "mehd"]),
+  moof: new Set(["mfhd", "traf"]),
+  traf: new Set(["tfhd", "tfdt", "trun", "sgpd", "sbgp"]),
+};
 const AAC_RATES = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
 
 function u32(b: Uint8Array, p: number) { return ((b[p] << 24) >>> 0) + (b[p + 1] << 16) + (b[p + 2] << 8) + b[p + 3]; }
+const u64 = (b: Uint8Array, p: number) => u32(b, p) * 2 ** 32 + u32(b, p + 4);
 const fourcc = (b: Uint8Array, p: number) => String.fromCharCode(b[p], b[p + 1], b[p + 2], b[p + 3]);
 
 /** The AAC sample rate from an esds box's AudioSpecificConfig, or null. */
@@ -114,34 +168,84 @@ function aacRate(b: Uint8Array, start: number, end: number): number | null {
 }
 
 function mp4AacSeconds(b: Uint8Array): number | null {
-  let traks = 0, frames = 0, rate: number | null = null, aac = false;
-  const walk = (start: number, end: number): boolean => {
+  let traks = 0, frames = 0, aac = false, sound = false, bad = false;
+  let ascRate: number | null = null, entryRate = 0, mvhdTs = 0, mdhdTs = 0, trexDur = 0;
+  // Every length the file states, in its own timescale; the longest reading wins.
+  const movieDurs: number[] = [], mediaDurs: number[] = [];
+  let sttsSum = 0, trunSum = 0;
+
+  const leaf = (type: string, data: number, stop: number) => {
+    const v = b[data];
+    if (type === "mvhd") { mvhdTs = u32(b, data + (v ? 20 : 12)); movieDurs.push(v ? u64(b, data + 24) : u32(b, data + 16)); }
+    else if (type === "tkhd") movieDurs.push(v ? u64(b, data + 28) : u32(b, data + 20));
+    else if (type === "mdhd") { mdhdTs = u32(b, data + (v ? 20 : 12)); mediaDurs.push(v ? u64(b, data + 24) : u32(b, data + 16)); }
+    else if (type === "hdlr") sound = fourcc(b, data + 8) === "soun";
+    else if (type === "mehd") movieDurs.push(v ? u64(b, data + 4) : u32(b, data + 4));
+    else if (type === "elst") {
+      const n = u32(b, data + 4);
+      if (n > 1) bad = true; // more than one edit can repeat or skip media
+      if (n === 1) {
+        const e = data + 8;
+        const seg = v ? u64(b, e) : u32(b, e);
+        const mediaTime = v ? u32(b, e + 8) : u32(b, e + 4); // high word for v1; 0xffffffff means an empty edit
+        const rate = v ? (b[e + 16] << 8) | b[e + 17] : (b[e + 8] << 8) | b[e + 9];
+        if (mediaTime === 0xffffffff || rate !== 1) bad = true;
+        movieDurs.push(seg);
+      }
+    } else if (type === "stsd") {
+      if (u32(b, data + 4) !== 1) { bad = true; return; } // exactly one sample description
+      const entry = data + 8;
+      if (fourcc(b, entry + 4) !== "mp4a" || ((b[entry + 16] << 8) | b[entry + 17]) !== 0) { bad = true; return; } // version 0 only
+      aac = true;
+      entryRate = u32(b, entry + 32) >>> 16;
+      const esds = findBox(b, entry + 36, entry + u32(b, entry), "esds");
+      ascRate = esds ? aacRate(b, esds.data + 4, esds.end) : null;
+    } else if (type === "stts") {
+      const n = u32(b, data + 4);
+      if (data + 8 + n * 8 > stop) { bad = true; return; }
+      for (let i = 0; i < n; i++) sttsSum += u32(b, data + 8 + i * 8) * u32(b, data + 12 + i * 8);
+    } else if (type === "stsz") frames += u32(b, data + 8);
+    else if (type === "trex") trexDur = u32(b, data + 12);
+    else if (type === "trun") {
+      const flags = u32(b, data) & 0xffffff, n = u32(b, data + 4);
+      frames += n;
+      let q = data + 8 + (flags & 0x1 ? 4 : 0) + (flags & 0x4 ? 4 : 0);
+      const per = (flags & 0x100 ? 4 : 0) + (flags & 0x200 ? 4 : 0) + (flags & 0x400 ? 4 : 0) + (flags & 0x800 ? 4 : 0);
+      if (q + n * per > stop) { bad = true; return; }
+      for (let i = 0; i < n; i++, q += per) trunSum += flags & 0x100 ? u32(b, q) : tfhdDur || trexDur;
+    } else if (type === "tfhd") {
+      const flags = u32(b, data) & 0xffffff;
+      const q = data + 8 + (flags & 0x1 ? 8 : 0) + (flags & 0x2 ? 4 : 0);
+      tfhdDur = flags & 0x8 ? u32(b, q) : 0;
+    }
+  };
+  let tfhdDur = 0;
+
+  const walk = (parent: string, start: number, end: number): boolean => {
     let p = start;
-    while (p + 8 <= end) {
+    while (p < end) {
+      if (p + 8 > end) return false; // trailing bytes
       let size = u32(b, p), head = 8;
       const type = fourcc(b, p + 4);
+      if (!MP4_CHILDREN[parent]?.has(type)) return false; // a box we do not know, or in the wrong place
       if (size === 1) { if (p + 16 > end || u32(b, p + 8) !== 0) return false; size = u32(b, p + 12); head = 16; }
-      else if (size === 0) size = end - p;
-      if (size < head) return false;
-      if (p + size > end) return type === "mdat"; // only the media payload may run past the end (a cut-off recording)
+      else if (size === 0) { if (parent !== "" || type !== "mdat") return false; size = end - p; }
+      if (size < head || p + size > end) return false;
       const data = p + head, stop = p + size;
       if (type === "trak") traks++;
-      if (CONTAINERS.has(type)) { if (!walk(data, stop)) return false; }
-      else if (type === "stsd") {
-        // fullbox(4) + entry_count(4), then one sample entry; an mp4a entry has 28 bytes before its child boxes.
-        const entry = data + 8;
-        if (fourcc(b, entry + 4) !== "mp4a") return false;
-        aac = true;
-        const esds = findBox(b, entry + 36, entry + u32(b, entry), "esds");
-        rate = esds ? aacRate(b, esds.data + 4, esds.end) : null;
-      } else if (type === "stsz") frames += u32(b, data + 8);
-      else if (type === "trun") frames += u32(b, data + 4);
+      if (MP4_CHILDREN[type]) { if (!walk(type, data, stop)) return false; }
+      else { leaf(type, data, stop); if (bad) return false; }
       p = stop;
     }
-    return true;
+    return p === end;
   };
-  if (!walk(0, b.length)) return null;
-  return traks === 1 && aac && rate ? (frames * 1024) / rate : null;
+  if (!walk("", 0, b.length) || bad) return null;
+  // Where the sample entry and the codec config disagree, the lower rate (the longer playback) wins.
+  const rate = ascRate && entryRate ? Math.min(ascRate, entryRate) : ascRate;
+  if (traks !== 1 || !aac || !sound || !rate || !mdhdTs) return null;
+  const readings = [(frames * 1024) / rate, sttsSum / mdhdTs, trunSum / mdhdTs, ...mediaDurs.map((d) => d / mdhdTs)];
+  if (mvhdTs) readings.push(...movieDurs.map((d) => d / mvhdTs));
+  return Math.max(...readings);
 }
 
 function findBox(b: Uint8Array, start: number, end: number, want: string): { data: number; end: number } | null {

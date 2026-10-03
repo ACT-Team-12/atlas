@@ -66,7 +66,7 @@ export default async function JudgePage() {
               </p>
               <p>
                 Real use, counted anonymously (our own tests excluded):{" "}
-                {live ? <><b>{live.reads}</b> papers read, <b>{live.plans}</b> plans, <b>{live.feedback}</b> feedback answers so far. Raw: <a className="underline decoration-2 underline-offset-4" href="/api/stats">/api/stats</a>.</> : "not reachable right now."}
+                {live ? <><b>{live.reads}</b> papers read, <b>{live.plans}</b> plans, <b>{live.feedback}</b> feedback answers so far{live.helper_link_plans !== null ? <>, and <b>{live.helper_link_plans}</b> plans built from helper links (as reported by the browser)</> : null}. Raw: <a className="underline decoration-2 underline-offset-4" href="/api/stats">/api/stats</a>.</> : "not reachable right now."}
               </p>
             </Stop>
           </ol>

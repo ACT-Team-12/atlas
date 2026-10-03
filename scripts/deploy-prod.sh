@@ -59,8 +59,18 @@ cp "$link" "$out/.vercel/project.json"
 echo "deploying $sha ($mode) from a clean export"
 args=(deploy --yes --env "ATLAS_COMMIT=$sha")
 [ "$mode" = prod ] && args+=(--prod)
-url=$(cd "$out" && vercel "${args[@]}")
+# Outside a terminal the CLI prints a JSON summary; keep the whole thing for the log and pull out the URL.
+summary=$(cd "$out" && vercel "${args[@]}")
+url=$(printf '%s' "$summary" | grep -o 'https://[a-z0-9-]*\.vercel\.app' | head -1 || true)
+if [ -z "$url" ]; then
+  printf '%s\n' "$summary" >&2
+  echo "FAIL: no deployment URL in the Vercel output above" >&2
+  exit 1
+fi
 echo "deployed: $url"
+if [ "$mode" = preview ]; then
+  echo "check it (previews sit behind Vercel login): (cd web && vercel curl /api/health --deployment $url)"
+fi
 
 if [ "$mode" = prod ]; then
   health=https://atlas-team12.vercel.app/api/health

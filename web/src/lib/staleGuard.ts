@@ -72,6 +72,21 @@ export function anchorHolds(s: { anchorAt: number; now: number; lastInteractionA
   return s.now - s.anchorAt <= ANCHOR_MS && s.lastInteractionAt <= s.anchorAt && !s.focusEditable;
 }
 
+/** How long the page's own smooth scroll can keep firing scroll events (it usually ends sooner, at scrollend). */
+export const OWN_SCROLL_MS = 1500;
+/** An instant scroll's event comes on the next frame or so. */
+export const OWN_INSTANT_SCROLL_MS = 150;
+/** A scroll this soon after the page changed size is the browser keeping content in place, not the person. */
+export const LAYOUT_SCROLL_MS = 120;
+
+/**
+ * A scroll counts as the person using the page unless the page itself is scrolling (an automatic scroll
+ * still moving), or the page just changed size (the browser shifting the view to keep content in place).
+ */
+export function scrollIsPersons(s: { now: number; ownScrollUntil: number; layoutChangedAt: number }): boolean {
+  return s.now > s.ownScrollUntil && s.now - s.layoutChangedAt > LAYOUT_SCROLL_MS;
+}
+
 /** Scroll for them only if they have not touched the page since they pressed the button, and are not typing. */
 export function shouldAutoScroll(s: { submittedAt: number; lastInteractionAt: number; focusEditable: boolean }): boolean {
   return s.lastInteractionAt <= s.submittedAt && !s.focusEditable;

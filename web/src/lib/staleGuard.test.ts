@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anchorHolds, ANCHOR_MS, isEditable, photoId, planFingerprint, planPlace, readFingerprint, shouldAutoScroll } from "./staleGuard";
+import { anchorHolds, ANCHOR_MS, isEditable, LAYOUT_SCROLL_MS, photoId, planFingerprint, planPlace, readFingerprint, scrollIsPersons, shouldAutoScroll } from "./staleGuard";
 
 const read = { text: "paper one", photo: null, language: "English", level: "simple" };
 const plan = { careIds: ["c1", "c2"], barriers: ["transport", "cost"], language: "English", note: "", place: "30030", location: null };
@@ -80,4 +80,17 @@ describe("shouldAutoScroll", () => {
   it("scrolls when nothing happened since the button", () => expect(shouldAutoScroll({ submittedAt: 10, lastInteractionAt: 9, focusEditable: false })).toBe(true));
   it("does not scroll after they scrolled, tapped or typed", () => expect(shouldAutoScroll({ submittedAt: 10, lastInteractionAt: 11, focusEditable: false })).toBe(false));
   it("does not scroll while they are in a text box", () => expect(shouldAutoScroll({ submittedAt: 10, lastInteractionAt: 9, focusEditable: true })).toBe(false));
+});
+
+describe("scrollIsPersons", () => {
+  const quiet = { now: 10_000, ownScrollUntil: 0, layoutChangedAt: 0 };
+  it("a scroll with nothing else going on is the person's (scrollbar drag, find in page)", () => expect(scrollIsPersons(quiet)).toBe(true));
+  it("not while the page's own scroll is still moving", () => {
+    expect(scrollIsPersons({ ...quiet, ownScrollUntil: 10_500 })).toBe(false);
+    expect(scrollIsPersons({ ...quiet, ownScrollUntil: 9_999 })).toBe(true);
+  });
+  it("not right after the page changed size (the browser keeping content in place)", () => {
+    expect(scrollIsPersons({ ...quiet, layoutChangedAt: 10_000 - LAYOUT_SCROLL_MS + 1 })).toBe(false);
+    expect(scrollIsPersons({ ...quiet, layoutChangedAt: 10_000 - LAYOUT_SCROLL_MS - 1 })).toBe(true);
+  });
 });

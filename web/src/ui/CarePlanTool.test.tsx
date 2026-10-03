@@ -226,3 +226,54 @@ describe("a reply landing after a change, before React has re-rendered for it", 
     expect(Object.values({ ...localStorage }).join("")).toContain("Reading of the CURRENT text");
   });
 });
+
+describe("automatic scroll after a reply", () => {
+  const tabSelected = (t: number) => host.querySelector(`#tab-step-${t}`)?.getAttribute("aria-selected");
+
+  async function planOnPhone(between: () => void) {
+    phone = true;
+    act(() => byText("Getting there").click());
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    await outsideReact(async () => {
+      req.resolve(ready(planFor("The new plan")));
+      await microtasks(); // the reply is handled; the render that shows it has not run yet
+      between();
+    });
+    expect(screenText()).toContain("The new plan");
+  }
+
+  it("phone, untouched: opens step 3 and brings it up", async () => {
+    await planOnPhone(() => {});
+    expect(tabSelected(3)).toBe("true");
+    expect(scrolls).toContain("step-3");
+  });
+
+  it("phone: a tap after the reply but before the plan is shown leaves the person where they are", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    expect(tabSelected(3)).toBe("false");
+    expect(scrolls).not.toContain("step-3");
+    expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
+  });
+
+  it("phone: dragging the scrollbar (a scroll with no tap, wheel or key) counts as using the page", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("scroll")));
+    expect(tabSelected(3)).toBe("false");
+    expect(scrolls).not.toContain("step-3");
+    expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
+  });
+
+  it("desktop: the page's own smooth scroll still moving does not count as the person scrolling", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    expect(scrolls).toEqual(["step-2"]); // the automatic scroll after a read (desktop)
+
+    const req = hold("/api/plan");
+    act(() => byText("Make my plan").click());
+    window.dispatchEvent(new Event("scroll")); // that smooth scroll is still firing scroll events
+    await release(req, ready(planFor("The new plan")));
+    expect(scrolls).toEqual(["step-2", "step-3"]);
+  });
+});

@@ -25,7 +25,9 @@ import {
   STORE_KEY, type Session, type Store,
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
-import { anchorHolds, isEditable, photoId, planFingerprint, planPlace, readFingerprint, shouldAutoScroll } from "@/lib/staleGuard";
+import {
+  anchorHolds, isEditable, OWN_INSTANT_SCROLL_MS, OWN_SCROLL_MS, photoId, planFingerprint, planPlace, readFingerprint, scrollIsPersons, shouldAutoScroll,
+} from "@/lib/staleGuard";
 import { SPEECH_LANG } from "@/lib/speechLang";
 
 const KIND: Record<string, { label: string; cls: string }> = {
@@ -221,6 +223,10 @@ export function CarePlanTool() {
   const pendingRead = useRef<{ run: number; fp: string; at: number; abort: AbortController } | null>(null);
   const pendingPlan = useRef<{ run: number; fp: string; at: number; abort: AbortController } | null>(null);
   const lastInteraction = useRef(0);
+  // Until when scroll events are the page's own automatic scroll, and when the page last changed size.
+  // Neither is the person using the page, so neither cancels an automatic scroll.
+  const ownScrollUntil = useRef(-Infinity);
+  const layoutChangedAt = useRef(-Infinity);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const [planReadyNote, setPlanReadyNote] = useState<string | null>(null);
@@ -286,7 +292,11 @@ export function CarePlanTool() {
   const [tab, setTab] = useState<Tab>(1);
   const isPhone = useIsPhone();
   // A scroll to run after the next render, once the newly shown card is on the page.
-  const scrollAfter = useRef<{ t: Tab; onlyIfHidden: boolean; anchor?: boolean } | null>(null);
+  // `submittedAt` marks an automatic scroll: it is checked again right before scrolling, and skipped if the
+  // person has used the page since they pressed the button. A tab they picked themselves has none.
+  const scrollAfter = useRef<{ t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number } | null>(null);
+  // A plan that just arrived: once it is on the page, decide (then, not when the reply landed) whether to open and scroll to it.
+  const planNav = useRef<{ plan: PlanResponse; submittedAt: number } | null>(null);
   // The card an automatic scroll brought up, kept in place briefly while late content above it loads.
   const scrollAnchor = useRef<{ t: Tab; at: number } | null>(null);
   const [tapToPlay, setTapToPlay] = useState(false);
@@ -445,7 +455,7 @@ export function CarePlanTool() {
       // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared),
       // and only if the person has not scrolled, tapped or typed since pressing the button.
       const target = scrollTargetAfter("read", isPhoneNow());
-      if (target && autoScrollOk(sent.at)) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true };
+      if (target && autoScrollOk(sent.at)) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at };
     } catch (e) {
       if (readRun.current !== run) return; // stopped or replaced: nothing to show
       if (pendingRead.current?.run === run && pendingRead.current.fp !== liveReadFp()) return stopStaleRead();
@@ -503,13 +513,8 @@ export function CarePlanTool() {
       pendingPlan.current = null;
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
-      // Step 3 only exists after this render, so scroll once it is on the page (desktop and phones).
-      // If the person has been using the page meanwhile, leave them where they are and say the plan is ready.
-      const free = autoScrollOk(sent.at);
-      if (free || !isPhoneNow()) setTab(3);
-      else setPlanReadyNote("Your plan is ready. Open 3 · Plan.");
-      const target = scrollTargetAfter("plan", isPhoneNow());
-      if (target && free) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true };
+      // Step 3 only exists after this render; what happens next is decided once it is on the page.
+      planNav.current = { plan: json, submittedAt: sent.at };
     } catch (e) {
       if (planRun.current !== run) return;
       if (pendingPlan.current?.run === run && pendingPlan.current.fp !== livePlanFp()) return stopStalePlan();
@@ -639,8 +644,34 @@ export function CarePlanTool() {
     const opts = { capture: true, passive: true } as const;
     const kinds = ["pointerdown", "keydown", "wheel", "touchmove"] as const;
     kinds.forEach((k) => window.addEventListener(k, mark, opts));
-    return () => kinds.forEach((k) => window.removeEventListener(k, mark, opts));
+    // A scroll with none of those (dragging the scrollbar, find in page) counts too, unless it is the page's own.
+    const onScroll = () => {
+      const now = performance.now();
+      if (scrollIsPersons({ now, ownScrollUntil: ownScrollUntil.current, layoutChangedAt: layoutChangedAt.current })) lastInteraction.current = now;
+    };
+    const onScrollEnd = () => { ownScrollUntil.current = Math.min(ownScrollUntil.current, performance.now()); };
+    window.addEventListener("scroll", onScroll, opts);
+    window.addEventListener("scrollend", onScrollEnd, opts);
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => { layoutChangedAt.current = performance.now(); });
+    ro?.observe(document.body);
+    return () => {
+      kinds.forEach((k) => window.removeEventListener(k, mark, opts));
+      window.removeEventListener("scroll", onScroll, opts);
+      window.removeEventListener("scrollend", onScrollEnd, opts);
+      ro?.disconnect();
+    };
   }, []);
+
+  function markOwnScroll(behavior: "smooth" | "auto" | null) {
+    if (behavior) ownScrollUntil.current = performance.now() + (behavior === "smooth" ? OWN_SCROLL_MS : OWN_INSTANT_SCROLL_MS);
+  }
+
+  function runScroll(req: { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number }) {
+    // An automatic scroll is checked again here: a tap or scroll since the button press cancels it.
+    if (req.submittedAt !== undefined && !autoScrollOk(req.submittedAt)) { scrollAnchor.current = null; return; }
+    markOwnScroll(scrollToPanel(req.t, req.onlyIfHidden));
+    scrollAnchor.current = req.anchor ? { t: req.t, at: performance.now() } : null;
+  }
 
   // A read or plan whose inputs changed while it was pending is stopped, so its late reply can't land.
   useEffect(() => {
@@ -658,14 +689,34 @@ export function CarePlanTool() {
     stopStalePlan();
   }, [care, removed, barriers, language, note, loc, zip]);
 
-  // Runs after every render; does nothing unless a phone tab change asked for a scroll.
+  // Runs after every render; does nothing unless a tab change or a reply asked for a scroll.
   useEffect(() => {
     const req = scrollAfter.current;
     if (!req) return;
     scrollAfter.current = null;
-    scrollToPanel(req.t, req.onlyIfHidden);
-    scrollAnchor.current = req.anchor ? { t: req.t, at: performance.now() } : null;
+    runScroll(req);
   });
+
+  // A new plan is on the page. If the person has not used the page since pressing the button, open step 3 and
+  // bring it up; otherwise leave them where they are (phones say the plan is ready). Decided now, not when it landed.
+  // Declared after the scroll effect, so a scroll queued here waits for the tab switch to render.
+  useEffect(() => {
+    const nav = planNav.current;
+    if (!nav || nav.plan !== plan) return;
+    planNav.current = null;
+    const free = autoScrollOk(nav.submittedAt);
+    const phone = isPhoneNow();
+    if (free || !phone) setTab(3);
+    else setPlanReadyNote("Your plan is ready. Open 3 · Plan.");
+    const target = scrollTargetAfter("plan", phone);
+    if (!target || !free) return;
+    const next = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt };
+    // On a phone the card shows only after the tab switch renders; if step 3 is already open, nothing re-renders.
+    if (phone && tab !== 3) scrollAfter.current = next;
+    else runScroll(next);
+    // Only a new plan matters here; tab is read as of that render, and the helpers only read refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan]);
 
   // Late content (the on-device check, the double-check, the quiz) can grow above the card just scrolled to.
   // While the anchor holds, put the card back under the top; it lets go as soon as the person uses the page.
@@ -680,7 +731,7 @@ export function CarePlanTool() {
       const el = document.getElementById(panelId(a.t));
       if (!el) return;
       const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
-      if (Math.abs(el.getBoundingClientRect().top - margin) > 4) el.scrollIntoView({ behavior: "auto", block: "start" });
+      if (Math.abs(el.getBoundingClientRect().top - margin) > 4) { el.scrollIntoView({ behavior: "auto", block: "start" }); markOwnScroll("auto"); }
     });
     ro.observe(section);
     return () => ro.disconnect();

@@ -29,14 +29,16 @@ const LABEL: Record<Tab, string> = { 1: "Paper", 2: "Your needs", 3: "Plan" };
 /**
  * Scrolls a step card to the top, just under the sticky tab bar. With `onlyIfHidden`, it only moves
  * when the card's top is already scrolled up under the bar, so a tap near the top does not jump.
+ * Says how it scrolled (null when it did not), so the caller can tell its own scroll from the person's.
  */
-export function scrollToPanel(t: Tab, onlyIfHidden = false) {
+export function scrollToPanel(t: Tab, onlyIfHidden = false): "smooth" | "auto" | null {
   const el = document.getElementById(panelId(t));
-  if (!el) return;
+  if (!el) return null;
   const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
-  if (onlyIfHidden && el.getBoundingClientRect().top >= margin - 1) return;
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  if (onlyIfHidden && el.getBoundingClientRect().top >= margin - 1) return null;
+  const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+  el.scrollIntoView({ behavior, block: "start" });
+  return behavior;
 }
 
 /** Sticky tab bar for phones. Hidden from md up, where all three steps show at once. */

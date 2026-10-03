@@ -7,11 +7,12 @@ import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
 import { BARRIERS, BARRIER_LABEL, type Barrier, formatHours, openNow, opensEvenings, opensWeekends } from "@/lib/resources";
 import type { PlanResponse, ResourceCard } from "@/lib/plan";
-import type { MeaningResponse, MeaningResult } from "@/lib/meaning";
 import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
 import { HandoffSheet } from "./HandoffSheet";
+import { MissedLines, useMissedLines } from "./MissedLines";
+import { missedLineTexts } from "@/lib/missedLines";
 import { ShareFamily } from "./ShareFamily";
 import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
@@ -21,7 +22,7 @@ import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollElementToTop, scrollTargetY, scrollToPanel, tabId, useIsPhone, type PageScroll } from "./PhoneTabs";
 import { speechLines } from "@/lib/speechText";
 import {
-  closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan, saveSession,
+  closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan,
   STORE_KEY, type Session, type Store,
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
@@ -30,6 +31,15 @@ import {
   scrollIsPersons, shouldAutoScroll, type LayoutShift, type OwnScroll,
 } from "@/lib/staleGuard";
 import { SPEECH_LANG } from "@/lib/speechLang";
+import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun, type DeviceVerdict } from "@/lib/deviceRun";
+// Static, so erasing never waits on a chunk download; the WebAssembly itself is still fetched only after a read.
+import { forgetDeviceChecker, loadDeviceChecker, sameSpan } from "@/lib/deviceChecker";
+import { streamThenPlain } from "@/lib/readCancel";
+import { DeletedPlans, deleteOnDevice, dropDeleted, saveStore, watchDeletions } from "@/lib/tombstones";
+import { autosaveStore } from "@/lib/autosave";
+import { fetchMeaning, IDLE_MEANING, RunFence, runMeaningCheck, type MeaningState } from "@/lib/meaningRun";
+import { consumeHelperSession, entryHeaders } from "@/lib/helperLink";
+import { HelperBanner, useHelperArrival } from "./HelperArrival";
 
 const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -40,7 +50,6 @@ const KIND: Record<string, { label: string; cls: string }> = {
   warning_sign: { label: "Warning sign", cls: "bg-red-soft text-red" },
 };
 
-type DeviceVerdict = "match" | "differ" | "missing";
 
 /** Id for a saved plan. randomUUID needs a secure page; the fallback is fine for a local key. */
 function newPlanId() {
@@ -234,6 +243,8 @@ export function CarePlanTool() {
   // Verified steps that arrived while the paper is still being read. Shown, never final.
   const [partial, setPartial] = useState<VerifiedItem[]>([]);
   const readRun = useRef(0);
+  // Cancels the read in flight; erasing the open paper aborts it, so the paper is not sent again.
+  const readAbort = useRef<AbortController | null>(null);
   // Plan requests in flight. A new read or a clear bumps it, so an older plan reply cannot land on newer steps.
   const planRun = useRef(0);
   // What each pending read or plan was sent with, so a reply for inputs the person has since changed is dropped.
@@ -305,12 +316,14 @@ export function CarePlanTool() {
   const [transcript, setTranscript] = useState<string | null>(null);
   const [photoChecked, setPhotoChecked] = useState(false);
   // Second-model meaning check: does each explanation say the same thing as its quoted line?
-  const [meaning, setMeaning] = useState<{ status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult> }>({ status: "idle", byId: {} });
-  const meaningFor = useRef("");
+  const [meaning, setMeaning] = useState<MeaningState>(IDLE_MEANING);
+  // One check at a time, with its own id and abort: Clear, Delete, a new read and unmount cancel it (lib/meaningRun.ts).
+  const [meaningFence] = useState(() => new RunFence());
   // The same quote checker, run again on this device (WebAssembly, loaded only after a read). Per step: did the
   // browser find the same words in the same place as the server?
-  // Stored with the reading it belongs to, so a newer read never shows an older result.
-  const [deviceRun, setDeviceRun] = useState<{ for: CarePlanResponse | null; ok: boolean; byId: Record<string, DeviceVerdict> }>({ for: null, ok: false, byId: {} });
+  // Stored with the id of the reading it belongs to (never the reading, which holds the paper), so a newer read
+  // never shows an older result and Clear leaves nothing of the paper behind.
+  const [deviceRun, setDeviceRun] = useState<DeviceRun>(NO_DEVICE_RUN);
   const loaded = useRef(false);
   const [speaking, setSpeaking] = useState(false);
   const speechRun = useRef(0);
@@ -336,19 +349,29 @@ export function CarePlanTool() {
   const [store, setStore] = useState<Store>(emptyStore);
   const storeRef = useRef<Store>(emptyStore());
   const [saveFailed, setSaveFailed] = useState(false);
+  const [deleteFailed, setDeleteFailed] = useState(false);
+  // Ids of plans deleted on this device, from any tab (lib/tombstones.ts). Ids only, never paper text.
+  const [deleted] = useState(() => new DeletedPlans(() => localStorage));
+  // Session epoch: bumped whenever the open session ends (deleted, cleared, another plan opened, a new plan), so a save
+  // scheduled by an earlier render never writes that session's paper back (lib/autosave.ts).
+  const sessionEpoch = useRef(0);
+  const [epoch, setEpoch] = useState(0);
+  function endSession() { setEpoch(++sessionEpoch.current); }
 
+  /** Saves the list. A plan another tab deleted is never written back; if it is the one open here, its paper is erased. */
   function writeStore(next: Store) {
     if (next === storeRef.current) return;
-    storeRef.current = next;
-    setStore(next);
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(next)); setSaveFailed(false); } catch { setSaveFailed(true); }
+    const r = saveStore(() => localStorage, deleted, next);
+    storeRef.current = r.store; setStore(r.store); setSaveFailed(!r.ok);
+    if (r.openWasDeleted) eraseOpenPaper();
   }
 
   /** Puts a saved plan into the tool. Anything still running belongs to the plan being left, so it is dropped. */
   function applySession(v: Session) {
+    endSession();
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
-    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
+    meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setLoc(null); locGen.current++; setLocating(false);
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
@@ -370,14 +393,15 @@ export function CarePlanTool() {
 
   /** Empties the tool for a new plan. Saved plans stay as they are. */
   function resetTool() {
+    endSession();
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
     setReadNote(null); setPlanNote(null); setPlanReadyNote(null);
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
-    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
+    meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setPhotoChecked(false); setReadLevel(null);
     setText(""); setCare(null); setPlan(null); setBarriers([]); setZip(""); setNote(""); setDone({}); setRemoved({}); setRestoredAt(null); setLoc(null); locGen.current++; setLocating(false);
     setCareFp(null); setPlanFp(null);
-    setTab(1);
+    setTab(1); setDeviceRun(NO_DEVICE_RUN);
   }
 
   // One-time load after hydration (localStorage does not exist during the server render).
@@ -386,15 +410,19 @@ export function CarePlanTool() {
   useEffect(() => {
     let raw: string | null = null, old: string | null = null;
     try { raw = localStorage.getItem(STORE_KEY); old = localStorage.getItem(OLD_KEY); } catch {}
-    const { store: s, migrated } = loadStore(raw, old, newPlanId());
+    const { store: found, migrated } = loadStore(raw, old, newPlanId());
+    // A plan deleted on this device stays deleted, even if a tab without this check wrote it back.
+    const s = dropDeleted(found, deleted.all()).store;
     storeRef.current = s; setStore(s);
-    if (migrated) { try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); localStorage.removeItem(OLD_KEY); } catch {} }
+    if (migrated || s !== found) { try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); if (migrated) localStorage.removeItem(OLD_KEY); } catch {} }
     const open = s.plans.find((p) => p.id === s.active);
     if (open) { applySession(open); setRestoredAt(open.savedAt); }
     loaded.current = true;
     // Runs once on mount by design: applySession only calls setters and refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // A helper link (/helper) starts a fresh plan with its presets in the normal inputs. Runs after the restore above.
+  const helper = useHelperArrival((p) => { newPlan(); if (p.language) setLanguage(p.language); if (p.level) setLevel(p.level); if (p.zip) setZip(p.zip); });
 
   // Is the reading (or the plan) on screen still the one these inputs would get? A plan built from an outdated reading is outdated too.
   const careOutdated = !!care && careFp !== null && readFingerprintFor({ text, photo, language, level }) !== careFp;
@@ -410,31 +438,68 @@ export function CarePlanTool() {
   // Every change to the open plan is saved into it; the first read or plan of a new one creates it.
   // While a result on screen is outdated, nothing is saved, so a saved plan never sits beside answers it was not built for.
   useEffect(() => {
-    if (!loaded.current) return;
-    if (!care && !plan) return;
     if (!resultsCurrent) return;
-    writeStore(saveSession(storeRef.current, { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, matched: true }, new Date().toISOString(), newPlanId()));
-  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, resultsCurrent]);
+    const next = autosaveStore({
+      loaded: loaded.current, epoch, currentEpoch: sessionEpoch.current, store: storeRef.current,
+      session: { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, matched: true }, now: new Date().toISOString(), newId: newPlanId(),
+    });
+    if (next) writeStore(next);
+    // writeStore only touches refs, setters and localStorage; a new render's copy changes nothing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, resultsCurrent, epoch]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  /**
+   * Empties the tool after the open paper was deleted, and drops the on-device checker that re-checked it: a load still
+   * in flight is aborted, so nothing waiting on it keeps the paper. Every path that deletes the open plan calls this.
+   */
+  function eraseOpenPaper() {
+    resetTool();
+    readAbort.current?.abort();
+    forgetDeviceChecker();
+  }
+
+  /**
+   * Deletes plan `id` from this device's storage (recorded for other tabs first), read back to be sure. When storage
+   * still holds it, nothing changes on screen and the person is told it was not deleted (a reload would bring it back).
+   */
+  function deleteFromDevice(id: string): boolean {
+    const r = deleteOnDevice(() => localStorage, deleted, deletePlan(storeRef.current, id), id);
+    if (!r) { setDeleteFailed(true); return false; }
+    storeRef.current = r.store; setStore(r.store); setSaveFailed(false); setDeleteFailed(false);
+    if (r.openWasDeleted) eraseOpenPaper(); // another tab had already deleted the plan open here
+    return true;
+  }
+
+  // Another tab deleted plans: drop them here too, and erase the open paper if it was one of them.
+  useEffect(() => watchDeletions(window, () => localStorage, deleted, (dead) => {
+    const r = dropDeleted(storeRef.current, dead);
+    if (r.store !== storeRef.current) { storeRef.current = r.store; setStore(r.store); }
+    if (r.openWasDeleted) eraseOpenPaper();
+    // Subscribes once: the handler only uses refs, setters and eraseOpenPaper (which does the same).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []);
 
   /** "Clear it from this device": deletes the open plan. Other saved plans stay. */
   function clearSaved() {
-    if (storeRef.current.active) writeStore(deletePlan(storeRef.current, storeRef.current.active));
-    resetTool();
+    if (storeRef.current.active && !deleteFromDevice(storeRef.current.active)) return;
+    eraseOpenPaper();
   }
 
   function openSaved(id: string) {
     const p = storeRef.current.plans.find((x) => x.id === id);
     if (!p) return;
     writeStore(openPlan(storeRef.current, id));
+    if (storeRef.current.active !== id) return; // deleted in another tab meanwhile
     applySession(p);
     setRestoredAt(p.savedAt);
   }
 
-  function deleteSaved(id: string) {
+  function deleteSaved(id: string): boolean {
     const wasOpen = storeRef.current.active === id;
-    writeStore(deletePlan(storeRef.current, id));
-    if (wasOpen) resetTool();
+    if (!deleteFromDevice(id)) return false;
+    if (wasOpen) eraseOpenPaper();
+    return true;
   }
 
   function newPlan() {
@@ -442,25 +507,12 @@ export function CarePlanTool() {
     resetTool();
   }
 
-  async function checkMeaningFor(c: CarePlanResponse) {
-    const key = `${c.source_text.length}:${c.items.length}:${c.stats.ms}`;
-    meaningFor.current = key;
-    if (c.items.length === 0) return setMeaning({ status: "idle", byId: {} });
-    setMeaning({ status: "loading", byId: {} });
-    try {
-      const res = await fetch("/api/meaning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: c.items.slice(0, 40).map(({ id, plain_language, when, source_quote }) => ({ id, plain_language, when, source_quote })) }),
-      });
-      const json: MeaningResponse = await res.json();
-      if (meaningFor.current !== key) return; // a newer paper was read meanwhile
-      if (!res.ok) throw new Error();
-      setMeaning({ status: "done", byId: Object.fromEntries(json.results.map((r) => [r.id, r])) });
-    } catch {
-      if (meaningFor.current === key) setMeaning({ status: "error", byId: {} });
-    }
+  function checkMeaningFor(c: CarePlanResponse) {
+    return runMeaningCheck(meaningFence, c.items, fetchMeaning, setMeaning);
   }
+
+  // Leaving the page cancels a meaning check still in flight.
+  useEffect(() => () => meaningFence.cancel(), [meaningFence]);
 
   async function readPaper(corrected?: string, levelOverride?: (typeof READING_LEVELS)[number]) {
     const usedLevel = levelOverride ?? level;
@@ -468,37 +520,37 @@ export function CarePlanTool() {
     const openSavedPlan = storeRef.current.plans.find((p) => p.id === storeRef.current.active);
     const fresh = corrected === undefined;
     if (readStartsNewPlan({ openPlanHasPaper: !!openSavedPlan?.care, fresh, isPhoto: fresh && !!photo, sameText: openSavedPlan?.text === text })) writeStore(closePlan(storeRef.current));
-    meaningFor.current = ""; setMeaning({ status: "idle", byId: {} });
+    meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setReading(true); setError(null); setCare(null); setPlan(null); setDone({}); setRemoved({}); setRestoredAt(null);
     setTranscript(null); setPhotoChecked(false); setPartial([]); setTab(1);
     if (corrected !== undefined) { setPhoto(null); setText(corrected); }
     const run = ++readRun.current;
+    const ac = new AbortController();
+    readAbort.current = ac;
     planRun.current++; setPlanning(false); // drop any plan still on its way: it was built from the old steps
     pendingPlan.current?.abort.abort(); pendingPlan.current = null;
     pendingRead.current?.abort.abort();
     setReadNote(null); setPlanNote(null); setPlanReadyNote(null);
     const usePhoto = corrected === undefined && !!photo;
-    const abort = new AbortController();
     pendingRead.current = {
-      run, abort, at: performance.now(),
+      run, abort: ac, at: performance.now(),
       fp: readFingerprintFor({ text: corrected ?? text, photo: usePhoto ? photo : null, language, level: usedLevel }),
     };
     try {
       const body: Record<string, unknown> = { language, reading_level: usedLevel };
       if (corrected !== undefined) body.text = corrected;
       else if (photo) { body.image_base64 = await fileToBase64(photo); body.image_media_type = "image/jpeg"; } else body.text = text;
+      if (readRun.current !== run) return; // cleared or replaced while the photo was prepared: never send it
       let json: CarePlanResponse;
       if (typeof body.text === "string") {
         // Pasted text: show each verified step as it arrives. Photos keep the plain route (the person checks our reading first).
-        try {
-          json = await streamExtract(body, (it) => { if (readRun.current === run && pendingRead.current?.fp === liveReadFp()) setPartial((p) => [...p, it]); }, abort.signal);
-        } catch (e) {
-          if (!(e instanceof StreamBroken) || readRun.current !== run) throw e;
-          // The stream broke part way: drop what we showed and read it again the plain way.
-          setPartial([]);
-          json = await postExtract(body, abort.signal);
-        }
-      } else json = await postExtract(body, abort.signal);
+        // If the stream broke part way, drop what we showed and read it again the plain way, unless this read was cleared.
+        json = await streamThenPlain(
+          (signal) => streamExtract(body, (it) => { if (readRun.current === run && pendingRead.current?.fp === liveReadFp()) setPartial((p) => [...p, it]); }, signal),
+          (signal) => postExtract(body, signal),
+          ac.signal, () => readRun.current === run, () => setPartial([]),
+        );
+      } else json = await postExtract(body, ac.signal);
       if (readRun.current !== run) return;
       const sent = pendingRead.current;
       if (!sent || sent.run !== run) return;
@@ -563,7 +615,7 @@ export function CarePlanTool() {
         barriers, language, note,
         ...(loc ? { location: loc } : /^\d{5}$/.test(zip) ? { zip } : {}),
       };
-      const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: abort.signal });
+      const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body), signal: abort.signal });
       const json = await res.json();
       if (planRun.current !== run) return; // a new read, a clear, or a changed answer happened meanwhile
       const sent = pendingPlan.current;
@@ -573,6 +625,7 @@ export function CarePlanTool() {
       if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
       setPlan(json);
       setPlanFp(sent.fp);
+      consumeHelperSession();
       // Step 3 only exists after this render; what happens next is decided once it is on the page.
       planNav.current = { plan: json, submittedAt: sent.at };
     } catch (e) {
@@ -875,17 +928,19 @@ export function CarePlanTool() {
   useEffect(() => {
     if (!care || !deviceWanted) return;
     let live = true;
-    import("@/lib/deviceChecker")
-      .then(async ({ loadDeviceChecker, sameSpan }) => {
-        const checker = await loadDeviceChecker();
+    loadDeviceChecker()
+      .then((checker) => {
+        if (!live) return; // cleared or changed while the checker loaded: never hand it this paper
         const byId: Record<string, DeviceVerdict> = {};
-        for (const it of care.items) {
-          const mine = checker.findSpan(care.source_text, it.source_quote);
+        // One call for the whole plan: the paper is mapped once, not once per step.
+        const spans = checker.findSpans(care.source_text, care.items.map((it) => it.source_quote));
+        care.items.forEach((it, k) => {
+          const mine = spans[k];
           byId[it.id] = sameSpan(it.span, mine) ? "match" : mine ? "differ" : "missing";
-        }
-        if (live) setDeviceRun({ for: care, ok: true, byId });
+        });
+        if (live) setDeviceRun({ run: runIdFor(care), ok: true, byId });
       })
-      .catch(() => { if (live) setDeviceRun({ for: care, ok: false, byId: {} }); });
+      .catch(() => { if (live) setDeviceRun({ run: runIdFor(care), ok: false, byId: {} }); });
     return () => { live = false; };
   }, [care, deviceWanted]);
 
@@ -916,8 +971,8 @@ export function CarePlanTool() {
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
-  const deviceStatus: "idle" | "loading" | "done" | "error" =
-    !care || needsPhotoCheck || care.items.length === 0 ? "idle" : deviceRun.for !== care ? "loading" : deviceRun.ok ? "done" : "error";
+  const missed = useMissedLines(care, removed);
+  const deviceStatus = deviceStatusOf(care, needsPhotoCheck, deviceRun);
   const flow = { hasCare: !!care, hasPlan: !!plan };
   const openName = store.plans.find((p) => p.id === store.active)?.name ?? null;
   // The person changed our reading of their photo. Accepting or re-reading the old text would silently drop their fix.
@@ -935,7 +990,7 @@ export function CarePlanTool() {
     <section id="try" className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="try-title">
       <div className="section-card bg-mint-soft px-4 sm:px-10 py-20">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 id="try-title" className="display text-[clamp(2.4rem,5vw,5rem)]">Try it</h2>
+          <h2 id="try-title" tabIndex={-1} className="display text-[clamp(2.4rem,5vw,5rem)]">Try it</h2>
           <p className="hand text-3xl text-teal-deep rotate-1 max-w-[16em]">use the sample, or a paper you&apos;re comfortable sharing</p>
         </div>
 
@@ -946,7 +1001,9 @@ export function CarePlanTool() {
           </div>
         )}
 
-        <SavedPlans plans={listPlans(store)} activeId={store.active} busy={reading || planning} saveFailed={saveFailed}
+        <HelperBanner arrival={helper.arrival} onDismiss={helper.dismiss} />
+
+        <SavedPlans plans={listPlans(store)} activeId={store.active} busy={reading || planning} saveFailed={saveFailed} deleteFailed={deleteFailed}
           onOpen={openSaved} onRename={(id, name) => writeStore(renamePlan(storeRef.current, id, name))} onDelete={deleteSaved} onNew={newPlan} />
 
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
@@ -1129,6 +1186,7 @@ export function CarePlanTool() {
                   )}
                 </div>
               </div>
+              <MissedLines view={missed} />
               <Understand key={`${care.source_text.length}:${items.map((i) => i.id).join(",")}:${language}`} care={care} items={items} language={language} />
               <button type="button" onClick={() => pickTab(2, false)}
                 className="md:hidden mt-8 w-full rounded-full border-2 border-ink bg-sun px-5 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
@@ -1176,7 +1234,7 @@ export function CarePlanTool() {
           </div>
         </div>
 
-        {plan && care && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} />}
+        {plan && care && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} alsoOnPaper={missedLineTexts(missed)} />}
 
         {/* Step 3 */}
         {plan && (
@@ -1220,6 +1278,7 @@ export function CarePlanTool() {
               <div className="mt-5 rounded-2xl border-2 border-peach-deep bg-peach p-4">
                 <p className="font-extrabold text-peach-deep">This needs a person too</p>
                 <p className="text-sm font-semibold">{plan.ask_a_person_reason} Call 211 (United Way of Greater Atlanta) or your community health worker.</p>
+                <p className="mt-2 text-xs font-semibold"><a className="underline decoration-2 underline-offset-4" href="/helper">Helping someone? Make them a link</a></p>
               </div>
             )}
             <ol className="mt-6 space-y-5">

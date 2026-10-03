@@ -1,0 +1,34 @@
+name: live-probe
+# Exercises the real judged path on the deployed site: public pages, the quote-checker counts,
+# and one real read + plan of the sample paper (one AI call each, a few cents per run).
+# A failed scheduled run emails the repo owner. See web/scripts/live-probe.mjs.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Site to probe"
+        required: false
+        default: "https://atlas-team12.vercel.app"
+  schedule:
+    # Every 3 hours at minute 17 (offset minute; :00 and */N schedules are throttled hardest).
+    - cron: "17 */3 * * *"
+concurrency:
+  group: live-probe
+  cancel-in-progress: false
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The probe uses only Node built-ins, so no install step is needed.
+      - name: Probe the live site
+        env:
+          PROBE_BASE_URL: ${{ inputs.base_url || 'https://atlas-team12.vercel.app' }}
+        run: node scripts/live-probe.mjs "$PROBE_BASE_URL"

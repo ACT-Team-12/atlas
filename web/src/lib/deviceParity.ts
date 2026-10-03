@@ -1,5 +1,5 @@
 import { INVENTED, PAPERS, fakesFor } from "./checkerTest";
-import { findSpan } from "./verify";
+import { findSpanIn, mapSource } from "./verify";
 import type { Span } from "./deviceChecker";
 
 /**
@@ -14,7 +14,8 @@ export function deviceParitySet(): ParitySet {
   const cases: ParityCase[] = [];
   PAPERS.forEach((p, paper) => {
     const quotes = [...p.expected, ...p.distractors, ...p.expected.flatMap((e) => fakesFor(e).map((f) => f.text)), ...INVENTED];
-    for (const quote of quotes) cases.push({ paper, quote, server: findSpan(p.text, quote) });
+    const mapped = mapSource(p.text);
+    for (const quote of quotes) cases.push({ paper, quote, server: findSpanIn(mapped, quote) });
   });
   return { papers: PAPERS.map((p) => p.text), cases };
 }

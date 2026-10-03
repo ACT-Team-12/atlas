@@ -1,7 +1,7 @@
 import { CareItemSchema, type CarePlanResponse, type ExtractRequest } from "./schema";
 import { buildParams, finishCarePlan, makeClient } from "./extract";
 import { ItemScanner } from "./itemScanner";
-import { verifyItem } from "./verify";
+import { mapSource, verifyItem, type MappedSource } from "./verify";
 import type { ExtractEvent } from "./extractEvents";
 
 /** What the model stream gives us: text as it is written, then the finished message. */
@@ -27,6 +27,8 @@ export async function streamCarePlan(
 ): Promise<CarePlanResponse> {
   const scanner = new ItemScanner();
   const source = req.text;
+  // Mapped once for this request, on the first item, and dropped with it.
+  let mapped: MappedSource | null = null;
   let index = 0;
   for await (const chunk of model.text) {
     for (const raw of scanner.push(chunk)) {
@@ -40,7 +42,8 @@ export async function streamCarePlan(
       }
       const item = CareItemSchema.safeParse(json);
       if (!item.success) continue;
-      const v = verifyItem(source, item.data, i);
+      mapped ??= mapSource(source);
+      const v = verifyItem(mapped, item.data, i);
       if (v.grounded) emit({ type: "item", item: v });
     }
   }

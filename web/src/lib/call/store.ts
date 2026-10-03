@@ -66,16 +66,23 @@ export type SessionRow = {
   sealed_token: Buffer | null;
   /** Whether a voice MP3 is stored. The MP3 itself (a few MB) is read only by getAudio, never by get. */
   has_audio: boolean;
+  /**
+   * Whether the right code was entered on the plan call (and the plan handed to Vonage): false from the moment the code
+   * is typed on the page, true once the right code is entered on the call, null before (or on rows from before this
+   * column). Not proof the person heard it. Nothing about the person, so the wipe keeps it: after the call ends the page
+   * uses it to say when ATLAS could not confirm the plan was read.
+   */
+  gate_passed: boolean | null;
   created_at: Date;
   expires_at: Date;
 };
 
 export type NewSession = Pick<SessionRow, "id" | "phone_hash" | "last4" | "language" | "code_hash" | "code_expires_at" | "sealed_phone" | "sealed_text" | "sealed_token" | "expires_at">;
-export type SessionPatch = Partial<Pick<SessionRow, "phone_hash" | "language" | "last4" | "phase" | "code_hash" | "code_status" | "plan_status" | "plan_mode" | "note" | "code_uuid" | "plan_uuid" | "placed_at" | "sealed_phone" | "sealed_text" | "sealed_token">> & { sealed_audio?: Buffer | null };
+export type SessionPatch = Partial<Pick<SessionRow, "phone_hash" | "language" | "last4" | "phase" | "code_hash" | "code_status" | "plan_status" | "plan_mode" | "note" | "code_uuid" | "plan_uuid" | "placed_at" | "sealed_phone" | "sealed_text" | "sealed_token" | "gate_passed">> & { sealed_audio?: Buffer | null };
 
 /**
- * Clears everything a session holds about the person and the call except its phase and statuses (so the page can say
- * whether it finished or was missed). Rate limits do not need the row: they live in atlas_call_counters, keyed by HMAC.
+ * Clears everything a session holds about the person and the call except its phase, statuses and gate_passed (so the
+ * page can say whether it finished, was missed, or ended before the plan was read). Rate limits do not need the row: they live in atlas_call_counters, keyed by HMAC.
  */
 export const WIPE_SQL = "phone_hash = null, language = null, plan_mode = null, note = null, code_uuid = null, plan_uuid = null, placed_at = null, code_hash = null, last4 = null, sealed_phone = null, sealed_text = null, sealed_token = null, sealed_audio = null";
 /** Clears everything sensitive a session holds. Used when a call ends or a session can go no further. */
@@ -155,6 +162,7 @@ alter table atlas_calls alter column language drop not null;
 alter table atlas_calls add column if not exists code_uuid text;
 alter table atlas_calls add column if not exists plan_uuid text;
 alter table atlas_calls add column if not exists placed_at timestamptz;
+alter table atlas_calls add column if not exists gate_passed boolean;
 create unique index if not exists atlas_calls_one_code_uq on atlas_calls (phone_hash) where phase = 'code';
 -- One live session per number (a code, or a plan call live or unconfirmed): see LIVE_INDEX and
 -- db/migrations/006_atlas_calls_one_live.sql. Built here only when it cannot fail (no duplicate live rows), so a
@@ -220,8 +228,8 @@ export function refuseStale(row: SessionRow, now: number): SessionRow {
   return codeOver || planOver ? { ...row, code_hash: null, last4: null, sealed_phone: null, sealed_text: null, sealed_token: null, has_audio: false } : row;
 }
 
-const COLS = "id, phone_hash, last4, language, phase, code_hash, attempts, code_expires_at, code_status, plan_status, plan_mode, note, code_uuid, plan_uuid, placed_at, sealed_phone, sealed_text, sealed_token, (sealed_audio is not null) as has_audio, created_at, expires_at";
-const PATCHABLE = new Set(["phone_hash", "language", "last4", "phase", "code_hash", "code_status", "plan_status", "plan_mode", "note", "code_uuid", "plan_uuid", "placed_at", "sealed_phone", "sealed_text", "sealed_token", "sealed_audio"]);
+const COLS = "id, phone_hash, last4, language, phase, code_hash, attempts, code_expires_at, code_status, plan_status, plan_mode, note, code_uuid, plan_uuid, placed_at, sealed_phone, sealed_text, sealed_token, (sealed_audio is not null) as has_audio, gate_passed, created_at, expires_at";
+const PATCHABLE = new Set(["phone_hash", "language", "last4", "phase", "code_hash", "code_status", "plan_status", "plan_mode", "note", "code_uuid", "plan_uuid", "placed_at", "sealed_phone", "sealed_text", "sealed_token", "sealed_audio", "gate_passed"]);
 const logErr = (what: string, e: unknown) => console.error(what, e instanceof Error ? e.name : typeof e); // never values
 
 export class PgCallStore implements CallStore {

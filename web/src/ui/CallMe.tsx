@@ -20,6 +20,8 @@ type Status = {
   code_status?: string | null;
   plan_status?: string | null;
   attempts_left?: number;
+  /** true: the right code was entered on the plan call. false: ATLAS has no record of that. null/absent: not known. */
+  gate_passed?: boolean | null;
 };
 
 const MAX_CALL_CHARS = 4000; // same limit as the natural voice (lib/voice.ts)
@@ -29,7 +31,8 @@ const post = (url: string, body: unknown, signal?: AbortSignal) =>
 /** One status poll may take this long; past it the poll counts as failed, so a hung request never stops the loop. */
 const POLL_TIMEOUT_MS = 15_000;
 
-function line(s: Status, suffix: string, typed: string): string {
+/** The status line under the call panel. Exported for its tests. */
+export function line(s: Status, suffix: string, typed: string): string {
   const n = `...${suffix}`;
   switch (s.phase) {
     case "code":
@@ -45,9 +48,13 @@ function line(s: Status, suffix: string, typed: string): string {
       if (s.plan_status === "answered") return `Answered. On the phone keypad, enter your code${typed ? ` ${typed.split("").join(" ")}` : ""}, then press #. Then ATLAS reads your plan; press 1 to hear it again.`;
       return `Calling ${n} with your plan. When you answer, enter your code${typed ? ` ${typed.split("").join(" ")}` : ""} on the keypad, then press #.`;
     case "done":
-      return s.plan_status && MISSED.includes(s.plan_status)
-        ? `No one answered at ${n}. Your number and plan text were deleted.`
-        : `Call finished. Your number and plan text were deleted.`;
+      if (s.plan_status && MISSED.includes(s.plan_status)) return `No one answered at ${n}. Your number and plan text were deleted.`;
+      // Only an explicit false: an older server, or a status that does not know, keeps the plain wording.
+      // false covers silence, wrong codes and a record that failed to save, so it says only what is true of all three.
+      if (s.gate_passed === false) {
+        return "The call ended, and ATLAS could not confirm your plan was read: it plays only after the 4-digit code is entered on the phone keypad. Your number and plan text were deleted. You can ask for a new call below.";
+      }
+      return `Call finished. Your number and plan text were deleted.`;
     case "code_missed":
       return `No one answered the code call at ${n}. You can try again.`;
     case "failed":

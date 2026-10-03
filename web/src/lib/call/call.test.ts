@@ -788,9 +788,9 @@ describe("the call flow", () => {
       const pending = verifyRefusal({ state: "failed", cleanup: "pending" })[1];
       expect(pending).not.toContain("were deleted.");
       expect(pending).toContain("couldn't confirm");
-      // no deletion deadline the code cannot keep through an outage; only the read limit it enforces itself
+      // no deletion deadline the code cannot keep through an outage; only the read limit ATLAS enforces itself
       expect(pending).not.toMatch(/within \d+ minutes/);
-      expect(pending).toContain("can't be opened after 30 minutes");
+      expect(pending).toContain("ATLAS refuses to open them after 30 minutes");
       expect(verifyRefusal({ state: "capped-plan", cleanup: "pending" })[0]).toBe(429);
       expect(verifyRefusal({ state: "expired" })[1]).not.toContain("deleted");
     });

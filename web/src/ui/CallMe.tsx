@@ -203,7 +203,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
             </>
           )}
           {msg && <p role="alert" className="mt-2 text-sm font-bold text-peach-deep">{msg}</p>}
-          <p className="mt-3 text-xs font-semibold text-ink/70">Your number and plan text are kept encrypted while your call is in progress and deleted when it ends. They can&apos;t be opened after 30 minutes in any case.</p>
+          <p className="mt-3 text-xs font-semibold text-ink/70">Your number and plan text are stored encrypted while your call is in progress and deleted from our database when it ends. ATLAS refuses to open them after 30 minutes, and if a delete fails, our cleanup (every 5 minutes) removes them later.</p>
         </div>
       )}
     </>

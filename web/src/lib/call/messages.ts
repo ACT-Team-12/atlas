@@ -39,12 +39,13 @@ const REFUSED: Record<string, [number, string]> = {
 /**
  * What the verify step tells the person when it refuses. It says the number and plan were deleted only when that
  * write was confirmed; otherwise it says plainly that deletion could not be confirmed. It promises no deletion time
- * (an outage can delay deletion), only the read limit the encryption itself enforces (lib/call/seal.ts).
+ * (an outage can delay deletion). The 30-minute limit is ATLAS refusing to open the data (lib/call/seal.ts checks the
+ * expiry); the key is long-lived, so it is not cryptographic erasure and is never described as one.
  */
 export function verifyRefusal(r: Exclude<VerifyOutcome, { state: "calling" } | { state: "wrong" }>): [number, string] {
   const [status, base] = REFUSED[r.state];
   if (!("cleanup" in r)) return [status, base];
   return [status, r.cleanup === "done"
     ? `${base} Your number and plan were deleted.`
-    : `${base} We couldn't confirm that your number and plan are gone yet; we'll delete them automatically. They can't be opened after ${SESSION_TTL_MS / 60_000} minutes, even if our database is down, and are deleted once it is back.`];
+    : `${base} We couldn't confirm that your number and plan are gone yet. They are stored encrypted, ATLAS refuses to open them after ${SESSION_TTL_MS / 60_000} minutes, and our cleanup (every 5 minutes) deletes them once it can.`];
 }

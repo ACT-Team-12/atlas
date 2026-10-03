@@ -5,7 +5,9 @@ import { subKey } from "./config";
  * Encryption for what a call needs for a few minutes: the phone number, the plan's read-aloud text, its token and
  * the voice MP3. AES-256-GCM with a key derived from ATLAS_CALL_SECRET. The additional data binds each value to its
  * field, its call session and its expiry, so a value cannot be moved to another session or kept past its time by
- * editing the expiry: past `exp` it refuses to open even if the row has not been swept from Postgres yet.
+ * editing the expiry: past `exp` it refuses to open even if the row has not been swept from Postgres yet. That is an
+ * application check, not cryptographic erasure: the key is long-lived, so the user-facing copy says "ATLAS refuses to
+ * open them after 30 minutes" and never that the encryption itself stops them being opened (claims.test.ts).
  */
 export const SEAL_VERSION = "v1";
 

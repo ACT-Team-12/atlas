@@ -42,7 +42,7 @@ export default function PrivacyPage() {
             <Block title="Phone calls (Call me with my plan)">
               <p>Only enter your own number. ATLAS calls only after you type a number and tick the box: first a short call that says a 4-digit code, then, once you type that code, a call that asks for the same code on the keypad before it reads your plan, so voicemail or anyone else who answers hears only &quot;This is ATLAS&quot; and a request for a code, nothing about your plan.</p>
               <p>While your call is in progress, our server holds your number, the plan text and the voice recording of it, all encrypted, plus the last 4 digits of your number in plain text so this page can show which phone it is calling. The calls go through Vonage, our phone provider, which gets your number and plays the call and keeps its own record of it (number, time and length). The natural voice, when it is used, is made by ElevenLabs from your plan text; otherwise Vonage reads it.</p>
-              <p>After the call ends, or once a code has gone unused for 10 minutes, all of that is deleted (our cleanup runs every few minutes): what is left is only whether the call finished or was missed, with nothing about you, and that is deleted later too. If our database is down at that moment, deletion waits until it is back, but the encryption itself stops your number and plan being opened after 30 minutes.</p>
+              <p>When the call ends, or once a code has gone unused for 10 minutes, your number, plan text and recording are deleted from our database. What is left is only whether the call finished or was missed, with nothing about you, and our cleanup deletes that too. The cleanup runs every 5 minutes. Your number and plan are stored encrypted, and ATLAS refuses to open them after 30 minutes. If a delete fails (for example, our database is down), the cleanup removes them once it can.</p>
               <p>To limit calls, we count them per number and per network for up to 2 days, under a scrambled key that is not your number or address.</p>
             </Block>
             <Block title="What stays on your device">
@@ -60,7 +60,7 @@ export default function PrivacyPage() {
               <p>ATLAS explains your paper and helps you plan around what gets in the way. It does not diagnose or change your care. Check with your doctor or clinic before changing anything, and if you have a warning sign from your paper, call your clinic or 911.</p>
             </Block>
             <Block title="Questions or deletion">
-              <p>We do not keep your paper or plan, except while a phone call you asked for is in progress: then the plan is held encrypted, never readable past 30 minutes, and deleted when the call ends. So there is nothing on our side to delete. Your saved plan is removed with Clear it from this device. Questions: reach Team 12 through the ATL Innovation Cup organizers.</p>
+              <p>We do not keep your paper or plan, except while a phone call you asked for is in progress: then the plan is stored encrypted, ATLAS refuses to open it after 30 minutes, and it is deleted when the call ends. So there is nothing on our side to delete. Your saved plan is removed with Clear it from this device. Questions: reach Team 12 through the ATL Innovation Cup organizers.</p>
             </Block>
           </div>
         </section>

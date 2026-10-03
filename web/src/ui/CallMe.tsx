@@ -66,6 +66,15 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   const panelId = useId();
   const polls = useRef(0);
   const text = speechText(plan);
+  // The plan this panel's call belongs to. A response that comes back after the plan changed (or the panel went away)
+  // is dropped, so a call session can never carry over to another plan. The state reset itself comes from the parent
+  // keying this panel by the plan (lib/call/callKey.ts), which remounts it empty.
+  const owner = `${language}:${plan.speak_token ?? ""}:${text}`;
+  const current = useRef(owner);
+  useEffect(() => {
+    current.current = owner;
+    return () => { current.current = ""; };
+  }, [owner]);
 
   useEffect(() => {
     let alive = true;
@@ -84,27 +93,30 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
       if (++polls.current > 120) return;
       try {
         const r = await post("/api/call/status", { id });
-        if (r.ok) setSt((await r.json()) as Status);
+        const j = r.ok ? ((await r.json()) as Status) : null;
+        if (j && current.current === owner) setSt(j);
       } catch {}
     }, 3000);
     return () => clearTimeout(timer);
-  }, [id, live, st]);
+  }, [id, live, st, owner]);
 
   if (!cfg?.enabled || !plan.speak_token) return null;
 
   async function send(e: FormEvent, url: string, body: unknown, next: (j: Record<string, unknown>) => void) {
     e.preventDefault();
+    const mine = owner;
     setBusy(true);
     setMsg("");
     try {
       const r = await post(url, body);
       const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+      if (current.current !== mine) return; // the plan changed while this was in flight: not this plan's call
       if (!r.ok) throw new Error(typeof j.error === "string" ? j.error : "Something went wrong. Try again.");
       next(j);
     } catch (err) {
-      setMsg((err as Error).message);
+      if (current.current === mine) setMsg((err as Error).message);
     } finally {
-      setBusy(false);
+      if (current.current === mine) setBusy(false);
     }
   }
 

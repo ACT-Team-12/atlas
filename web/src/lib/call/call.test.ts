@@ -854,6 +854,17 @@ describe("the call flow", () => {
       expect(startRefusal("no-db")[1]).toContain("Nothing was saved"); // only when the delete was confirmed
     });
 
+    it("an insert error after the row was saved tries the delete, and says kept only when the delete also fails", async () => {
+      store.failAfterInsert = true;
+      expect(await startCall(deps(), input())).toEqual({ state: "no-db" });
+      expect(store.rows.size).toBe(0); // deleted, so "nothing was saved" is true
+      store.failDrops = true;
+      expect(await startCall(deps(), input())).toEqual({ state: "no-db", kept: true });
+      expect(store.rows.size).toBe(1);
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(startRefusal("no-db", true)[1]).not.toMatch(/can't be opened|encryption/); // no cryptographic-expiry claim
+    });
+
     it("a counter the database cannot reach is an outage, never a cap: starting says no-db and places no call", async () => {
       store.failSlots = true;
       expect((await startCall(deps(), input())).state).toBe("no-db");

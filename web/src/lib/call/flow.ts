@@ -125,7 +125,9 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
     expires_at: new Date(exp),
   }, now);
   if (started === "in-flight") return { state: "in-flight" };
-  if (started === "error") return { state: "no-db" };
+  // An error can come after the insert committed (a dropped connection), so try the delete and say "kept" unless it
+  // is confirmed.
+  if (started === "error") return (await store.drop(id)) ? { state: "no-db" } : { state: "no-db", kept: true };
 
   const slots = [
     { key: `gap:${hash}`, cap: 1, ttlMs: CODE_CALL_GAP_MS, why: "too-soon" as const },

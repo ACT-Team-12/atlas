@@ -39,6 +39,9 @@ export class MemoryCallStore implements CallStore {
     return true;
   }
 
+  /** While true, startCode saves the row and then reports "error", as a connection dropped after commit would. */
+  failAfterInsert = false;
+
   async startCode(s: NewSession, now: number) {
     try { this.boom(); } catch { return "error" as const; }
     for (const r of this.rows.values()) {
@@ -49,7 +52,7 @@ export class MemoryCallStore implements CallStore {
     this.rows.set(s.id, {
       ...s, phase: "code", attempts: 0, code_status: null, plan_status: null, plan_mode: null, note: null, code_uuid: null, plan_uuid: null, placed_at: null, sealed_audio: null, has_audio: false, created_at: new Date(now),
     });
-    return "ok" as const;
+    return this.failAfterInsert ? "error" as const : "ok" as const;
   }
 
   /** While true, drop fails as a database outage would (returns false, keeps the row). */

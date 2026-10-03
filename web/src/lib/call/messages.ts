@@ -22,7 +22,7 @@ const START_REFUSED: Record<Exclude<StartOutcome["state"], "calling">, [number, 
   "no-db": [503, "Calls are not available right now. Nothing was saved and no call was placed."],
   failed: [502, "The code call could not be placed. Check the number and try again."],
 };
-const NO_DB_KEPT: [number, string] = [503, `Calls are not available right now. No call was placed. Your number and plan were saved encrypted for the call and we couldn't confirm they were deleted; they can't be opened after ${SESSION_TTL_MS / 60_000} minutes and are deleted automatically.`];
+const NO_DB_KEPT: [number, string] = [503, `Calls are not available right now. No call was placed. Your number and plan were saved encrypted for the call and we couldn't confirm they were deleted. ATLAS refuses to open them after ${SESSION_TTL_MS / 60_000} minutes, and our cleanup deletes them once our database is back.`];
 /** `kept` (start's no-db with a delete that was not confirmed) replaces "Nothing was saved" with what is true. */
 export const startRefusal = (state: Exclude<StartOutcome["state"], "calling">, kept = false): [number, string] =>
   state === "no-db" && kept ? NO_DB_KEPT : START_REFUSED[state];

@@ -4,10 +4,11 @@ import { issueSpeakToken } from "../speakToken";
 import { callConfig, normalizePem, publicBaseUrl, signTicket, verifyTicket, type CallConfig } from "./config";
 import { audioFor, CODE_CALL_GAP_MS, CODE_CALLS_PER_HOUR, CODE_CALLS_PER_IP, CODE_CALLS_PER_NUMBER, handleEvent, handleInput, publicStatus, startCall, verifyAndCall, type Deps } from "./flow";
 import { MemoryCallStore } from "./memoryStore";
+import { verifyRefusal } from "./messages";
 import { canCallIn, codeNcco, MAX_REPLAYS, planLengthSeconds, planNcco, talkChunks, TALK_CHUNK, VONAGE_TTS } from "./ncco";
 import { last4, parseUsPhone, phoneHash } from "./phone";
 import { open, openText, seal } from "./seal";
-import { reserveSlots, UNCONFIRMED_PLAN_MS } from "./store";
+import { PREPARING_MAX_MS, reserveSlots, UNCONFIRMED_PLAN_MS } from "./store";
 import { placeCall, vonageJwt } from "./vonage";
 import { verifyVonageJwt } from "./webhook";
 
@@ -658,6 +659,61 @@ describe("the call flow", () => {
     expect(await audioFor({ store, cfg, now: at }, { k: id, p: "audio", exp: at + 60_000 })).toBeNull();
     truth.set("call-2", { status: "answered" });
     expect((await handleInput(hk({ now: at }), { k: id, p: "input", n: 0, exp: at + 60_000 }, "1", "call-2")).map((a) => a.action)).toEqual(["talk"]);
+  });
+
+  describe("never claims the number and plan were deleted unless that write was confirmed", () => {
+    beforeEach(() => { vi.spyOn(console, "error").mockImplementation(() => {}); });
+    const wipeFails = () => { store.failWhen = (p) => p.phase === "failed"; };
+
+    it.each([
+      ["token", async () => { const row = [...store.rows.values()][0]; row.sealed_text = seal(SECRET, "text", row.id, row.expires_at.getTime(), "Other."); }],
+      ["capped-plan", async () => { store.counters.set(`plan:${phoneHash(SECRET, "+14045552368")}:2026-10-02`, 3); }],
+      ["capped-site", async () => { store.counters.set("site:2026-10-02", 40); }],
+      ["failed", async () => { fetchImpl = vi.fn(async () => new Response("no", { status: 400 })); }],
+      ["failed", async () => { const row = [...store.rows.values()][0]; row.sealed_phone = Buffer.from([1, 2, 3]); }],
+    ] as const)("%s with a failed wipe reports cleanup pending, and confirmed when the wipe lands", async (state, breakIt) => {
+      const id = await started();
+      await breakIt();
+      wipeFails();
+      expect(await verifyAndCall(deps(), { id, code: "4821" })).toEqual({ state, cleanup: "pending" });
+    });
+
+    it("tells the person about deletion only as far as it was confirmed", () => {
+      expect(verifyRefusal({ state: "failed", cleanup: "done" })[1]).toContain("Your number and plan were deleted.");
+      const pending = verifyRefusal({ state: "failed", cleanup: "pending" })[1];
+      expect(pending).not.toContain("were deleted.");
+      expect(pending).toContain("couldn't confirm");
+      expect(pending).toMatch(/within 10 minutes/);
+      expect(verifyRefusal({ state: "capped-plan", cleanup: "pending" })[0]).toBe(429);
+      expect(verifyRefusal({ state: "expired" })[1]).not.toContain("deleted");
+    });
+
+    it("reports cleanup confirmed when the wipe is written", async () => {
+      const id = await started();
+      fetchImpl = vi.fn(async () => new Response("no", { status: 400 }));
+      expect(await verifyAndCall(deps(), { id, code: "4821" })).toEqual({ state: "failed", cleanup: "done" });
+      expect(store.rows.get(id)!.sealed_text).toBeNull();
+    });
+
+    it("a failed audio write with a failed wipe reports cleanup pending", async () => {
+      const id = await started();
+      store.failWhen = (p) => p.sealed_audio !== undefined || p.phase === "failed";
+      expect(await verifyAndCall(deps(), { id, code: "4821" })).toEqual({ state: "failed", cleanup: "pending" });
+    });
+
+    it("a session left preparing (wipe never landed) is unreadable after 5 minutes and swept", async () => {
+      const id = await started();
+      fetchImpl = vi.fn(async () => new Response("no", { status: 400 }));
+      wipeFails();
+      await verifyAndCall(deps(), { id, code: "4821" });
+      expect(store.rows.get(id)!.phase).toBe("calling"); // the wipe did not land
+      store.failWhen = undefined;
+      const later = NOW + PREPARING_MAX_MS + 1000;
+      expect((await store.get(id, later))?.sealed_text).toBeNull();
+      await store.sweep(later);
+      const row = store.rows.get(id)!;
+      expect([row.phase, row.sealed_phone, row.sealed_text]).toEqual(["failed", null, null]);
+    });
   });
 
   it("is gone after 30 minutes", async () => {

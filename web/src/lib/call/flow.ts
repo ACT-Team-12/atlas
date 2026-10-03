@@ -148,7 +148,8 @@ export async function startCall(deps: Deps, input: StartInput): Promise<StartOut
 export type VerifyOutcome =
   | { state: "calling"; last4: string | null; mode: "stream" | "talk"; /** Vonage did not confirm the call; it may still ring. */ uncertain?: true }
   | { state: "wrong"; attemptsLeft: number }
-  | { state: "expired" | "token" | "capped-plan" | "capped-site" | "failed" | "no-db" };
+  | { state: "token" | "capped-plan" | "capped-site" | "failed"; /** Whether the wipe of the number and plan was confirmed written. */ cleanup: "done" | "pending" }
+  | { state: "expired" | "no-db" };
 
 export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unknown }): Promise<VerifyOutcome> {
   const { store, cfg } = deps;
@@ -167,12 +168,15 @@ export async function verifyAndCall(deps: Deps, input: { id: unknown; code: unkn
     return left > 0 ? { state: "wrong", attemptsLeft: left } : { state: "expired" };
   }
   // Exactly one request moves a session past its code.
-  const moved = await store.update(id, { phase: "calling", code_hash: null }, ["code"]);
+  const moved = await store.update(id, { phase: "calling", code_hash: null, placed_at: new Date(now) }, ["code"]);
   if (moved === "error") return { state: "no-db" };
   if (moved !== "updated") return { state: "expired" };
+  // "done" only when the wipe was written. Otherwise the session stays "preparing" and is wiped by the sweep after
+  // PREPARING_MAX_MS (and refused at read time from then on), so the person is never told it was deleted when it wasn't.
   const fail = async (state: "token" | "capped-plan" | "capped-site" | "failed", note: string) => {
-    await store.update(id, { ...WIPE, phase: "failed", note }, ["calling"]);
-    return { state } as const;
+    const wiped = await store.update(id, { ...WIPE, phase: "failed", note }, ["calling"]);
+    if (wiped !== "updated") console.error("call wipe not confirmed", wiped);
+    return { state, cleanup: wiped === "updated" ? "done" : "pending" } as const;
   };
 
   const language = LANGUAGES.find((l) => l === row.language);

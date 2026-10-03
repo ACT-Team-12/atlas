@@ -1,4 +1,4 @@
-import { refuseStale, CODE_ATTEMPTS, COUNTER_TTL_MS, PLAN_CALL_MAX_MS, UNCONFIRMED_PLAN_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
+import { refuseStale, CODE_ATTEMPTS, COUNTER_TTL_MS, PLAN_CALL_MAX_MS, PREPARING_MAX_MS, UNCONFIRMED_PLAN_MS, type CallStore, type NewSession, type Phase, type SessionPatch, type SessionRow } from "./store";
 
 /**
  * An in-memory CallStore with the same rules as PgCallStore (one live code per number, atomic attempts, capped
@@ -12,6 +12,8 @@ export class MemoryCallStore implements CallStore {
   failNext = false;
   /** While true, every update fails as a database outage would ("error"). */
   failUpdates = false;
+  /** Fails (as "error") only the updates this picks out. */
+  failWhen?: (patch: SessionPatch) => boolean;
 
   private boom() { if (this.failNext) { this.failNext = false; throw new Error("db down"); } }
 
@@ -25,7 +27,7 @@ export class MemoryCallStore implements CallStore {
     }
     for (const r of this.rows.values()) {
       const at = r.placed_at?.getTime();
-      if (r.phase === "calling" && at !== undefined && ((r.plan_status === "unknown" && at < now - UNCONFIRMED_PLAN_MS) || at < now - PLAN_CALL_MAX_MS)) {
+      if (r.phase === "calling" && at !== undefined && ((r.plan_status === "unknown" && at < now - UNCONFIRMED_PLAN_MS) || at < now - PLAN_CALL_MAX_MS || (r.plan_status === null && at < now - PREPARING_MAX_MS))) {
         Object.assign(r, { phase: "failed", note: "plan call not confirmed", code_hash: null, last4: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null });
       }
     }
@@ -77,7 +79,7 @@ export class MemoryCallStore implements CallStore {
   }
 
   async update(id: string, patch: SessionPatch, onlyIf?: Phase[]) {
-    if (this.failUpdates) return "error" as const;
+    if (this.failUpdates || this.failWhen?.(patch)) return "error" as const;
     const r = this.rows.get(id);
     if (!r || (onlyIf?.length && !onlyIf.includes(r.phase))) return "phase_changed" as const;
     Object.assign(r, patch);

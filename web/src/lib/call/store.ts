@@ -14,6 +14,11 @@ export const CODE_TTL_MS = 10 * 60_000;
 export const CODE_ATTEMPTS = 3;
 /** A plan call whose placing could not be confirmed (Vonage timed out) and that no event has confirmed since is wiped after this. */
 export const UNCONFIRMED_PLAN_MS = 5 * 60_000;
+/**
+ * A session whose code was typed but whose plan call was never recorded as placed (the request died, or its own wipe
+ * could not be written) is wiped after this. placed_at holds the moment the code was typed until the call is placed.
+ */
+export const PREPARING_MAX_MS = 5 * 60_000;
 /** A placed plan call can ring 45 s and last 15 min (length_timer); past this its data is wiped even if no event came. */
 export const PLAN_CALL_MAX_MS = 17 * 60_000;
 export const COUNTER_TTL_MS = 2 * 24 * 60 * 60_000;
@@ -38,7 +43,7 @@ export type SessionRow = {
   /** The Vonage call UUIDs returned by POST /v1/calls (or bound by the call's first event); callbacks must match. */
   code_uuid: string | null;
   plan_uuid: string | null;
-  /** When the plan call was placed (or its placing was attempted and could not be confirmed). */
+  /** When the plan call was placed (or its placing could not be confirmed); before that, when the code was typed. */
   placed_at: Date | null;
   sealed_phone: Buffer | null;
   sealed_text: Buffer | null;
@@ -50,7 +55,7 @@ export type SessionRow = {
 };
 
 export type NewSession = Pick<SessionRow, "id" | "phone_hash" | "last4" | "language" | "code_hash" | "code_expires_at" | "sealed_phone" | "sealed_text" | "sealed_token" | "expires_at">;
-export type SessionPatch = Partial<Pick<SessionRow, "last4" | "phase" | "code_hash" | "code_status" | "plan_status" | "plan_mode" | "note" | "code_uuid" | "plan_uuid" | "sealed_phone" | "sealed_text" | "sealed_token">> & { sealed_audio?: Buffer | null };
+export type SessionPatch = Partial<Pick<SessionRow, "last4" | "phase" | "code_hash" | "code_status" | "plan_status" | "plan_mode" | "note" | "code_uuid" | "plan_uuid" | "placed_at" | "sealed_phone" | "sealed_text" | "sealed_token">> & { sealed_audio?: Buffer | null };
 
 /** Clears everything sensitive a session holds. Used when a call ends or a session can go no further. */
 export const WIPE: SessionPatch = { last4: null, sealed_phone: null, sealed_text: null, sealed_token: null, sealed_audio: null, code_hash: null };
@@ -169,19 +174,21 @@ export async function ensureSchema(db: Q): Promise<boolean> {
 
 /**
  * Read-time retention: whatever the sweep has or has not done yet, a session past its limits never hands out its
- * encrypted data. A code nobody typed within 10 minutes, a plan call Vonage never confirmed within 5, or any plan call
+ * encrypted data. A code nobody typed within 10 minutes, a typed code whose plan call was not placed within 5, a plan
+ * call Vonage never confirmed within 5, or any plan call
  * past its longest possible length reads as wiped (and the row itself is invisible past 30 minutes).
  */
 export function refuseStale(row: SessionRow, now: number): SessionRow {
   const placed = row.placed_at?.getTime();
   const codeOver = row.phase === "code" && (row.code_expires_at?.getTime() ?? 0) <= now;
   const planOver = row.phase === "calling" && placed !== undefined
-    && ((row.plan_status === "unknown" && placed < now - UNCONFIRMED_PLAN_MS) || placed < now - PLAN_CALL_MAX_MS);
+    && ((row.plan_status === "unknown" && placed < now - UNCONFIRMED_PLAN_MS) || placed < now - PLAN_CALL_MAX_MS
+      || (row.plan_status === null && placed < now - PREPARING_MAX_MS));
   return codeOver || planOver ? { ...row, code_hash: null, last4: null, sealed_phone: null, sealed_text: null, sealed_token: null, has_audio: false } : row;
 }
 
 const COLS = "id, phone_hash, last4, language, phase, code_hash, attempts, code_expires_at, code_status, plan_status, plan_mode, note, code_uuid, plan_uuid, placed_at, sealed_phone, sealed_text, sealed_token, (sealed_audio is not null) as has_audio, created_at, expires_at";
-const PATCHABLE = new Set(["last4", "phase", "code_hash", "code_status", "plan_status", "plan_mode", "note", "code_uuid", "plan_uuid", "sealed_phone", "sealed_text", "sealed_token", "sealed_audio"]);
+const PATCHABLE = new Set(["last4", "phase", "code_hash", "code_status", "plan_status", "plan_mode", "note", "code_uuid", "plan_uuid", "placed_at", "sealed_phone", "sealed_text", "sealed_token", "sealed_audio"]);
 const logErr = (what: string, e: unknown) => console.error(what, e instanceof Error ? e.name : typeof e); // never values
 
 export class PgCallStore implements CallStore {
@@ -200,8 +207,8 @@ export class PgCallStore implements CallStore {
       // A plan call Vonage never confirmed (placing timed out, no event since), or one past its longest possible length.
       await this.db.query(
         `update atlas_calls set phase = 'failed', note = 'plan call not confirmed', code_hash = null, last4 = null, sealed_phone = null, sealed_text = null, sealed_token = null, sealed_audio = null
-         where phase = 'calling' and ((plan_status = 'unknown' and placed_at < $1) or placed_at < $2)`,
-        [new Date(now - UNCONFIRMED_PLAN_MS), new Date(now - PLAN_CALL_MAX_MS)],
+         where phase = 'calling' and ((plan_status = 'unknown' and placed_at < $1) or placed_at < $2 or (plan_status is null and placed_at < $3))`,
+        [new Date(now - UNCONFIRMED_PLAN_MS), new Date(now - PLAN_CALL_MAX_MS), new Date(now - PREPARING_MAX_MS)],
       );
       await this.db.query("delete from atlas_call_counters where expires_at < $1", [at]);
       return true;

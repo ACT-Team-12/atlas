@@ -1,20 +1,13 @@
 import { guard } from "@/lib/guard";
 import { callConfig } from "@/lib/call/config";
 import { verifyAndCall } from "@/lib/call/flow";
+import { verifyRefusal } from "@/lib/call/messages";
 import { callStore } from "@/lib/call/store";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 const NO_STORE = { "cache-control": "no-store" };
-const REFUSED: Record<string, [number, string]> = {
-  expired: [410, "That code expired or used its 3 tries. Ask for a new call."],
-  token: [403, "This plan can't be read on a call any more. Make the plan again, then try."],
-  "capped-plan": [429, "This number already got 3 plan calls today. Try again tomorrow."],
-  "capped-site": [429, "ATLAS has made all of today's calls. Try again tomorrow."],
-  "no-db": [503, "Calls are not available right now. Try again in a minute."],
-  failed: [502, "The plan call could not be placed. Your number and plan were deleted. Try again."],
-};
 
 /** POST { id, code }: step 2. The right code places the plan call right away. */
 export async function POST(request: Request) {
@@ -32,6 +25,6 @@ export async function POST(request: Request) {
     const left = r.attemptsLeft;
     return Response.json({ error: `That code is not right. ${left} ${left === 1 ? "try" : "tries"} left.`, attempts_left: left }, { status: 400, headers: NO_STORE });
   }
-  const [status, error] = REFUSED[r.state];
+  const [status, error] = verifyRefusal(r);
   return Response.json({ error }, { status, headers: NO_STORE });
 }

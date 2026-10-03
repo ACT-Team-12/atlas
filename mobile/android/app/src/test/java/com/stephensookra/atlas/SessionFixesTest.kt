@@ -108,6 +108,18 @@ class SessionFixesTest {
         assertTrue(SessionStore(dir).load()!!.savedAt >= before)
     }
 
+    // ---- Bug 3: read aloud followed the new language
+
+    @Test fun readAloudUsesTheLanguageTheStepsWereWrittenIn() {
+        val dir = tempDir(); legacyFile(dir, savedAt = 1_000L)
+        val model = AppModel(TestApp(dir))
+        assertEquals(Language.Spanish, model.stepsLanguage)
+        model.applyHelperLink(HelperPresets(language = Language.Vietnamese))
+        assertTrue(model.careOutdated)
+        assertEquals("the Spanish steps are still read in Spanish", Language.Spanish, model.stepsLanguage)
+        assertEquals(Language.Vietnamese, model.language)
+    }
+
     // ---- Missed lines follow Remove and Undo
 
     @Test fun missedLinesFollowRemoveAndUndo() {

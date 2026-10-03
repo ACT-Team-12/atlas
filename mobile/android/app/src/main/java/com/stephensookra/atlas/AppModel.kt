@@ -120,6 +120,12 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     /** "Lines on your paper we didn't turn into steps", for the steps still kept: follows every Remove and Undo. */
     val missedLines: MissedLinesView get() = MissedLines.view(care?.missed_lines, items.map { it.id })
 
+    /**
+     * The language the steps on screen were written in, for reading them aloud. While the steps are outdated it is still
+     * theirs, not the language just picked, so a Spanish plan is never read with a Vietnamese voice.
+     */
+    val stepsLanguage: Language get() = care?.language ?: language
+
     /** The steps on screen were read from different text, language or reading level than what is entered now. */
     val careOutdated: Boolean get() = care != null && readFp != null && readFp != StaleGuard.readFingerprint(text, language, level)
 

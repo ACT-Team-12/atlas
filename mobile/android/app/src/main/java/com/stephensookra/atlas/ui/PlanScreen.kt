@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Share
 import android.content.Intent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,13 +54,14 @@ fun PlanScreen(model: AppModel) {
     // Every grounded step the plan could point at, removed or not: a plan step's paper quote never drops out.
     val planItems = model.care?.items.orEmpty().filter { it.grounded }
     val outdated = model.planOutdated
+    LaunchedEffect(outdated) { if (outdated) speaker.stop() }
     ScreenBody {
         ScreenTitle("Your plan", plan.located.label)
         MedicalNote()
         if (outdated) {
             OutdatedNote(
-                if (model.careOutdated) "You changed your paper's text, language or reading level since this plan was made. Read your paper again first; until then sharing and reminders are off."
-                else "You changed your steps, barriers, language, note or place since this plan was made. Update the plan; until then sharing and reminders are off."
+                if (model.careOutdated) "You changed your paper's text, language or reading level since this plan was made. Read your paper again first; until then reading aloud, sharing and reminders are off."
+                else "You changed your steps, barriers, language, note or place since this plan was made. Update the plan; until then reading aloud, sharing and reminders are off."
             )
             if (!model.careOutdated) PillButton("Update the plan", onClick = { speaker.stop(); model.makePlan() },
                 fill = Palette.ink, textColor = Palette.paper, shadow = Palette.mint)
@@ -68,7 +70,8 @@ fun PlanScreen(model: AppModel) {
         Text(PaperFirst.PLAN_IS_A_SUGGESTION, style = Type.caption)
         Text(plan.summary, style = Type.title3.copy(fontWeight = FontWeight.SemiBold, fontSize = 19.sp))
         // The plan is a suggestion and never certified: each step is followed by the paper's own words for it.
-        ReadAloudBar(speaker, model.language, PaperFirst.planSpeechLines(plan, planItems))
+        // Off while outdated, like the website: the plan was built in a language that may no longer be the one picked.
+        if (!outdated) ReadAloudBar(speaker, model.language, PaperFirst.planSpeechLines(plan, planItems))
         val context = LocalContext.current
         if (!outdated) OutlinePill("Send to family", onClick = {
             val text = ShareText.plan(model.items, plan, model.care?.questions_for_doctor.orEmpty(), model.meaning, planItems)

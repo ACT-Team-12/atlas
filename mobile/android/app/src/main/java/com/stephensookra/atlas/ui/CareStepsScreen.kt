@@ -78,7 +78,7 @@ fun CareStepsScreen(model: AppModel) {
             else -> {}
         }
         // Paper first: read aloud carries an explanation only when it was certified; otherwise the paper's words.
-        ReadAloudBar(speaker, model.language, items.flatMapIndexed { i, it ->
+        ReadAloudBar(speaker, model.stepsLanguage, items.flatMapIndexed { i, it ->
             listOf("${i + 1}.") + PaperFirst.lines(PaperFirst.careStep(it, model.checkFor(it.id)))
         })
 

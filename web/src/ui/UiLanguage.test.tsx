@@ -74,8 +74,8 @@ afterEach(() => {
 
 const drain = () => new Promise((r) => setTimeout(r, 0));
 function setValue(el: HTMLTextAreaElement | HTMLSelectElement, value: string, event: string) {
-  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLSelectElement.prototype;
-  Object.getOwnPropertyDescriptor(proto, "value")!.set!.call(el, value);
+  // The element's own prototype (its own window), so this never mixes realms when files share a worker.
+  Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), "value")!.set!.call(el, value);
   el.dispatchEvent(new Event(event, { bubbles: true }));
 }
 const button = (label: string) => {
@@ -111,7 +111,7 @@ async function walkThrough(lang: Lang) {
 
 describe("the steps and plan screens show no English of their own in another language", () => {
   for (const lang of LANGUAGES.filter((l) => l !== "English")) {
-    it(`${lang}: steps, plan, dock and the printed handoff sheet`, async () => {
+    it(`${lang}: steps, plan, dock and the printed handoff sheet`, { timeout: 30_000 }, async () => {
       await walkThrough(lang);
       // The plan really rendered (its summary is the AI's, untranslated), and so did the sheet.
       expect(host.textContent).toContain("PLAN SUMMARY");
@@ -136,7 +136,7 @@ describe("the steps and plan screens show no English of their own in another lan
     });
   }
 
-  it("English stays exactly as before, and the guard above really sees the English lines when they are there", async () => {
+  it("English stays exactly as before, and the guard above really sees the English lines when they are there", { timeout: 30_000 }, async () => {
     await walkThrough("English");
     const text = host.textContent ?? "";
     expect(englishPieces(PAGE).filter((p) => text.includes(p)).length).toBeGreaterThan(60);

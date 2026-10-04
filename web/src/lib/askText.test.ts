@@ -57,11 +57,11 @@ describe("Ask my paper strings", () => {
 describe("ready question when the paper doesn't say", () => {
   it("is built only from the person's own question and fixed words", () => {
     const a = askAboutQuestion("  can I   drink alcohol? ", "English");
-    expect(a).toEqual({ who: "clinic", label: "A question ready to ask", question: 'My visit paper doesn\'t answer this: "can I drink alcohol?" Can you help me?' });
+    expect(a).toEqual({ who: "clinic", label: "A question ready to ask", question: 'I couldn\'t find the answer to this in my visit paper: "can I drink alcohol?" Can you help me?' });
   });
 
   it("uses the person's language for the fixed words", () => {
-    expect(askAboutQuestion("¿puedo manejar?", "Spanish").question).toBe('Mi papel de la visita no responde esto: "¿puedo manejar?" ¿Me puede ayudar?');
+    expect(askAboutQuestion("¿puedo manejar?", "Spanish").question).toBe('No encontré la respuesta a esto en mi papel de la visita: "¿puedo manejar?" ¿Me puede ayudar?');
   });
 });
 
@@ -71,6 +71,7 @@ describe("urgent questions never go to the AI", () => {
     ["English", "my chest hurts"],
     ["English", "I can't breathe"],
     ["English", "I think I took too many pills"],
+    ["English", "I swallowed the whole bottle"],
     ["Spanish", "tengo dolor en el pecho"],
     ["Spanish", "no puedo respirar"],
     ["Vietnamese", "tôi bị đau ngực"],

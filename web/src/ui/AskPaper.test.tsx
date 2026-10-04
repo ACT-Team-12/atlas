@@ -11,6 +11,8 @@ const text = "Return to clinic in 3 months. Call 911 if you have chest pain.";
 const care = { source_text: text, source_kind: "text" } as unknown as CarePlanResponse;
 const items = [
   { id: "w1", kind: "warning_sign", title: "AI title", source_quote: "Call 911 if you have chest pain.", grounded: true, span: { start: 30, end: 62 } },
+  // The model called this a warning sign, but its own words are not warning language: never listed as one.
+  { id: "w2", kind: "warning_sign", title: "AI title 2", source_quote: "Return to clinic in 3 months.", grounded: true, span: { start: 0, end: 29 } },
 ] as unknown as VerifiedItem[];
 
 let root: Root, host: HTMLDivElement;
@@ -55,7 +57,7 @@ describe("Ask my paper on screen", () => {
     await askIt("can I drink alcohol?");
     const r = host.querySelector("[data-ask-result=not_in_paper]")!;
     expect(r.textContent).toContain("Your paper doesn't say. Ask your clinic or pharmacist.");
-    expect(r.querySelector("[data-ask-question]")?.textContent).toBe('My visit paper doesn\'t answer this: "can I drink alcohol?" Can you help me?');
+    expect(r.querySelector("[data-ask-question]")?.textContent).toBe('I couldn\'t find the answer to this in my visit paper: "can I drink alcohol?" Can you help me?');
     expect(host.querySelector("[data-explanation]")).toBeNull();
     expect(host.querySelector("[data-ask-held]")?.textContent).toContain("2 quotes");
   });
@@ -68,12 +70,13 @@ describe("Ask my paper on screen", () => {
     expect(r.textContent).toContain("211");
     expect(r.textContent).toContain("Call 911 if you have chest pain.");
     expect(r.textContent).not.toContain("AI title");
+    expect(r.textContent).not.toContain("Return to clinic");
   });
 
-  it("shows a server refusal (rate limit) as an error, not an answer", async () => {
+  it("shows a server refusal (rate limit) as a localized error, not an answer and not the server's English", async () => {
     reply = { status: 429, body: { error: "You've made a lot of requests. Try again in about 10 minutes." } };
-    await askIt("can I drive?");
-    expect(host.querySelector("[role=alert]")?.textContent).toContain("a lot of requests");
+    await askIt("¿puedo manejar?", "Spanish");
+    expect(host.querySelector("[role=alert]")?.textContent).toBe("Demasiadas preguntas por ahora. Espere unos minutos e inténtelo de nuevo, o pregunte en su clínica o a su farmacéutico.");
     expect(host.querySelector("[data-ask-result]")).toBeNull();
   });
 

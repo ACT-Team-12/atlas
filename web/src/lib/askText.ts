@@ -37,6 +37,10 @@ export type AskStrings = {
   leadNote: string;
   held: (n: number) => string;
   error: string;
+  /** Too many requests (the per-IP window or the shared daily cap). */
+  busy: string;
+  /** The server could not answer at all (no AI key, the daily count can't be checked). */
+  unavailable: string;
 };
 
 export const ASK_TEXT: Record<Lang, AskStrings> = {
@@ -50,7 +54,7 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     refusal: "Your paper doesn't say. Ask your clinic or pharmacist.",
     readyLabel: "A question ready to ask",
     readyHint: "Show or read this to your clinic or pharmacist. It uses only your own question.",
-    readyQuestion: (q) => `My visit paper doesn't answer this: "${q}" Can you help me?`,
+    readyQuestion: (q) => `I couldn't find the answer to this in my visit paper: "${q}" Can you help me?`,
     copy: "Copy question",
     copied: "Copied",
     urgentTitle: "This may be an emergency",
@@ -60,6 +64,8 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     leadNote: "Plain words (not double-checked yet)",
     held: (n) => `${n} ${n === 1 ? "quote" : "quotes"} from the AI held back because the words were not found on your paper.`,
     error: "Something went wrong. Try again.",
+    busy: "Too many questions right now. Wait a few minutes and try again, or ask your clinic or pharmacist.",
+    unavailable: "Ask my paper is not available right now. Ask your clinic or pharmacist.",
   },
   // NATIVE REVIEW NEEDED (Spanish).
   Spanish: {
@@ -72,7 +78,7 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     refusal: "Su papel no lo dice. Pregunte en su clínica o a su farmacéutico.",
     readyLabel: "Una pregunta lista para hacer",
     readyHint: "Muestre o lea esto en su clínica o a su farmacéutico. Usa solo su propia pregunta.",
-    readyQuestion: (q) => `Mi papel de la visita no responde esto: "${q}" ¿Me puede ayudar?`,
+    readyQuestion: (q) => `No encontré la respuesta a esto en mi papel de la visita: "${q}" ¿Me puede ayudar?`,
     copy: "Copiar pregunta",
     copied: "Copiada",
     urgentTitle: "Esto puede ser una emergencia",
@@ -82,6 +88,8 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     leadNote: "En palabras sencillas (todavía sin doble revisión)",
     held: (n) => `${n} ${n === 1 ? "cita" : "citas"} de la IA no se mostraron porque esas palabras no están en su papel.`,
     error: "Algo salió mal. Inténtelo de nuevo.",
+    busy: "Demasiadas preguntas por ahora. Espere unos minutos e inténtelo de nuevo, o pregunte en su clínica o a su farmacéutico.",
+    unavailable: "Preguntarle a su papel no está disponible ahora. Pregunte en su clínica o a su farmacéutico.",
   },
   // NATIVE REVIEW NEEDED (Vietnamese).
   Vietnamese: {
@@ -94,7 +102,7 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     refusal: "Giấy của bạn không nói về điều này. Hãy hỏi phòng khám hoặc dược sĩ của bạn.",
     readyLabel: "Câu hỏi soạn sẵn",
     readyHint: "Đưa hoặc đọc câu này cho phòng khám hoặc dược sĩ. Câu này chỉ dùng câu hỏi của chính bạn.",
-    readyQuestion: (q) => `Giấy khám bệnh của tôi không trả lời điều này: "${q}" Bạn có thể giúp tôi không?`,
+    readyQuestion: (q) => `Tôi không tìm thấy câu trả lời cho điều này trong giấy khám bệnh của tôi: "${q}" Bạn có thể giúp tôi không?`,
     copy: "Sao chép câu hỏi",
     copied: "Đã sao chép",
     urgentTitle: "Đây có thể là trường hợp cấp cứu",
@@ -104,6 +112,8 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     leadNote: "Lời giải thích đơn giản (chưa được kiểm tra lại)",
     held: (n) => `${n} trích dẫn của AI đã bị giữ lại vì không tìm thấy những chữ đó trong giấy của bạn.`,
     error: "Đã có lỗi. Hãy thử lại.",
+    busy: "Hiện có quá nhiều câu hỏi. Hãy đợi vài phút rồi thử lại, hoặc hỏi phòng khám hay dược sĩ của bạn.",
+    unavailable: "Hiện chưa thể hỏi giấy của bạn. Hãy hỏi phòng khám hoặc dược sĩ của bạn.",
   },
   // NATIVE REVIEW NEEDED (Korean).
   Korean: {
@@ -116,7 +126,7 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     refusal: "서류에 나와 있지 않습니다. 병원이나 약사에게 문의하세요.",
     readyLabel: "바로 쓸 수 있는 질문",
     readyHint: "병원이나 약사에게 보여 주거나 읽어 주세요. 본인의 질문만 사용합니다.",
-    readyQuestion: (q) => `제 진료 서류에는 이 내용이 없습니다: "${q}" 도와주실 수 있나요?`,
+    readyQuestion: (q) => `제 진료 서류에서 이 질문의 답을 찾지 못했습니다: "${q}" 도와주실 수 있나요?`,
     copy: "질문 복사",
     copied: "복사됨",
     urgentTitle: "응급 상황일 수 있습니다",
@@ -126,6 +136,8 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     leadNote: "쉬운 설명 (아직 다시 확인되지 않음)",
     held: (n) => `서류에서 찾을 수 없는 AI 인용 ${n}개는 보여 드리지 않았습니다.`,
     error: "문제가 생겼습니다. 다시 시도하세요.",
+    busy: "지금은 질문이 너무 많습니다. 몇 분 뒤에 다시 시도하거나 병원이나 약사에게 문의하세요.",
+    unavailable: "지금은 서류에 물어볼 수 없습니다. 병원이나 약사에게 문의하세요.",
   },
   // NATIVE REVIEW NEEDED (Chinese, Simplified).
   Chinese: {
@@ -138,7 +150,7 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     refusal: "您的文件里没有写。请询问您的诊所或药剂师。",
     readyLabel: "可以直接问的问题",
     readyHint: "把这句话给诊所或药剂师看或读给他们听。它只用了您自己的问题。",
-    readyQuestion: (q) => `我的就诊文件没有回答这个问题："${q}" 您能帮我吗？`,
+    readyQuestion: (q) => `我在就诊文件里没有找到这个问题的答案："${q}" 您能帮我吗？`,
     copy: "复制问题",
     copied: "已复制",
     urgentTitle: "这可能是紧急情况",
@@ -148,6 +160,8 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     leadNote: "简单说明（尚未二次核对）",
     held: (n) => `有 ${n} 条 AI 引文因为在您的文件中找不到而未显示。`,
     error: "出了点问题。请再试一次。",
+    busy: "现在问题太多。请过几分钟再试，或询问您的诊所或药剂师。",
+    unavailable: "现在无法询问您的文件。请询问您的诊所或药剂师。",
   },
   // NATIVE REVIEW NEEDED (Amharic): highest priority for review.
   Amharic: {
@@ -160,7 +174,7 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     refusal: "ወረቀትዎ ይህን አይገልጽም። ክሊኒክዎን ወይም ፋርማሲስትዎን ይጠይቁ።",
     readyLabel: "ለመጠየቅ የተዘጋጀ ጥያቄ",
     readyHint: "ይህን ለክሊኒክዎ ወይም ለፋርማሲስትዎ ያሳዩ ወይም ያንብቡ። የራስዎን ጥያቄ ብቻ ይጠቀማል።",
-    readyQuestion: (q) => `የጉብኝት ወረቀቴ ይህን አይመልስም፦ "${q}" ሊረዱኝ ይችላሉ?`,
+    readyQuestion: (q) => `ለዚህ ጥያቄ መልሱን በጉብኝት ወረቀቴ ላይ ማግኘት አልቻልኩም፦ "${q}" ሊረዱኝ ይችላሉ?`,
     copy: "ጥያቄውን ቅዳ",
     copied: "ተቀድቷል",
     urgentTitle: "ይህ ድንገተኛ ሊሆን ይችላል",
@@ -170,6 +184,8 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     leadNote: "ቀላል ማብራሪያ (ገና ድጋሚ አልተረጋገጠም)",
     held: (n) => `በወረቀትዎ ላይ ስላልተገኙ ${n} የAI ጥቅሶች አልታዩም።`,
     error: "ችግር ተፈጥሯል። እንደገና ይሞክሩ።",
+    busy: "አሁን በጣም ብዙ ጥያቄዎች አሉ። ጥቂት ደቂቃዎች ጠብቀው እንደገና ይሞክሩ፣ ወይም ክሊኒክዎን ወይም ፋርማሲስትዎን ይጠይቁ።",
+    unavailable: "አሁን ወረቀትዎን መጠየቅ አይቻልም። ክሊኒክዎን ወይም ፋርማሲስትዎን ይጠይቁ።",
   },
   // NATIVE REVIEW NEEDED (French).
   French: {
@@ -182,7 +198,7 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     refusal: "Votre document ne le dit pas. Demandez à votre clinique ou à votre pharmacien.",
     readyLabel: "Une question prête à poser",
     readyHint: "Montrez ou lisez ceci à votre clinique ou à votre pharmacien. Elle reprend seulement votre propre question.",
-    readyQuestion: (q) => `Mon document de visite ne répond pas à ceci : "${q}" Pouvez-vous m'aider ?`,
+    readyQuestion: (q) => `Je n'ai pas trouvé la réponse à ceci dans mon document de visite : "${q}" Pouvez-vous m'aider ?`,
     copy: "Copier la question",
     copied: "Copiée",
     urgentTitle: "Cela peut être une urgence",
@@ -192,6 +208,8 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     leadNote: "En mots simples (pas encore vérifié une seconde fois)",
     held: (n) => `${n} ${n === 1 ? "citation" : "citations"} de l'IA retenue${n === 1 ? "" : "s"} car ces mots ne sont pas dans votre document.`,
     error: "Un problème est survenu. Réessayez.",
+    busy: "Trop de questions en ce moment. Attendez quelques minutes et réessayez, ou demandez à votre clinique ou à votre pharmacien.",
+    unavailable: "Interroger votre document n'est pas disponible pour le moment. Demandez à votre clinique ou à votre pharmacien.",
   },
 };
 
@@ -214,7 +232,7 @@ const S = String.raw`\s+`;
 const ASKED_URGENT = word(
   [
     // English
-    String.raw`chest${S}(?:hurts|is${S}hurting)|heart${S}attack|overdos\p{L}*|took${S}too${S}(?:many|much)`,
+    String.raw`chest${S}(?:hurts|is${S}hurting)|heart${S}attack|overdos\p{L}*|took${S}too${S}(?:many|much)|took${S}(?:all|the${S}whole)|swallowed${S}(?:all|the${S}whole|a${S}bottle)|whole${S}bottle`,
     String.raw`not${S}breathing|stopped${S}breathing|chok(?:ing|ed)|unconscious|won['’]?t${S}wake${S}up|bleeding${S}(?:a${S}lot|heavily)|won['’]?t${S}stop${S}bleeding`,
     String.raw`kill${S}(?:my|him|her)self|end${S}my${S}life|hurt${S}myself`,
     // Spanish

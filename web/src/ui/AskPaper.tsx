@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { AskResponse } from "@/lib/ask";
 import { askAboutQuestion, askText, isUrgentQuestion, MAX_QUESTION } from "@/lib/askText";
-import { isWarning } from "@/lib/warningPin";
+import { warningFromPaper } from "@/lib/warningPin";
 import { ShowOnPaper } from "./ShowOnPaper";
 
 type Props = { care: CarePlanResponse; items: VerifiedItem[]; language: string };
@@ -46,20 +46,22 @@ export function AskPaper({ care, items, language }: Props) {
         body: JSON.stringify({ source_text: care.source_text, language, question: q }),
         signal: c.signal,
       });
+      // The server's own error words are English; the person sees fixed words in their language instead.
+      if (!res.ok) { setState({ kind: "error", message: res.status === 429 ? t.busy : res.status === 503 ? t.unavailable : t.error }); return; }
       const json = await res.json();
       if (c.signal.aborted) return;
-      if (!res.ok) throw new Error(typeof json.error === "string" ? json.error : t.error);
-      if (json?.kind !== "answer" && json?.kind !== "not_in_paper" && json?.kind !== "urgent") throw new Error(t.error);
+      if (json?.kind !== "answer" && json?.kind !== "not_in_paper" && json?.kind !== "urgent") throw new Error("bad answer");
       setState({ kind: "done", question: q, res: json as AskResponse });
-    } catch (e) {
+    } catch {
       if (c.signal.aborted) return;
-      setState({ kind: "error", message: e instanceof Error ? e.message : t.error });
+      setState({ kind: "error", message: t.error });
     }
   }
 
   const res = state.kind === "done" ? state.res : null;
   const held = res && res.kind !== "urgent" ? res.dropped.length : 0;
-  const warnings = items.filter((i) => i.grounded && isWarning(i));
+  // Only lines whose OWN words are warning language: the model's "warning_sign" kind is not evidence (Codex review).
+  const warnings = items.filter((i) => i.grounded && warningFromPaper(i.source_quote));
 
   return (
     <div className="mt-6 rounded-2xl border-2 border-teal bg-paper p-4 sm:p-6" aria-labelledby="ask-paper-title" data-ask-paper="">

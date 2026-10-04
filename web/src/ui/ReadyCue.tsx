@@ -7,6 +7,19 @@ export type Ready = "steps" | "plan" | "photo";
 /** The heading each cue takes the person to (focusable, tabIndex -1); the cue hides once it is plainly on screen. */
 export const READY_TARGET: Record<Ready, string> = { steps: "steps-title", plan: "plan-title", photo: "photo-check-title" };
 
+/**
+ * The element a cue takes the person to. For the steps that is the warning signs when the paper has any: they sit
+ * above "Your steps" and are not repeated in the list, so landing on "Your steps" would scroll a "call 911" past
+ * the top of the screen (Codex review, round 7).
+ */
+export function readyTarget(r: Ready): HTMLElement | null {
+  if (r === "steps") {
+    const warn = document.getElementById("warn-title");
+    if (warn) return warn;
+  }
+  return document.getElementById(READY_TARGET[r]);
+}
+
 const LABEL: Record<Ready, string> = { steps: "Your steps are ready", plan: "Your plan is ready", photo: "Your photo is read" };
 
 /**
@@ -56,7 +69,7 @@ export function ReadyCue({ ready, announce, onGo, onSeen }: { ready: Ready | nul
     let frame = 0;
     const check = () => {
       frame = 0;
-      const el = document.getElementById(READY_TARGET[ready]);
+      const el = readyTarget(ready);
       if (el && readableRect(el.getBoundingClientRect(), window.innerHeight, coveredTopNow())) onSeen();
     };
     const soon = () => { if (!frame) frame = requestAnimationFrame(check); };

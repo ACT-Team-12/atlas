@@ -209,7 +209,7 @@ export function CareSteps(p: Props) {
       <div className={walking ? "walk-away" : undefined} data-walk-away={walking || undefined}>
       {(care.has_warning_signs || warnings.length > 0) && (
         <section aria-labelledby="warn-title" className="mb-5 rounded-2xl border-2 border-red bg-red-soft p-4 text-red" data-warnings="">
-          <h3 id="warn-title" className="display text-xl">Warning signs from your paper</h3>
+          <h3 id="warn-title" tabIndex={-1} className="display text-xl scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">Warning signs from your paper</h3>
           <p className="text-sm font-semibold">If you have any of them right now, do what your paper says: call your clinic, or call 911.</p>
           {warnings.length > 0 && <ul className="mt-3 space-y-2">{warnings.map((it) => row(it, true))}</ul>}
         </section>

@@ -338,6 +338,19 @@ describe("automatic scroll after a reply", () => {
     expect(document.activeElement?.id).toBe("steps-title");
   });
 
+  it("steps with warning signs: Show me lands on the warnings, never past them (Codex review, round 7)", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    window.dispatchEvent(new Event("pointerdown"));
+    await release(read, ready({ ...careFor(PAPER), has_warning_signs: true }));
+    expect(screenText()).toContain("Warning signs from your paper");
+    act(() => cue()!.querySelector("button")!.click());
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("warn-title");
+    expect(scrolls).toContain("warn-title");
+  });
+
   it("photo, moved on while it read: the cue brings them back to the photo check (Codex review, round 5)", async () => {
     vi.stubGlobal("createImageBitmap", async () => ({ width: 10, height: 10 }));
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage: () => {} } as unknown as CanvasRenderingContext2D);

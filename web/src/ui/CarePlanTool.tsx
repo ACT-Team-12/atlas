@@ -5,7 +5,7 @@ import { readingGeneralQuestions, visitQuestions } from "@/lib/visitQuestions";
 import { PaperFirst } from "./PaperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
-import { landingTop, READY_TARGET, ReadyCue, type Ready } from "./ReadyCue";
+import { landingTop, readyTarget, ReadyCue, type Ready } from "./ReadyCue";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { WorkingCard } from "./WorkingCard";
@@ -982,7 +982,7 @@ export function CarePlanTool() {
   // Focus then follows to the result's heading, so keyboard and screen-reader users land there too (Codex review).
   function goToReady(r: Ready) {
     setReady(null);
-    const focusTarget = () => document.getElementById(READY_TARGET[r])?.focus({ preventScroll: true });
+    const focusTarget = () => readyTarget(r)?.focus({ preventScroll: true });
     if (r === "plan") {
       pickTab(3, false);
       requestAnimationFrame(() => requestAnimationFrame(focusTarget)); // after step 3 has rendered and scrolled
@@ -990,7 +990,7 @@ export function CarePlanTool() {
     }
     setTab(1);
     requestAnimationFrame(() => {
-      const el = document.getElementById(READY_TARGET[r]);
+      const el = readyTarget(r);
       if (!el) return;
       const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       el.style.scrollMarginTop = `${landingTop(el)}px`; // clear of whatever covers the top on this screen

@@ -7,7 +7,8 @@ package com.stephensookra.atlas.data
  * - Certified (the second check said "same" and every number checks out): the explanation may lead, and the
  *   paper's verbatim quote is shown right with it.
  * - Anything else (still checking, check failed, unclear, flagged, never checked): the paper's verbatim quote
- *   leads, labelled "Your paper says:", and the explanation is visibly secondary with a note.
+ *   leads, labelled "Copied word for word from your paper" on screen, and the explanation is visibly secondary
+ *   under "Plain words (not double-checked yet)".
  * - Text that leaves the screen (read aloud, share, reminders, calendar) carries the explanation ONLY when
  *   certified. Otherwise it carries the quote alone, plus the note.
  * - No quote, no explanation.
@@ -22,9 +23,11 @@ object PaperFirst {
         else -> Check.unchecked
     }
 
-    const val NOTE_UNCHECKED = "Explanation, not double-checked. If it and your paper differ, follow your paper."
+    const val NOTE_UNCHECKED = "Plain words (not double-checked yet)"
     const val NOTE_FLAGGED = "Explanation that our second check says may not match your paper. Follow your paper, and ask your clinic."
-    const val LEFT_OUT_UNCHECKED = "(The plain-words explanation is left out here because it was not double-checked.)"
+    const val LEFT_OUT_UNCHECKED = "(The plain-words explanation is left out here because it was not double-checked yet.)"
+    /** SEAL_TEXT.once in web/src/lib/stepsView.ts: shown behind "Why?" on a step that was checked once. */
+    const val CHECKED_ONCE = "Checked once: the words in quotes were found on your paper, word for word. The plain words under them were not double-checked yet, so your paper's words come first."
     const val LEFT_OUT_FLAGGED = "(The plain-words explanation is left out here because a second check says it may not match.)"
 
     data class View(
@@ -34,16 +37,86 @@ object PaperFirst {
         val quote: String,
         val explanation: String?,
         val note: String?,
+        /** The on-screen label when the quote leads: a reassurance, not an instruction. */
+        val screenLabel: String = "Copied word for word from your paper",
     )
 
     fun view(quote: String, explanation: List<String?>, check: Check, source: String = "paper"): View {
         val q = quote.trim()
         val words = explanation.map { (it ?: "").trim() }.filter { it.isNotEmpty() }.joinToString(" · ")
         val label = "Your $source says:"
-        if (q.isEmpty()) return View(false, label, "", null, null)
-        if (check == Check.certified && words.isNotEmpty()) return View(true, label, q, words, null)
+        val screen = "Copied word for word from your $source"
+        if (q.isEmpty()) return View(false, label, "", null, null, screen)
+        if (check == Check.certified && words.isNotEmpty()) return View(true, label, q, words, null, screen)
         val note = if (words.isEmpty()) null else if (check == Check.flagged) NOTE_FLAGGED else NOTE_UNCHECKED
-        return View(false, label, q, words.ifEmpty { null }, note)
+        return View(false, label, q, words.ifEmpty { null }, note, screen)
+    }
+
+    /**
+     * askPerson in web/src/lib/askPerson.ts: "Ask your pharmacist" (a medicine step) or "Ask your clinic" (any other
+     * step) while the explanation is not double-checked. The question is the paper's own words plus fixed wording,
+     * never the AI's title, when or explanation. Nothing for a certified step, a warning sign or an empty quote.
+     */
+    data class AskPerson(val who: String, val label: String, val question: String)
+
+    fun askPerson(kind: String, quote: String, check: Check): AskPerson? {
+        val q = quote.split(Regex("(?U)\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
+        if (check == Check.certified || q.isEmpty() || kind == "warning_sign") return null
+        if (kind == "medication") return AskPerson("pharmacist", "Ask your pharmacist", "My paper says: \"$q\" Can you confirm what I should take?")
+        return AskPerson("clinic", "Ask your clinic", "My paper says: \"$q\" Can you help me understand what I should do?")
+    }
+
+    /**
+     * visitQuestions in web/src/lib/visitQuestions.ts: "Questions for the next visit", paper first. A step's own clinic
+     * question is AI-written, so it goes only when certified; otherwise the askPerson question (the paper's own words)
+     * goes in its place, and a warning sign adds none. A general question equal to any step's own question is dropped,
+     * so an unchecked one cannot leak through questions_for_doctor and a certified one is not listed twice.
+     */
+    fun questionKey(q: String): String {
+        val out = StringBuilder()
+        var gap = false
+        for (ch in q.lowercase()) {
+            if (ch.isLetterOrDigit() || Character.getType(ch) == Character.LETTER_NUMBER.toInt() || Character.getType(ch) == Character.OTHER_NUMBER.toInt()) {
+                if (gap && out.isNotEmpty()) out.append(' ')
+                gap = false
+                out.append(ch)
+            } else {
+                gap = true
+            }
+        }
+        return out.toString()
+    }
+
+    fun stepVisitQuestion(step: VerifiedItem, check: Check): String? {
+        val own = step.question_for_clinic.trim()
+        if (!step.needs_clarification || own.isEmpty()) return null
+        if (check == Check.certified) return own
+        return askPerson(step.kind, step.source_quote, check)?.question
+    }
+
+    fun generalVisitQuestions(general: List<String>, steps: List<VerifiedItem>): List<String> {
+        val own = steps.map { questionKey(it.question_for_clinic) }.filter { it.isNotEmpty() }.toSet()
+        return general.filter { val k = questionKey(it); k.isNotEmpty() && k !in own }
+    }
+
+    /**
+     * readingGeneralQuestions in visitQuestions.ts: the reading's general list with every step's own question taken
+     * out, held-back (refused) steps included, since a saved reading's list can repeat any of them.
+     */
+    fun readingGeneralQuestions(care: CarePlanResponse): List<String> = generalVisitQuestions(care.questions_for_doctor, care.items + care.refused)
+
+    /** `also`: steps not listed (removed ones) whose own questions must still stay out of the general list. */
+    fun visitQuestions(items: List<VerifiedItem>, general: List<String>, also: List<VerifiedItem> = emptyList(), check: (String) -> Check): List<String> {
+        val out = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+        fun add(q: String) {
+            val k = questionKey(q)
+            if (k.isEmpty() || !seen.add(k)) return
+            out += q.trim()
+        }
+        for (step in items) stepVisitQuestion(step, check(step.id))?.let { q -> add(q) }
+        for (q in generalVisitQuestions(general, items + also)) add(q)
+        return out
     }
 
     /** The lines a surface may read aloud, share or print for one step: the explanation only when certified. */

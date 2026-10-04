@@ -1,6 +1,7 @@
 "use client";
 
 import { bookSafe, careStepView, checkOf, type Check } from "@/lib/paperFirst";
+import { readingGeneralQuestions, visitQuestions } from "@/lib/visitQuestions";
 import { PaperFirst } from "./PaperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
 import { useEffect, useRef, useState } from "react";
@@ -922,6 +923,10 @@ export function CarePlanTool() {
     status: meaning.status,
     byId: Object.fromEntries(Object.entries(meaning.byId).map(([id, r]) => [id, checkFor(id) === "flagged" ? { ...r, certified: false, flagged: true } : r])),
   };
+  // Questions for the next visit, paper first (lib/visitQuestions.ts): a step's own question only when certified.
+  // General questions with every step's own question taken out, held-back steps included, before any surface uses them.
+  const generalQuestions = care ? readingGeneralQuestions(care) : [];
+  const nextVisit = care ? visitQuestions({ items: items.filter((i) => i.grounded), general: generalQuestions, also: care.items, checkFor }) : [];
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
@@ -1095,7 +1100,7 @@ export function CarePlanTool() {
           </div>
         </div>
 
-        {plan && care && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} meaning={paperMeaning} planItems={planItems} alsoOnPaper={missedLineTexts(missed)} />}
+        {plan && care && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={generalQuestions} language={language} meaning={paperMeaning} planItems={planItems} alsoOnPaper={missedLineTexts(missed)} />}
 
         {/* Step 3 */}
         {plan && (
@@ -1142,7 +1147,7 @@ export function CarePlanTool() {
                   </button>}
               {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2"><DockLabel icon="✕" short="Cancel" long="Cancel" /></button>}
               {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} short="Call me" />}
-              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short="Send" />}
+              {care && <ShareFamily items={items} plan={plan} questions={generalQuestions} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short="Send" />}
               <button type="button" onClick={() => { if (!planOutdated) window.print(); }} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short="Print" long="Print for the next visit" /></button>
               <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short="Handoff" long="Print a handoff sheet" /></button>
               <span role="status" className={voiceNote ? "dock-note self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
@@ -1167,13 +1172,13 @@ export function CarePlanTool() {
                 </ol>
               </section>
             </div>
-            {care && care.questions_for_doctor.length > 0 && (
+            {nextVisit.length > 0 && (
               <div className="mt-6 rounded-2xl border-2 border-ink/70 bg-paper p-5">
                 <p className="display text-2xl">Questions for your next visit</p>
-                <ul className="mt-2 list-disc pl-5 space-y-1">{care.questions_for_doctor.map((q, i) => <li key={i}>{q}</li>)}</ul>
+                <ul className="mt-2 list-disc pl-5 space-y-1">{nextVisit.map((q, i) => <li key={i}>{q}</li>)}</ul>
               </div>
             )}
-            {care && !planOutdated && <SessionSummary key={helperSessionKey(store.active, plan.summary)} barriers={barriers} items={items} done={done} plan={plan} questions={care.questions_for_doctor} language={language} readingLevel={readLevel ?? level} />}
+            {care && !planOutdated && <SessionSummary key={helperSessionKey(store.active, plan.summary)} barriers={barriers} items={items} done={done} plan={plan} questions={nextVisit} language={language} readingLevel={readLevel ?? level} />}
             <Feedback key={plan.summary} language={language} token={plan.feedback_token ?? null} />
             <p className="mt-6 text-xs text-ink/70">ATLAS explains your own paperwork and points to verified public resources. It is not medical advice. Model: {plan.model}.</p>
           </div>

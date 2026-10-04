@@ -168,6 +168,19 @@ const CONTEXT_STOP = new Set([
   "it", "you", "should", "please", "do", "not", "start", "stop", "continue", "keep", "inject", "swallow", "chew",
   "spray", "insert", "place", "put", "mix", "dissolve", "measure", "now",
 ]);
+/**
+ * One spelling for naming words that say the same thing, used only to line a number up with the number it names in
+ * the quote (never to read a value). "pill", "pills", "tablet" and "tablets" are one word here, so "2 pills (20 mg
+ * total)" lines its 20 mg up with the paper's "2 tablets (20 mg total)", and "you used to take 10 mg" lines up with
+ * "Previously 10 mg". Both sides are read through this, so a swap between two values still points at the other
+ * value's word and is refused. "used to" means "previously" only after a person ("you used to take"), never in "the
+ * cup used to measure". These shared words are weak on their own: see `ALIAS_NAMES` in `unitsSwapped`.
+ */
+const SAME_NAME: Record<string, string> = { pill: "tablet", pills: "tablet", tablet: "tablet", tablets: "tablet", previously: "previously", formerly: "previously" };
+const ALIAS_NAMES = new Set(Object.values(SAME_NAME));
+const PERSON = new Set(["you", "i", "we", "they", "he", "she"]);
+const nameOf = (w: string, prev: string | undefined, next: string | undefined) =>
+  w === "used" && next?.toLowerCase() === "to" && PERSON.has(prev?.toLowerCase() ?? "") ? "previously" : SAME_NAME[w] ?? w;
 const HALF_WORD_ONE = /^(?:half|halves|medio|media|medias|mitad|demi|demie|demis|moitié|nửa|半|반)$/iu;
 const QUARTER_WORD_ONE = /^(?:quarter|quarters|cuarto|cuartos|cuarta|quart|quarts)$/iu;
 
@@ -189,7 +202,7 @@ function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [strin
       const u = unitClass(w);
       if ((u && (u === cls || cls === null)) || CONTEXT_STOP.has(w)) continue;
       if (languages.some((l) => readNumberWords(w, l).numbers.length > 0)) break;
-      out.push(w);
+      out.push(nameOf(w, toks[k - 1], toks[k + 1]));
     }
     return out;
   };
@@ -271,12 +284,21 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
   const values = (c: string) => new Set(q.filter(([, qc]) => qc === c).map(([n]) => n));
   // Only a word that names ONE value counts ("lispro", not the shared "insulin" of "insulin glargine 10 units and
   // insulin lispro 5 units", Codex round 8), and the explanation's words must not name another value too.
+  const plainNames = new Set([...plain.toLowerCase().matchAll(/[\p{L}\p{M}]+/gu)].map((m) => SAME_NAME[m[0]] ?? m[0]));
   const namesOf = (n: string, c: string) => new Set(q.flatMap(([qn, qc], k) => (qn === n && qc === c ? qCtx[k] : [])));
   const aligned = (n: string, c: string, ctx: string[]) => {
     const others = [...values(c)].filter((v) => v !== n).map((v) => namesOf(v, c));
     const own = [...namesOf(n, c)].filter((w) => !others.some((o) => o.has(w)));
     const pointsElsewhere = ctx.some((w) => others.some((o) => o.has(w)) && !namesOf(n, c).has(w));
-    return own.some((w) => ctx.includes(w)) && !pointsElsewhere;
+    if (pointsElsewhere) return false;
+    if (own.some((w) => ctx.includes(w) && !ALIAS_NAMES.has(w))) return true;
+    // Lined up only by a shared word ("tablet", "previously"): every naming word must be this number's own, or a
+    // medicine name past the three-word window could hide behind it (Codex: "warfarin extended release tablet 2").
+    // Nor may another value's name appear anywhere in the explanation, since a name after the number ("contains 2 mg
+    // warfarin") is outside the window (Codex round 2).
+    const mine = namesOf(n, c);
+    const elsewhere = others.some((o) => [...o].some((w) => !mine.has(w) && !ALIAS_NAMES.has(w) && plainNames.has(w)));
+    return own.some((w) => ctx.includes(w)) && ctx.every((w) => mine.has(w)) && !elsewhere;
   };
   const free = new Set(["clockmin", "phone"]);
   if (p.pairs.some(([n, c], k) => c !== null && !free.has(c) && values(c).size >= 2 && !aligned(n, c, pCtx[k]))) return true;

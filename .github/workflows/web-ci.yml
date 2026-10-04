@@ -1,6 +1,7 @@
 name: web-ci
 on:
   push:
+    branches: [main]
     paths: ["web/**", "mobile/shared/**", "mobile/ios/ATLASTests/Fixtures/extract_sample_live.json", ".github/workflows/web-ci.yml"]
   pull_request:
     paths: ["web/**", "mobile/shared/**", "mobile/ios/ATLASTests/Fixtures/extract_sample_live.json", ".github/workflows/web-ci.yml"]

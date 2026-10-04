@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -21,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -29,7 +31,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -86,20 +90,22 @@ fun CareStepsScreen(model: AppModel) {
             })
         }
 
-        items.forEach { item ->
+        // Keyed by id, so a step's open "Why?" and "Ask your pharmacist" state never moves to the next step on Remove.
+        items.forEach { item -> key(item.id) {
             val check = model.checkFor(item.id)
             CareItemCard(
                 item = item,
                 check = check,
                 result = if (model.meaning.status == MeaningStatus.done) model.meaning.byId[item.id] else null,
                 checking = model.meaning.status == MeaningStatus.loading,
+                errored = model.meaning.status == MeaningStatus.error,
                 done = model.done[item.id] == true,
                 onToggleDone = { model.setDone(item.id, model.done[item.id] != true) },
                 // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
                 onRemind = { reminder = ReminderTarget(PaperFirst.bookTitle(item.kind), item.source_quote, PaperFirst.bookWhen(item, check)) },
                 onRemove = { model.remove(item.id) },
             )
-        }
+        } }
 
         val removed = model.removedItems
         if (removed.isNotEmpty()) {
@@ -147,7 +153,7 @@ fun CareStepsScreen(model: AppModel) {
 
 @Composable
 fun CareItemCard(item: VerifiedItem, check: Check, result: MeaningResult?, checking: Boolean, done: Boolean,
-                 onToggleDone: () -> Unit, onRemind: () -> Unit, onRemove: () -> Unit) {
+                 onToggleDone: () -> Unit, onRemind: () -> Unit, onRemove: () -> Unit, errored: Boolean = false) {
     val style = KindStyle.of(item.kind)
     val warning = item.itemKind == ItemKind.warning_sign
     val certified = check == Check.certified
@@ -181,14 +187,16 @@ fun CareItemCard(item: VerifiedItem, check: Check, result: MeaningResult?, check
                 }
                 if (certified) Text(item.title, style = Type.headline.copy(textDecoration = if (done) TextDecoration.LineThrough else null))
                 PaperFirstBlock(PaperFirst.careStep(item, check), done = done && !certified)
-                if (item.needs_clarification && item.question_for_clinic.isNotEmpty()) {
+                // Not certified: the AI's question stays off the card; AskPersonBox below offers the paper's words instead.
+                if (certified && item.needs_clarification && item.question_for_clinic.isNotEmpty()) {
                     Text(
                         "Ask your clinic: ${item.question_for_clinic}",
                         style = Type.sub.copy(color = Palette.peachDeep),
                         modifier = Modifier.fillMaxWidth().background(Palette.peach, RoundedCornerShape(12.dp)).padding(8.dp),
                     )
                 }
-                CheckStatus(result, checking)
+                CheckStatus(result, checking, errored)
+                PaperFirst.askPerson(item.kind, item.source_quote, check)?.let { AskPersonBox(it) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinePill("Remind me", onClick = onRemind, fill = Palette.mint, icon = Icons.Filled.Notifications,
                         contentDescription = "Remind me about $name")
@@ -203,9 +211,11 @@ fun CareItemCard(item: VerifiedItem, check: Check, result: MeaningResult?, check
 
 /** The second check's verdict for one step, in the same words as the website. */
 @Composable
-private fun CheckStatus(result: MeaningResult?, checking: Boolean) {
+private fun CheckStatus(result: MeaningResult?, checking: Boolean, errored: Boolean = false) {
     when {
         checking -> Text("Double-checking this against your paper...", style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
+        // The check failed: still "Checked once", as on the website (SEAL_TEXT.once, with no result to add to it).
+        result == null && errored -> CheckedOnce(PaperFirst.CHECKED_ONCE)
         result == null -> {}
         result.flagged -> {
             val what = result.what_differs.trim().replaceFirstChar { it.uppercase() }
@@ -217,9 +227,45 @@ private fun CheckStatus(result: MeaningResult?, checking: Boolean) {
                 modifier = Modifier.fillMaxWidth().background(Palette.peach, RoundedCornerShape(12.dp)).padding(8.dp),
             )
         }
-        result.certified -> Text("✓ Double-checked: the explanation matches this line", style = Type.caption.copy(color = Palette.teal))
-        else -> Text("Not double-checked: our second check couldn't confirm this one. Read the line from your paper above.",
-            style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
+        // SEAL_TEXT.twice in web/src/lib/stepsView.ts, as on iOS.
+        result.certified -> Text("✓ Checked twice: the words are on your paper, and a second check agrees with the explanation.", style = Type.caption.copy(color = Palette.teal))
+        else -> CheckedOnce("${PaperFirst.CHECKED_ONCE} Our second check couldn't confirm this one.")
+    }
+}
+
+/** Checked once: the long reason waits behind "Why?" (the website's details element). */
+@Composable
+private fun CheckedOnce(why: String) {
+    var open by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        TextLink(if (open) "Checked once · Hide why" else "Checked once · Why?", onClick = { open = !open }, color = Palette.inkSoft)
+        if (open) Text(why, style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
+    }
+}
+
+/** "Ask your pharmacist" / "Ask your clinic" (askPerson in web/src/lib/askPerson.ts): the paper's own words, to show or copy. */
+@Composable
+private fun AskPersonBox(ask: PaperFirst.AskPerson) {
+    var open by remember { mutableStateOf(false) }
+    var copied by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        OutlinePill(ask.label, onClick = { open = !open }, fill = Palette.sun, icon = Icons.Filled.Person,
+            contentDescription = ask.label)
+        if (open) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth().background(Palette.paper, RoundedCornerShape(12.dp)).padding(10.dp),
+            ) {
+                Text(
+                    if (ask.who == "pharmacist") "Show or read this to your pharmacist. It uses only your paper's words."
+                    else "Show or read this to your clinic. It uses only your paper's words.",
+                    style = Type.caption.copy(fontWeight = FontWeight.Bold),
+                )
+                Text(ask.question, style = Type.sub)
+                TextLink(if (copied) "Copied" else "Copy question", onClick = { clipboard.setText(AnnotatedString(ask.question)); copied = true })
+            }
+        }
     }
 }
 
@@ -235,16 +281,21 @@ fun PaperFirstBlock(v: PaperFirst.View, done: Boolean = false) {
         PaperQuote(v.quote)
         return
     }
-    Text(
-        "${v.quoteLabel} “${v.quote}”",
-        style = Type.body.copy(fontWeight = FontWeight.SemiBold, textDecoration = if (done) TextDecoration.LineThrough else null),
-        modifier = Modifier.fillMaxWidth().sunRule().semantics { contentDescription = "${v.quoteLabel} ${v.quote}" },
-    )
-    if (v.explanation != null) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.fillMaxWidth().sunRule().semantics(mergeDescendants = true) { contentDescription = "${v.screenLabel}: ${v.quote}" },
+    ) {
+        Text(v.screenLabel.uppercase(), style = Type.caption.copy(fontWeight = FontWeight.ExtraBold, color = Palette.teal))
         Text(
-            "${v.note ?: ""} ${v.explanation}".trim(),
-            style = Type.sub.copy(fontWeight = FontWeight.Normal, color = Palette.inkSoft),
+            "“${v.quote}”",
+            style = Type.body.copy(fontWeight = FontWeight.SemiBold, textDecoration = if (done) TextDecoration.LineThrough else null),
         )
+    }
+    if (v.explanation != null) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            v.note?.let { Text(it, style = Type.caption.copy(fontWeight = FontWeight.Bold, color = Palette.inkSoft)) }
+            Text(v.explanation, style = Type.sub.copy(fontWeight = FontWeight.Normal, color = Palette.inkSoft))
+        }
     }
 }
 

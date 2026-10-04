@@ -57,6 +57,34 @@ class WebParityTest {
         assertEquals(PaperFirst.NOTE_UNCHECKED, v.note)
     }
 
+    @Test fun unconfirmedCardIsLabelledCalmly() {
+        val v = PaperFirst.careStep(item("a"), Check.unchecked)
+        assertEquals("Copied word for word from your paper", v.screenLabel)
+        assertEquals("Plain words (not double-checked yet)", v.note)
+        assertFalse(v.note!!.contains("follow your paper"))
+        val web = File("../../../web/src/lib/stepsView.ts").readText()
+        assertTrue("stepsView.ts SEAL_TEXT.once differs", web.contains("\"${PaperFirst.CHECKED_ONCE}\""))
+    }
+
+    @Test fun askPersonUsesOnlyThePapersWords() {
+        val quote = "lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily. Previously 10 mg once daily."
+        for (check in listOf(Check.unchecked, Check.flagged)) {
+            val a = PaperFirst.askPerson("medication", quote, check)!!
+            assertEquals("Ask your pharmacist", a.label)
+            assertEquals("My paper says: \"$quote\" Can you confirm what I should take?", a.question)
+        }
+        val lab = PaperFirst.askPerson("lab_test", "Hemoglobin A1c - due in 3 months", Check.unchecked)!!
+        assertEquals("Ask your clinic", lab.label)
+        assertEquals("My paper says: \"Hemoglobin A1c - due in 3 months\" Can you help me understand what I should do?", lab.question)
+        assertNull(PaperFirst.askPerson("medication", quote, Check.certified))
+        assertNull(PaperFirst.askPerson("warning_sign", "Call 911 if you have chest pain.", Check.unchecked))
+        assertNull(PaperFirst.askPerson("medication", "  ", Check.unchecked))
+        val web = File("../../../web/src/lib/askPerson.ts").readText()
+        for (s in listOf("Can you confirm what I should take?", "Can you help me understand what I should do?", "Ask your pharmacist", "Ask your clinic", "My paper says: \"\${quote}\" Can")) {
+            assertTrue("askPerson.ts lacks: $s", web.contains(s))
+        }
+    }
+
     @Test fun certifiedExplanationLeadsWithItsQuote() {
         val v = PaperFirst.careStep(item("a"), Check.certified)
         assertTrue(v.explanationLeads)
@@ -177,6 +205,31 @@ class WebParityTest {
         assertTrue(text.contains("Suggestion from ATLAS, not the paper: ${plan.summary}"))
         // With no double-check at all (the default), no explanation leaves the phone.
         assertFalse(ShareText.plan(items, plan, emptyList()).contains("one pill"))
+    }
+
+    @Test fun nextVisitQuestionsCarryTheAIQuestionOnlyWhenCertified() {
+        val aiQ = "QUESTION-WHICH-METFORMIN-DOSE"
+        val asks = item("a").copy(needs_clarification = true, question_for_clinic = aiQ)
+        val plan = Fixture.plan.copy(steps = emptyList())
+        // Older readings also repeat the step's question in the general list: it must not leak through there either.
+        val general = listOf(aiQ, "Do I need a ride?")
+        for (meaning in listOf(MeaningState.IDLE, MeaningState(MeaningStatus.error), MeaningState(MeaningStatus.done, mapOf("a" to flagged("a"))))) {
+            val text = ShareText.plan(listOf(asks), plan, general, meaning, listOf(asks))
+            assertFalse(text.contains(aiQ))
+            assertTrue(text.contains("- My paper says: \"Take metformin 500 mg twice a day.\" Can you confirm what I should take?"))
+            assertTrue(text.contains("- Do I need a ride?"))
+        }
+        val ok = ShareText.plan(listOf(asks), plan, general, MeaningState(MeaningStatus.done, mapOf("a" to certified("a"))), listOf(asks))
+        assertEquals(1, ok.split(aiQ).size - 1)
+        // A removed step's question stays out of the general list as well.
+        assertEquals(listOf("Do I need a ride?"), PaperFirst.visitQuestions(emptyList(), general, listOf(asks)) { Check.certified })
+        assertEquals("which pain medicines are safe", PaperFirst.questionKey("  Which pain-medicines, are SAFE?? "))
+        // A held-back (refused) step's question, repeated in a saved reading's general list, stays out too.
+        val refused = item("r1", grounded = false).copy(needs_clarification = true, question_for_clinic = "Should I double my insulin?")
+        val saved = CarePlanResponse(items = emptyList(), refused = listOf(refused), questions_for_doctor = listOf("Should I double my insulin?", "Do I need a ride?"),
+            stats = com.stephensookra.atlas.data.CareStats(1, 0, 1, 1))
+        assertEquals(listOf("Do I need a ride?"), PaperFirst.readingGeneralQuestions(saved))
+        assertTrue("visitQuestions.ts moved", File("../../../web/src/lib/visitQuestions.ts").readText().contains("export function visitQuestions"))
     }
 
     @Test fun extractResponseCarriesItsLanguageAndOldFilesStillLoad() {

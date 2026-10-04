@@ -6,6 +6,8 @@ import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { MeaningState } from "@/lib/meaningRun";
 import type { DeviceRun, DeviceStatus } from "@/lib/deviceRun";
 import { closedRow, SEAL_SHORT, SEAL_TEXT, sealOf, shortQuote, stepWhen, WHEN_GROUP_LABEL, WHEN_GROUPS, type Seal, type WhenGroup } from "@/lib/stepsView";
+import { askPerson } from "@/lib/askPerson";
+import { readingGeneralQuestions, stepVisitQuestion, uniqueStepQuestions } from "@/lib/visitQuestions";
 import { buildIcs } from "@/lib/booking";
 import { dayOptions, formatTime, googleCalendarUrl, localStart, timeOptions } from "@/lib/calendarLinks";
 import { SPEECH_LANG } from "@/lib/speechLang";
@@ -72,8 +74,11 @@ export function CareSteps(p: Props) {
   const seals = items.map((i) => sealOf(checkFor(i.id)));
   const twice = seals.filter((s) => s === "twice").length;
   const recheck = seals.filter((s) => s === "recheck").length;
-  const stepQuestions = items.filter((i) => i.needs_clarification && i.question_for_clinic.trim());
-  const questionCount = stepQuestions.length + care.questions_for_doctor.length;
+  // Paper first (lib/visitQuestions.ts): a step's own question only when certified, else the paper's words. The general
+  // list never repeats a step's question (older readings carried each one there too, so it showed twice).
+  const stepQuestions = uniqueStepQuestions(items, checkFor);
+  const generalQuestions = readingGeneralQuestions(care);
+  const questionCount = stepQuestions.length + generalQuestions.length;
 
   // A check that disagrees can land after the steps are on screen. Opening the step is not an announcement, so a
   // polite live region (always mounted, text set a moment later) names each one by its paper words (Codex review).
@@ -146,7 +151,7 @@ export function CareSteps(p: Props) {
         </div>
 
         <div className="space-y-4">
-          {questionCount > 0 && <AskClinic care={care} stepQuestions={stepQuestions} />}
+          {questionCount > 0 && <AskClinic stepQuestions={stepQuestions} general={generalQuestions} />}
           {care.not_in_document.length > 0 && (
             <section aria-labelledby="not-said-title" className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
               <h3 id="not-said-title" className="font-extrabold">What your paper does not say</h3>
@@ -208,7 +213,8 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
   const closed = closedRow(it, check, { full: warn });
   const device = deviceStatus === "done" ? deviceRun.byId[it.id] : undefined;
   const m = meaning.status === "done" ? meaning.byId[it.id] : undefined;
-  const question = it.needs_clarification && it.question_for_clinic.trim() ? it.question_for_clinic : "";
+  // Not certified: the "Ask your clinic" box below already carries the paper-words question, so no second copy here.
+  const question = stepVisitQuestion(it, check) ?? "";
   const kind = KIND[it.kind];
   return (
     <li onMouseEnter={() => onHover(it.id)} onMouseLeave={() => onHover(null)} data-step={it.id} data-seal={seal} data-open={open || undefined}
@@ -221,13 +227,15 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
           <span className="min-w-0" data-closed-row={closed.lead}>
             {closed.lead === "explanation"
               ? <span className={`block font-extrabold leading-snug ${done ? "line-through text-ink/70" : ""}`}>{closed.title}</span>
+              // Open, the panel shows the paper's whole line first; the row does not repeat it (no duplicate quote).
+              : open ? null
               : (
                 <span className={`block leading-snug ${done ? "line-through text-ink/70" : ""}`} data-paper-quote="">
-                  <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">Your paper says</span>
+                  <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">From your paper</span>
                   <span className="font-bold">&ldquo;{closed.quote}&rdquo;</span>
                 </span>
               )}
-            <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-ink/70">
+            <span className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-ink/70 ${closed.lead === "quote" && open ? "" : "mt-1"}`}>
               {kind && <span className={`chip ${kind.cls}`}>{kind.label}</span>}
               {closed.lead === "explanation" && closed.when && <span>{closed.when}</span>}
               {closed.lead === "quote" && closed.paperWhen.length > 0 && <span>{closed.paperWhen.map((w) => `“${w}”`).join(", ")}</span>}
@@ -254,17 +262,34 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
           </p>
         )}
         <PaperFirst v={careStepView(it, check)} />
-        <p className={`flex items-start gap-2 text-xs font-bold ${seal === "twice" ? "text-teal-deep" : seal === "recheck" ? "text-peach-deep" : "text-ink/70"}`} data-seal-text={seal}>
-          <SealMark seal={seal} />
-          <span>
-            {SEAL_TEXT[seal]}
-            {device === "match" && <span data-device-check="match"> This device found the same words in the same place.</span>}
-            {meaning.status === "loading" && " Double-checking this against your paper..."}
-            {m && !m.flagged && !m.certified && " Our second check couldn't confirm this one."}
-          </span>
-        </p>
-        {question && <p className="rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">On your questions list: {question}</p>}
+        {seal === "once" ? (
+          // Checked once: the long reason waits behind "Why?" so the card reads as a step, not a disclaimer.
+          <details className="text-xs font-bold text-ink/70" data-seal-text={seal}>
+            <summary className="inline-flex cursor-pointer items-center gap-2 rounded-full focus-visible:outline-2 focus-visible:outline-teal-deep">
+              <SealMark seal={seal} />
+              <span>{SEAL_SHORT[seal]}{meaning.status === "loading" ? " · double-checking now..." : ""}</span>
+              <span className="underline">Why?</span>
+            </summary>
+            <p className="mt-1 pl-8 font-semibold">
+              {SEAL_TEXT[seal]}
+              {device === "match" && <span data-device-check="match"> This device found the same words in the same place.</span>}
+              {m && !m.flagged && !m.certified && " Our second check couldn't confirm this one."}
+            </p>
+          </details>
+        ) : (
+          <p className={`flex items-start gap-2 text-xs font-bold ${seal === "twice" ? "text-teal-deep" : "text-peach-deep"}`} data-seal-text={seal}>
+            <SealMark seal={seal} />
+            <span>
+              {SEAL_TEXT[seal]}
+              {device === "match" && <span data-device-check="match"> This device found the same words in the same place.</span>}
+              {meaning.status === "loading" && " Double-checking this against your paper..."}
+              {m && !m.flagged && !m.certified && " Our second check couldn't confirm this one."}
+            </span>
+          </p>
+        )}
+        {question && check === "certified" && <p className="rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">On your questions list: {question}</p>}
         <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+          <AskAPerson it={it} check={check} />
           <ShowOnPaper care={care} item={it} photo={photo} check={check} />
           <RemindMe it={it} check={check} />
           <button type="button" onClick={onSpeak} aria-pressed={speaking}
@@ -279,9 +304,9 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
 }
 
 /** Every "Ask your clinic" question in one list. A step's question carries the paper line it is about. */
-function AskClinic({ care, stepQuestions }: { care: CarePlanResponse; stepQuestions: VerifiedItem[] }) {
+function AskClinic({ stepQuestions, general }: { stepQuestions: { it: VerifiedItem; q: string }[]; general: string[] }) {
   const [copied, setCopied] = useState(false);
-  const lines = [...stepQuestions.map((i) => i.question_for_clinic.trim()), ...care.questions_for_doctor];
+  const lines = [...stepQuestions.map((s) => s.q), ...general];
   function copy() {
     navigator.clipboard?.writeText(lines.map((q, i) => `${i + 1}. ${q}`).join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
   }
@@ -290,18 +315,18 @@ function AskClinic({ care, stepQuestions }: { care: CarePlanResponse; stepQuesti
       <h3 id="ask-clinic-title" className="display text-xl">Ask your clinic ({lines.length})</h3>
       <p className="text-xs text-ink/70">Bring these to your next call or visit.</p>
       <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm">
-        {stepQuestions.map((i) => (
-          <li key={i.id}>
-            {i.question_for_clinic}
-            <span className="block text-xs font-semibold text-ink/70" data-paper-quote="">About this line of your paper: &ldquo;{shortQuote(i.source_quote, 60)}&rdquo;</span>
+        {stepQuestions.map(({ it, q }) => (
+          <li key={it.id}>
+            {q}
+            <span className="block text-xs font-semibold text-ink/70" data-paper-quote="">About this line of your paper: &ldquo;{shortQuote(it.source_quote, 60)}&rdquo;</span>
           </li>
         ))}
       </ol>
-      {care.questions_for_doctor.length > 0 && (
+      {general.length > 0 && (
         <>
           {stepQuestions.length > 0 && <h4 className="mt-3 text-xs font-extrabold uppercase tracking-wide text-ink/70">More questions for your next visit</h4>}
           <ol start={stepQuestions.length + 1} className="mt-2 list-decimal space-y-2 pl-5 text-sm">
-            {care.questions_for_doctor.map((q, k) => <li key={`d${k}`}>{q}</li>)}
+            {general.map((q, k) => <li key={`d${k}`}>{q}</li>)}
           </ol>
         </>
       )}
@@ -310,6 +335,35 @@ function AskClinic({ care, stepQuestions }: { care: CarePlanResponse; stepQuesti
         <span role="status" className="text-xs font-semibold text-ink/70">{copied ? "Copied" : ""}</span>
       </div>
     </section>
+  );
+}
+
+/**
+ * "Ask your pharmacist" (a medicine step) or "Ask your clinic" (any other step), only while the explanation is not
+ * double-checked: a question ready to read out or copy, built from the paper's own words only (lib/askPerson.ts).
+ */
+function AskAPerson({ it, check }: { it: VerifiedItem; check: Check }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const panelId = useId();
+  const ask = askPerson(it, check);
+  if (!ask) return null;
+  function copy() {
+    navigator.clipboard?.writeText(ask!.question).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
+  }
+  return (
+    <>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId} data-ask-person={ask.who}
+        className="mt-2 rounded-full border-2 border-ink bg-sun px-3 py-1 hover:bg-mint">💬 {ask.label}</button>
+      <div id={panelId} hidden={!open} className="basis-full rounded-xl border-2 border-dashed border-ink/40 p-3 text-sm" data-ask-person-panel="">
+        <p className="text-xs font-bold text-ink/70">{ask.who === "pharmacist" ? "Show or read this to your pharmacist. It uses only your paper's words." : "Show or read this to your clinic. It uses only your paper's words."}</p>
+        <p className="mt-1 font-semibold" data-ask-question="">{ask.question}</p>
+        <div className="mt-2 flex items-center gap-2">
+          <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">Copy question</button>
+          <span role="status" className="text-xs font-semibold text-ink/70">{copied ? "Copied" : ""}</span>
+        </div>
+      </div>
+    </>
   );
 }
 

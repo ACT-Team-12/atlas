@@ -1,6 +1,7 @@
 name: ios-ci
 on:
   push:
+    branches: [main]
     paths: ["mobile/ios/**", "mobile/shared/**", ".github/workflows/ios-ci.yml"]
   pull_request:
     paths: ["mobile/ios/**", "mobile/shared/**", ".github/workflows/ios-ci.yml"]

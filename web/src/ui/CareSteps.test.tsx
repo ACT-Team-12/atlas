@@ -140,12 +140,20 @@ describe("closed rows: certified leads with the AI's words, everything else with
     for (const it of ITEMS) {
       const btn = toggleOf(it.id);
       expect(btn.querySelector("[data-closed-row]")?.getAttribute("data-closed-row")).toBe("quote");
-      expect(btn.textContent).toContain("Your paper says");
       expect(btn.textContent).not.toContain(it.title);
       expect(btn.textContent).not.toContain("AI-WHEN");
-      // The row's quote is the start of the paper's own words.
-      const shown = btn.querySelector("[data-paper-quote] .font-bold")!.textContent!.replace(/[“”]/g, "").replace(/…$/, "");
-      expect(it.source_quote.replace(/\s+/g, " ").startsWith(shown)).toBe(true);
+      if (btn.getAttribute("aria-expanded") === "true") {
+        // Open (a flagged step opens itself): the row does not repeat the quote; the panel leads with all of it.
+        expect(btn.querySelector("[data-paper-quote]")).toBeNull();
+        const first = panelOf(it.id).querySelector("[data-lead]")!.firstElementChild!;
+        expect(first.hasAttribute("data-paper-quote")).toBe(true);
+        expect(first.textContent).toContain(it.source_quote);
+      } else {
+        expect(btn.textContent).toContain("From your paper");
+        // The row's quote is the start of the paper's own words.
+        const shown = btn.querySelector("[data-paper-quote] .font-bold")!.textContent!.replace(/[“”]/g, "").replace(/…$/, "");
+        expect(it.source_quote.replace(/\s+/g, " ").startsWith(shown)).toBe(true);
+      }
       assertNeverWithoutQuote(it);
     }
   });
@@ -257,13 +265,79 @@ describe("one seal per step, and flagged steps open themselves", () => {
 });
 
 describe("the expanded step", () => {
-  it("uncertified: 'Your paper says' first, then the explanation with its caveat", () => {
+  it("uncertified: the paper's words first, labelled as copied word for word, then the explanation, labelled not double-checked", () => {
     render();
     act(() => toggleOf("bmp").click());
     const block = panelOf("bmp").querySelector("[data-lead]")!;
     expect(block.getAttribute("data-lead")).toBe("quote");
-    expect(block.firstElementChild!.textContent).toContain("Your paper says:");
-    expect(block.querySelector("[data-explanation]")!.textContent).toContain("not double-checked");
+    expect(block.firstElementChild!.textContent).toContain("Copied word for word from your paper");
+    expect(block.firstElementChild!.textContent).toContain(ITEMS[4].source_quote);
+    expect(block.querySelector("[data-explanation]")!.textContent).toContain("Plain words (not double-checked yet)");
+    expect(block.textContent).not.toContain("If it and your paper differ");
+  });
+
+  it.each([
+    ["never checked", {} as RenderOpts],
+    ["not confirmed", { meaning: done(ALL, { model_verdict: "unclear" }) }],
+    ["flagged", { meaning: done(ALL, { flagged: true, model_verdict: "different" }) }],
+  ])("%s, open: the paper's line shows once, in full, before any AI word", (_, o) => {
+    render(o);
+    for (const it of ITEMS) {
+      if (toggleOf(it.id).getAttribute("aria-expanded") !== "true") act(() => toggleOf(it.id).click());
+      // Visible text only (a closed sub-panel such as "Ask your pharmacist" is hidden until asked for).
+      const visible = (el: Element): string => [...el.childNodes].map((c) => c.nodeType === Node.TEXT_NODE ? c.textContent : c instanceof HTMLElement && c.hidden ? "" : visible(c as Element)).join("");
+      const text = visible(rowOf(it.id)).replace(/\s+/g, " ");
+      const quote = it.source_quote.replace(/\s+/g, " ");
+      expect(text.split(quote).length - 1, it.id).toBe(1);
+      expect(text.indexOf(quote)).toBeGreaterThanOrEqual(0);
+      for (const ai of [it.title, it.when, it.plain_language].filter(Boolean)) {
+        const at = text.indexOf(ai);
+        if (at >= 0) expect(at, `${ai} before the quote`).toBeGreaterThan(text.indexOf(quote));
+      }
+    }
+  });
+
+  it("checked once: the long reason waits behind a small 'Why?'", () => {
+    render({ meaning: done(ALL, { model_verdict: "unclear" }), deviceStatus: "done", device: { run: 1, ok: true, byId: { bmp: "match" } } });
+    act(() => toggleOf("bmp").click());
+    const why = panelOf("bmp").querySelector<HTMLDetailsElement>("details[data-seal-text='once']")!;
+    expect(why.open).toBe(false);
+    expect(why.querySelector("summary")!.textContent).toContain("Why?");
+    expect(why.textContent).toContain("Our second check couldn't confirm this one.");
+    expect(why.querySelector('[data-device-check="match"]')).not.toBeNull();
+    // Honest: never says the plain words were checked.
+    expect(why.textContent).toContain("not double-checked yet");
+  });
+
+  it("an unconfirmed medicine step offers 'Ask your pharmacist' with a question in the paper's words only", () => {
+    render({ meaning: done(ALL, { model_verdict: "unclear" }) });
+    act(() => toggleOf("lis").click());
+    const btn = panelOf("lis").querySelector<HTMLButtonElement>("button[data-ask-person]")!;
+    expect(btn.textContent).toContain("Ask your pharmacist");
+    const panel = document.getElementById(btn.getAttribute("aria-controls")!)!;
+    expect(panel.hidden).toBe(true);
+    act(() => btn.click());
+    expect(panel.hidden).toBe(false);
+    const q = panel.querySelector("[data-ask-question]")!.textContent!;
+    expect(q).toBe(`My paper says: "${ITEMS[1].source_quote}" Can you confirm what I should take?`);
+    for (const w of ["AI-TITLE", "AI-WHEN", "PLAIN"]) expect(panel.textContent).not.toContain(w);
+  });
+
+  it("an unconfirmed lab or referral step offers 'Ask your clinic'; a warning sign offers neither", () => {
+    render();
+    act(() => toggleOf("eye").click());
+    expect(panelOf("eye").querySelector("button[data-ask-person]")!.textContent).toContain("Ask your clinic");
+    act(() => toggleOf("w911").click());
+    expect(panelOf("w911").querySelector("button[data-ask-person]")).toBeNull();
+  });
+
+  it("certified: unchanged, the seal text stays in view and no 'Why?' or 'Ask' is needed", () => {
+    render({ meaning: certifiedAll() });
+    act(() => toggleOf("bmp").click());
+    act(() => toggleOf("lis").click());
+    expect(panelOf("lis").querySelector("button[data-ask-person]")).toBeNull();
+    expect(panelOf("bmp").querySelector("details")).toBeNull();
+    expect(panelOf("bmp").querySelector("[data-seal-text='twice']")!.textContent).toContain("Checked twice");
   });
 
   it("certified: the explanation, then the paper's words", () => {
@@ -308,7 +382,7 @@ describe("the expanded step", () => {
 
 describe("Ask your clinic: one list", () => {
   it("collects every step question (with the paper line it is about) and the questions for the doctor", () => {
-    render();
+    render({ meaning: certifiedAll() });
     const list = host.querySelector("[data-ask-clinic]")!;
     expect(list.querySelector("h3")?.textContent).toBe("Ask your clinic (2)");
     const li = [...list.querySelectorAll("li")];
@@ -318,6 +392,30 @@ describe("Ask your clinic: one list", () => {
     // The step row says it has a question.
     expect(toggleOf("ibu").textContent).toContain("? Ask");
     expect(toggleOf("met").textContent).not.toContain("? Ask");
+  });
+
+  it("paper first: an unconfirmed step's AI question never shows or copies; the paper's words stand in", () => {
+    // The reading also carries the step's question in its general list (older readings did): it must not leak there.
+    const care = careWith(ITEMS, { questions_for_doctor: ["Which pain medicines are safe for me instead?", "Do I need to call to book my 3-month visit?"] });
+    let copied = "";
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: (t: string) => { copied = t; return Promise.resolve(); } } });
+    render({ care });
+    const list = host.querySelector("[data-ask-clinic]")!;
+    expect(list.textContent).not.toContain("Which pain medicines are safe for me instead?");
+    expect(list.textContent).toContain('My paper says: "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function."');
+    expect(list.querySelector("h3")?.textContent).toBe("Ask your clinic (2)");
+    act(() => list.querySelector<HTMLButtonElement>("button")!.click());
+    expect(copied).not.toContain("Which pain medicines");
+    expect(copied).toContain("ibuprofen (ADVIL)");
+    expect(host.textContent).not.toContain("Which pain medicines are safe for me instead?");
+  });
+
+  it("lists a certified step's question once, even when the reading repeats it in the general list", () => {
+    const care = careWith(ITEMS, { questions_for_doctor: ["Which pain medicines are safe for me instead?", "Do I need to call to book my 3-month visit?"] });
+    render({ care, meaning: certifiedAll() });
+    const list = host.querySelector("[data-ask-clinic]")!;
+    expect(list.textContent!.split("Which pain medicines are safe for me instead?").length - 1).toBe(1);
+    expect(list.querySelector("h3")?.textContent).toBe("Ask your clinic (2)");
   });
 
   it("is left out when there are no questions", () => {

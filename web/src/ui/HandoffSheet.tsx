@@ -7,6 +7,7 @@ import type { PlanResponse } from "@/lib/plan";
 import { careStepView, checkOf, paperFirstLines } from "@/lib/paperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
 import type { ShareMeaning } from "@/lib/shareText";
+import { visitQuestions } from "@/lib/visitQuestions";
 
 const noop = () => () => {};
 
@@ -39,6 +40,8 @@ export function HandoffSheet(props: SheetProps) {
 export function HandoffSheetBody({ items, plan, questions, language, meaning, planItems, alsoOnPaper = [] }: SheetProps) {
   const resources = plan ? Object.values(plan.resources) : [];
   const used = new Set(plan?.steps.flatMap((s) => s.resource_ids) ?? []);
+  // Each step's own question only when certified; otherwise the paper's words (lib/visitQuestions.ts).
+  const nextVisit = visitQuestions({ items, general: questions, also: planItems, checkFor: (id) => checkOf(meaning?.status === "done" ? meaning.byId[id] : undefined) });
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
   return (
@@ -99,10 +102,10 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
         </>
       )}
 
-      {questions.length > 0 && (
+      {nextVisit.length > 0 && (
         <>
           <h2>Questions for my next visit</h2>
-          <ul>{questions.map((q, n) => <li key={n}>{q}</li>)}</ul>
+          <ul>{nextVisit.map((q, n) => <li key={n}>{q}</li>)}</ul>
         </>
       )}
 

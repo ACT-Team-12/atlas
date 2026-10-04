@@ -39,6 +39,35 @@ struct WebParityTests {
         #expect(v.note == PaperFirst.noteUnchecked)
     }
 
+    @Test func unconfirmedCardIsLabelledCalmly() throws {
+        let v = PaperFirst.careStep(item("a"), check: .unchecked)
+        #expect(v.screenLabel == "Copied word for word from your paper")
+        #expect(v.note == "Plain words (not double-checked yet)")
+        #expect(!(v.note ?? "").contains("follow your paper"))
+        let web = try repoFile("web/src/lib/stepsView.ts")
+        #expect(web.contains("\"\(PaperFirst.checkedOnce)\""), "stepsView.ts SEAL_TEXT.once differs")
+    }
+
+    @Test func askPersonUsesOnlyThePapersWords() throws {
+        let quote = "lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily. Previously 10 mg once daily."
+        for check in [Check.unchecked, .flagged] {
+            let a = try #require(PaperFirst.askPerson(kind: "medication", quote: quote, check: check))
+            #expect(a.label == "Ask your pharmacist")
+            #expect(a.question == "My paper says: \"\(quote)\" Can you confirm what I should take?")
+        }
+        let lab = try #require(PaperFirst.askPerson(kind: "lab_test", quote: "Hemoglobin A1c - due in 3 months", check: .unchecked))
+        #expect(lab.label == "Ask your clinic")
+        #expect(lab.question == "My paper says: \"Hemoglobin A1c - due in 3 months\" Can you help me understand what I should do?")
+        #expect(PaperFirst.askPerson(kind: "medication", quote: quote, check: .certified) == nil)
+        #expect(PaperFirst.askPerson(kind: "warning_sign", quote: "Call 911 if you have chest pain.", check: .unchecked) == nil)
+        #expect(PaperFirst.askPerson(kind: "medication", quote: "  ", check: .unchecked) == nil)
+        // The same fixed wording as the website.
+        let web = try repoFile("web/src/lib/askPerson.ts")
+        for s in ["Can you confirm what I should take?", "Can you help me understand what I should do?", "Ask your pharmacist", "Ask your clinic", "My paper says: \"${quote}\" Can"] {
+            #expect(web.contains(s), "askPerson.ts lacks: \(s)")
+        }
+    }
+
     @Test func certifiedExplanationLeadsWithItsQuote() {
         let v = PaperFirst.careStep(item("a"), check: .certified)
         #expect(v.explanationLeads)
@@ -108,9 +137,11 @@ struct WebParityTests {
             #expect(pf.contains(s), "paperFirst.ts lacks: \(s)")
         }
         // The check status lines on each card use the website's own words.
-        let ui = try repoFile("web/src/ui/CarePlanTool.tsx")
+        // The step cards moved to CareSteps.tsx, and the certified line is SEAL_TEXT.twice in stepsView.ts.
+        let ui = try repoFile("web/src/ui/CareSteps.tsx")
         #expect(ui.contains("Double-check this one with your clinic: our second check says the explanation may not match your paper."))
-        #expect(ui.contains("Double-checked: the explanation matches this line"))
+        let seals = try repoFile("web/src/lib/stepsView.ts")
+        #expect(seals.contains("\"\(CheckStatus.checkedTwice)\""))
     }
 
     // MARK: The double-check (/api/meaning)
@@ -175,6 +206,33 @@ struct WebParityTests {
         #expect(text.contains("Suggestion from ATLAS, not the paper: \(plan.summary)"))
         // With no double-check at all (the default), no explanation leaves the phone.
         #expect(!ShareText.plan(items: items, plan: plan, questions: []).contains("one pill"))
+    }
+
+    @Test func nextVisitQuestionsCarryTheAIQuestionOnlyWhenCertified() throws {
+        let aiQ = "QUESTION-WHICH-METFORMIN-DOSE"
+        let asks = VerifiedItem(id: "a", kind: "medication", title: "Diabetes medicine", plain_language: "Take one pill.",
+                                source_quote: "Take metformin 500 mg twice a day.", needs_clarification: true, question_for_clinic: aiQ)
+        let base = try JSONDecoder().decode(PlanResponse.self, from: Fixture.data("plan_sample_30303_live"))
+        let plan = PlanResponse(summary: base.summary, steps: [], resources: [:], ask_a_person: false, ask_a_person_reason: "",
+                                located: base.located, stats: base.stats, model: base.model)
+        // Older readings also repeat the step's question in the general list: it must not leak through there either.
+        let general = [aiQ, "Do I need a ride?"]
+        for meaning in [MeaningState.idle, MeaningState(status: .error), MeaningState(status: .done, byId: ["a": flagged("a")])] {
+            let text = ShareText.plan(items: [asks], plan: plan, questions: general, meaning: meaning, planItems: [asks])
+            #expect(!text.contains(aiQ))
+            #expect(text.contains("- My paper says: \"Take metformin 500 mg twice a day.\" Can you confirm what I should take?"))
+            #expect(text.contains("- Do I need a ride?"))
+        }
+        let ok = ShareText.plan(items: [asks], plan: plan, questions: general, meaning: MeaningState(status: .done, byId: ["a": certified("a")]), planItems: [asks])
+        #expect(ok.components(separatedBy: aiQ).count - 1 == 1)
+        // A removed step's question stays out of the general list as well.
+        #expect(PaperFirst.visitQuestions(items: [], general: general, also: [asks], check: { _ in .certified }) == ["Do I need a ride?"])
+        #expect(PaperFirst.questionKey("  Which pain-medicines, are SAFE?? ") == "which pain medicines are safe")
+        // A held-back (refused) step's question, repeated in a saved reading's general list, stays out too.
+        let saved = try JSONDecoder().decode(CarePlanResponse.self, from: Data(#"{"items":[],"refused":[{"id":"r1","kind":"medication","title":"t","plain_language":"p","source_quote":"q","needs_clarification":true,"question_for_clinic":"Should I double my insulin?","grounded":false}],"questions_for_doctor":["Should I double my insulin?","Do I need a ride?"],"stats":{"extracted":1,"grounded":0,"refused":1,"ms":1}}"#.utf8))
+        #expect(PaperFirst.readingGeneralQuestions(saved) == ["Do I need a ride?"])
+        let web = try repoFile("web/src/lib/visitQuestions.ts")
+        #expect(web.contains("export function visitQuestions"), "visitQuestions.ts moved")
     }
 
     @Test func extractResponseCarriesItsLanguageAndOldFilesStillLoad() throws {

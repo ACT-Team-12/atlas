@@ -24,6 +24,22 @@ rm src/lib/genSafetyVectors.test.ts && cd ..
 python3 mobile/shared/gen-native-patterns.py
 ```
 
+## Pip (pip-vectors.json)
+
+`pip-vectors.json` is the website's own answer for Pip, the "you are here" marker (`web/src/lib/pip.ts`): every fixed
+line he can say in the seven app languages, the kinds of step he stays quiet on, and 618 cases (the web tests' own plus
+600 seeded random ones) of steps in the order shown, which are done, each step's check, the step just marked done and
+whether the heading greeting is still allowed, with `pipSpot`'s answer and where the one Pip is drawn (a card, or the
+heading for the greeting and "All done for now"; never both). iOS replays it in `mobile/ios/ATLASTests/PipTests.swift`
+(a test resource referenced from `project.yml`) and Android in `mobile/android/app/src/test/java/com/stephensookra/atlas/PipVectorsTest.kt`.
+`check-vectors.sh` regenerates it in web-ci once `pip.ts` is on the branch (PR 82). To regenerate by hand:
+
+```sh
+cp mobile/shared/genPipVectors.test.ts web/src/lib/
+cd web && VECTORS_OUT=../mobile/shared/pip-vectors.json pnpm exec vitest run src/lib/genPipVectors.test.ts
+rm src/lib/genPipVectors.test.ts
+```
+
 ## Missed lines (missed-lines-vectors.json)
 
 `missed-lines-vectors.json` is the website's own answer for the "Lines on your paper we didn't turn into steps"

@@ -1,26 +1,68 @@
-# Team ATLAS — ACT Challenge Atlanta (ATL Cup 2026)
+# ATLAS
 
-Shared tracker for missions, our submissions, and who owns what.
-Each mission folder has `brief.md` (what was asked) and `response.md` (what we submitted / are drafting).
-Ideas, customer evidence, and team decisions live in [research/](research/).
+ATLAS turns the paper you get after a clinic visit into a plan you can finish, and every step it shows is quoted from
+that paper. Built by Team 12 (ATLAS) for the ACT Challenge Atlanta (ATL Cup 2026).
 
-## Mission tracker
+- Live: https://atlas-team12.vercel.app
+- Phone apps: [iPhone](mobile/ios/) (SwiftUI) and [Android](mobile/android/) (Jetpack Compose), built on the same web API
+- Public checks you can run without a key: [/api/checker](https://atlas-team12.vercel.app/api/checker) (re-runs the quote-checker test) and [/api/stats](https://atlas-team12.vercel.app/api/stats) (aggregate use counts, nothing per person)
 
-| # | Mission | Due (ET) | Points | Status | Folder |
-|---|---------|----------|--------|--------|--------|
-| 1 | Team Formation & Build Readiness | Sep 30, 2026 · 11:00 pm | 125 | Submitted, awaiting staff review | [01-team-formation](missions/01-team-formation/) |
-| 2 | Problem & Product Concept | Oct 1, 2026 · 11:59 pm | 125 | Submitted by Lilian 9:28 pm (+100 early bonus window), awaiting staff review | [02-problem-product-concept](missions/02-problem-product-concept/) |
-| 3 | Customer Research & User Personas | Oct 2, 2026 · 11:59 pm | 150 | Submitted by Lilian ~8:48 pm (+100 window), awaiting staff review | [03-customer-research](missions/03-customer-research/) |
-| 4 | Business Model & Adoption | Oct 3, 2026 · 11:59 pm (+100 if in by 9:59 pm) | 150 | Drafting: packet draft + coded step (helper link, PR 51) | [04-business-model-adoption](missions/04-business-model-adoption/) |
-| 5 | Build & Ship a Code-Based MVP | Oct 4, 2026 · 11:59 pm | 175 | Brief saved; outreach to 10+ target customers starts Oct 3 | [05-build-ship-mvp](missions/05-build-ship-mvp/) |
-| 6 | Brand Identity & Product Experience | Oct 5, 2026 · 11:59 pm | 175 | Brief saved (8-16 slide deck draft due) | [06-brand-product-experience](missions/06-brand-product-experience/) |
-| 7 | Product Demo & Pitch | Oct 6, 2026 · 11:59 pm | 200 | Brief saved (deck + 3-4 min video + demo) | [07-demo-pitch](missions/07-demo-pitch/) |
+## How it works
 
-**Challenge-wide cutoff:** Oct 7, 2026 · 5:00 pm ET (not an eighth packet).
+```mermaid
+flowchart LR
+  P["After-visit paper<br/>(photo or pasted text)"] --> X["/api/extract<br/>Claude reads it into steps,<br/>each with the paper's own sentence"]
+  X --> C["Quote checker<br/>(TypeScript + Rust/WASM, core/atlas-verify)<br/>the sentence must be in the paper"]
+  C -->|found| S["Your steps<br/>paper's words first"]
+  C -->|not found| H["Held back,<br/>never shown as fact"]
+  S --> M["/api/meaning<br/>second model double-checks<br/>each plain-words explanation"]
+  S --> N["Needs the person picks<br/>(ride, cost, schedule, language...)"]
+  N --> PL["/api/plan<br/>plan built only from ids we sent:<br/>the paper's steps + checked records"]
+  R["Checked records<br/>HRSA health centers, official program pages"] --> PL
+  PL --> O["Plan, read aloud, call me,<br/>share, print, handoff sheet"]
+```
 
-**How to submit:** ATL Cup 2026 submission page (Airtable form). Upload one completed packet file with team name + mission title. **+100 points if Airtable receives it at least 2 hours before the deadline; -30 if late.**
+The rules the code enforces:
 
-**Plan for the rest of the challenge:** [PLAN.md](PLAN.md) (judging criteria, owners, build tiers).
+- **Paper first.** A step reaches the screen only if its sentence is found in the paper by our own code, not the AI.
+  An AI explanation is shown as fact only after a second model confirms it against the paper; otherwise the paper's
+  own words lead.
+- **No made-up places or numbers.** The plan may only use the care-step ids and the resource ids we sent it. Phone
+  numbers, addresses and hours come from the checked record, never from the AI's text. Every place to call is labelled
+  "Suggested by ATLAS"; if the paper says otherwise, the paper wins.
+- **The paper and the plan stay on the device.** Plans are saved in the browser or app. The server does not keep the
+  paper or the plan, except during a phone call the person asked for: then the number and plan are stored encrypted and
+  deleted when the call ends. The [privacy page](https://atlas-team12.vercel.app/privacy) says exactly what is sent
+  where.
+
+Other features on the same rules: Ask my paper (answers only with sentences from the paper), Walk me through it, Your
+medicine changes (stop / change / start from the paper's words), lab results, procedure prep timeline, 7 languages.
+
+## Repository layout
+
+| Path | What is in it |
+|---|---|
+| [web/](web/) | Next.js app and API routes (`web/src/app/api/*`), the checkers in `web/src/lib/` |
+| [core/atlas-verify/](core/atlas-verify/) | Rust quote checker compiled to WebAssembly, kept in step with the TypeScript one by a parity test |
+| [mobile/ios/](mobile/ios/), [mobile/android/](mobile/android/) | Native apps |
+| [mobile/shared/](mobile/shared/) | Test vectors every platform must pass (safety words, medicine changes, Pip, missed lines) |
+| [research/](research/) | Customer evidence (anonymized, with consent) and team decisions |
+| [missions/](missions/) | What each challenge mission asked and what we handed in |
+| [scripts/](scripts/) | Deploy and release scripts |
+
+## Run it
+
+```bash
+cd web
+pnpm install
+cp .env.example .env.local   # only ANTHROPIC_API_KEY is required; every other key is optional and explained in the file
+pnpm dev                     # http://localhost:3000
+pnpm test                    # unit and component tests
+pnpm lint && pnpm exec tsc --noEmit
+```
+
+CI (`.github/workflows/`) runs the web suite, the iOS and Android builds and tests, and the Rust checker on the pull
+requests that touch each part.
 
 ## Team
 
@@ -32,8 +74,6 @@ Ideas, customer evidence, and team decisions live in [research/](research/).
 | Anusmita Deb | Creative | Techie |
 | Stephen Sookra | Techie | Creative |
 
-## Owners & backups
-
 | Responsibility | Owner | Backup |
 |----------------|-------|--------|
 | Product decisions | Timothy | Lilian |
@@ -42,15 +82,25 @@ Ideas, customer evidence, and team decisions live in [research/](research/).
 | Testing & release | Stephen | Akhil |
 | Team communication | Lilian | Anusmita |
 
+## Missions so far
+
+Each mission folder has `brief.md` (what was asked) and, once handed in, `response.md`.
+
+| # | Mission | Folder |
+|---|---------|--------|
+| 1 | Team Formation & Build Readiness | [01-team-formation](missions/01-team-formation/) |
+| 2 | Problem & Product Concept | [02-problem-product-concept](missions/02-problem-product-concept/) |
+| 3 | Customer Research & User Personas | [03-customer-research](missions/03-customer-research/) |
+| 4 | Business Model & Adoption | [04-business-model-adoption](missions/04-business-model-adoption/) |
+| 5 | Build & Ship a Code-Based MVP | [05-build-ship-mvp](missions/05-build-ship-mvp/) |
+
 ## Current hypothesis (from Mission 2)
 
-> When **a patient leaves a clinic visit with new instructions**, **the community health worker or patient navigator helping them** tries to **turn that paperwork into steps the patient can actually finish**, but **the paper is clinical and the real blockers (transportation, cost, scheduling, language, tech access, not knowing how referrals work or what help exists) are not on it**. We still need to check which barriers matter most to CHWs and nonprofits in our Atlanta area (Mission 3).
+> When **a patient leaves a clinic visit with new instructions**, **the community health worker or patient navigator helping them** tries to **turn that paperwork into steps the patient can actually finish**, but **the paper is clinical and the real blockers (transportation, cost, scheduling, language, tech access, not knowing how referrals work or what help exists) are not on it**.
 
-_Mission 1 version: patients who struggle to understand or manage their healthcare need to easily understand and prepare for their care._
+## Standing rules
 
-## Standing rules from the program
-
-- Final outcome (Mission 5) must be a **working coded digital MVP with AI performing a meaningful function inside it**. No no-code exception.
-- Don't present unverified market gaps, invented quotes, or generated statistics as fact.
-- Use **FACTS** after a first pass: Feed, Assess, Challenge, Test, Steward.
+- The product is a working coded MVP with AI performing a meaningful function inside it.
+- No unverified market gaps, invented quotes or generated statistics presented as fact.
+- FACTS after a first pass: Feed, Assess, Challenge, Test, Steward.
 - Report access status, never credentials.

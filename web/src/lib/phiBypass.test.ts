@@ -93,6 +93,15 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     // A placeholder at the value position never makes the real value after it count as already hidden.
     ["Patient:\n⟦NAME_A⟧ Maria Lopez", ["Maria Lopez"]],
     ["Name   DOB   MRN ⟦ID_A⟧\nMaria Lopez   01/01/1970   88412907", ["Maria Lopez", "01/01/1970", "88412907"]],
+    ["Patient: ⟦NAME_A⟧\nMaria Lopez", ["Maria Lopez"]],
+    ["DOB: ⟦DOB_A⟧\n01/01/1970", ["01/01/1970"]],
+    // What a model reads as a digit or a word break, the reading does too.
+    ["MRN: ٨٨٤١٢٩٠٧\n\nCall about 88412907.", ["٨٨٤١٢٩٠٧", "88412907"]],
+    ["MRN: ८८४१२९०७", ["८८४१२९०७"]],
+    ["Patient: Maria᠎Lopez\n\nLopez, rest.", ["Maria᠎Lopez", "Lopez"]],
+    ["Patient: MariaㅤLopez\n\nLopez, rest.", ["MariaㅤLopez", "Lopez"]],
+    ["Patient: Maria Lopez\n\nLopez, rest.", ["Maria Lopez", "Lopez"]],
+    ["Patient: ‮zepoL airaM‬", ["zepoL airaM"]],
     ["Patient: ⟦NAME_A⟧   DOB: ⟦DOB_A⟧\nName   DOB   MRN\nMaria Lopez   01/01/1970   88412907", ["Maria Lopez", "01/01/1970", "88412907"]],
   ];
   test.each(CASES)("%j", (paper, values) => {

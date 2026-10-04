@@ -53,6 +53,27 @@ pairs("‘’‛ʼʹ`´′", "''''''''");
 pairs("“”‟″", "\"\"\"\"");
 
 const IGNORABLE = /[\p{Default_Ignorable_Code_Point}\p{Cf}]/u;
+/** Invisible characters that still separate words where they are drawn (fillers and separators): read as a space. */
+const BLANK = /[\u180E\u115F\u1160\u3164\uFFA0\u2063]/;
+const DIGIT = /\p{Nd}/u;
+/**
+ * Any decimal digit (Arabic-Indic "٨٨٤", Devanagari, Thai...) read as its ASCII digit: a model reads them as numbers,
+ * so the shield must too. Unicode puts each script's digits 0-9 in a run of ten, found once on first use.
+ */
+let digitZeros: number[] | null = null;
+function asciiDigit(cp: number): string {
+  if (!digitZeros) {
+    digitZeros = [];
+    for (let c = 0x80; c < 0x20000; c++) {
+      if (DIGIT.test(String.fromCodePoint(c)) && !DIGIT.test(String.fromCodePoint(c - 1))) {
+        for (let z = c; DIGIT.test(String.fromCodePoint(z)); z += 10) digitZeros.push(z);
+      }
+    }
+  }
+  let lo = 0, hi = digitZeros.length - 1, zero = -1;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (digitZeros[mid] <= cp) { zero = digitZeros[mid]; lo = mid + 1; } else hi = mid - 1; }
+  return zero >= 0 && cp - zero < 10 ? String(cp - zero) : String.fromCodePoint(cp);
+}
 const MARK = /\p{M}/u;
 const SPACE = /\p{Zs}/u;
 /**
@@ -95,8 +116,11 @@ export function readText(raw: string, placeholders: "block" | "keep" = "block"):
       continue;
     }
     if (c === "\r") { const end = raw[i + 1] === "\n" ? i + 2 : i + 1; emit("\n", i, end); i = end; continue; }
-    if (c === "\n" || c === "\u0085" || c === " " || c === " " || c === "\v" || c === "\f") { emit("\n", i, i + 1); i++; continue; }
+    if (c === "\n" || c === "\v" || c === "\f") { emit("\n", i, i + 1); i++; continue; }
+    // Unicode line and paragraph separators and NEL: a model may read them as a space, so they cannot end a value.
+    if (c === "\u0085" || c === "\u2028" || c === "\u2029") { emit(" ", i, i + 1); i++; continue; }
     if (c === "\t") { emit("  ", i, i + 1); i++; continue; }
+    if (BLANK.test(c)) { emit(" ", i, i + 1); i++; continue; }
     if (IGNORABLE.test(c)) { i++; continue; }
     if (SPACE.test(c)) { emit(" ", i, i + 1); i++; continue; }
     // A cluster: one code point and the combining marks (and invisible characters) after it.
@@ -107,14 +131,14 @@ export function readText(raw: string, placeholders: "block" | "keep" = "block"):
       const d = raw.codePointAt(end)!;
       const ch = String.fromCodePoint(d);
       if (MARK.test(ch)) cluster += ch;
-      else if (!IGNORABLE.test(ch)) break;
+      else if (BLANK.test(ch) || !IGNORABLE.test(ch)) break;
       end += ch.length;
     }
     let out = cluster.normalize("NFKC");
     // A compatibility character that expands a lot (an Arabic ligature of a whole phrase) is not part of an identifier.
     if (out.length > 4 * cluster.length) out = cluster;
     let folded = "";
-    for (const ch of out) folded += SPACE.test(ch) ? " " : FOLD[ch] ?? ch;
+    for (const ch of out) folded += SPACE.test(ch) ? " " : FOLD[ch] ?? (ch > "\x7f" && DIGIT.test(ch) ? asciiDigit(ch.codePointAt(0)!) : ch);
     emit(folded, i, end);
     i = end;
   }

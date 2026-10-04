@@ -677,12 +677,9 @@ export function detectPositional(text: string, gaps: readonly number[] = []): Hi
       const v = readValue(hit.rule.kind, line.text.slice(hit.valueStart, end));
       const len = v ? v.to : 0;
       const from = v ? v.from : 0;
-      // A field that held only a placeholder (nothing after it reads as a value) was hidden already: it is filled, not
-      // empty, so its value is not looked for on the next line. It does not stop a header table below from being read.
-      if (!len && filled(line.start + hit.labelStart, line.start + end)) {
-        if (ANCHOR_KINDS.has(hit.rule.kind)) filledAnchor = true;
-        return { hit, len, from };
-      }
+      // A field that held only a placeholder (nothing after it reads as a value) still marks the patient's line. It is
+      // never trusted to be the whole value: the next line is still read below, and a header table below still is.
+      if (!len && filled(line.start + hit.labelStart, line.start + end) && ANCHOR_KINDS.has(hit.rule.kind)) filledAnchor = true;
       // "DOB:" ending its line, the value on the next line.
       if (!len && next && i === labels.length - 1 && !line.text.slice(hit.valueStart).trim() && (NEXT_LINE_KINDS.has(hit.rule.kind) || hit.rule.explicit)) {
         const below = valueOnLine(hit.rule.kind, next, 0);

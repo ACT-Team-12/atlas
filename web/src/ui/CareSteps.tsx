@@ -357,8 +357,10 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
           <span className="min-w-0" data-closed-row={closed.lead}>
             {closed.lead === "explanation"
               ? <span className={`block font-extrabold leading-snug ${done ? "line-through text-ink/70" : ""}`}>{closed.title}</span>
-              // Open, the panel shows the paper's whole line first; the row does not repeat it (no duplicate quote).
-              : open ? null
+              // Open, the panel shows the paper's whole line first; the row does not repeat it on screen (no duplicate
+              // quote). The button keeps the line's start in its name, so focus that lands here (a "Go to this step"
+              // link) still says which step it is (Codex review). Always shortened, so the full line is still shown only once.
+              : open ? <span className="sr-only" data-open-name="">From your paper: &ldquo;{shortQuote(it.source_quote, Math.min(40, Math.floor(it.source_quote.length * 0.6)))}&rdquo;</span>
               : (
                 <span className={`block leading-snug ${done ? "line-through text-ink/70" : ""}`} data-paper-quote="">
                   <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">From your paper</span>

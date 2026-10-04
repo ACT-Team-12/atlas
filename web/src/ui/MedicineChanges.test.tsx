@@ -139,6 +139,8 @@ describe("semantics and links", () => {
     act(() => go.click());
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     expect(document.activeElement).toBe(toggle);
+    // Open, the focused button still names its step, not just "Medicine Checked once" (Codex round 2).
+    expect(toggle.textContent).toContain("lisinopril 10 mg tablet");
   });
 });
 

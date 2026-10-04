@@ -38,7 +38,28 @@ describe("who suggested the places to call", () => {
     }
   });
 
-  it("no shipped line pairs ATLAS with a not-the-paper contrast, on the web or in either app", () => {
+  // The claim itself, in any order and across sentences or source lines: "not (from/on/in/by) the/your/my paper or
+  // doctor" within 200 characters of "ATLAS" in the file's text with whitespace and string joins collapsed.
+  const CLAIM = /\bnot\s+(?:(?:from|on|in|by)\s+)?(?:the|your|my)\s+(?:paper|doctor)\b/gi;
+  // True statements that use the same words: a check result about a number.
+  const ALLOWED = [/Number not in your paper/i];
+  const claimsNearAtlas = (text: string): string[] => {
+    const flat = text.replace(/["'`]\s*\+\s*["'`]/g, "").replace(/\s+/g, " ");
+    return [...flat.matchAll(CLAIM)].map((m) => flat.slice(Math.max(0, m.index - 200), m.index + m[0].length + 200))
+      .filter((w) => /ATLAS/.test(w) && !ALLOWED.some((a) => a.test(w)));
+  };
+
+  it("the claim guard catches reversed, split and sentence-separated wordings", () => {
+    for (const bad of [
+      "Not from your paper: suggested by ATLAS",
+      "ATLAS suggested this. It is not from your paper.",
+      'const s = "Suggested by ATLAS, " +\n  "not the paper";',
+      "Suggestion from ATLAS, not the paper: Mercy Care",
+    ]) expect(claimsNearAtlas(bad)).not.toEqual([]);
+    expect(claimsNearAtlas("ATLAS explains your paper. It is not medical advice.")).toEqual([]);
+  });
+
+  it("no shipped file makes that claim near ATLAS, on the web or in either app", () => {
     // Source files, not tests: tests quote the removed wording on purpose.
     const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => {
       const p = join(dir, n);
@@ -46,9 +67,7 @@ describe("who suggested the places to call", () => {
     });
     const files = ["web/src", "mobile/ios/ATLAS", "mobile/android/app/src/main"].flatMap((d) => walk(join(repo, d)));
     expect(files.length).toBeGreaterThan(150); // a walk that finds nothing would pass silently
-    const bad = files.flatMap((f) => readFileSync(f, "utf8").split("\n").map((line, i) => ({ f, i, line })))
-      .filter(({ line }) => /ATLAS[^.\n]*\bnot\s+(?:(?:from|on|in|by)\s+)?(?:the|your|my)\s+(?:paper|doctor)\b/i.test(line))
-      .map(({ f, i, line }) => `${f.slice(repo.length + 1)}:${i + 1}: ${line.trim().slice(0, 120)}`);
+    const bad = files.flatMap((f) => claimsNearAtlas(readFileSync(f, "utf8")).map((w) => `${f.slice(repo.length + 1)}: ...${w.slice(150, 300)}...`));
     expect(bad).toEqual([]);
   });
 

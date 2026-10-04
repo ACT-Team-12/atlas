@@ -4,7 +4,7 @@
  * caregiver's try (Oct 4) could not tell which was which: "Just make it clear what came from the doctor and what came
  * from ATLAS." Every surface that lists those places says so in these words. Only what the code knows is claimed: it
  * does not know whether the doctor also named one of these places, or whether every line of the paper was captured,
- * so no label says a place is "not from the paper" (Codex review, rounds 1 and 2): they say who suggested it and send
+ * so no label claims a place is absent from the paper (Codex review, rounds 1 and 2): they say who suggested it and send
  * the person back to the paper.
  * Mirrored in the apps: mobile/ios/ATLAS/Support/ShareText.swift, Views/PlanView.swift; Android ShareText.kt, PlanScreen.kt.
  */

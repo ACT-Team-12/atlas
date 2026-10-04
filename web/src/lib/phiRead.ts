@@ -273,20 +273,36 @@ export function canonicalize(raw: string): Canon {
     const cp = raw.codePointAt(i)!;
     let end = i + (cp > 0xffff ? 2 : 1);
     const base = raw.slice(i, end);
+    const nextCh = end < n ? String.fromCodePoint(raw.codePointAt(end)!) : "";
+    // A circled number used as a list marker ("① Take metformin"): one circled number 1 to 20 with no digit or other
+    // circled number beside it is sent as "(1)", which is what a model reads. Anywhere else (a run of them, beside a
+    // digit) it could spell part of a number and is refused below.
+    if (cp >= 0x2460 && cp <= 0x2473 && !/[\p{N}]/u.test(text.slice(-1)) && !/[\p{N}]/u.test(nextCh)) {
+      endWord();
+      emit(`(${cp - 0x245f})`, i, end);
+      i = end;
+      continue;
+    }
     if (STYLED.test(base)) throw new PhiCharRefused("styled or circled letters or numbers");
     if (LATIN_LOOKALIKE.test(base)) throw new PhiCharRefused("Latin letters that look like other letters (such as ı or ɑ)");
-    // A superscript or subscript digit could be read as part of a number or id ("555-12³4", "884-¹-2907", "A¹-2907"):
-    // refused, unless it sits right after a letter in a run of non-space text with no other digit in it ("m²", "CO₂",
-    // a footnote mark "aspirin¹"). The run is read at most 64 characters each way.
-    const nextCh = end < n ? String.fromCodePoint(raw.codePointAt(end)!) : "";
+    // Superscript and subscript digits could be read as part of a number or id ("555-12³4", "884-¹-2907", "A¹-2907").
+    // Allowed only as a run of at most 3 right after a letter, in a stretch of non-space text with no other digit in it
+    // ("m²", "CO₂", a footnote or citation mark "aspirin¹", "études¹²"): 3 digits are too few to be an identifier. The
+    // stretch is read at most 64 characters each way.
     if (SUPSUB_DIGIT.test(base)) {
-      let a = i, b = end;
+      let runEnd = end;
+      while (runEnd < n && SUPSUB_DIGIT.test(raw[runEnd])) runEnd++;
+      let a = i, b = runEnd;
       while (a > 0 && i - a < 64 && !/\s/.test(raw[a - 1])) a--;
-      while (b < n && b - end < 64 && !/\s/.test(raw[b])) b++;
-      const run = raw.slice(a, i) + raw.slice(end, b);
-      if (!/\p{L}/u.test(text.slice(-1)) || /\p{N}/u.test(run)) {
+      while (b < n && b - runEnd < 64 && !/\s/.test(raw[b])) b++;
+      const around = raw.slice(a, i) + raw.slice(runEnd, b);
+      if (!/\p{L}/u.test(text.slice(-1)) || runEnd - i > 3 || /\p{N}/u.test(around)) {
         throw new PhiCharRefused("a superscript or subscript digit that could be read as part of a number");
       }
+      endWord();
+      for (let k = i; k < runEnd; k++) emit(raw[k], k, k + 1);
+      i = runEnd;
+      continue;
     }
     // A cluster: the code point and the combining marks after it (invisible characters inside it are removed).
     let cluster = base;

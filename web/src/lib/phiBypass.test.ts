@@ -104,6 +104,14 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     // Spanish labels broken across two lines.
     ["Fecha de\nnacimiento: 01/01/1970", ["01/01/1970"]],
     ["Número de historia\nclínica: 88412907", ["88412907"]],
+    // A labeled name whose first word is also a common word.
+    ["Patient: Will Smith\nDOB: 01/02/1980", ["Will Smith", "01/02/1980"]],
+    // A learned phone written again in another format.
+    ["Home phone: (404) 555-0134\nAlternate contact number 404-555-0134", ["(404) 555-0134", "404-555-0134"]],
+    // Spanish address and email, French and Vietnamese identity fields.
+    ["Paciente: María López\nDirección del paciente: 123 Calle Norte\nCorreo electrónico: maria@example.com", ["María López", "123 Calle Norte", "maria@example.com"]],
+    ["Patiente : Hélène Dubois-Lefèvre   Date de naissance : 21/06/1961\nTéléphone : 404-555-0182", ["Hélène Dubois-Lefèvre", "21/06/1961", "404-555-0182"]],
+    ["Bệnh nhân: Nguyễn Thị Lan   Ngày sinh: 02/07/1965", ["Nguyễn Thị Lan", "02/07/1965"]],
   ];
   test.each(CASES)("%j", (paper, values) => {
     const r = shield(paper);
@@ -156,6 +164,8 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     "MRN: 884 ¹ 2907",
     "MRN: A¹-2907",
     "MꭆN: 88412907",
+    "MRN: ⑤⑥⑦⑧⑨",
+    "MRN: A¹²³⁴",
   ];
   test.each([
     ["Patient email: maria\u2063.lopez@example.com", "maria\u2063.lopez@example.com"],
@@ -178,6 +188,13 @@ describe("bypass inputs: each identifier is hidden in full", () => {
 
   test.each(["Medication name: Lisinopril", "Test name: Hemoglobin A1c", "Drug name: Metformin"])("a clinical name field, decided by its label, stays: %j", (paper) => {
     expect(shield(paper).text).toBe(paper);
+  });
+
+  test.each([
+    ["① Take metformin 500 mg with food.\n② Walk 30 minutes a day.", "(1) Take metformin 500 mg with food.\n(2) Walk 30 minutes a day."],
+    ["Prenez aspirine selon les études¹².", "Prenez aspirine selon les études¹²."],
+  ])("ordinary typography is sent, not refused: %j", (paper, sent) => {
+    expect(shield(paper).text).toBe(sent);
   });
 
   it("a Spanish instruction after a Paciente label keeps its care words", () => {

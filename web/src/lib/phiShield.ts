@@ -114,6 +114,20 @@ const LABELS: LabelRule[] = [
   { kind: "MRN", re: L(String.raw`(?:n[uú]mero\s+de\s+)?(?:historia\s+cl[ií]nica|expediente)(?:\s+(?:m[eé]dico|n[uú]mero|no\.?|#))?`, SEP_OPT) },
   { kind: "CONTACT_PHONE", explicit: true, re: L(String.raw`tel[eé]fono\s+del?\s+(?:la\s+)?paciente|celular\s+del?\s+(?:la\s+)?paciente`, SEP_REQ) },
   { kind: "CONTACT_PHONE", re: L(String.raw`tel[eé]fono|celular|m[oó]vil`, SEP_REQ) },
+  { kind: "CONTACT_ADDR", explicit: true, re: L(String.raw`direcci[oó]n\s+del?\s+(?:la\s+)?paciente|domicilio\s+del?\s+(?:la\s+)?paciente|adresse\s+du\s+patient(?:e)?`, SEP_REQ) },
+  { kind: "CONTACT_ADDR", re: L(String.raw`direcci[oó]n|domicilio|adresse|[đd][ịi]a\s+ch[ỉi]`, SEP_REQ) },
+  { kind: "CONTACT_EMAIL", re: L(String.raw`correo(?:\s+electr[oó]nico)?|courriel`, SEP_REQ) },
+  // French papers.
+  { kind: "NAME", re: L(String.raw`nom\s+(?:du|de\s+la)\s+patient(?:e)?|nom\s+(?:et\s+)?pr[ée]nom|nom\s+complet|patiente|pr[ée]nom|nom`, SEP_REQ) },
+  { kind: "DOB", re: L(String.raw`date\s+de\s+naissance|n[ée]e?\s+le`, SEP_OPT) },
+  { kind: "MRN", re: L(String.raw`(?:n[uo]m[ée]ro\s+de\s+)?dossier(?:\s+m[ée]dical)?|ipp`, SEP_OPT) },
+  { kind: "CONTACT_PHONE", explicit: true, re: L(String.raw`t[ée]l[ée]phone\s+du\s+patient(?:e)?`, SEP_REQ) },
+  { kind: "CONTACT_PHONE", re: L(String.raw`t[ée]l[ée]phone|portable`, SEP_REQ) },
+  // Vietnamese papers (Latin letters with tone marks, so the same value reading applies).
+  { kind: "NAME", re: L(String.raw`h[ọo]\s+(?:v[àa]\s+)?t[êe]n(?:\s+b[ệe]nh\s+nh[âa]n)?|t[êe]n\s+b[ệe]nh\s+nh[âa]n|b[ệe]nh\s+nh[âa]n`, SEP_REQ) },
+  { kind: "DOB", re: L(String.raw`ng[àa]y\s+sinh`, SEP_OPT) },
+  { kind: "MRN", re: L(String.raw`m[ãa]\s+(?:s[ốo]\s+)?b[ệe]nh\s+nh[âa]n|s[ốo]\s+h[ồo]\s+s[ơo]`, SEP_OPT) },
+  { kind: "CONTACT_PHONE", re: L(String.raw`[đd]i[ệe]n\s+tho[ạa]i`, SEP_REQ) },
   { kind: "DOB", re: L(String.raw`d\.?\s?o\.?\s?b\.?|date\s+of\s+birth|birth\s*date|born(?:\s+on)?`, SEP_OPT) },
   { kind: "DOB", re: L(String.raw`birth`, SEP_REQ) },
   { kind: "AGE", re: L(String.raw`age|aged`, SEP_OPT) },
@@ -150,6 +164,9 @@ const NOT_NAME = new Set([
   // Spanish instruction and field words (not the name particles de, la, del, which belong to names like "de la Cruz").
   "tome", "tomar", "tomen", "use", "usar", "llame", "llamar", "regrese", "debe", "siga", "evite", "aplique", "por", "favor",
   "usted", "su", "sus", "cada", "para", "con", "si", "no", "nombre", "fecha", "paciente", "medicamento", "dosis",
+  // French and Vietnamese instruction and field words (French particles de, du, le, la are kept for names).
+  "prenez", "appelez", "revenez", "évitez", "votre", "vos", "chaque", "avec", "pour", "nom", "patiente", "médicament",
+  "ngày", "bệnh", "nhân", "uống", "thuốc", "gọi",
 ]);
 /** Kept out of name spreading: titles, suffixes, month and day names (a patient called "May" must not hide "May 5"). */
 const NO_SPREAD = new Set([
@@ -289,8 +306,12 @@ export class PhiShield {
     } else if (kind === "PHONE" || kind === "EMAIL" || ((kind === "DOB" || kind === "ADDR") && v.replace(/[^A-Za-z0-9]/g, "").length >= 6)) {
       // A birth date or street address written again anywhere ("History reviewed on 01/02/1980") is the same value.
       if (!this.values.has(v)) { this.values.set(v, kind); this.matcher = null; }
+      // A phone is the same phone in any format ("(404) 555-0134" and "404-555-0134"): its 10 digits are kept too.
+      if (kind === "PHONE") { const d = phoneDigits(v); if (d) this.phoneDigits.add(d); }
     }
   }
+  /** The 10 digits of every learned phone, to find it again in any format. */
+  private readonly phoneDigits = new Set<string>();
 
   /** Built once per set of values, rebuilt only when a new value is learned. */
   private matcher: AhoCorasick | null = null;
@@ -410,8 +431,23 @@ export class PhiShield {
         return true;
       });
     }
+    if (this.phoneDigits.size) {
+      // A learned phone written in another format: every phone-shaped run whose 10 digits match.
+      for (const m of text.matchAll(PHONE_ANY)) {
+        const d = phoneDigits(m[0]);
+        if (d && this.phoneDigits.has(d)) out.push({ start: m.index, end: m.index + m[0].length, kind: "PHONE" });
+      }
+    }
     return out;
   }
+}
+
+/** A phone-shaped run anywhere, with no digit glued on either side. */
+const PHONE_ANY = new RegExp(`(?<!\\d)${PHONE_SRC}`, "gi");
+/** The last 10 digits of a phone (dropping a leading country code 1 and any extension), or "" when it has fewer. */
+function phoneDigits(v: string): string {
+  const d = v.replace(/\s*(?:x|ext\.?)\s*\d{1,5}\s*$/i, "").replace(/\D/g, "");
+  return d.length >= 10 ? d.slice(-10) : "";
 }
 
 /** "Lopez" in "Memorial Lopez" / "St. Lopez" style org names: a capitalized org word right before. */
@@ -601,7 +637,14 @@ function readName(s: string): number {
     const m = NAME_WORD.exec(s.slice(i));
     if (!m) break;
     const w = m[0].replace(/[.'’-]+$/, "");
-    if (NOT_NAME.has(w.toLowerCase())) break;
+    if (NOT_NAME.has(w.toLowerCase())) {
+      // A capitalized first word that is also a common word ("Will Smith") is a name when a capitalized name word
+      // follows it; otherwise ("Please call") it ends the value.
+      const after = s.slice(i + m[0].length);
+      const gap = /^[ \t]+/.exec(after)?.[0].length ?? 0;
+      const next = words === 0 && gap > 0 && /^\p{Lu}/u.test(w) ? NAME_WORD.exec(after.slice(gap)) : null;
+      if (!next || !/^\p{Lu}/u.test(next[0]) || NOT_NAME.has(next[0].replace(/[.'’-]+$/, "").toLowerCase())) break;
+    }
     i += m[0].length;
     lastEnd = i;
     words++;
@@ -799,7 +842,7 @@ function detectLines(text: string, gaps: readonly number[]): Hit[] {
 }
 
 /** The last word of a line that may be the first half of a label broken across two lines. */
-const LABEL_TAIL = /(?:^|[^\p{L}])(?:patient(?:['’]s)?|pt\.?|name|full|first|last|middle|given|family|date|of|birth|d\.?o\.?b?\.?|medical|med\.?|record|rec\.?|chart|account|acct\.?|encounter|member|insurance|subscriber|policy|medicaid|medicare|social|soc\.?|security|sec\.?|home|cell|mobile|primary|contact|your|street|mailing|e-?mail|phone|emergency|parent|guardian|the|nombre|fecha|de|del|la|n[uú]mero|historia|expediente|tel[eé]fono|celular|paciente|completo|y)$/iu;
+const LABEL_TAIL = /(?:^|[^\p{L}])(?:patient(?:['’]s)?|pt\.?|name|full|first|last|middle|given|family|date|of|birth|d\.?o\.?b?\.?|medical|med\.?|record|rec\.?|chart|account|acct\.?|encounter|member|insurance|subscriber|policy|medicaid|medicare|social|soc\.?|security|sec\.?|home|cell|mobile|primary|contact|your|street|mailing|e-?mail|phone|emergency|parent|guardian|the|nombre|fecha|de|del|la|n[uú]mero|historia|expediente|tel[eé]fono|celular|paciente|completo|y|nom|du|patiente|dossier|ng[àa]y|h[ọo])$/iu;
 
 /**
  * The last few words of `line` joined to `next`: a label that starts on `line` and ends on `next` gets its value read

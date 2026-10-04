@@ -344,6 +344,37 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
   return p.pairs.some(([n, c]) => (c === null ? !unitless(n) : !known.has(`${n}|${c}`)));
 }
 
+/** One dose number in a line of the paper, read the way the number check above reads it. */
+export type DoseReading = {
+  value: string;
+  /** "mass" (mg, g), "dose" (tablets, puffs, units) or "volume" (mL). */
+  unit: "mass" | "dose" | "volume";
+  /** Up to three words just before the number that name what it is for ("lisinopril"), without shared words. */
+  names: string[];
+  /** The paper calls this one the old dose ("Previously 10 mg"). */
+  previously: boolean;
+};
+
+/**
+ * Every dose number (mg, tablets, mL) in a line of the paper, with the words that name it. The same reading as the
+ * number check's unitsSwapped, exported for the "Your medicine changes" card (medicineChanges.ts), which uses it to
+ * tell whether two doses on one line belong to the same medicine. Digits only: number words are not doses here.
+ */
+export function doseReadings(text: string): DoseReading[] {
+  const DOSE_UNITS = new Set(["mass", "dose", "volume"]);
+  const { pairs, ctxs } = numberUnits(readable(text), ["English"]);
+  const out: DoseReading[] = [];
+  pairs.forEach(([value, unit], k) => {
+    if (unit === null || !DOSE_UNITS.has(unit) || !/^\d/.test(value)) return;
+    const ctx = ctxs[k];
+    out.push({
+      value, unit: unit as DoseReading["unit"], previously: ctx.includes("previously"),
+      names: ctx.filter((w) => !ALIAS_NAMES.has(w) && unitClass(w) === null),
+    });
+  });
+  return out;
+}
+
 /**
  * Deterministic signal for the care plan: numbers in the explanation that the quote (or when) does not contain.
  * A total the paper states elsewhere in the same quote is fine; an invented dose or interval is not.

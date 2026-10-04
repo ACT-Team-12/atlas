@@ -316,6 +316,9 @@ html.js-motion [data-reveal] {
   .atlas-sheet .quote { font-style: italic; font-size: 12pt; border-left: 3pt solid #000; padding-left: 6pt; }
   .atlas-sheet .plan li, .atlas-sheet .help li { margin: 3pt 0; break-inside: avoid; }
   .atlas-sheet .lines span { display: block; border-bottom: 0.75pt solid #000; height: 24pt; }
+  .atlas-sheet .meds { list-style: none; padding: 0; }
+  .atlas-sheet .meds > li { padding: 4pt 0; border-bottom: 0.5pt solid #999; break-inside: avoid; }
+  .atlas-sheet .meds > li > div { margin: 2pt 0 2pt 10pt; }
 }
 
 /* Prep timeline sheet: hidden on screen; when printing it, it is the only thing on the page. */
@@ -389,4 +392,11 @@ html.js-motion [data-reveal] {
 /* Pip and its calm toggle are screen-only. */
 @media print {
   .pip-slot, .pip-bubble, [data-calm-toggle] { display: none !important; }
+}
+
+/* "Your medicine changes" prints as a plain black-and-white card (useful on the fridge): one piece, no links. */
+@media print {
+  .med-changes { break-inside: avoid; border-color: #000 !important; color: #000 !important; }
+  .med-changes section { border-color: #000 !important; color: #000 !important; background: #fff !important; }
+  .med-changes .med-go { display: none !important; }
 }

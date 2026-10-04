@@ -273,6 +273,47 @@ describe("automatic scroll after a reply", () => {
     expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
   });
 
+  // Oct 4 watched tries: both testers scrolled away while the AI worked; one never found her plan.
+  const cue = () => host.querySelector<HTMLElement>("[data-ready-cue]");
+
+  it("phone, untouched: no ready cue (the page takes them there itself)", async () => {
+    await planOnPhone(() => {});
+    expect(cue()).toBeNull();
+  });
+
+  it("phone, moved on during the wait: a 'Your plan is ready' button appears, and Show me opens step 3", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    expect(cue()?.dataset.readyCue).toBe("plan");
+    expect(cue()?.textContent).toContain("Your plan is ready");
+    act(() => cue()!.querySelector("button")!.click());
+    expect(tabSelected(3)).toBe("true");
+    expect(scrolls).toContain("step-3");
+    expect(cue()).toBeNull();
+  });
+
+  it("desktop, moved on during the read: a 'Your steps are ready' button appears instead of a jump", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    window.dispatchEvent(new Event("pointerdown")); // they tapped somewhere else while it read
+    await release(read, ready(careFor(PAPER)));
+    expect(scrolls).not.toContain("step-2");
+    expect(cue()?.dataset.readyCue).toBe("steps");
+    act(() => cue()!.querySelector("button")!.click());
+    expect(cue()).toBeNull();
+    expect(tabSelected(1)).toBe("true");
+  });
+
+  it("a new read clears a waiting cue", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    expect(cue()).not.toBeNull();
+    act(() => typeInto(paperBox(), PAPER + " Also: walk daily."));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    expect(cue()).toBeNull();
+    await release(read, ready(careFor(PAPER)));
+  });
+
   it("desktop: the page's own smooth scroll still moving does not count as the person scrolling", async () => {
     act(() => typeInto(paperBox(), PAPER));
     const read = hold("/api/extract");

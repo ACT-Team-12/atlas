@@ -4,7 +4,8 @@ import { bookSafe, careStepView, checkOf, type Check } from "@/lib/paperFirst";
 import { readingGeneralQuestions, visitQuestions } from "@/lib/visitQuestions";
 import { PaperFirst } from "./PaperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
+import { READY_TARGET, ReadyCue, type Ready } from "./ReadyCue";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { WorkingCard } from "./WorkingCard";
@@ -193,6 +194,9 @@ export function CarePlanTool() {
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const [planReadyNote, setPlanReadyNote] = useState<string | null>(null);
+  // A result landed while the person was elsewhere on the page (ReadyCue).
+  const [ready, setReady] = useState<Ready | null>(null);
+  const clearReady = useCallback(() => setReady(null), []);
   const [care, setCareState] = useState<CarePlanResponse | null>(null);
   const [barriers, setBarriersState] = useState<Barrier[]>([]);
   const [zip, setZipState] = useState("");
@@ -355,7 +359,7 @@ export function CarePlanTool() {
   function resetTool() {
     endSession();
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
-    setReadNote(null); setPlanNote(null); setPlanReadyNote(null);
+    setReadNote(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setPhotoChecked(false); setReadLevel(null);
@@ -551,7 +555,7 @@ export function CarePlanTool() {
     planRun.current++; setPlanning(false); // drop any plan still on its way: it was built from the old steps
     pendingPlan.current?.abort.abort(); pendingPlan.current = null;
     pendingRead.current?.abort.abort();
-    setReadNote(null); setPlanNote(null); setPlanReadyNote(null);
+    setReadNote(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     const usePhoto = corrected === undefined && !!photo;
     pendingRead.current = {
       run, abort: ac, at: performance.now(),
@@ -587,7 +591,8 @@ export function CarePlanTool() {
       // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared),
       // and only if the person has not scrolled, tapped or typed since pressing the button.
       const target = scrollTargetAfter("read", isPhoneNow());
-      if (target && autoScrollOk(sent.at)) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at };
+      if (!autoScrollOk(sent.at)) setReady("steps"); // they moved on: offer the way back instead of moving them
+      else if (target) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at };
     } catch (e) {
       if (readRun.current !== run) return; // stopped or replaced: nothing to show
       if (pendingRead.current?.run === run && pendingRead.current.fp !== liveReadFp()) return stopStaleRead();
@@ -630,7 +635,7 @@ export function CarePlanTool() {
     const abort = new AbortController();
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
     pendingPlan.current = { run, abort, at: performance.now(), fp: planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc }) };
-    setPlanning(true); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null);
+    setPlanning(true); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     try {
       const body = {
         care: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => ({ id: i.id, kind: i.kind, title: i.title, plain_language: i.plain_language, when: i.when, source_quote: i.source_quote })),
@@ -901,6 +906,7 @@ export function CarePlanTool() {
     const phone = isPhoneNow();
     if (free || !phone) setTab(3);
     else setPlanReadyNote("Your plan is ready. Open 3 · Plan.");
+    if (!free) setReady("plan"); // they moved on: the floating "Your plan is ready" button takes them there
     const target = scrollTargetAfter("plan", phone);
     if (!target || !free) return;
     const next = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt };
@@ -954,8 +960,19 @@ export function CarePlanTool() {
 
   function pickTab(t: Tab, onlyIfHidden = true) {
     setTab(t);
-    if (t === 3) setPlanReadyNote(null); // they opened the plan
+    if (t === 3) { setPlanReadyNote(null); setReady((r) => (r === "plan" ? null : r)); } // they opened the plan
     scrollAfter.current = { t, onlyIfHidden };
+  }
+
+  // "Show me" on the ready cue: the plan opens step 3; the steps bring "Your steps" to the top of step 1.
+  function goToReady(r: Ready) {
+    setReady(null);
+    if (r === "plan") return pickTab(3, false);
+    setTab(1);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(READY_TARGET.steps);
+      if (el) markOwnScroll(scrollElementToTop(el, "smooth"));
+    });
   }
 
   // The handoff sheet is the only thing printed while html.print-sheet is set; afterprint clears it.
@@ -1036,6 +1053,7 @@ export function CarePlanTool() {
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
 
         <PhoneTabBar shown={shown} state={flow} onPick={pickTab} notice={plan && shown !== 3 ? planReadyNote : null} />
+        <ReadyCue ready={ready} onGo={goToReady} onSeen={clearReady} />
 
         {/* Step 1 */}
         <div {...panel(1)} className={`card mt-10 max-md:mt-4 p-5 sm:p-8 max-md:scroll-mt-44 ${onPhone(1)}`}>

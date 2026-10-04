@@ -249,7 +249,7 @@ export function CareSteps(p: Props) {
         <div>
           <div data-pip-heading-area="">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="display text-2xl">Your steps</h3>
+              <h3 id="steps-title" className="display text-2xl scroll-mt-28">Your steps</h3>
               <div className="flex items-center gap-2" data-pip-heading="">
                 <CalmToggle />
                 {/* Pip's heading spot (the first-view greeting, or every step done); reserved either way so the heading

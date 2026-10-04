@@ -98,6 +98,7 @@ fun CareStepsScreen(model: AppModel) {
                 check = check,
                 result = if (model.meaning.status == MeaningStatus.done) model.meaning.byId[item.id] else null,
                 checking = model.meaning.status == MeaningStatus.loading,
+                errored = model.meaning.status == MeaningStatus.error,
                 done = model.done[item.id] == true,
                 onToggleDone = { model.setDone(item.id, model.done[item.id] != true) },
                 // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
@@ -152,7 +153,7 @@ fun CareStepsScreen(model: AppModel) {
 
 @Composable
 fun CareItemCard(item: VerifiedItem, check: Check, result: MeaningResult?, checking: Boolean, done: Boolean,
-                 onToggleDone: () -> Unit, onRemind: () -> Unit, onRemove: () -> Unit) {
+                 onToggleDone: () -> Unit, onRemind: () -> Unit, onRemove: () -> Unit, errored: Boolean = false) {
     val style = KindStyle.of(item.kind)
     val warning = item.itemKind == ItemKind.warning_sign
     val certified = check == Check.certified
@@ -194,7 +195,7 @@ fun CareItemCard(item: VerifiedItem, check: Check, result: MeaningResult?, check
                         modifier = Modifier.fillMaxWidth().background(Palette.peach, RoundedCornerShape(12.dp)).padding(8.dp),
                     )
                 }
-                CheckStatus(result, checking)
+                CheckStatus(result, checking, errored)
                 PaperFirst.askPerson(item.kind, item.source_quote, check)?.let { AskPersonBox(it) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinePill("Remind me", onClick = onRemind, fill = Palette.mint, icon = Icons.Filled.Notifications,
@@ -210,9 +211,11 @@ fun CareItemCard(item: VerifiedItem, check: Check, result: MeaningResult?, check
 
 /** The second check's verdict for one step, in the same words as the website. */
 @Composable
-private fun CheckStatus(result: MeaningResult?, checking: Boolean) {
+private fun CheckStatus(result: MeaningResult?, checking: Boolean, errored: Boolean = false) {
     when {
         checking -> Text("Double-checking this against your paper...", style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
+        // The check failed: still "Checked once", as on the website (SEAL_TEXT.once, with no result to add to it).
+        result == null && errored -> CheckedOnce(PaperFirst.CHECKED_ONCE)
         result == null -> {}
         result.flagged -> {
             val what = result.what_differs.trim().replaceFirstChar { it.uppercase() }
@@ -226,15 +229,17 @@ private fun CheckStatus(result: MeaningResult?, checking: Boolean) {
         }
         // SEAL_TEXT.twice in web/src/lib/stepsView.ts, as on iOS.
         result.certified -> Text("✓ Checked twice: the words are on your paper, and a second check agrees with the explanation.", style = Type.caption.copy(color = Palette.teal))
-        else -> {
-            // Checked once: the long reason waits behind "Why?" (the website's details element).
-            var why by remember { mutableStateOf(false) }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextLink(if (why) "Checked once · Hide why" else "Checked once · Why?", onClick = { why = !why }, color = Palette.inkSoft)
-                if (why) Text("${PaperFirst.CHECKED_ONCE} Our second check couldn't confirm this one.",
-                    style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
-            }
-        }
+        else -> CheckedOnce("${PaperFirst.CHECKED_ONCE} Our second check couldn't confirm this one.")
+    }
+}
+
+/** Checked once: the long reason waits behind "Why?" (the website's details element). */
+@Composable
+private fun CheckedOnce(why: String) {
+    var open by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        TextLink(if (open) "Checked once · Hide why" else "Checked once · Why?", onClick = { open = !open }, color = Palette.inkSoft)
+        if (open) Text(why, style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
     }
 }
 

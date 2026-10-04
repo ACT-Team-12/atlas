@@ -262,6 +262,24 @@ body {
   border: 0.4rem solid transparent; border-top-color: var(--ink); border-bottom: 0;
 }
 
+/* "Walk me through it" (CareSteps.tsx): the full list stays in the page, hidden on screen while walking. */
+.walk-away { display: none !important; }
+.walk-card { animation: walk-in 0.28s ease-out both; }
+.walk-card[data-calm] { animation: none; }
+@keyframes walk-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+/* Big type: the paper's words and their labels, which PaperFirst sizes for a list row. */
+.walk-paper [data-paper-quote] > p:first-child { font-size: 1rem; }
+.walk-paper [data-explanation][data-secondary], .walk-paper [data-explanation][data-secondary] p:first-child { font-size: 1.125rem; }
+.walk-paper [data-lead="explanation"] [data-paper-quote] { font-size: 1.25rem; }
+@media print {
+  /* Printing while walking prints the list as usual, never the walk-through screen. */
+  .walk-away { display: block !important; }
+  .walk-through { display: none !important; }
+}
+
 html.js-motion [data-reveal] {
   visibility: hidden;
 }
@@ -274,6 +292,7 @@ html.js-motion [data-reveal] {
   }
   .marquee-track { animation: none; }
   .step-in { animation: none; }
+  .walk-card { animation: none !important; }
   /* Pip in reduced motion: no hop, no bounce, no blink; it only fades into its spot (the one motion kept, on purpose). */
   .pip .pip-eyes, .pip[data-pip] .pip-body { animation: none !important; }
   .pip[data-pip="arrive"] .pip-body, .pip[data-pip="cheer"] .pip-body { animation: pip-fade 0.4s ease-out both !important; }

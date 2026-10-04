@@ -72,7 +72,7 @@ export function Hero() {
   return (
     <section ref={root} className="relative px-3 pt-3">
       <div className="hero-bg section-card bg-mint min-h-[100svh] flex items-center">
-        <WaveBlobs tints={["#cdeee3", "#dbf3ea", "#e6f6f0"]} />
+        <WaveBlobs tints={["var(--wave-1)", "var(--wave-2)", "var(--wave-3)"]} />
         <div className="relative z-10 w-full grid lg:grid-cols-[1.3fr_1fr] gap-10 items-center px-6 sm:px-12 pt-28 pb-16">
           <div>
             <p data-reveal className="hero-note hand text-3xl text-teal-deep -rotate-2 mb-4 inline-block">

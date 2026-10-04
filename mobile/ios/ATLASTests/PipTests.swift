@@ -155,6 +155,8 @@ struct PipTests {
         // The shine arc stays on the body (center about 32.8, 28.8; radius 20).
         let shine = SVGPath.parse(PipRig.shine).boundingRect
         #expect(shine.minX >= 13.5 && shine.maxX <= 26.5 && shine.minY >= 9.5 && shine.maxY <= 22.5)
-        #expect(SVGPath.tokenize("M23 28 q3 -4 6 0").count == 7)
+        // M, two numbers, q, four numbers; a minus sign starts a new number.
+        #expect(SVGPath.tokenize("M23 28 q3 -4 6 0") == [.command("M"), .number(23), .number(28), .command("q"),
+                                                         .number(3), .number(-4), .number(6), .number(0)])
     }
 }

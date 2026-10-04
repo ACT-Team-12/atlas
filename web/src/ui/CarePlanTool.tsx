@@ -4,7 +4,8 @@ import { bookSafe, careStepView, checkOf, type Check } from "@/lib/paperFirst";
 import { readingGeneralQuestions, visitQuestions } from "@/lib/visitQuestions";
 import { PaperFirst } from "./PaperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
+import { landingTop, readyTarget, ReadyCue, type Ready } from "./ReadyCue";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { WorkingCard } from "./WorkingCard";
@@ -136,17 +137,19 @@ export function StreamingSteps({ items }: { items: VerifiedItem[] }) {
   );
 }
 
-function StepHeader({ n, title, done, note }: { n: number; title: string; done?: boolean; note?: string }) {
+function StepHeader({ n, title, done, note, id }: { n: number; title: string; done?: boolean; note?: string; id?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <span className={`grid place-items-center w-10 h-10 rounded-full border-2 border-ink font-extrabold ${done ? "bg-teal text-paper" : "bg-paper"}`}>{done ? "✓" : n}</span>
-      <h3 className="display text-3xl">{title}</h3>
+      {/* With an id it is a landing spot (the ready cue moves focus here), so it takes focus without joining the tab order. */}
+      <h3 id={id} tabIndex={id ? -1 : undefined} className="display text-3xl outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{title}</h3>
       {note && <span className="hand text-2xl text-ink/70 -rotate-1">{note}</span>}
     </div>
   );
 }
 
-type ScrollRequest = { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number };
+/** `ready`: the cue to raise instead when an automatic scroll is cancelled at the last check (Codex review, round 4). */
+type ScrollRequest = { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number; ready?: { what: Ready; ref: object } };
 
 /** The fingerprint of a save from before results were checked against answers: no inputs ever match it. */
 const UNMATCHED_SAVE = "saved-before-results-were-checked";
@@ -193,6 +196,10 @@ export function CarePlanTool() {
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const [planReadyNote, setPlanReadyNote] = useState<string | null>(null);
+  // A result landed while the person was elsewhere on the page (ReadyCue). `ref` is that exact result: the cue
+  // shows only while it is still the one on screen and still current (Codex review).
+  const [ready, setReady] = useState<{ what: Ready; ref: object } | null>(null);
+  const clearReady = useCallback(() => setReady(null), []);
   const [care, setCareState] = useState<CarePlanResponse | null>(null);
   const [barriers, setBarriersState] = useState<Barrier[]>([]);
   const [zip, setZipState] = useState("");
@@ -265,7 +272,7 @@ export function CarePlanTool() {
   // A scroll to run after the next render, once the newly shown card is on the page.
   // `submittedAt` marks an automatic scroll: it is checked again right before scrolling, and skipped if the
   // person has used the page since they pressed the button. A tab they picked themselves has none.
-  const scrollAfter = useRef<{ t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number } | null>(null);
+  const scrollAfter = useRef<ScrollRequest | null>(null);
   // A plan that just arrived: once it is on the page, decide (then, not when the reply landed) whether to open and scroll to it.
   const planNav = useRef<{ plan: PlanResponse; submittedAt: number } | null>(null);
   // The card an automatic scroll brought up, kept in place briefly while late content above it loads.
@@ -329,7 +336,7 @@ export function CarePlanTool() {
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFence.cancel(); setMeaning(IDLE_MEANING);
-    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setLoc(null); locGen.current++; setLocating(false);
+    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setLoc(null); locGen.current++; setLocating(false); setReady(null); setPlanReadyNote(null);
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
     // A plan saved before ids were filtered out (lib/planText.ts) comes back without them. A plan with nothing to clean
@@ -355,7 +362,7 @@ export function CarePlanTool() {
   function resetTool() {
     endSession();
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
-    setReadNote(null); setPlanNote(null); setPlanReadyNote(null);
+    setReadNote(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setPhotoChecked(false); setReadLevel(null);
@@ -451,6 +458,11 @@ export function CarePlanTool() {
     careIds: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id),
     barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc,
   }) !== planFp);
+  // The ready cue, only for the exact result that raised it and only while that result is current.
+  const cueFor: Ready | null = !ready ? null
+    : ready.what === "steps" ? (care === ready.ref && !careOutdated ? "steps" : null)
+    : ready.what === "photo" ? (care === ready.ref && !careOutdated && !photoChecked ? "photo" : null)
+    : (plan === ready.ref && !planOutdated ? "plan" : null);
   const resultsCurrent = !careOutdated && !planOutdated;
   const actionsOffReason = careOutdated ? "Read your paper again first" : "Update the plan first";
   // A plan made near the device's position, with no position or ZIP now: it needs a place before it can be updated.
@@ -551,7 +563,7 @@ export function CarePlanTool() {
     planRun.current++; setPlanning(false); // drop any plan still on its way: it was built from the old steps
     pendingPlan.current?.abort.abort(); pendingPlan.current = null;
     pendingRead.current?.abort.abort();
-    setReadNote(null); setPlanNote(null); setPlanReadyNote(null);
+    setReadNote(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     const usePhoto = corrected === undefined && !!photo;
     pendingRead.current = {
       run, abort: ac, at: performance.now(),
@@ -582,12 +594,18 @@ export function CarePlanTool() {
       setCareFp(sent.fp);
       if (json.source_kind === "image" && photo) setReadPhoto({ for: json, file: photo });
       setReadLevel(usedLevel);
-      if (json.source_kind === "image") { setTranscript(json.source_text); return; }
+      if (json.source_kind === "image") {
+        setTranscript(json.source_text);
+        // The photo check waits in step 1; if they moved on while it read, the cue brings them back to it (Codex review, round 5).
+        if (!autoScrollOk(sent.at)) setReady({ what: "photo", ref: json });
+        return;
+      }
       void checkMeaningFor(json);
       // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared),
       // and only if the person has not scrolled, tapped or typed since pressing the button.
       const target = scrollTargetAfter("read", isPhoneNow());
-      if (target && autoScrollOk(sent.at)) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at };
+      if (!autoScrollOk(sent.at)) setReady({ what: "steps", ref: json }); // they moved on: offer the way back instead of moving them
+      else if (target) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at, ready: { what: "steps", ref: json } };
     } catch (e) {
       if (readRun.current !== run) return; // stopped or replaced: nothing to show
       if (pendingRead.current?.run === run && pendingRead.current.fp !== liveReadFp()) return stopStaleRead();
@@ -630,7 +648,7 @@ export function CarePlanTool() {
     const abort = new AbortController();
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
     pendingPlan.current = { run, abort, at: performance.now(), fp: planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc }) };
-    setPlanning(true); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null);
+    setPlanning(true); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     try {
       const body = {
         care: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => ({ id: i.id, kind: i.kind, title: i.title, plain_language: i.plain_language, when: i.when, source_quote: i.source_quote })),
@@ -857,7 +875,8 @@ export function CarePlanTool() {
 
   function runScroll(req: ScrollRequest) {
     // An automatic scroll is checked again here: a tap or scroll since the button press cancels it.
-    if (req.submittedAt !== undefined && !autoScrollOk(req.submittedAt)) { scrollAnchor.current = null; return; }
+    // Cancelled: offer the way back instead, so the result is never left off screen with no sign of it.
+    if (req.submittedAt !== undefined && !autoScrollOk(req.submittedAt)) { scrollAnchor.current = null; if (req.ready) setReady(req.ready); return; }
     const own = ownScroll.current;
     if (req.submittedAt !== undefined && own && performance.now() <= own.until) return waitForOwnScroll(req, own);
     markOwnScroll(scrollToPanel(req.t, req.onlyIfHidden));
@@ -901,9 +920,10 @@ export function CarePlanTool() {
     const phone = isPhoneNow();
     if (free || !phone) setTab(3);
     else setPlanReadyNote("Your plan is ready. Open 3 · Plan.");
+    if (!free) setReady({ what: "plan", ref: nav.plan }); // they moved on: the floating "Your plan is ready" button takes them there
     const target = scrollTargetAfter("plan", phone);
     if (!target || !free) return;
-    const next = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt };
+    const next: ScrollRequest = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt, ready: { what: "plan", ref: nav.plan } };
     // On a phone the card shows only after the tab switch renders; if step 3 is already open, nothing re-renders.
     if (phone && tab !== 3) scrollAfter.current = next;
     else runScroll(next);
@@ -954,8 +974,29 @@ export function CarePlanTool() {
 
   function pickTab(t: Tab, onlyIfHidden = true) {
     setTab(t);
-    if (t === 3) setPlanReadyNote(null); // they opened the plan
+    if (t === 3) { setPlanReadyNote(null); setReady((r) => (r?.what === "plan" ? null : r)); } // they opened the plan
     scrollAfter.current = { t, onlyIfHidden };
+  }
+
+  // "Show me" on the ready cue: the plan opens step 3; the steps (or the photo check) come to the top of step 1.
+  // Focus then follows to the result's heading, so keyboard and screen-reader users land there too (Codex review).
+  function goToReady(r: Ready) {
+    setReady(null);
+    const focusTarget = () => readyTarget(r)?.focus({ preventScroll: true });
+    if (r === "plan") {
+      pickTab(3, false);
+      requestAnimationFrame(() => requestAnimationFrame(focusTarget)); // after step 3 has rendered and scrolled
+      return;
+    }
+    setTab(1);
+    requestAnimationFrame(() => {
+      const el = readyTarget(r);
+      if (!el) return;
+      const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.style.scrollMarginTop = `${landingTop(el)}px`; // clear of whatever covers the top on this screen
+      markOwnScroll(scrollElementToTop(el, calm ? "auto" : "smooth"));
+      focusTarget();
+    });
   }
 
   // The handoff sheet is the only thing printed while html.print-sheet is set; afterprint clears it.
@@ -1006,6 +1047,8 @@ export function CarePlanTool() {
   const transcriptEdited = !!care && isTranscriptEdited(transcript, care.source_text);
   const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0, transcriptEdited, hasPlan: !!plan, planning });
   const shown = shownTab(tab, flow);
+  // The phone tab bar's "Your plan is ready" holds to the same rule as the cue: never for an outdated plan (Codex review, round 4).
+  const phonePlanNote = plan && shown !== 3 && !planOutdated ? planReadyNote : null;
   // Phones: one step card at a time. Hidden cards stay mounted (state, timers and requests carry on).
   const panel = (t: Tab) => ({
     id: panelId(t),
@@ -1035,7 +1078,9 @@ export function CarePlanTool() {
 
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
 
-        <PhoneTabBar shown={shown} state={flow} onPick={pickTab} notice={plan && shown !== 3 ? planReadyNote : null} />
+        <PhoneTabBar shown={shown} state={flow} onPick={pickTab} notice={phonePlanNote} />
+        {/* Only while that exact result is still on screen and current; the tab bar already announces the phone plan. */}
+        <ReadyCue ready={cueFor} announce={!(cueFor === "plan" && !!phonePlanNote)} onGo={goToReady} onSeen={clearReady} />
 
         {/* Step 1 */}
         <div {...panel(1)} className={`card mt-10 max-md:mt-4 p-5 sm:p-8 max-md:scroll-mt-44 ${onPhone(1)}`}>
@@ -1091,7 +1136,7 @@ export function CarePlanTool() {
 
           {care && needsPhotoCheck && (
             <div className="mt-8 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4 sm:p-5">
-              <p className="font-extrabold">Check how we read your photo</p>
+              <p id="photo-check-title" tabIndex={-1} className="font-extrabold scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">Check how we read your photo</p>
               <p className="text-sm font-semibold text-ink/70">
                 Every step below has to quote this text. If a word or number is wrong here, fix it, then read it again so the steps come from your corrected text.
               </p>
@@ -1182,7 +1227,7 @@ export function CarePlanTool() {
           <div {...panel(3)} ref={planCard} data-outdated={planOutdated || undefined} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 max-md:pb-36 scroll-mt-24 max-md:scroll-mt-44 ${planOutdated ? "plan-outdated" : ""} ${onPhone(3)}`}>
             {/* Printing from the browser menu while the plan is outdated prints only this, never the outdated plan. */}
             {planOutdated && <p className="outdated-print-note">This plan is out of date, so it is not printed. {actionsOffReason}, then print again.</p>}
-            <StepHeader n={3} title="Your plan" done note={plan.located.label} />
+            <StepHeader n={3} id="plan-title" title="Your plan" done note={plan.located.label} />
             {planOutdated && (
               <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-sun/30 p-3 text-sm font-bold">
                 {careOutdated

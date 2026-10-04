@@ -209,7 +209,7 @@ export function CareSteps(p: Props) {
       <div className={walking ? "walk-away" : undefined} data-walk-away={walking || undefined}>
       {(care.has_warning_signs || warnings.length > 0) && (
         <section aria-labelledby="warn-title" className="mb-5 rounded-2xl border-2 border-red bg-red-soft p-4 text-red" data-warnings="">
-          <h3 id="warn-title" className="display text-xl">Warning signs from your paper</h3>
+          <h3 id="warn-title" tabIndex={-1} className="display text-xl scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">Warning signs from your paper</h3>
           <p className="text-sm font-semibold">If you have any of them right now, do what your paper says: call your clinic, or call 911.</p>
           {warnings.length > 0 && <ul className="mt-3 space-y-2">{warnings.map((it) => row(it, true))}</ul>}
         </section>
@@ -249,7 +249,7 @@ export function CareSteps(p: Props) {
         <div>
           <div data-pip-heading-area="">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="display text-2xl">Your steps</h3>
+              <h3 id="steps-title" tabIndex={-1} className="display text-2xl scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">Your steps</h3>
               <div className="flex items-center gap-2" data-pip-heading="">
                 <CalmToggle />
                 {/* Pip's heading spot (the first-view greeting, or every step done); reserved either way so the heading

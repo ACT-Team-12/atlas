@@ -273,6 +273,114 @@ describe("automatic scroll after a reply", () => {
     expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
   });
 
+  // Oct 4 watched tries: both testers scrolled away while the AI worked; one never found her plan.
+  const cue = () => host.querySelector<HTMLElement>("[data-ready-cue]");
+
+  it("phone, untouched: no ready cue (the page takes them there itself)", async () => {
+    await planOnPhone(() => {});
+    expect(cue()).toBeNull();
+  });
+
+  it("phone, moved on during the wait: a 'Your plan is ready' button appears, and Show me opens step 3", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    expect(cue()?.dataset.readyCue).toBe("plan");
+    expect(cue()?.textContent).toContain("Your plan is ready");
+    act(() => cue()!.querySelector("button")!.click());
+    expect(tabSelected(3)).toBe("true");
+    expect(scrolls).toContain("step-3");
+    expect(cue()).toBeNull();
+    // Focus follows to the plan's heading (Codex review), after step 3 has rendered.
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("plan-title");
+  });
+
+  it("phone: one announcement per plan (the tab bar's note speaks; the cue's live region stays quiet)", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    const speaking = [...host.querySelectorAll("[aria-live], [role=status]")].filter((n) => /Your plan is ready/.test(n.textContent ?? ""));
+    expect(speaking).toHaveLength(1);
+  });
+
+  it("the cue goes away when the plan it announced becomes outdated (Codex review)", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    expect(cue()).not.toBeNull();
+    expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
+    act(() => byText("Paying for the visit").click()); // a changed answer: the plan on screen is now outdated
+    expect(cue()).toBeNull();
+    // The tab bar's note holds to the same rule: it never sends them to an outdated plan (Codex review, round 4).
+    expect(screenText()).not.toContain("Your plan is ready");
+  });
+
+  it("desktop: a tap after the reading lands but before its scroll runs raises the cue instead (Codex review, round 4)", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await outsideReact(async () => {
+      read.resolve(ready(careFor(PAPER)));
+      await microtasks(); // the reply is handled and its scroll queued; the render that runs it has not happened yet
+      window.dispatchEvent(new Event("pointerdown"));
+    });
+    expect(scrolls).not.toContain("step-2");
+    expect(cue()?.dataset.readyCue).toBe("steps");
+  });
+
+  it("desktop, moved on during the read: a 'Your steps are ready' button appears instead of a jump", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    window.dispatchEvent(new Event("pointerdown")); // they tapped somewhere else while it read
+    await release(read, ready(careFor(PAPER)));
+    expect(scrolls).not.toContain("step-2");
+    expect(cue()?.dataset.readyCue).toBe("steps");
+    act(() => cue()!.querySelector("button")!.click());
+    expect(cue()).toBeNull();
+    expect(tabSelected(1)).toBe("true");
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("steps-title");
+  });
+
+  it("steps with warning signs: Show me lands on the warnings, never past them (Codex review, round 7)", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    window.dispatchEvent(new Event("pointerdown"));
+    await release(read, ready({ ...careFor(PAPER), has_warning_signs: true }));
+    expect(screenText()).toContain("Warning signs from your paper");
+    act(() => cue()!.querySelector("button")!.click());
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("warn-title");
+    expect(scrolls).toContain("warn-title");
+  });
+
+  it("photo, moved on while it read: the cue brings them back to the photo check (Codex review, round 5)", async () => {
+    vi.stubGlobal("createImageBitmap", async () => ({ width: 10, height: 10 }));
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage: () => {} } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue("data:image/jpeg;base64,AAAA");
+    const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, "files", { configurable: true, value: [new File(["x"], "paper.jpg", { type: "image/jpeg" })] });
+    act(() => { input.dispatchEvent(new Event("change", { bubbles: true })); });
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    window.dispatchEvent(new Event("pointerdown")); // they scrolled away while it read
+    await release(read, ready({ ...careFor(PAPER), source_kind: "image" }));
+    expect(screenText()).toContain("Check how we read your photo");
+    expect(cue()?.dataset.readyCue).toBe("photo");
+    act(() => cue()!.querySelector("button")!.click());
+    expect(cue()).toBeNull();
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("photo-check-title");
+    vi.restoreAllMocks();
+  });
+
+  it("a new read clears a waiting cue", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    expect(cue()).not.toBeNull();
+    act(() => typeInto(paperBox(), PAPER + " Also: walk daily."));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    expect(cue()).toBeNull();
+    await release(read, ready(careFor(PAPER)));
+  });
+
   it("desktop: the page's own smooth scroll still moving does not count as the person scrolling", async () => {
     act(() => typeInto(paperBox(), PAPER));
     const read = hold("/api/extract");

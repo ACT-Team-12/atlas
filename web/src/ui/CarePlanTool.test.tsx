@@ -1016,15 +1016,22 @@ describe("Try it with a sample lands with the sample in and Read my paper in vie
   describe("while the first-visit intro holds the page", () => {
     afterEach(() => { document.documentElement.style.overflow = ""; });
 
-    it("waits for the intro, then jumps once", async () => {
+    it("waits for the intro to let go, then jumps once (Preloader's real order: intro-done while locked, then again)", async () => {
       document.documentElement.style.overflow = "hidden";
       act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
       await act(async () => { await frame(); });
       expect(scrolls).not.toContain("read-my-paper");
+      // First intro-done: mid-animation, the page is still locked. Codex review: this used to consume the jump.
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls).not.toContain("read-my-paper");
+      // Second intro-done: finish() has cleared the lock.
       document.documentElement.style.overflow = "";
       await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
       expect(scrolls.filter((s) => s === "read-my-paper")).toHaveLength(1);
       expect(document.activeElement).toBe(readButton());
+      // Any later intro-done does nothing more.
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls.filter((s) => s === "read-my-paper")).toHaveLength(1);
     });
 
     it("a late intro never pulls the person out of what they started (Codex review)", async () => {

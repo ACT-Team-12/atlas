@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, type CSSProperties, type ReactNode } from "react";
+import { useRef, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { setupGsap, gsap, SplitText, prefersReducedMotion } from "./motion/gsap";
 
 type Props = {
   href?: string;
-  onClick?: () => void;
+  onClick?: (e: MouseEvent<HTMLElement>) => void;
   children: ReactNode;
   icon?: ReactNode;
   bg?: string;

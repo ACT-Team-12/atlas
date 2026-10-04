@@ -425,12 +425,18 @@ export function CarePlanTool() {
       el.scrollIntoView({ block: "center" });
       el.focus({ preventScroll: true });
     };
-    // The first-visit intro (Preloader) holds the page with overflow hidden for about a second and a half. Jump once:
-    // right away, or when the intro lets go, never both.
+    // The first-visit intro (Preloader) holds the page with overflow hidden for about a second and a half, and says
+    // "atlas:intro-done" twice: once mid-animation (still locked) and once after it lets go. Jump once: right away, or
+    // on the first intro-done that arrives after the lock is gone, never both.
     if (document.documentElement.style.overflow === "hidden") {
-      window.addEventListener("atlas:intro-done", go, { once: true });
-      const stop = window.setTimeout(() => window.removeEventListener("atlas:intro-done", go), 5000);
-      return () => { window.clearTimeout(stop); window.removeEventListener("atlas:intro-done", go); };
+      const onIntro = () => {
+        if (document.documentElement.style.overflow === "hidden") return; // still locked: wait for the next one
+        window.removeEventListener("atlas:intro-done", onIntro);
+        go();
+      };
+      window.addEventListener("atlas:intro-done", onIntro);
+      const stop = window.setTimeout(() => window.removeEventListener("atlas:intro-done", onIntro), 6000);
+      return () => { window.clearTimeout(stop); window.removeEventListener("atlas:intro-done", onIntro); };
     }
     const frame = requestAnimationFrame(go);
     return () => cancelAnimationFrame(frame);

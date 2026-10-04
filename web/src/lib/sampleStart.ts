@@ -18,3 +18,13 @@ export const TRY_SAMPLE_EVENT = "atlas:try-sample";
 export function mayFillSample(text: string, hasPhoto: boolean, sample: string): boolean {
   return !hasPhoto && (text.trim() === "" || text === sample);
 }
+
+type ClickLike = { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean };
+
+/**
+ * A plain left click that navigates in this tab. Cmd/Ctrl/Shift/Alt clicks open a new tab or window, so this tab must
+ * not fill in the sample or move its focus (Codex review); the new tab reads #try-sample on load instead.
+ */
+export function isPlainClick(e: ClickLike): boolean {
+  return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+}

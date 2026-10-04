@@ -176,7 +176,7 @@ describe("critical headings (Codex review)", () => {
 
   it("a line marked CRITICAL is outside even when the model calls it normal and the value sits in range", () => {
     for (const line of ["Potassium 4.0 mmol/L 3.5-5.1 CRITICAL", "CRITICAL Potassium 4.0 mmol/L 3.5-5.1", "Potassium 4.0 mmol/L 3.5-5.1 panic"]) {
-      const res = checkRows(`${line}\n`, [row({ test: "Potassium", value: "4.0", unit: "mmol/L normal", range_text: "3.5-5.1", quote: line, plain_name: "Normal potassium", ask: "Is this normal?" })]);
+      const res = checkRows(`${line}\n`, [{ ...row({ test: "Potassium", value: "4.0", unit: "mmol/L normal", range_text: "3.5-5.1", quote: line }), plain_name: "Normal potassium", ask: "Is this normal?" }]);
       // Outside, by the critical rule or by the trailing mark read as a flag; never inside or can't tell.
       expect(res.rows.map((r) => r.status), line).toEqual(["outside"]);
       expect(res.rows[0].reason, line).toMatch(/^Your report marks this line (critical|as abnormal)\.$/);

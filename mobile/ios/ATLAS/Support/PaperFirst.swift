@@ -11,7 +11,8 @@ enum Check: String, Sendable {
 /// - Certified (the second check said "same" and every number checks out): the explanation may lead, and the
 ///   paper's verbatim quote is shown right with it.
 /// - Anything else (still checking, check failed, unclear, flagged, never checked): the paper's verbatim quote
-///   leads, labelled "Your paper says:", and the explanation is visibly secondary with a note.
+///   leads, labelled "Copied word for word from your paper" on screen, and the explanation is visibly secondary
+///   under "Plain words (not double-checked yet)".
 /// - Text that leaves the screen (read aloud, share, reminders, calendar) carries the explanation ONLY when
 ///   certified. Otherwise it carries the quote alone, plus the note.
 /// - No quote, no explanation.
@@ -23,15 +24,19 @@ enum PaperFirst {
         return .unchecked
     }
 
-    static let noteUnchecked = "Explanation, not double-checked. If it and your paper differ, follow your paper."
+    static let noteUnchecked = "Plain words (not double-checked yet)"
     static let noteFlagged = "Explanation that our second check says may not match your paper. Follow your paper, and ask your clinic."
-    static let leftOutUnchecked = "(The plain-words explanation is left out here because it was not double-checked.)"
+    static let leftOutUnchecked = "(The plain-words explanation is left out here because it was not double-checked yet.)"
+    /// SEAL_TEXT.once in web/src/lib/stepsView.ts: shown behind "Why?" on a step that was checked once.
+    static let checkedOnce = "Checked once: the words in quotes were found on your paper, word for word. The plain words under them were not double-checked yet, so your paper's words come first."
     static let leftOutFlagged = "(The plain-words explanation is left out here because a second check says it may not match.)"
 
     struct StepView: Equatable, Sendable {
         /// True only when certified: the explanation leads.
         let explanationLeads: Bool
         let quoteLabel: String
+        /// The on-screen label when the quote leads: a reassurance, not an instruction.
+        let screenLabel: String
         let quote: String
         let explanation: String?
         let note: String?
@@ -42,12 +47,13 @@ enum PaperFirst {
         let words = explanation.map { ($0 ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
             .joined(separator: " · ")
         let label = "Your \(source) says:"
-        if q.isEmpty { return StepView(explanationLeads: false, quoteLabel: label, quote: "", explanation: nil, note: nil) }
+        let screen = "Copied word for word from your \(source)"
+        if q.isEmpty { return StepView(explanationLeads: false, quoteLabel: label, screenLabel: screen, quote: "", explanation: nil, note: nil) }
         if check == .certified && !words.isEmpty {
-            return StepView(explanationLeads: true, quoteLabel: label, quote: q, explanation: words, note: nil)
+            return StepView(explanationLeads: true, quoteLabel: label, screenLabel: screen, quote: q, explanation: words, note: nil)
         }
         let note: String? = words.isEmpty ? nil : (check == .flagged ? noteFlagged : noteUnchecked)
-        return StepView(explanationLeads: false, quoteLabel: label, quote: q, explanation: words.isEmpty ? nil : words, note: note)
+        return StepView(explanationLeads: false, quoteLabel: label, screenLabel: screen, quote: q, explanation: words.isEmpty ? nil : words, note: note)
     }
 
     /// The lines a surface may read aloud, share or print for one step: the explanation only when certified.
@@ -62,6 +68,26 @@ enum PaperFirst {
     /// One care step. Certified: the plain words lead. Otherwise the AI's title and when are secondary too.
     static func careStep(_ it: VerifiedItem, check: Check) -> StepView {
         view(quote: it.source_quote, explanation: check == .certified ? [it.plain_language] : [it.title, it.when, it.plain_language], check: check)
+    }
+
+    /// askPerson in web/src/lib/askPerson.ts: "Ask your pharmacist" (a medicine step) or "Ask your clinic" (any other
+    /// step) while the explanation is not double-checked. The question is the paper's own words plus fixed wording,
+    /// never the AI's title, when or explanation. Nothing for a certified step, a warning sign or an empty quote.
+    struct AskPerson: Equatable, Sendable {
+        let who: String
+        let label: String
+        let question: String
+    }
+
+    static func askPerson(kind: String, quote raw: String, check: Check) -> AskPerson? {
+        let quote = raw.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        if check == .certified || quote.isEmpty || kind == "warning_sign" { return nil }
+        if kind == "medication" {
+            return AskPerson(who: "pharmacist", label: "Ask your pharmacist",
+                             question: "My paper says: \"\(quote)\" Can you confirm what I should take?")
+        }
+        return AskPerson(who: "clinic", label: "Ask your clinic",
+                         question: "My paper says: \"\(quote)\" Can you help me understand what I should do?")
     }
 
     /// One lab row: the report's own line leads; the AI's plain name for the test is never checked.

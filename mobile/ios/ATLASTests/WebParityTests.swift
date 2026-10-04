@@ -39,6 +39,35 @@ struct WebParityTests {
         #expect(v.note == PaperFirst.noteUnchecked)
     }
 
+    @Test func unconfirmedCardIsLabelledCalmly() throws {
+        let v = PaperFirst.careStep(item("a"), check: .unchecked)
+        #expect(v.screenLabel == "Copied word for word from your paper")
+        #expect(v.note == "Plain words (not double-checked yet)")
+        #expect(!(v.note ?? "").contains("follow your paper"))
+        let web = try repoFile("web/src/lib/stepsView.ts")
+        #expect(web.contains("\"\(PaperFirst.checkedOnce)\""), "stepsView.ts SEAL_TEXT.once differs")
+    }
+
+    @Test func askPersonUsesOnlyThePapersWords() throws {
+        let quote = "lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily. Previously 10 mg once daily."
+        for check in [Check.unchecked, .flagged] {
+            let a = try #require(PaperFirst.askPerson(kind: "medication", quote: quote, check: check))
+            #expect(a.label == "Ask your pharmacist")
+            #expect(a.question == "My paper says: \"\(quote)\" Can you confirm what I should take?")
+        }
+        let lab = try #require(PaperFirst.askPerson(kind: "lab_test", quote: "Hemoglobin A1c - due in 3 months", check: .unchecked))
+        #expect(lab.label == "Ask your clinic")
+        #expect(lab.question == "My paper says: \"Hemoglobin A1c - due in 3 months\" Can you help me understand what I should do?")
+        #expect(PaperFirst.askPerson(kind: "medication", quote: quote, check: .certified) == nil)
+        #expect(PaperFirst.askPerson(kind: "warning_sign", quote: "Call 911 if you have chest pain.", check: .unchecked) == nil)
+        #expect(PaperFirst.askPerson(kind: "medication", quote: "  ", check: .unchecked) == nil)
+        // The same fixed wording as the website.
+        let web = try repoFile("web/src/lib/askPerson.ts")
+        for s in ["Can you confirm what I should take?", "Can you help me understand what I should do?", "Ask your pharmacist", "Ask your clinic", "My paper says: \"${quote}\" Can"] {
+            #expect(web.contains(s), "askPerson.ts lacks: \(s)")
+        }
+    }
+
     @Test func certifiedExplanationLeadsWithItsQuote() {
         let v = PaperFirst.careStep(item("a"), check: .certified)
         #expect(v.explanationLeads)
@@ -108,9 +137,11 @@ struct WebParityTests {
             #expect(pf.contains(s), "paperFirst.ts lacks: \(s)")
         }
         // The check status lines on each card use the website's own words.
-        let ui = try repoFile("web/src/ui/CarePlanTool.tsx")
+        // The step cards moved to CareSteps.tsx, and the certified line is SEAL_TEXT.twice in stepsView.ts.
+        let ui = try repoFile("web/src/ui/CareSteps.tsx")
         #expect(ui.contains("Double-check this one with your clinic: our second check says the explanation may not match your paper."))
-        #expect(ui.contains("Double-checked: the explanation matches this line"))
+        let seals = try repoFile("web/src/lib/stepsView.ts")
+        #expect(seals.contains("\"\(CheckStatus.checkedTwice)\""))
     }
 
     // MARK: The double-check (/api/meaning)

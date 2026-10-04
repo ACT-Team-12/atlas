@@ -6,7 +6,7 @@ import { plantedPapers, runPhiPlantedTest } from "./phiPlanted";
  * that hides fewer planted identifiers, or hides care words it should keep, fails here before it ships.
  * To see the numbers: pnpm exec vitest run src/lib/phiPlanted.test.ts (they are also live on /tests).
  */
-const FLOOR = { caught: 63, falseHides: 0 };
+const FLOOR = { caught: 79, falseHides: 0 };
 
 describe("planted identifiers in the 6 eval papers", () => {
   const papers = plantedPapers();

@@ -72,6 +72,21 @@ const FORMATS: { line: string; use: string }[] = [
   { line: "Patient: {{NAME|Ana María Ruiz}}   MRN: {{MRN|0041-7733-21}}", use: "{{NAME|Ana}} {{NAME|María}} will get a call about {{MRN|0041-7733-21}}." },
 ];
 
+/**
+ * One more record per paper written to slip past a text shield (a second security review's list): invisible characters
+ * and lookalike letters inside a name, a non-breaking space or tab after the label, the value on the next line, a label
+ * broken across two lines, the value in quotes, a placeholder bracket inside an id, an en dash in a date. `use`
+ * repeats the name later, unlabeled and written plainly.
+ */
+const HARD: { line: string; use: string }[] = [
+  { line: "Pt Name: {{NAME|Ro​sa Diaz}}   DOB:\t{{DOB|19 Feb 1958}}", use: "{{NAME|Rosa}} will get a reminder text." },
+  { line: "Medical Record\nNumber: {{MRN|MR-0099.4412}}", use: "Your chart is {{MRN|MR-0099.4412}}." },
+  { line: "Patient Name:\n{{NAME|Kwame Mensah}}", use: "{{NAME|Kwame}} can ask the front desk." },
+  { line: "MRN: \"{{MRN|7730-221-09}}\"   DOB: {{DOB|1958/02/19}}", use: "Bring card {{MRN|7730-221-09}} with you." },
+  { line: "PATIENT: {{NAME|Luсia Ferreira}}   DOB: {{DOB|02–19–1958}}", use: "{{NAME|Lucia}} should rest today." },
+  { line: "Patient: “{{NAME|Omar Haddad}}”   Member ID: {{ID|ZZ1234⟦ID_A⟧5678}}", use: "Ms. {{NAME|Haddad}} can call the clinic." },
+];
+
 const CLINIC_LINE ="[[clinic name|Grady Primary Care]]   [[doctor name|Dr. Lee]]   Clinic phone: [[clinic phone|404-616-1234]]   Visit: [[visit date|10/14/2026]]";
 const ASK_LINE = "Questions? Ask [[doctor name|Dr. Lee]] or call [[clinic phone|404-616-1234]] before [[visit date|October 14, 2026]].";
 const IMPERATIVE = /^(?:Take|Call|Check|Drink|Count|Weigh|See|Keep|Start|Cut|Come|Go|Return|Walk|Limit)\b/;
@@ -106,8 +121,9 @@ export function plantedPapers(): PlantedPaper[] {
     const k = lines.findIndex((l) => IMPERATIVE.test(l));
     if (k >= 0) lines[k] = `{{NAME|${who.first}}}, ${lines[k][0].toLowerCase()}${lines[k].slice(1)}`;
     const fmt = FORMATS[i % FORMATS.length];
-    const body = lines.join("\n") + (who.extra ? `\n${who.extra}` : "") + `\n${fmt.use}`;
-    const template = `${who.header}\n${fmt.line}\n${CLINIC_LINE}\n\n${body}\n\n${who.title} {{NAME|${who.last}}}, bring this paper to your next visit.\n${ASK_LINE}`;
+    const hard = HARD[i % HARD.length];
+    const body = lines.join("\n") + (who.extra ? `\n${who.extra}` : "") + `\n${fmt.use}\n${hard.use}`;
+    const template = `${who.header}\n${fmt.line}\n${hard.line}\n${CLINIC_LINE}\n\n${body}\n\n${who.title} {{NAME|${who.last}}}, bring this paper to your next visit.\n${ASK_LINE}`;
     const { text, planted, keep } = unmark(template);
     // Every instruction a correct reading must find, and every phone already on the paper, must survive.
     const lower = text.toLowerCase();

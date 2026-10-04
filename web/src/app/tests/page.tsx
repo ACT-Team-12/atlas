@@ -13,6 +13,12 @@ import type { LabPlantedReport } from "@/lib/labPlanted";
 import { deviceParitySet } from "@/lib/deviceParity";
 import { DeviceParity } from "@/ui/DeviceParity";
 import { PREP_TRUTH, runPrepPlantedTest } from "@/lib/prepPlanted";
+import { runPhiPlantedTest } from "@/lib/phiPlanted";
+
+const PHI_KIND_LABEL: Record<string, string> = {
+  NAME: "Names", DOB: "Birth dates", AGE: "Ages over 89", MRN: "Record numbers", ACCT: "Account numbers", ID: "Member and insurance ids",
+  SSN: "Social Security numbers", PHONE: "Patient phones", EMAIL: "Patient emails", ADDR: "Patient addresses",
+};
 
 type LabTotals = { rows: number; found: number; right: number; false_flags: number; missed_flags: number; dropped: number };
 type LabEval = {
@@ -58,6 +64,7 @@ function Stat({ big, label, note, tone = "bg-paper" }: { big: string; label: str
 export default async function TestsPage() {
   const c = runCheckerTest();
   const prep = runPrepPlantedTest();
+  const phi = runPhiPlantedTest();
   const [raw, funnel] = await Promise.all([liveStats(), helperFunnel()]);
   const live: PublicStats | null = raw ? publicStats(raw, funnel) : null;
   const promoted = results.rows.flatMap((r) => r.distractors_promoted.map((d) => ({ id: r.id, d })));
@@ -287,6 +294,45 @@ export default async function TestsPage() {
               <li>This tests our code, not the AI. How well the AI finds every step on a real prep paper has not been measured yet.</li>
               <li>For a reversed explanation (&quot;do not take insulin&quot; explained as &quot;take insulin&quot;), this checks that the explanation stays hidden until the second-model check certifies it, and that the step&apos;s headline is the paper&apos;s own words. Whether that second model notices the reversal needs the AI and is not counted here.</li>
               <li>One sample paper, written by our team, in English. Our time reader knows English time words only, so on a paper in another language every step goes under &quot;ask your clinic&quot;.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="relative px-3 mt-3" aria-labelledby="phi-tests-title">
+          <div className="section-card bg-sky px-6 sm:px-12 py-20">
+            <span className="chip bg-paper text-sky-deep">Live · rerun just now · no AI</span>
+            <h2 id="phi-tests-title" className="display text-[clamp(2rem,4vw,3.6rem)] mt-4 max-w-[18em]">Does the AI see your name?</h2>
+            <p className="mt-4 max-w-[44em] font-semibold text-ink-soft">
+              Before your paper goes to the AI, ATLAS swaps your name, birth date, record and member numbers, and your own phone, email and address
+              for placeholders, and puts the real words back on your screen. To test it we planted made-up identifiers in our {phi.papers} sample
+              papers, in the places real papers put them, plus a few hard cases on purpose. We also checked that the clinic&apos;s name and phone,
+              the doctor&apos;s name, visit dates and every instruction stay. These numbers are computed by our code each time this page loads.
+            </p>
+            <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              <Stat big={`${phi.planted.caught}/${phi.planted.total}`} label="planted identifiers hidden" tone="bg-mint" />
+              <Stat big={String(phi.falseHides.count)} label="care words hidden by mistake" note="hidden stretches that were not a planted identifier" />
+              <Stat big={`${phi.keep.kept}/${phi.keep.total}`} label="clinic, doctor, dates and instructions kept" />
+            </div>
+            <ul className="mt-6 max-w-[50em] space-y-2 text-sm font-semibold">
+              {Object.entries(phi.planted.byKind).map(([k, v]) => (
+                <li key={k} className="card p-4 bg-paper">
+                  <span className="font-extrabold">{PHI_KIND_LABEL[k] ?? k}: {v.caught}/{v.total} hidden.</span>
+                </li>
+              ))}
+            </ul>
+            {phi.planted.missed.length > 0 && (
+              <div className="mt-6 card p-6 bg-red-soft">
+                <p className="font-bold">What got through:</p>
+                <ul className="mt-2 text-sm font-semibold list-disc pl-5">
+                  {phi.planted.missed.map((m, i) => <li key={i}>{PHI_KIND_LABEL[m.kind] ?? m.kind} &quot;{m.value}&quot; on the {m.paper} paper</li>)}
+                </ul>
+              </div>
+            )}
+            <ul className="mt-6 max-w-[46em] space-y-2 text-sm font-semibold list-disc pl-5">
+              <li>These are rules, not a model: they find labeled fields (Patient, DOB, MRN, Member ID...) and the patient&apos;s own header lines, then hide the name everywhere it repeats. A name with no label that differs from the labeled one, like a caregiver named only in a sentence, gets through.</li>
+              <li>Dates of visits and tests stay on purpose: the prep timeline and Book it need them. A date is hidden only when it is labeled as a birth date.</li>
+              <li>A photo of the paper on the website is still read by the AI as a photo, so the shield covers typed or pasted text. The phone apps read the photo on the phone and send text.</li>
+              <li>Our own made-up identifiers in our own sample papers. It has not been measured on real patients&apos; papers.</li>
             </ul>
           </div>
         </section>

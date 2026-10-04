@@ -1,6 +1,7 @@
 import { guard } from "@/lib/guard";
 import { ExtractError } from "@/lib/extract";
 import { preparePrep } from "@/lib/prep";
+import { guardText } from "@/lib/phiGuard";
 import { PrepRequestSchema, PREP_DAILY_LIMIT } from "@/lib/prepTimeline";
 import { secondsToUtcMidnight, takeDailySlot } from "@/lib/db";
 
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
   }
   try {
     // Only the day's count is recorded (no text, no IP).
-    return Response.json(await preparePrep(parsed.data), { headers: limitHeader });
+    // The paper's patient identifiers become placeholders before the AI call and come back after it (phiGuard.ts).
+    return Response.json(await guardText(parsed.data, preparePrep), { headers: limitHeader });
   } catch (e) {
     if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status, headers: limitHeader });
     // The kind of error only, never the request or message, so the paper can never land in the host logs.

@@ -1,4 +1,5 @@
 import type { LANGUAGES } from "../schema";
+import { stripTokens } from "../phiShield";
 
 type Language = (typeof LANGUAGES)[number];
 
@@ -70,7 +71,9 @@ const PHRASES: Partial<Record<Language, Phrases>> = {
 /** A language can be called only when Vonage can speak the fixed phrases in it. */
 export const canCallIn = (language: Language) => Boolean(VONAGE_TTS[language] && PHRASES[language]);
 
-const talk = (text: string, language: string, extra: Record<string, unknown> = {}): NccoAction => ({ action: "talk", text, language, ...extra });
+// stripTokens: the last net before Vonage. Plan text never carries a PHI placeholder (planText.ts), and if one ever
+// slipped through, the call says nothing in its place rather than reading out "NAME A".
+const talk = (text: string, language: string, extra: Record<string, unknown> = {}): NccoAction => ({ action: "talk", text: stripTokens(text), language, ...extra });
 
 /** "1234" is read digit by digit: "1, 2, 3, 4". */
 export const spokenCode = (code: string) => code.split("").join(", ");

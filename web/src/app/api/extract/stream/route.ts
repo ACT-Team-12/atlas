@@ -5,6 +5,7 @@ import { RequestSchema, type CarePlanResponse } from "@/lib/schema";
 import { ExtractError, makeClient } from "@/lib/extract";
 import { openModelStream, streamCarePlan } from "@/lib/extractStream";
 import { encodeEvent, type ExtractEvent } from "@/lib/extractEvents";
+import { guardExtractStream } from "@/lib/phiGuard";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -61,7 +62,9 @@ export async function POST(request: Request) {
       };
       try {
         const t0 = Date.now();
-        const plan = await streamCarePlan(req, openModelStream(req, abort.signal), emit, t0);
+        // The model and the quote check see the shielded paper; each event gets the real words back (phiGuard.ts).
+        const shielded = guardExtractStream(req, emit);
+        const plan = shielded.restore(await streamCarePlan(shielded.req, openModelStream(shielded.req, abort.signal), shielded.emit, t0));
         emit({ type: "done", plan });
         finished(plan);
       } catch (e) {

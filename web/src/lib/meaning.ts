@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { PLACEHOLDER_RULE } from "./phiShield";
 import { z } from "zod";
 import { ExtractError } from "./extract";
 import { LANGUAGES } from "./schema";
@@ -401,7 +402,7 @@ export async function checkMeaning(req: MeaningRequest, signal?: AbortSignal): P
   const msg = await client.messages.parse({
     model: CHECKER_MODEL,
     max_tokens: 6000,
-    system: SYSTEM,
+    system: SYSTEM + PLACEHOLDER_RULE,
     output_config: { effort: "low", format: zodOutputFormat(ModelOutput) },
     messages: [{
       role: "user",

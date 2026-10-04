@@ -3,6 +3,7 @@ import { guard } from "@/lib/guard";
 import { entryOf, isTestRequest, recordEvent, surfaceOf } from "@/lib/db";
 import { PlanRequestSchema, buildPlan } from "@/lib/plan";
 import { ExtractError } from "@/lib/extract";
+import { guardPlan } from "@/lib/phiGuard";
 import { issueFeedbackToken } from "@/lib/feedbackToken";
 import { issueSpeakToken } from "@/lib/speakToken";
 import { paidSpeechText } from "@/lib/speechText";
@@ -25,7 +26,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "Pick at least one thing that gets in the way, or add your visit paper first." }, { status: 400 });
   }
   try {
-    const plan = await buildPlan(parsed.data);
+    // The care steps and the note are shielded; the plan text stays as the AI wrote it from them (phiGuard.ts).
+    const plan = await guardPlan(parsed.data, buildPlan);
     const test = isTestRequest(request), surface = surfaceOf(request);
     // Barrier categories, counts and timing only; no ZIP, location or note is recorded.
     after(() => recordEvent({

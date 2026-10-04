@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { PLACEHOLDER_RULE } from "./phiShield";
 import { z } from "zod";
 import { ExtractError, MODEL } from "./extract";
 import { LANGUAGES } from "./schema";
@@ -129,7 +130,7 @@ export async function buildQuestions(req: UnderstandRequest): Promise<Understand
   const msg = await client.messages.parse({
     model: MODEL,
     max_tokens: 8000,
-    system: SYSTEM,
+    system: SYSTEM + PLACEHOLDER_RULE,
     output_config: { effort: "low", format: zodOutputFormat(ModelOutput) },
     messages: [
       {

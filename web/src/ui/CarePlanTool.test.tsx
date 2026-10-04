@@ -338,6 +338,26 @@ describe("automatic scroll after a reply", () => {
     expect(document.activeElement?.id).toBe("steps-title");
   });
 
+  it("photo, moved on while it read: the cue brings them back to the photo check (Codex review, round 5)", async () => {
+    vi.stubGlobal("createImageBitmap", async () => ({ width: 10, height: 10 }));
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage: () => {} } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue("data:image/jpeg;base64,AAAA");
+    const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, "files", { configurable: true, value: [new File(["x"], "paper.jpg", { type: "image/jpeg" })] });
+    act(() => { input.dispatchEvent(new Event("change", { bubbles: true })); });
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    window.dispatchEvent(new Event("pointerdown")); // they scrolled away while it read
+    await release(read, ready({ ...careFor(PAPER), source_kind: "image" }));
+    expect(screenText()).toContain("Check how we read your photo");
+    expect(cue()?.dataset.readyCue).toBe("photo");
+    act(() => cue()!.querySelector("button")!.click());
+    expect(cue()).toBeNull();
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("photo-check-title");
+    vi.restoreAllMocks();
+  });
+
   it("a new read clears a waiting cue", async () => {
     await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
     expect(cue()).not.toBeNull();

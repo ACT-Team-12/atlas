@@ -2,12 +2,12 @@
 
 import { useEffect } from "react";
 
-export type Ready = "steps" | "plan";
+export type Ready = "steps" | "plan" | "photo";
 
 /** The heading each cue takes the person to (focusable, tabIndex -1); the cue hides once it is plainly on screen. */
-export const READY_TARGET: Record<Ready, string> = { steps: "steps-title", plan: "plan-title" };
+export const READY_TARGET: Record<Ready, string> = { steps: "steps-title", plan: "plan-title", photo: "photo-check-title" };
 
-const LABEL: Record<Ready, string> = { steps: "Your steps are ready", plan: "Your plan is ready" };
+const LABEL: Record<Ready, string> = { steps: "Your steps are ready", plan: "Your plan is ready", photo: "Your photo is read" };
 
 /**
  * Plainly on screen: the whole heading between 15% and 80% of the viewport's HEIGHT, clear of the sticky header and

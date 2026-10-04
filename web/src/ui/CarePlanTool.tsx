@@ -461,6 +461,7 @@ export function CarePlanTool() {
   // The ready cue, only for the exact result that raised it and only while that result is current.
   const cueFor: Ready | null = !ready ? null
     : ready.what === "steps" ? (care === ready.ref && !careOutdated ? "steps" : null)
+    : ready.what === "photo" ? (care === ready.ref && !careOutdated && !photoChecked ? "photo" : null)
     : (plan === ready.ref && !planOutdated ? "plan" : null);
   const resultsCurrent = !careOutdated && !planOutdated;
   const actionsOffReason = careOutdated ? "Read your paper again first" : "Update the plan first";
@@ -593,7 +594,12 @@ export function CarePlanTool() {
       setCareFp(sent.fp);
       if (json.source_kind === "image" && photo) setReadPhoto({ for: json, file: photo });
       setReadLevel(usedLevel);
-      if (json.source_kind === "image") { setTranscript(json.source_text); return; }
+      if (json.source_kind === "image") {
+        setTranscript(json.source_text);
+        // The photo check waits in step 1; if they moved on while it read, the cue brings them back to it (Codex review, round 5).
+        if (!autoScrollOk(sent.at)) setReady({ what: "photo", ref: json });
+        return;
+      }
       void checkMeaningFor(json);
       // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared),
       // and only if the person has not scrolled, tapped or typed since pressing the button.
@@ -972,7 +978,7 @@ export function CarePlanTool() {
     scrollAfter.current = { t, onlyIfHidden };
   }
 
-  // "Show me" on the ready cue: the plan opens step 3; the steps bring "Your steps" to the top of step 1.
+  // "Show me" on the ready cue: the plan opens step 3; the steps (or the photo check) come to the top of step 1.
   // Focus then follows to the result's heading, so keyboard and screen-reader users land there too (Codex review).
   function goToReady(r: Ready) {
     setReady(null);
@@ -984,7 +990,7 @@ export function CarePlanTool() {
     }
     setTab(1);
     requestAnimationFrame(() => {
-      const el = document.getElementById(READY_TARGET.steps);
+      const el = document.getElementById(READY_TARGET[r]);
       if (!el) return;
       const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       markOwnScroll(scrollElementToTop(el, calm ? "auto" : "smooth"));
@@ -1129,7 +1135,7 @@ export function CarePlanTool() {
 
           {care && needsPhotoCheck && (
             <div className="mt-8 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4 sm:p-5">
-              <p className="font-extrabold">Check how we read your photo</p>
+              <p id="photo-check-title" tabIndex={-1} className="font-extrabold scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">Check how we read your photo</p>
               <p className="text-sm font-semibold text-ink/70">
                 Every step below has to quote this text. If a word or number is wrong here, fix it, then read it again so the steps come from your corrected text.
               </p>

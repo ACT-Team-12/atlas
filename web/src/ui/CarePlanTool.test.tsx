@@ -1005,4 +1005,38 @@ describe("Try it with a sample lands with the sample in and Read my paper in vie
     expect(window.location.hash).toBe("#try");
     window.history.replaceState(null, "", "/");
   });
+
+  it("the home button's own href carries the request, so a tap before the page is interactive still works", () => {
+    // Codex review: with href="#try" the request lived only in the click handler, which does not exist before hydration.
+    const hero = readFileSync(join(__dirname, "Hero.tsx"), "utf8");
+    // One line: the opening tag (whose onClick contains "=>") through the label.
+    expect(hero).toMatch(/<SquashButton href=\{TRY_SAMPLE_HASH\}[^\n]*>Try it with a sample<\/SquashButton>/);
+  });
+
+  describe("while the first-visit intro holds the page", () => {
+    afterEach(() => { document.documentElement.style.overflow = ""; });
+
+    it("waits for the intro, then jumps once", async () => {
+      document.documentElement.style.overflow = "hidden";
+      act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+      await act(async () => { await frame(); });
+      expect(scrolls).not.toContain("read-my-paper");
+      document.documentElement.style.overflow = "";
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls.filter((s) => s === "read-my-paper")).toHaveLength(1);
+      expect(document.activeElement).toBe(readButton());
+    });
+
+    it("a late intro never pulls the person out of what they started (Codex review)", async () => {
+      document.documentElement.style.overflow = "hidden";
+      act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+      await act(async () => { await frame(); });
+      // The person starts typing in their own note before the intro lets go.
+      act(() => { paperBox().focus(); window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" })); });
+      document.documentElement.style.overflow = "";
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls).not.toContain("read-my-paper");
+      expect(document.activeElement).toBe(paperBox());
+    });
+  });
 });

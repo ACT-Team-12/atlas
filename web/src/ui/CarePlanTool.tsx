@@ -394,30 +394,46 @@ export function CarePlanTool() {
     else setReadJump((n) => n + 1);
   });
   useEffect(() => {
-    const arrive = () => arriveWithSample();
+    const toTry = () => { try { window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#try`); } catch {} };
     const fromHash = () => {
       if (window.location.hash !== TRY_SAMPLE_HASH) return;
-      try { window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#try`); } catch {}
-      arrive();
+      toTry();
+      arriveWithSample();
+    };
+    // The home button's href is #try-sample, so a tap before this page is interactive still arrives here on load.
+    // Once it is, the button also sends the event (Next changes the hash without a hashchange); tidy the hash after.
+    let tidy = 0;
+    const fromEvent = () => {
+      arriveWithSample();
+      window.clearTimeout(tidy);
+      tidy = window.setTimeout(() => { if (window.location.hash === TRY_SAMPLE_HASH) toTry(); }, 100);
     };
     fromHash();
-    window.addEventListener(TRY_SAMPLE_EVENT, arrive);
+    window.addEventListener(TRY_SAMPLE_EVENT, fromEvent);
     window.addEventListener("hashchange", fromHash);
-    return () => { window.removeEventListener(TRY_SAMPLE_EVENT, arrive); window.removeEventListener("hashchange", fromHash); };
+    return () => { window.clearTimeout(tidy); window.removeEventListener(TRY_SAMPLE_EVENT, fromEvent); window.removeEventListener("hashchange", fromHash); };
   }, []);
   useEffect(() => {
     if (!readJump) return;
+    const askedAt = performance.now();
     const go = () => {
+      // Never pull the person away: not after they have tapped, typed or scrolled since, nor out of a field they are in.
+      if (lastInteraction.current > askedAt) return;
+      if (isEditable(document.activeElement as HTMLElement | null)) return;
       const el = document.getElementById("read-my-paper");
       if (!el) return;
       el.scrollIntoView({ block: "center" });
       el.focus({ preventScroll: true });
     };
+    // The first-visit intro (Preloader) holds the page with overflow hidden for about a second and a half. Jump once:
+    // right away, or when the intro lets go, never both.
+    if (document.documentElement.style.overflow === "hidden") {
+      window.addEventListener("atlas:intro-done", go, { once: true });
+      const stop = window.setTimeout(() => window.removeEventListener("atlas:intro-done", go), 5000);
+      return () => { window.clearTimeout(stop); window.removeEventListener("atlas:intro-done", go); };
+    }
     const frame = requestAnimationFrame(go);
-    // The first-visit intro holds the page for about a second and a half; land on the button once it lets go.
-    window.addEventListener("atlas:intro-done", go, { once: true });
-    const stop = window.setTimeout(() => window.removeEventListener("atlas:intro-done", go), 5000);
-    return () => { cancelAnimationFrame(frame); window.clearTimeout(stop); window.removeEventListener("atlas:intro-done", go); };
+    return () => cancelAnimationFrame(frame);
   }, [readJump]);
 
   // Is the reading (or the plan) on screen still the one these inputs would get? A plan built from an outdated reading is outdated too.

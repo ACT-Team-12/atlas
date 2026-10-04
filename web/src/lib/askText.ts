@@ -252,17 +252,22 @@ const ASKED_URGENT = word(
     // English
     String.raw`chest${S}(?:hurts|is${S}hurting)|heart${S}attack|overdos\p{L}*|took${S}too${S}(?:many|much)|took${S}(?:all|the${S}whole)|swallowed${S}(?:all|the${S}whole|a${S}bottle)|whole${S}bottle`,
     String.raw`not${S}breathing|stopped${S}breathing|chok(?:ing|ed)|unconscious|won['’]?t${S}wake${S}up|bleeding${S}(?:a${S}lot|heavily)|won['’]?t${S}stop${S}bleeding`,
-    String.raw`kill${S}(?:my|him|her)self|end${S}my${S}life|hurt${S}myself`,
+    String.raw`kill${S}(?:my|him|her)self|end${S}my${S}life|hurt${S}myself|want${S}to${S}die|took${S}\d+${S}(?:pills|tablets|capsules)`,
+    String.raw`throat${S}(?:is${S})?(?:closing|swelling|swollen)|(?:coughing|cough|vomiting|throwing)${S}(?:up${S})?blood|blood${S}in${S}(?:my${S})?(?:vomit|stool)`,
+    String.raw`face${S}(?:is${S})?drooping|slurred${S}speech|speech${S}is${S}slurred|can['’]?t${S}(?:talk|speak)${S}(?:right|properly)`,
     // Spanish
     String.raw`me${S}duele${S}el${S}pecho|ataque${S}al${S}coraz[oó]n|sobredosis|no${S}puedo${S}respirar|no${S}respira|inconsciente|quitarme${S}la${S}vida`,
+    String.raw`quiero${S}morir(?:me)?|se${S}me${S}cierra${S}la${S}garganta|(?:tosiendo|tos[oó]?|vomitando|vomit[oó])${S}(?:con${S})?sangre`,
     // French
     String.raw`crise${S}cardiaque|surdose|je${S}ne${S}peux${S}(?:pas${S})?respirer|inconscient\p{L}*`,
+    String.raw`(?:ma${S})?gorge${S}se${S}(?:ferme|serre)|(?:je${S})?(?:crache|tousse|vomis)${S}du${S}sang|je${S}veux${S}mourir`,
     // Vietnamese
-    String.raw`đau${S}tim|không${S}thở${S}được|quá${S}liều|bất${S}tỉnh`,
+    String.raw`đau${S}tim|không${S}thở${S}được|quá${S}liều|bất${S}tỉnh|ho${S}ra${S}máu|nôn${S}ra${S}máu|muốn${S}chết`,
   ].join("|"),
 );
 /** Korean, Chinese and Amharic are matched as substrings (no word edges), as in safetyWords.ts. */
-const ASKED_URGENT_CJK_AM = /심장\s*마비|과다\s*복용|숨을\s*못\s*쉬|心脏病发作|心臟病發作|服药过量|服藥過量|喘不上气|不能呼吸|የልብ\s*ድካም|መተንፈስ\s*አልችልም/u;
+const ASKED_URGENT_CJK_AM =
+  /심장\s*마비|과다\s*복용|숨을\s*못\s*쉬|숨이\s*막|피를\s*토|각혈|목이\s*부|죽고\s*싶|心脏病发作|心臟病發作|服药过量|服藥過量|喘不上气|不能呼吸|咳血|吐血|喉咙肿|喉嚨腫|想死|የልብ\s*ድካም|መተንፈስ\s*አልችልም|ደም\s*(?:እያስታወከኝ|አስታወከኝ|ማስመለስ|እየተፋሁ)|መሞት\s*እፈልጋለሁ/u;
 
 /**
  * True when the question looks like an emergency happening now. Reuses the paper's warning words (warningPin.ts and

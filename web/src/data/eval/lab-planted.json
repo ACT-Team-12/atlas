@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-10-04T01:29:27.390Z",
+  "measured_at": "2026-10-04T02:11:59.498Z",
   "command": "node scripts/lab-planted.mjs",
   "reports": 7,
   "real": {
@@ -19,7 +19,8 @@
     "total": 453,
     "caught": 453,
     "dropped": 323,
-    "judged_right": 130,
+    "judged_right": 127,
+    "cautious_kept": 3,
     "byKind": {
       "changed value": {
         "total": 45,

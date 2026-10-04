@@ -206,7 +206,7 @@ export default async function TestsPage() {
             </p>
             <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <Stat big={`${labPlanted.real.right}/${labPlanted.real.total}`} label="correct rows judged right" note={labPlanted.real.cautious.length ? `${labPlanted.real.cautious.length} more shown as can't tell on purpose, below` : undefined} />
-              <Stat big={`${labPlanted.planted.caught}/${labPlanted.planted.total}`} label="planted mistakes caught" note={`${labPlanted.planted.dropped} left out, ${labPlanted.planted.judged_right} still judged right`} tone="bg-mint" />
+              <Stat big={`${labPlanted.planted.caught}/${labPlanted.planted.total}`} label="planted mistakes caught" note={`${labPlanted.planted.dropped} left out, ${labPlanted.planted.judged_right} still judged right${labPlanted.planted.cautious_kept ? `, ${labPlanted.planted.cautious_kept} shown as can't tell on the cautious row` : ""}`} tone="bg-mint" />
             </div>
             {labPlanted.real.cautious.length > 0 && (
               <ul className="mt-4 max-w-[50em] text-sm font-semibold list-disc pl-5">

@@ -94,6 +94,8 @@ export type LabPlantedReport = {
   };
   planted: {
     total: number; caught: number; dropped: number; judged_right: number;
+    /** Kept on a row marked cautious and shown as can't tell: safe, but not counted as judged right. */
+    cautious_kept: number;
     byKind: Record<string, { total: number; caught: number }>;
     slipped: { report: string; test: string; kind: string; what: string; truth: Truth; got: string }[];
     examples: Record<string, string>;
@@ -104,7 +106,7 @@ export function runLabPlantedTest(reports: LabReport[] = LAB_REPORTS): LabPlante
   const rep: LabPlantedReport = {
     reports: reports.length,
     real: { total: 0, right: 0, wrong: [], cautious: [] },
-    planted: { total: 0, caught: 0, dropped: 0, judged_right: 0, byKind: {}, slipped: [], examples: {} },
+    planted: { total: 0, caught: 0, dropped: 0, judged_right: 0, cautious_kept: 0, byKind: {}, slipped: [], examples: {} },
   };
   for (const r of reports) {
     // Correct rows, all at once, the way the AI would return them.
@@ -128,7 +130,9 @@ export function runLabPlantedTest(reports: LabReport[] = LAB_REPORTS): LabPlante
       rep.planted.examples[pl.kind] ??= `${r.title}, ${pl.test}: ${pl.what}`;
       if (ok) {
         rep.planted.caught++; k.caught++;
-        if (kept) rep.planted.judged_right++; else rep.planted.dropped++;
+        if (!kept) rep.planted.dropped++;
+        else if (statusOf(kept) === pl.truth) rep.planted.judged_right++;
+        else rep.planted.cautious_kept++;
       } else {
         rep.planted.slipped.push({ report: r.id, test: pl.test, kind: pl.kind, what: pl.what, truth: pl.truth, got });
       }

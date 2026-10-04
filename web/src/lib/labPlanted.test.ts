@@ -39,6 +39,11 @@ describe("lab results: planted mistakes (no AI)", () => {
   it("drops or correctly judges every planted mistake", () => {
     expect(report.planted.slipped).toEqual([]);
     expect(report.planted.caught).toBe(report.planted.total);
+    // A can't-tell on the cautious row is never counted as judged right (Codex review, round 2).
+    expect(report.planted.dropped + report.planted.judged_right + report.planted.cautious_kept).toBe(report.planted.caught);
+    // The cautious row's kept plants show as can't tell, so they must land in cautious_kept, not judged_right.
+    const cautiousRows = LAB_REPORTS.flatMap((r) => r.rows.filter((x) => x.cautious));
+    if (cautiousRows.length) expect(report.planted.cautious_kept).toBeGreaterThan(0);
   });
 
   // `node scripts/lab-planted.mjs` sets WRITE_LAB_PLANTED=1 to write the file the /tests page reads.

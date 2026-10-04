@@ -257,13 +257,15 @@ describe("one seal per step, and flagged steps open themselves", () => {
 });
 
 describe("the expanded step", () => {
-  it("uncertified: 'Your paper says' first, then the explanation with its caveat", () => {
+  it("uncertified: the paper's words first, labelled as copied word for word, then the explanation, labelled not double-checked", () => {
     render();
     act(() => toggleOf("bmp").click());
     const block = panelOf("bmp").querySelector("[data-lead]")!;
     expect(block.getAttribute("data-lead")).toBe("quote");
-    expect(block.firstElementChild!.textContent).toContain("Your paper says:");
-    expect(block.querySelector("[data-explanation]")!.textContent).toContain("not double-checked");
+    expect(block.firstElementChild!.textContent).toContain("Copied word for word from your paper");
+    expect(block.firstElementChild!.textContent).toContain(ITEMS[4].source_quote);
+    expect(block.querySelector("[data-explanation]")!.textContent).toContain("Plain words (not double-checked yet)");
+    expect(block.textContent).not.toContain("If it and your paper differ");
   });
 
   it("certified: the explanation, then the paper's words", () => {

@@ -32,6 +32,18 @@ export function coveredTopNow(): number {
 }
 
 /**
+ * How far below the top "Show me" lands a heading: past the fixed header and the phone tab bar's sticky footprint
+ * (the bar sticks once the page scrolls there, so it counts before it is stuck), never above the heading's own scroll
+ * margin. Measured, because on a short landscape phone the bar reaches past that fixed margin (Codex review, round 6).
+ */
+export function landingTop(el: HTMLElement): number {
+  const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+  const bar = document.querySelector<HTMLElement>("[data-sticky-bar]");
+  const barCover = bar && bar.offsetHeight > 0 ? (parseFloat(getComputedStyle(bar).top) || 0) + bar.offsetHeight : 0;
+  return Math.max(margin, coveredTopNow() + 8, barCover + 8);
+}
+
+/**
  * "Your plan is ready: show me". Both watched tries (Oct 4) scrolled away from the tool during the 15 to 25 seconds
  * the AI takes; one never found her plan, because the only sign was a small note in the phone tab bar. When a result
  * lands and the page has decided not to move the person (they tapped or scrolled since pressing the button), this

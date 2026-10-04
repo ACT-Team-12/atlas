@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { coveredTopNow, readableRect } from "./ReadyCue";
+import { coveredTopNow, landingTop, readableRect } from "./ReadyCue";
 
 const heading = (top: number, height = 40) => ({ top, bottom: top + height, height });
 
@@ -42,5 +42,25 @@ describe("coveredTopNow: measures what is stuck to the top", () => {
     box(600, 650, true); // a marked element far down the page is not covering the top
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
     expect(coveredTopNow()).toBe(120);
+  });
+});
+
+describe("landingTop: where Show me puts a heading", () => {
+  afterEach(() => { document.body.replaceChildren(); });
+  it("clears the phone tab bar's sticky footprint even before it is stuck (Codex review, round 6)", () => {
+    const bar = document.createElement("div");
+    bar.setAttribute("data-sticky-bar", "");
+    bar.style.top = "64px";
+    Object.defineProperty(bar, "offsetHeight", { configurable: true, value: 90 }); // tabs plus a note line
+    const heading = document.createElement("h3");
+    heading.style.scrollMarginTop = "112px";
+    document.body.append(bar, heading);
+    expect(landingTop(heading)).toBe(162); // 64 + 90 + 8, past the fixed 112px margin
+  });
+  it("desktop (no bar shown): the heading's own margin", () => {
+    const heading = document.createElement("h3");
+    heading.style.scrollMarginTop = "112px";
+    document.body.append(heading);
+    expect(landingTop(heading)).toBe(112);
   });
 });

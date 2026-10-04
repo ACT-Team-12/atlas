@@ -5,7 +5,7 @@ import { readingGeneralQuestions, visitQuestions } from "@/lib/visitQuestions";
 import { PaperFirst } from "./PaperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
-import { READY_TARGET, ReadyCue, type Ready } from "./ReadyCue";
+import { landingTop, READY_TARGET, ReadyCue, type Ready } from "./ReadyCue";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { WorkingCard } from "./WorkingCard";
@@ -993,6 +993,7 @@ export function CarePlanTool() {
       const el = document.getElementById(READY_TARGET[r]);
       if (!el) return;
       const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.style.scrollMarginTop = `${landingTop(el)}px`; // clear of whatever covers the top on this screen
       markOwnScroll(scrollElementToTop(el, calm ? "auto" : "smooth"));
       focusTarget();
     });

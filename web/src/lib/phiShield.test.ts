@@ -1,3 +1,4 @@
+import { canonicalize } from "./phiRead";
 import { describe, expect, test } from "vitest";
 import { PhiShield, TOKEN_RE, hasToken, rangeToOriginal, shield, stripTokens, toOriginal, tokensIn, unshieldDeep, unshieldString } from "./phiShield";
 
@@ -308,10 +309,12 @@ describe("round trip and offset map, 300 random papers", () => {
   const r = rng(20261003);
   const papers = Array.from({ length: 300 }, () => randomPaper(r));
 
-  test("unshield(shield(paper)) is the paper, and something was always hidden", () => {
+  // The text sent is the paper's canonical form (line breaks unified, invisible characters removed; phiRead.ts), so the
+  // round trip gives that form back, and offsets go through `map`, which holds the canonical edits too.
+  test("unshield(shield(paper)) is the paper's canonical form, and something was always hidden", () => {
     for (const p of papers) {
       const s = shield(p);
-      expect(unshieldString(s.text, s.tokens)).toBe(p);
+      expect(unshieldString(s.text, s.tokens)).toBe(canonicalize(p).text);
       expect(s.offsetMap.length).toBeGreaterThan(0);
     }
   });
@@ -320,12 +323,12 @@ describe("round trip and offset map, 300 random papers", () => {
     for (const p of papers) {
       const s = shield(p);
       const inToken = new Array(s.text.length).fill(false);
-      for (const seg of s.offsetMap) for (let k = seg.rStart; k < seg.rEnd; k++) inToken[k] = true;
+      for (const seg of s.map) for (let k = seg.rStart; k < seg.rEnd; k++) inToken[k] = true;
       for (let k = 0; k < s.text.length; k++) {
         if (inToken[k]) continue;
-        expect(p[toOriginal(s.offsetMap, k, "start")]).toBe(s.text[k]);
+        expect(p[toOriginal(s.map, k, "start")]).toBe(s.text[k]);
       }
-      expect(toOriginal(s.offsetMap, s.text.length, "end")).toBe(p.length);
+      expect(toOriginal(s.map, s.text.length, "end")).toBe(p.length);
     }
   });
 
@@ -336,14 +339,14 @@ describe("round trip and offset map, 300 random papers", () => {
       for (let t = 0; t < 20; t++) {
         let a = Math.floor(rr() * s.text.length), b = Math.floor(rr() * s.text.length);
         if (a > b) [a, b] = [b, a];
-        const m = rangeToOriginal(s.offsetMap, { start: a, end: b });
-        // Widen [a, b) in the redacted text to whole placeholders, then the slices must agree.
+        const m = rangeToOriginal(s.map, { start: a, end: b });
+        // Widen [a, b) in the redacted text to whole placeholders and edits, then the slices must agree.
         let wa = a, wb = b;
-        for (const seg of s.offsetMap) {
+        for (const seg of s.map) {
           if (wa > seg.rStart && wa < seg.rEnd) wa = seg.rStart;
           if (wb > seg.rStart && wb < seg.rEnd) wb = seg.rEnd;
         }
-        expect(p.slice(m.start, m.end)).toBe(unshieldString(s.text.slice(wa, wb), s.tokens));
+        expect(canonicalize(p.slice(m.start, m.end)).text).toBe(unshieldString(s.text.slice(wa, wb), s.tokens));
       }
     }
   });

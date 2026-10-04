@@ -73,17 +73,17 @@ const FORMATS: { line: string; use: string }[] = [
 ];
 
 /**
- * One more record per paper written to slip past a text shield (a second security review's list): invisible characters
- * and lookalike letters inside a name, a non-breaking space or tab after the label, the value on the next line, a label
+ * One more record per paper written to slip past a text shield (a second security review's list): a soft hyphen and
+ * fullwidth letters inside a name, a non-breaking space or tab after the label, the value on the next line, a label
  * broken across two lines, the value in quotes, a placeholder bracket inside an id, an en dash in a date. `use`
  * repeats the name later, unlabeled and written plainly.
  */
 const HARD: { line: string; use: string }[] = [
-  { line: "Pt Name: {{NAME|Ro​sa Diaz}}   DOB:\t{{DOB|19 Feb 1958}}", use: "{{NAME|Rosa}} will get a reminder text." },
+  { line: "Pt Name:\u00A0{{NAME|Ro\u00ADsa Diaz}}   DOB:\t{{DOB|19 Feb 1958}}", use: "{{NAME|Rosa}} will get a reminder text." },
   { line: "Medical Record\nNumber: {{MRN|MR-0099.4412}}", use: "Your chart is {{MRN|MR-0099.4412}}." },
   { line: "Patient Name:\n{{NAME|Kwame Mensah}}", use: "{{NAME|Kwame}} can ask the front desk." },
   { line: "MRN: \"{{MRN|7730-221-09}}\"   DOB: {{DOB|1958/02/19}}", use: "Bring card {{MRN|7730-221-09}} with you." },
-  { line: "PATIENT: {{NAME|Luсia Ferreira}}   DOB: {{DOB|02–19–1958}}", use: "{{NAME|Lucia}} should rest today." },
+  { line: "PATIENT: {{NAME|\uFF2C\uFF55\uFF43\uFF49\uFF41 Ferreira}}   DOB: {{DOB|02\u201319\u20131958}}", use: "{{NAME|Lucia}} should rest today." },
   { line: "Patient: “{{NAME|Omar Haddad}}”   Member ID: {{ID|ZZ1234⟦ID_A⟧5678}}", use: "Ms. {{NAME|Haddad}} can call the clinic." },
 ];
 

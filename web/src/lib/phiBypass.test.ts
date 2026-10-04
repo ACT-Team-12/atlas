@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from "vitest";
-import { PhiShield, TOKEN_RE, hasToken, shield, stripTokens, unshieldString, type ShieldResult } from "./phiShield";
-import { readText } from "./phiRead";
+import { PhiShield, PhiShieldRefused, TOKEN_RE, hasToken, shield, stripTokens, unshieldString, type ShieldResult } from "./phiShield";
+import { canonicalize, detectionView, readText } from "./phiRead";
 import { shieldText } from "./phiResponses";
 import { plantedPapers } from "./phiPlanted";
 
@@ -21,18 +21,14 @@ function coveredInFull(paper: string, r: ShieldResult, value: string, from = 0):
 /** Letter and digit runs of `value` (as read), none of which may be left in the redacted text (as read). */
 function leftovers(r: ShieldResult, value: string): string[] {
   const rest = readText(r.text.replace(new RegExp(TOKEN_RE.source, "g"), " ")).text.toLowerCase().split(/[^\p{L}\p{N}]+/u);
-  return (readText(value).text.match(/[\p{L}\p{N}]{2,}/gu) ?? []).map((p) => p.toLowerCase()).filter((p) => rest.includes(p));
+  return (readText(value.replace(new RegExp(TOKEN_RE.source, "g"), " ")).text.match(/[\p{L}\p{N}]{2,}/gu) ?? []).map((p) => p.toLowerCase()).filter((p) => rest.includes(p));
 }
 
 describe("bypass inputs: each identifier is hidden in full", () => {
   // [paper, values that must each be hidden in full]
   const CASES: [string, string[]][] = [
     // Zero-width and invisible characters inside names and ids.
-    ["Patient: Ma​ria Lo⁠pez\n\nMa‍ria, take one pill.", ["Ma​ria Lo⁠pez", "Ma‍ria"]],
-    ["MRN: 884​129­07\n\nCall about 88412907.", ["884​129­07", "88412907"]],
     // Lookalike letters: Cyrillic a in the label value, Latin in the body (and the other way round).
-    ["Patient: Mаria Lopez\n\nMaria, take one pill.", ["Mаria Lopez", "Maria"]],
-    ["Patient: Maria Lopez\n\nMаria, take one pill. Ms. Lоpez called.", ["Maria Lopez", "Mаria", "Lоpez"]],
     // Fullwidth digits and letters, fullwidth colon.
     ["MRN: ８８４１２９０７\n\nCall about 88412907.", ["８８４１２９０７", "88412907"]],
     ["Patient：Ｍａｒｉａ Lopez", ["Ｍａｒｉａ Lopez"]],
@@ -84,12 +80,8 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     // Placeholder brackets inside an identifier: the identifier is hidden whole, brackets and all.
     ["MRN: 1234⟦ID_A⟧5678\n\nCall about 1234⟦ID_A⟧5678.", ["1234⟦ID_A⟧5678"]],
     ["Patient: Mar⟦NAME_A⟧ia Lopez", ["Mar⟦NAME_A⟧ia Lopez"]],
-    ["Patient: Maria⟦ Lopez", ["Maria⟦ Lopez"]],
     ["SSN: 123-45-⟦SSN_A⟧6789", ["123-45-⟦SSN_A⟧6789"]],
     // Identifiers INSIDE fake brackets: only an exact placeholder is skipped, anything else in brackets is read.
-    ["Patient: ⟦John Smith⟧\nPhone: ⟦404-555-0182⟧\nDOB: ⟦01/01/1970⟧\n\nJohn, rest.", ["John Smith", "404-555-0182", "01/01/1970", "John"]],
-    ["Patient: Maria Lopez\n\nCall ⟦Maria Lopez 404-555-0182⟧ today.", ["Maria Lopez", "Maria Lopez"]],
-    ["MRN: ⟦NAME_A 88412907⟧", ["88412907"]],
     // A placeholder at the value position never makes the real value after it count as already hidden.
     ["Patient:\n⟦NAME_A⟧ Maria Lopez", ["Maria Lopez"]],
     ["Name   DOB   MRN ⟦ID_A⟧\nMaria Lopez   01/01/1970   88412907", ["Maria Lopez", "01/01/1970", "88412907"]],
@@ -98,10 +90,7 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     // What a model reads as a digit or a word break, the reading does too.
     ["MRN: ٨٨٤١٢٩٠٧\n\nCall about 88412907.", ["٨٨٤١٢٩٠٧", "88412907"]],
     ["MRN: ८८४१२९०७", ["८८४१२९०७"]],
-    ["Patient: Maria᠎Lopez\n\nLopez, rest.", ["Maria᠎Lopez", "Lopez"]],
     ["Patient: MariaㅤLopez\n\nLopez, rest.", ["MariaㅤLopez", "Lopez"]],
-    ["Patient: Maria Lopez\n\nLopez, rest.", ["Maria Lopez", "Lopez"]],
-    ["Patient: ‮zepoL airaM‬", ["zepoL airaM"]],
     ["Patient: ⟦NAME_A⟧   DOB: ⟦DOB_A⟧\nName   DOB   MRN\nMaria Lopez   01/01/1970   88412907", ["Maria Lopez", "01/01/1970", "88412907"]],
   ];
   test.each(CASES)("%j", (paper, values) => {
@@ -114,8 +103,73 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     }
   });
 
-  it("the same identifier written with an invisible character or a lookalike gets the same placeholder", () => {
-    const r = shield("Patient: Maria Lopez\n\nMaria, rest. Ma​ria, rest. Mаria, call.");
+  // Characters that could make what is read differ from what is checked: refused, nothing is sent.
+  const REFUSED: string[] = [
+    "Patient: Ma​ria Lo⁠pez\n\nMa‍ria, take one pill.",
+    "MRN: 884​129­07\n\nCall about 88412907.",
+    "Patient: Maria᠎Lopez\n\nLopez, rest.",
+    "Patient: Maria Lopez\n\nLopez, rest.",
+    "DOB: 1970\u20630101",
+    "Patient: Mаria Lopez\n\nMaria, take one pill.",
+    "Patient: Maria Lopez\n\nMаria, take one pill. Ms. Lоpez called.",
+    "Patient: Maria⟦ Lopez",
+    "Patient: ⟦John Smith⟧\nPhone: ⟦404-555-0182⟧\nDOB: ⟦01/01/1970⟧\n\nJohn, rest.",
+    "Patient: Maria Lopez\n\nCall ⟦Maria Lopez 404-555-0182⟧ today.",
+    "MRN: ⟦NAME_A 88412907⟧",
+    "Patient: ‮zepoL airaM‬",
+    "Patient: \u202EzepoL airaM\u202C",
+    "MRN: \u{1D7D6}\u{1D7D6}412907",
+    "MRN: \u2467\u2467412907",
+    "MRN: 88\u2074\u2075\u00B2907",
+    "DOB \u{1D7CE}\u{1D7CF}/\u{1D7CE}\u{1D7CF}/\u{1D7CF}\u{1D7D7}\u{1D7D5}\u{1D7CE}",
+    "MRN \u2460\u2461\u2462\u2463\u2464\u2465",
+    "Patient: Maria Lopez\nPhone: 555-12\u00B34-5678",
+    "MRN: \u216B\u2160\u2163 2907",
+    "Patient: \u{1D40C}aria Lopez",
+    "Patient: \u041C\u0430\u0440\u0456\u0430 Lopez",
+    "MRN: \u0391\u0392\u0395 88412907 \u03BF\u03B1",
+    "Patient: \u0391\u0435\u0440",
+    "Name   DOB   MRN\u2028Maria Lopez   01/01/1970   88412907",
+    "Name   DOB   MRN\u0085Maria Lopez   01/01/1970   88412907",
+    "Patient: Maria\u2029Lopez",
+    "Patient: Maria\u0007Lopez",
+  ];
+  test.each([
+    ["Patient email: maria\u2063.lopez@example.com", "maria\u2063.lopez@example.com"],
+  ])("an invisible separator beside punctuation is removed, and the value hidden whole: %j", (paper, value) => {
+    const r = shield(paper);
+    expect(coveredInFull(paper, r, value)).toBe(true);
+  });
+
+  test.each([
+    "Medications\nName: Lisinopril\nDose: 10 mg",
+    "Name: Metformin\nDose: 500 mg\nRoute: by mouth",
+    "Orders placed today\nName: Hemoglobin A1c",
+    "Imaging\nName: MRI Brain\nStatus: ordered",
+  ])("a bare Name field in a clinical block stays: %j", (paper) => {
+    expect(shield(paper).text).toBe(paper);
+  });
+
+  test.each(REFUSED)("refused: %j", (paper) => {
+    expect(() => shield(paper)).toThrow(PhiShieldRefused);
+  });
+
+  test.each([
+    "Ng\u01B0\u1EDDi b\u1EC7nh: U\u1ED1ng thu\u1ED1c m\u1ED7i s\u00E1ng.",
+    "\uD658\uC790: \uB9E4\uC77C \uC544\uCE68 \uC57D\uC744 \uB4DC\uC138\uC694.",
+    "\u1218\u12F5\u1203\u1292\u1275\u1295 \u1260\u1240\u1295 \u12A0\u1295\u12F5 \u130A\u12DC \u12ED\u12CD\u1230\u12F1\u1362",
+    "\u60A3\u8005\uFF1A\u6BCF\u5929\u65E9\u4E0A\u670D\u836F\u3002",
+    "Patiente : prenez le m\u00E9dicament \u00E0 9 h.",
+  ])("a paper in a supported language passes the character check: %j", (paper) => {
+    expect(() => shield(paper)).not.toThrow();
+  });
+
+  test.each(["Take \u00BD tablet.", "Inject 50 \u00B5g.", "Area 2 m\u00B2.", "Fever over 38\u2103.", "Brand\u2122 cream", "Take 1 \u00BD tablets."])("common symbols on a paper stay: %j", (paper) => {
+    expect(shield(paper).text).toBe(paper);
+  });
+
+  it("the same identifier written with or without invisible characters gets the same placeholder", () => {
+    const r = shield("Patient: Maria Lopez\n\nMaria, rest. Ma\u00ADria, rest. \u200BMaria, call.");
     expect(r.offsetMap).toHaveLength(4);
     expect(new Set(r.offsetMap.slice(1).map((s) => s.token)).size).toBe(1);
   });
@@ -123,7 +177,7 @@ describe("bypass inputs: each identifier is hidden in full", () => {
   it("care words, clinic and doctor stay (the reading does not widen what is hidden)", () => {
     const paper = "Patient: Maria Lopez   DOB: 01/01/1970\nGrady Primary Care  Dr. Lee  Clinic phone: 404-616-1234\nVisit:\t10/14/2026\n\nTake Lisinopril 10 mg every morning. Call 404–616–1234 with questions.";
     const r = shield(paper);
-    for (const keep of ["Grady Primary Care", "Dr. Lee", "404-616-1234", "10/14/2026", "Lisinopril 10 mg", "404–616–1234"]) expect(r.text).toContain(keep);
+    for (const keep of ["Grady Primary Care", "Dr. Lee", "404-616-1234", "10/14/2026", "Lisinopril 10 mg", "404–616–1234"]) expect(r.text).toContain(canonicalize(keep).text);
   });
 });
 
@@ -208,8 +262,14 @@ const BODY = [
 /** Disguises a value: an invisible character, a lookalike letter, or nothing. */
 function disguise(v: string, r: () => number): string {
   const k = r();
-  if (k < 0.25) { const i = 1 + Math.floor(r() * (v.length - 1)); return v.slice(0, i) + NOISE[Math.floor(r() * NOISE.length)] + v.slice(i); }
-  if (k < 0.45) return v.replace(/[aeopc]/, (c) => LOOKALIKE[c]);
+  const at = 1 + Math.floor(r() * (v.length - 1));
+  // Refused by both paths: an invisible character inside the value, or a lookalike letter in it.
+  if (k < 0.1) return v.slice(0, at) + NOISE[Math.floor(r() * NOISE.length)] + v.slice(at);
+  if (k < 0.2) return v.replace(/[aeopc]/, (c) => LOOKALIKE[c]);
+  // Sent changed and hidden: a soft hyphen inside it, an invisible character before it, NBSP between its words.
+  if (k < 0.3) return v.slice(0, at) + "\u00AD" + v.slice(at);
+  if (k < 0.4) return "\u200B" + v;
+  if (k < 0.5) return v.replace(/ /g, "\u00A0");
   return v;
 }
 
@@ -231,7 +291,7 @@ function randomPaper(r: () => number): Paper {
 }
 
 /** A raw identifier is "left" when a letter or digit run of it can still be read in the redacted text. */
-const leftIn = (redacted: string, value: string) => leftovers({ text: redacted, tokens: new Map(), offsetMap: [] }, value);
+const leftIn = (redacted: string, value: string) => leftovers({ text: redacted, tokens: new Map(), offsetMap: [], map: [] }, value);
 
 describe("differential: the browser shield and the server guard agree", () => {
   const r = rng(20261003);
@@ -243,7 +303,15 @@ describe("differential: the browser shield and the server guard agree", () => {
 
   it("the server finds nothing new in what the browser shielded, and neither path leaves a raw identifier", () => {
     const disagree: string[] = [];
+    let refused = 0;
     for (const p of papers) {
+      // A paper with characters the shield will not send is refused by BOTH paths (same function), never half sent.
+      const refusedBy = (f: () => unknown) => { try { f(); return false; } catch (e) { if (e instanceof PhiShieldRefused) return true; throw e; } };
+      if (refusedBy(() => shieldText(new PhiShield(), p.text))) {
+        refused++;
+        expect(refusedBy(() => new PhiShield().shield(p.text))).toBe(true);
+        continue;
+      }
       // The browser: one session for the page.
       const client = shieldText(new PhiShield(), p.text);
       // The server: its own session, always run, on whatever the page sent.
@@ -261,6 +329,43 @@ describe("differential: the browser shield and the server guard agree", () => {
       }
     }
     expect(disagree).toEqual([]);
+    // The disguised papers include lookalike letters (refused) and invisible characters (removed, then hidden).
+    expect(refused).toBeGreaterThan(20);
+    expect(papers.length - refused).toBeGreaterThan(200);
+  });
+
+  it("detection runs on exactly the characters that are sent", () => {
+    const rr = rng(99);
+    const noise = ["\u200B", "\u00A0", "\t", "\r\n", "\u2028", "\u00AD", "\uFF18", "\u0668", "\u2013", "\u27E6NAME_A\u27E7", "e\u0301"];
+    const all = [...papers.map((p) => p.text), ...Array.from({ length: 300 }, () => {
+      const base = randomPaper(rr).text;
+      let out = "";
+      for (const ch of base) out += ch + (rr() < 0.004 ? noise[Math.floor(rr() * noise.length)] : "");
+      return out;
+    })];
+    let checked = 0;
+    for (const raw of all) {
+      let canon;
+      try { canon = canonicalize(raw); } catch (e) { if (e instanceof PhiShieldRefused) continue; throw e; }
+      checked++;
+      // The detectors' view is the canonical text character for character, skipping only exact placeholders.
+      const view = detectionView(canon.text);
+      for (let j = 0; j < view.text.length; j++) {
+        expect(view.to[j] - view.from[j]).toBe(1);
+        expect(canon.text[view.from[j]]).toBe(view.text[j]);
+      }
+      let rest = "";
+      let at = 0;
+      for (let j = 0; j < view.text.length; j++) { rest += canon.text.slice(at, view.from[j]); at = view.to[j]; }
+      rest += canon.text.slice(at);
+      expect(rest.replace(new RegExp(TOKEN_RE.source, "g"), "").trim()).toBe("");
+      // What is sent is the canonical text with identifiers swapped: putting back each identifier's canonical form gives
+      // the canonical text exactly. (The page gets the raw words back; the AI only ever saw canonical characters.)
+      const s = new PhiShield().shield(raw);
+      const canonTokens = new Map([...s.tokens].map(([t, o]) => [t, canonicalize(o).text]));
+      expect(unshieldString(s.text, canonTokens)).toBe(canon.text);
+    }
+    expect(checked).toBeGreaterThan(250);
   });
 
   it("adversarial: tokens planted by the paper itself are never trusted to cover a raw identifier", () => {

@@ -1,27 +1,17 @@
 /**
- * The ONE way the PHI shield reads text. Every path uses it: the browser's shield, the server's guard (including its
- * check for placeholders that are already there), putting the real words back, and the filter that keeps placeholders
- * out of the voice and the call. Two paths that read the same characters differently is how a raw identifier gets past
- * one of them, so there is no second reader.
+ * How the PHI shield reads text. Two parts:
  *
- * The reading is a copy of the text for MATCHING only. What is sent, shown or spoken is always cut from the raw text,
- * through the map this returns, so a hidden stretch covers every raw character inside it (a zero-width space, a
- * lookalike letter, a stray bracket) and an offset in the reading maps to exactly one place in the raw text.
+ * 1. canonicalize(): the text the shield detects on AND sends, built once, up front. Every pattern runs on it (skipping
+ *    only exact placeholders, detectionView), placeholders are put into it, and it is what the AI receives, so the checked
+ *    characters and the sent characters are the same. Characters that could make the two readings differ (invisible
+ *    characters inside a word, bidi overrides, stray brackets, styled or compatibility letters and digits, words mixing
+ *    or faking Latin with Cyrillic or Greek, Unicode line separators, control characters) are REFUSED: nothing is sent.
+ *    Both the browser and the server call the same function, so they refuse the same texts.
  *
- * What the reading does:
- *  - drops invisible characters: format and default-ignorable characters (zero-width spaces and joiners, soft hyphen,
- *    word joiner, bidi marks, variation selectors);
- *  - NFKC per character cluster (a letter with its combining marks): fullwidth "Ｍ" is "M", "１" is "1", "ﬁ" is "fi";
- *  - folds lookalikes used to dodge a pattern: Cyrillic and Greek letters that look like Latin ones, the many dashes,
- *    slashes, colons and quotes;
- *  - one kind of space: NBSP and every other space character is " ", a tab is two spaces (a tab separates fields, as
- *    two spaces do), every line break is "\n";
- *  - placeholders (`placeholders: "block"`, the shield's mode): every placeholder and stray bracket is left out of the
- *    reading, so an identifier around or after one ("1234⟦ID_A⟧5678", "Patient: ⟦NAME_A⟧ Maria Lopez") is read whole
- *    and hidden whole, brackets included. A placeholder is never trusted to stand for what it claims: a page's own
- *    placeholders simply read as nothing, so the server finds nothing new in them. `"keep"` keeps every bracket (the
- *    rest of the placeholder is read like any text), for finding placeholders.
- * Case is kept (a capital letter is how a name is told from a word); matching lower-cases the reading.
+ * 2. readText(): a lenient reading used only to FIND placeholders in text a model wrote (the voice and call filter and
+ *    putting real words back): it drops invisible characters, applies NFKC and folds lookalikes, so a placeholder
+ *    written with an invisible or lookalike character in it is still found. It over-matches by design; it never decides
+ *    what is sent to the AI.
  */
 
 export type Reading = {
@@ -31,7 +21,7 @@ export type Reading = {
   from: Int32Array;
   to: Int32Array;
   /**
-   * Block mode: where placeholders were left out, as reading offsets (a placeholder at p sat just before text[p]).
+   * detectionView: where placeholders were left out, as reading offsets (a placeholder at p sat just before text[p]).
    * A field whose value was a placeholder still has a value: it was hidden already, and the field must not be read as
    * empty (an empty field would send the value readers to the next line or make a header table of the line).
    */
@@ -53,8 +43,8 @@ pairs("‘’‛ʼʹ`´′", "''''''''");
 pairs("“”‟″", "\"\"\"\"");
 
 const IGNORABLE = /[\p{Default_Ignorable_Code_Point}\p{Cf}]/u;
-/** Invisible characters that still separate words where they are drawn (fillers and separators): read as a space. */
-const BLANK = /[\u180E\u115F\u1160\u3164\uFFA0\u2063]/;
+/** Fillers drawn as a blank (Hangul fillers): read as a space. Other invisible characters, separators included, join. */
+const BLANK = /[\u115F\u1160\u3164\uFFA0]/;
 const DIGIT = /\p{Nd}/u;
 /**
  * Any decimal digit (Arabic-Indic "٨٨٤", Devanagari, Thai...) read as its ASCII digit: a model reads them as numbers,
@@ -82,8 +72,8 @@ const SPACE = /\p{Zs}/u;
  */
 const BRACKET_RUN = /⟦(?:NAME|DOB|AGE|MRN|ACCT|ID|SSN|PHONE|EMAIL|ADDR)_[A-Z]{1,3}⟧/y;
 
-/** Reads `raw` for matching. Linear in the length of the text. */
-export function readText(raw: string, placeholders: "block" | "keep" = "block"): Reading {
+/** The lenient reading of `raw`, for finding placeholders only. Linear in the length of the text. */
+export function readText(raw: string): Reading {
   const n = raw.length;
   const from: number[] = [];
   const to: number[] = [];
@@ -93,9 +83,6 @@ export function readText(raw: string, placeholders: "block" | "keep" = "block"):
     for (let k = 0; k < s.length; k++) { from.push(a); to.push(b); }
     text += s;
   };
-  // The nearest visible character before a position (invisible characters do not separate words). Bounded: a run of
-  // thousands of invisible characters must not make every bracket after it rescan the run.
-  const visibleBefore = (i: number) => { let k = 0; while (i > 0 && k++ < 8 && IGNORABLE.test(raw[i - 1])) i--; return i > 0 ? raw[i - 1] : ""; };
 
   let i = 0;
   while (i < n) {
@@ -103,18 +90,7 @@ export function readText(raw: string, placeholders: "block" | "keep" = "block"):
     const code = c.charCodeAt(0);
     // Plain ASCII (the common case) is read as it is, unless a combining mark or invisible character follows it.
     if (code >= 0x20 && code < 0x7f && c !== "`" && (i + 1 >= n || raw.charCodeAt(i + 1) < 0x7f)) { emit(c, i, i + 1); i++; continue; }
-    if (c === "⟦" || c === "⟧") {
-      if (placeholders === "keep") { emit(c, i, i + 1); i++; continue; }
-      // Block mode: a placeholder (or a stray bracket) is not read at all, so the identifier around or after it is read
-      // whole. When it stood between two spaces, one of them goes too ("Maria ⟦X⟧ Lopez" reads "Maria Lopez").
-      BRACKET_RUN.lastIndex = i;
-      const run = c === "⟦" ? BRACKET_RUN.exec(raw) : null;
-      let end = run ? i + run[0].length : i + 1;
-      if (visibleBefore(i) === " " && raw[end] === " ") end++;
-      if (run) gaps.push(text.length);
-      i = end;
-      continue;
-    }
+    if (c === "⟦" || c === "⟧") { emit(c, i, i + 1); i++; continue; }
     if (c === "\r") { const end = raw[i + 1] === "\n" ? i + 2 : i + 1; emit("\n", i, end); i = end; continue; }
     if (c === "\n" || c === "\v" || c === "\f") { emit("\n", i, i + 1); i++; continue; }
     // Unicode line and paragraph separators and NEL: a model may read them as a space, so they cannot end a value.
@@ -152,4 +128,216 @@ export function rawRange(r: Reading, start: number, end: number, rawLength: numb
     return { start: at, end: at };
   }
   return { start: r.from[start], end: r.to[end - 1] };
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The canonical text: what the shield detects on AND what it sends.                          */
+/* ------------------------------------------------------------------------------------------ */
+
+/**
+ * Thrown for a character the shield will not send: one that could make what a person (or a model) reads differ from
+ * what the shield checked. The request is refused with this message; nothing is sent.
+ */
+export class PhiShieldRefused extends Error {
+  constructor(message = "This text is too long to hide the patient's details safely. Send a shorter part of the paper.") {
+    super(message);
+    this.name = "PhiShieldRefused";
+  }
+}
+
+/** A PhiShieldRefused for one character class (named in the message). */
+export class PhiCharRefused extends PhiShieldRefused {
+  constructor(what: string) {
+    super(`This text has ${what}, which could hide a patient's details from the privacy check. Retype that part or paste it as plain text, then try again.`);
+    this.name = "PhiCharRefused";
+  }
+}
+
+/** One canonical edit: raw[start, end) is sent as `repl`. */
+export type Edit = { start: number; end: number; repl: string };
+
+export type Canon = Reading & { edits: Edit[] };
+
+const BIDI_CONTROL = /[‪-‮⁦-⁩]/;
+const STYLED = /[①-⓿]|[\u{1D400}-\u{1D7FF}]/u;
+/** Compatibility symbols common on medical papers, sent as they are: micro sign, trademark, degrees, ordinals. */
+const COMPAT_OK = /[\u00B5\u2122\u2120\u2103\u2109\u00BA\u00AA]/;
+const SUPSUB_DIGIT = /[²³¹⁰⁴-⁹₀-₉]/;
+const LATIN = /\p{Script=Latin}/u;
+const CYRILLIC = /\p{Script=Cyrillic}/u;
+const GREEK = /\p{Script=Greek}/u;
+const ALL_LOOKALIKE = "a word written only in Cyrillic or Greek letters that look like Latin ones";
+/** Punctuation variants sent as their ASCII form (no letters or digits change). */
+const PUNCT: Record<string, string> = {};
+for (const [src, dst] of [["‐‑‒–—―−﹘﹣⁃", "-"], ["⁄∕⧸", "/"], ["꞉∶﹕", ":"], ["‘’‛ʼ`´′", "'"], ["“”‟″", "\""]] as const) for (const ch of src) PUNCT[ch] = dst;
+const MIXED = "a word mixing Latin letters with look-alike Cyrillic or Greek ones";
+
+/**
+ * The text the shield works on, built ONCE, up front: patterns run on it, placeholders are put into it, and it is what
+ * the AI is sent. So what was checked and what is sent are the same characters (the only thing the detectors skip is an
+ * exact placeholder, see detectionView). Every change from the raw text is listed in `edits` for mapping offsets back.
+ *
+ * Sent changed (and checked the same way): every line break (\r\n, \r, VT, FF) is "\n"; every space
+ * character (NBSP, em space...) is " "; invisible characters (zero-width spaces and joiners, soft hyphen, word joiner,
+ * BOM, LRM/RLM) are removed where they do not sit inside a word (inside one, only a soft hyphen is; any other is refused); invisible fillers are " "; a letter and its combining marks are
+ * composed (NFC); fullwidth letters and digits, ligatures and digits of any script are their ASCII form; dash, slash,
+ * colon and quote variants are ASCII.
+ *
+ * Refused (PhiCharRefused, nothing sent): control characters other than tab and line breaks; NEL, U+2028 and U+2029;
+ * bidi embedding, override
+ * and isolate controls; a ⟦ or ⟧ that is not part of an exact placeholder; styled letters and digits (mathematical
+ * alphanumerics, circled numbers); two or more superscript or subscript digits in a row; a word that mixes Latin
+ * letters with Cyrillic or Greek ones (the classic lookalike disguise).
+ */
+export function canonicalize(raw: string): Canon {
+  const n = raw.length;
+  const from: number[] = [];
+  const to: number[] = [];
+  const edits: Edit[] = [];
+  let text = "";
+  const emit = (s: string, a: number, b: number) => {
+    for (let k = 0; k < s.length; k++) { from.push(a); to.push(b); }
+    text += s;
+    if (s !== raw.slice(a, b)) edits.push({ start: a, end: b, repl: s });
+  };
+  // Scripts seen in the current word (letters and marks, invisible characters ignored), to refuse a mixed word.
+  // Per word (a run of letters and marks; invisible characters do not end it): which of Latin, Cyrillic and Greek it
+  // uses, and whether every letter is a Cyrillic or Greek letter that looks like a Latin one (FOLD). A word using two of
+  // the three scripts is refused, and so is a word made only of lookalikes ("Мариа" spelled to read as "Maria"):
+  // a model reads either as the Latin word, the patterns here would not. Hangul, Han, Ethiopic and Vietnamese
+  // (Latin with marks) are single-script and pass.
+  let latin = false, cyr = false, grk = false, letters = 0, confusable = 0;
+  const endWord = () => {
+    if (letters > 0 && confusable === letters && !latin) throw new PhiCharRefused(ALL_LOOKALIKE);
+    latin = false; cyr = false; grk = false; letters = 0; confusable = 0;
+  };
+  const letter = (ch: string) => {
+    letters++;
+    if (LATIN.test(ch)) latin = true;
+    else if (CYRILLIC.test(ch)) { cyr = true; if (FOLD[ch]) confusable++; }
+    else if (GREEK.test(ch)) { grk = true; if (FOLD[ch]) confusable++; }
+    if (Number(latin) + Number(cyr) + Number(grk) > 1) throw new PhiCharRefused(MIXED);
+  };
+  let i = 0;
+  while (i < n) {
+    const c = raw[i];
+    const code = c.charCodeAt(0);
+    if (code >= 0x20 && code < 0x7f && c !== "`" && (i + 1 >= n || raw.charCodeAt(i + 1) < 0x7f)) {
+      if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) letter(c);
+      else endWord();
+      emit(c, i, i + 1);
+      i++;
+      continue;
+    }
+    if (c === "⟦" || c === "⟧") {
+      BRACKET_RUN.lastIndex = i;
+      const run = c === "⟦" ? BRACKET_RUN.exec(raw) : null;
+      if (!run) throw new PhiCharRefused("a ⟦ or ⟧ bracket that is not one of ATLAS's own placeholders");
+      endWord();
+      for (let k = i; k < i + run[0].length; k++) emit(raw[k], k, k + 1);
+      i += run[0].length;
+      continue;
+    }
+    if (c === "\r") { const end = raw[i + 1] === "\n" ? i + 2 : i + 1; endWord(); emit("\n", i, end); i = end; continue; }
+    if (c === "\n" || c === "\v" || c === "\f") { endWord(); emit("\n", i, i + 1); i++; continue; }
+    // NEL and the Unicode line and paragraph separators: a model may read them as a line break or as a space, and the
+    // two readings split fields differently, so they are refused rather than guessed.
+    if (c === "\u0085" || c === "\u2028" || c === "\u2029") throw new PhiCharRefused("a Unicode line or paragraph separator");
+    if (c === "\t") { endWord(); emit("\t", i, i + 1); i++; continue; }
+    if (code < 0x20 || (code >= 0x7f && code < 0xa0)) throw new PhiCharRefused("a control character");
+    if (BIDI_CONTROL.test(c)) throw new PhiCharRefused("a hidden text-direction control");
+    if (BLANK.test(c)) { endWord(); emit(" ", i, i + 1); i++; continue; }
+    if (IGNORABLE.test(c)) {
+      // An invisible character inside a word or number ("Ma\u200Bria", "884\u200B12907") is refused: removing it joins
+      // what may have been two words ("Maria\u200BLopez" sent as "MariaLopez" would let "Lopez" alone through), and
+      // keeping it hides the word from the patterns. Only a soft hyphen (a line-break hint in a word) is removed there.
+      // Elsewhere (a BOM, a mark beside a space or punctuation) it is removed.
+      let k = i + 1;
+      while (k < n && k - i <= 8 && IGNORABLE.test(raw[k])) k++;
+      if (k - i > 8) throw new PhiCharRefused("a run of invisible characters"); // bounded: no rescanning a long run
+      const inWord = /[\p{L}\p{N}]/u.test(text.slice(-1)) && k < n && /[\p{L}\p{N}\p{M}]/u.test(String.fromCodePoint(raw.codePointAt(k)!));
+      if (inWord && c !== "\u00AD") throw new PhiCharRefused("an invisible character inside a word or number");
+      emit("", i, i + 1);
+      i++;
+      continue;
+    }
+    if (SPACE.test(c)) { endWord(); emit(" ", i, i + 1); i++; continue; }
+    const cp = raw.codePointAt(i)!;
+    let end = i + (cp > 0xffff ? 2 : 1);
+    const base = raw.slice(i, end);
+    if (STYLED.test(base)) throw new PhiCharRefused("styled or circled letters or numbers");
+    // A superscript or subscript digit next to any other digit could be read as part of a number ("555-12³4"): refused.
+    // On its own ("m²") it stays.
+    const nextCh = end < n ? String.fromCodePoint(raw.codePointAt(end)!) : "";
+    if (SUPSUB_DIGIT.test(base) && (/\p{N}/u.test(text.slice(-1)) || /\p{N}/u.test(nextCh))) {
+      throw new PhiCharRefused("a superscript or subscript digit next to other digits");
+    }
+    // A cluster: the code point and the combining marks after it (invisible characters inside it are removed).
+    let cluster = base;
+    while (end < n) {
+      const ch = String.fromCodePoint(raw.codePointAt(end)!);
+      if (MARK.test(ch)) cluster += ch;
+      else if (BLANK.test(ch) || BIDI_CONTROL.test(ch) || !IGNORABLE.test(ch)) break;
+      else {
+        // An invisible character inside a cluster is removed only when a combining mark follows it; otherwise the
+        // cluster ends and the character is judged on its own (inside a word: refused).
+        let k = end + ch.length;
+        while (k < n && k - end <= 8 && IGNORABLE.test(raw[k])) k++;
+        if (k >= n || !MARK.test(String.fromCodePoint(raw.codePointAt(k)!))) break;
+      }
+      end += ch.length;
+    }
+    let out = cluster.normalize("NFC");
+    if (cp >= 0xff01 && cp <= 0xff5e) out = String.fromCharCode(cp - 0xfee0) + cluster.slice(base.length).normalize("NFC"); // fullwidth ASCII
+    else if (cp >= 0xfb00 && cp <= 0xfb06) out = out.normalize("NFKC"); // ﬁ ﬂ ﬀ ligatures
+    else if (PUNCT[base]) out = PUNCT[base] + cluster.slice(base.length);
+    else if (cp > 0x7f && DIGIT.test(base)) out = asciiDigit(cp) + cluster.slice(base.length);
+    else {
+      // Any other compatibility letter or digit (mathematical letters, circled numbers, Roman numerals, ℡...) would be
+      // read by a model as the letter or digit it imitates, while the patterns here would not see it: refused, never
+      // normalized only for checking (the checked text and the sent text stay identical). A short allowlist of symbols
+      // common on medical papers stays as it is: µ, ½ and the other fractions (not before a digit), ™ ® ℃ ℉ º ª,
+      // and a lone superscript digit (checked above).
+      const nfkc = cluster.normalize("NFKC");
+      if (nfkc !== out && /[\p{L}\p{N}]/u.test(nfkc) && !SUPSUB_DIGIT.test(base)) {
+        const fraction = /[¼-¾⅐-⅞]/.test(base);
+        if (!(COMPAT_OK.test(base) || (fraction && !/\p{N}/u.test(nextCh)))) throw new PhiCharRefused("compatibility letters or digits (styled, circled or Roman-numeral characters)");
+      }
+    }
+    if (/\p{L}/u.test(out)) { for (const ch of out) if (/\p{L}/u.test(ch)) letter(ch); }
+    else endWord();
+    emit(out, i, end);
+    i = end;
+  }
+  endWord();
+  return { text, from: Int32Array.from(from), to: Int32Array.from(to), gaps: [], edits };
+}
+
+/**
+ * What the detectors read: the canonical text, character for character, except that an exact placeholder (one an
+ * earlier shield made) is skipped, so the identifier around or after it is read whole. A placeholder between two
+ * spaces takes one of them with it ("Maria ⟦X⟧ Lopez" reads "Maria Lopez"). `gaps` says where placeholders were.
+ * Offsets in `from`/`to` are offsets in the canonical text.
+ */
+export function detectionView(canon: string): Reading {
+  const from: number[] = [];
+  const to: number[] = [];
+  const gaps: number[] = [];
+  let text = "";
+  let i = 0;
+  while (i < canon.length) {
+    if (canon[i] === "⟦") {
+      BRACKET_RUN.lastIndex = i;
+      const run = BRACKET_RUN.exec(canon);
+      if (run) {
+        let end = i + run[0].length;
+        if (canon[i - 1] === " " && canon[end] === " ") end++;
+        gaps.push(text.length);
+        i = end;
+        continue;
+      }
+    }
+    from.push(i); to.push(i + 1); text += canon[i]; i++;
+  }
+  return { text, from: Int32Array.from(from), to: Int32Array.from(to), gaps };
 }

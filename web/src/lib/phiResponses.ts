@@ -38,7 +38,7 @@ export function shieldFields<T extends Record<string, unknown>>(session: PhiShie
 export function unshieldItem(it: VerifiedItem, ctx: ShieldContext | null, tokens: ReadonlyMap<string, string>, drop?: DropUnknown): VerifiedItem {
   const out = unshieldDeep(it, tokens, drop);
   if (!ctx || !it.span) return out;
-  const span = rangeToOriginal(ctx.result.offsetMap, it.span);
+  const span = rangeToOriginal(ctx.result.map, it.span);
   out.span = span;
   // A kept step quotes the paper exactly (verify.ts slices it from the paper), so slicing the original gives the same
   // words with the hidden parts back in.
@@ -81,6 +81,6 @@ export function unshieldExtractEvent(e: ExtractEvent, ctx: ShieldContext | null,
 /** The teach-back quiz: real words in every string, each proof span moved onto the original paper. */
 export function unshieldUnderstand(resp: UnderstandResponse, ctx: ShieldContext, tokens: ReadonlyMap<string, string>, drop?: DropUnknown): UnderstandResponse {
   const out = unshieldDeep(resp, tokens, drop);
-  out.questions = resp.questions.map((q, i) => ({ ...out.questions[i], span: rangeToOriginal(ctx.result.offsetMap, q.span) }));
+  out.questions = resp.questions.map((q, i) => ({ ...out.questions[i], span: rangeToOriginal(ctx.result.map, q.span) }));
   return out;
 }

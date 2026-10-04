@@ -20,26 +20,19 @@
  * Placeholders end in LETTERS, never digits: the missed-lines check treats every digit in a sentence as a number a
  * quote must cover, and the meaning check compares numbers, so a digit in a placeholder would change both.
  *
- * Every pattern here runs on the shared reading of the text (phiRead.ts: invisible characters dropped, NFKC,
- * lookalikes folded, one kind of space). What is replaced is always the RAW stretch behind a match, so nothing the
- * reading dropped can survive inside a hidden identifier.
+ * Every pattern here runs on the canonical text (phiRead.ts canonicalize), which is also exactly what is sent: what was
+ * checked is what the AI gets. Characters that could make the two differ are refused (PhiCharRefused).
  *
  * Fails closed: there is no cap on how many identifiers are spread, and a text too long to shield is refused
  * (PhiShieldRefused), never sent half shielded.
  */
 
-import { rawRange, readText, type Reading } from "./phiRead";
+import { PhiShieldRefused, canonicalize, detectionView, rawRange, readText, type Canon, type Reading } from "./phiRead";
+
+export { PhiCharRefused, PhiShieldRefused } from "./phiRead";
 
 /** The longest text one shield call accepts. Longer texts are refused, never partly shielded. */
 export const MAX_SHIELD_CHARS = 200_000;
-
-/** Thrown when a text cannot be shielded in full. The caller must refuse the request, never send the text. */
-export class PhiShieldRefused extends Error {
-  constructor(message = "This text is too long to hide the patient's details safely. Send a shorter part of the paper.") {
-    super(message);
-    this.name = "PhiShieldRefused";
-  }
-}
 
 const checkSize = (text: string) => {
   if (text.length > MAX_SHIELD_CHARS) throw new PhiShieldRefused();
@@ -55,16 +48,21 @@ export const PLACEHOLDER_RULE =
 /** Any placeholder this module can make. */
 export const TOKEN_RE = /⟦(NAME|DOB|AGE|MRN|ACCT|ID|SSN|PHONE|EMAIL|ADDR)_([A-Z]{1,3})⟧/g;
 
-/** One replaced stretch: [start, end) in the original text, [rStart, rEnd) in the redacted text. */
-export type Segment = { start: number; end: number; rStart: number; rEnd: number; token: string; kind: PhiKind };
+/**
+ * One replaced stretch: [start, end) in the original text, [rStart, rEnd) in the redacted text. `kind: "EDIT"` is a
+ * canonical edit (a line break or space unified, an invisible character removed...), whose `token` is what was sent.
+ */
+export type Segment = { start: number; end: number; rStart: number; rEnd: number; token: string; kind: PhiKind | "EDIT" };
 
 export type ShieldResult = {
   /** The redacted text: what the server and the AI see. */
   text: string;
   /** placeholder to original words. Kept in memory only, by whoever made it. */
   tokens: Map<string, string>;
-  /** The replaced stretches in order, for mapping offsets back to the original. */
+  /** The hidden identifiers in order (no canonical edits): what was hidden, and where. */
   offsetMap: Segment[];
+  /** Every change from the original in order, identifiers AND canonical edits: map offsets back through this one. */
+  map: Segment[];
 };
 
 type Hit = { start: number; end: number; kind: PhiKind };
@@ -151,7 +149,7 @@ const NO_SPREAD = new Set([
   "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
   "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
 ]);
-const NAME_WORD = /^[\p{L}][\p{L}'’.-]*/u;
+const NAME_WORD = /^[\p{L}][\p{L}\p{M}'’.-]*/u;
 /** Both spellings a paper uses for a word: "Clinic" and "CLINIC" (and "clinic" when `lower`). */
 const caps = (words: string[], lower = false) =>
   words.flatMap((w) => [w[0].toUpperCase() + w.slice(1), w.toUpperCase(), ...(lower ? [w] : [])]).join("|");
@@ -227,14 +225,16 @@ export class PhiShield {
    * The reading of a text and what its positions show, kept for the last few texts: a route learns each field and then
    * shields it, and reading it twice doubles the cost. Pure functions of the text, so a cached answer is the same answer.
    */
-  private readonly readCache = new Map<string, { r: Reading; hits: Hit[] }>();
-  private read(text: string): { r: Reading; hits: Hit[] } {
+  private readonly readCache = new Map<string, { canon: Canon; r: Reading; hits: Hit[] }>();
+  private read(text: string): { canon: Canon; r: Reading; hits: Hit[] } {
     checkSize(text);
     for (const t of tokensIn(text)) this.reserved.add(t);
     let v = this.readCache.get(text);
     if (!v) {
-      const r = readText(text);
-      v = { r, hits: detectPositional(r.text, r.gaps) };
+      // The canonical text is built once and is what gets sent; the detectors read it (skipping only placeholders).
+      const canon = canonicalize(text);
+      const r = detectionView(canon.text);
+      v = { canon, r, hits: detectPositional(r.text, r.gaps) };
       if (this.readCache.size >= 32) this.readCache.clear();
       this.readCache.set(text, v);
     }
@@ -284,7 +284,7 @@ export class PhiShield {
 
   /** The same identifier gets the same placeholder however it is written: keyed by its reading, not its raw bytes. */
   private tokenFor(original: string, kind: PhiKind): string {
-    const key = `${kind}\u0000${readText(original, "keep").text}`;
+    const key = `${kind}\u0000${readText(original).text}`;
     const have = this.byOriginal.get(key);
     if (have) return have;
     let n = this.counters.get(kind) ?? 0;
@@ -300,31 +300,56 @@ export class PhiShield {
   /** Shields one text with everything this session knows plus what this text itself shows. */
   shield(text: string): ShieldResult {
     const cached = this.read(text);
-    const r: Reading = cached.r;
+    const { canon, r } = cached;
     const read = r.text;
     const hits: Hit[] = [...cached.hits];
     for (const h of hits) this.remember(read.slice(h.start, h.end), h.kind);
     hits.push(...this.spread(read));
-    // Matched in the reading, replaced in the raw text: every raw character behind a match is hidden, including a
-    // placeholder or invisible character inside it. Placeholders are not in the reading, so a match never starts or
-    // ends inside one (an earlier shield's placeholder is either left alone or hidden whole inside a new one).
-    const chosen = resolve(resolve(hits).map((h) => ({ ...rawRange(r, h.start, h.end, text.length), kind: h.kind })));
+    // Matched in the detection view, which is the canonical text minus placeholders; mapped to the canonical text, then
+    // to the raw text, so every raw character behind a match is hidden (an earlier placeholder inside one included).
+    const toRaw = (h: Hit) => {
+      const c = rawRange(r, h.start, h.end, canon.text.length);
+      return { ...rawRange(canon, c.start, c.end, text.length), kind: h.kind };
+    };
+    const chosen = resolve(resolve(hits).map(toRaw));
 
+    // The text sent is the canonical text with each identifier replaced: walk the raw text applying the canonical edits
+    // outside the hidden stretches, and a placeholder for each hidden stretch.
     let out = "";
     let at = 0;
+    let e = 0;
     const offsetMap: Segment[] = [];
+    const map: Segment[] = [];
+    const copyTo = (end: number) => {
+      while (at < end) {
+        while (e < canon.edits.length && canon.edits[e].end <= at) e++;
+        const ed = e < canon.edits.length ? canon.edits[e] : null;
+        if (ed && ed.start < end) {
+          out += text.slice(at, ed.start);
+          map.push({ start: ed.start, end: ed.end, rStart: out.length, rEnd: out.length + ed.repl.length, token: ed.repl, kind: "EDIT" });
+          out += ed.repl;
+          at = ed.end;
+          e++;
+        } else {
+          out += text.slice(at, end);
+          at = end;
+        }
+      }
+    };
     for (const h of chosen) {
-      out += text.slice(at, h.start);
+      copyTo(h.start);
       const original = text.slice(h.start, h.end);
       const token = this.tokenFor(original, h.kind);
-      offsetMap.push({ start: h.start, end: h.end, rStart: out.length, rEnd: out.length + token.length, token, kind: h.kind });
+      const seg: Segment = { start: h.start, end: h.end, rStart: out.length, rEnd: out.length + token.length, token, kind: h.kind };
+      offsetMap.push(seg);
+      map.push(seg);
       out += token;
       at = h.end;
     }
-    out += text.slice(at);
+    copyTo(text.length);
     const tokens = new Map<string, string>();
-    for (const s of offsetMap) tokens.set(s.token, this.tokens.get(s.token)!);
-    return { text: out, tokens, offsetMap };
+    for (const sg of offsetMap) tokens.set(sg.token, this.tokens.get(sg.token)!);
+    return { text: out, tokens, offsetMap, map };
   }
 
   /** Every later use of a learned name or id, anywhere in the text. */
@@ -380,7 +405,7 @@ export class PhiShield {
 const ORG_BEFORE = new RegExp(String.raw`(?:^|[^\p{L}])(?:${caps(["clinic", "hospital", "medical", "health", "healthcare", "center", "pharmacy", "memorial", "university", "saint", "st"])})\.?\s+$`, "u");
 
 /** A word for name spreading: letters and digits, with inner apostrophes, hyphens or periods ("O'Neil", "Smith-Jones"). */
-const WORD = /[\p{L}\p{N}]+(?:['’.-][\p{L}\p{N}]+)*/gu;
+const WORD = /[\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:['’.-][\p{L}\p{N}][\p{L}\p{M}\p{N}]*)*/gu;
 /** What may sit between the words of one name: spaces, a comma ("Lopez, Maria") or an initial's period ("J. Lopez"). */
 const NAME_GAP = /^[.,]?[ \t]+$/;
 /** The longest name, in words, matched as one stretch (a name value is at most 4 words plus a title). */
@@ -482,7 +507,16 @@ function splitLines(text: string): Line[] {
 type LabelHit = { rule: LabelRule; labelStart: number; valueStart: number };
 
 /** All label matches on a line, earliest first, longest label on a tie, no two overlapping. */
+/** Labels found per line text, kept for one detectPositional call (a line is read for labels up to three times). */
+let labelMemo: Map<string, LabelHit[]> | null = null;
 function labelsOn(line: string): LabelHit[] {
+  const memo = labelMemo?.get(line);
+  if (memo) return memo;
+  const res = labelsOnUncached(line);
+  labelMemo?.set(line, res);
+  return res;
+}
+function labelsOnUncached(line: string): LabelHit[] {
   const found: LabelHit[] = [];
   for (const rule of LABELS) {
     rule.re.lastIndex = 0;
@@ -624,6 +658,23 @@ const NEXT_LINE_KINDS = new Set<LabelRule["kind"]>(["NAME", "DOB", "MRN", "ACCT"
 const kindOf = (k: LabelRule["kind"]): PhiKind =>
   k === "CONTACT_PHONE" ? "PHONE" : k === "CONTACT_ADDR" ? "ADDR" : k === "CONTACT_EMAIL" ? "EMAIL" : k;
 
+/** A label that is only "Name" (or "Full name"), with nothing saying whose. */
+const BARE_NAME = /^(?:full\s+)?name\b/i;
+/** A field line about a medicine, test, order or result ("Dose: 10 mg", "Result: 6.1"). */
+const CLINICAL_FIELD = /^\s*(?:[-*•>]\s*)?(?:dose|dosage|strength|route|frequency|sig|directions|qty|quantity|refills?|form|result|value|units?|reference|range|flag|status|type|code|cpt|icd|ndc|instructions|indication|reason|when|how\s+often|prescriber|ordered\s+by|specimen|modality|body\s+part|lot|manufacturer|date\s+given)\s*[:#-]/i;
+/** A heading line of a clinical section ("Medications", "Lab results", "Orders placed today"). */
+const CLINICAL_HEADING = /^\s*(?:[-*•>#]\s*)?(?:(?:current|new|active|home|discharge)\s+)?(?:medications?|meds|medicines?|prescriptions?|rx|allerg(?:y|ies)|labs?|lab\s+results|tests?|test\s+results|results|orders?(?:\s+placed(?:\s+today)?)?|imaging|procedures?|immunizations?|vaccines?|vaccinations?|problems?|diagnos[ei]s|devices?|supplies)\s*:?\s*$/i;
+/**
+ * True when line `li` sits in a clinical block: a field line about a medicine or test right above or below it, or a
+ * clinical section heading within the 3 lines above (with no blank line in between).
+ */
+function clinicalBlock(lines: readonly Line[], li: number): boolean {
+  const near = (k: number) => k >= 0 && k < lines.length && lines[k].text.trim() !== "";
+  if ((near(li - 1) && CLINICAL_FIELD.test(lines[li - 1].text)) || (near(li + 1) && CLINICAL_FIELD.test(lines[li + 1].text))) return true;
+  for (let k = li - 1; k >= Math.max(0, li - 3) && near(k); k--) if (CLINICAL_HEADING.test(lines[k].text)) return true;
+  return false;
+}
+
 /** True when a placeholder was left out of the reading anywhere in [a, b] (inclusive). */
 type Filled = (a: number, b: number) => boolean;
 function filledIn(length: number, gaps: readonly number[]): Filled {
@@ -655,6 +706,15 @@ function valueOnLine(kind: LabelRule["kind"], line: Line, from: number): Hit | n
  * honorific ("Ms. Lopez"), an age over 89, and the SSN shape.
  */
 export function detectPositional(text: string, gaps: readonly number[] = []): Hit[] {
+  labelMemo = new Map();
+  try {
+    return detectLines(text, gaps);
+  } finally {
+    labelMemo = null;
+  }
+}
+
+function detectLines(text: string, gaps: readonly number[]): Hit[] {
   const filled = filledIn(text.length, gaps);
   const lines = splitLines(text);
   const hits: Hit[] = [];
@@ -674,6 +734,10 @@ export function detectPositional(text: string, gaps: readonly number[] = []): Hi
     let filledAnchor = false;
     const fields: { hit: LabelHit; len: number; from: number }[] = labels.map((hit, i) => {
       const end = valueEnd(stops, line.text.length, hit.valueStart, labels[i + 1]?.labelStart);
+      // A bare "Name:" in a clinical block (a medicine, test or order listed by name) is not the patient's name.
+      const bare = hit.rule.kind === "NAME" && BARE_NAME.test(line.text.slice(hit.labelStart, hit.valueStart));
+      const clinical = bare && clinicalBlock(lines, li);
+      if (clinical) return { hit, len: 0, from: 0 };
       const v = readValue(hit.rule.kind, line.text.slice(hit.valueStart, end));
       const len = v ? v.to : 0;
       const from = v ? v.from : 0;
@@ -730,6 +794,9 @@ export function detectPositional(text: string, gaps: readonly number[] = []): Hi
   return hits;
 }
 
+/** The last word of a line that may be the first half of a label broken across two lines. */
+const LABEL_TAIL = /(?:^|[^\p{L}])(?:patient(?:['’]s)?|pt\.?|name|full|first|last|middle|given|family|date|of|birth|d\.?o\.?b?\.?|medical|med\.?|record|rec\.?|chart|account|acct\.?|encounter|member|insurance|subscriber|policy|medicaid|medicare|social|soc\.?|security|sec\.?|home|cell|mobile|primary|contact|your|street|mailing|e-?mail|phone|emergency|parent|guardian|the)$/iu;
+
 /**
  * The last few words of `line` joined to `next`: a label that starts on `line` and ends on `next` gets its value read
  * on `next` (or, when it ends `next`, nothing: the value-below rule does not chain).
@@ -740,7 +807,8 @@ function splitLabel(line: Line, next: Line): Hit[] {
   let from = Math.max(0, end.length - 48);
   if (from > 0 && end[from - 1] !== " ") while (from < end.length && end[from] !== " ") from++;
   const head = end.slice(from).trim().split(/ +/).slice(-4).join(" ");
-  if (!/\p{L}/u.test(head)) return [];
+  // Only a line ending in a word that can start or continue a label can carry half of one.
+  if (!LABEL_TAIL.test(head)) return [];
   const lead = next.text.length - next.text.trimStart().length;
   const joined = `${head} ${next.text.slice(lead)}`;
   const out: Hit[] = [];
@@ -809,7 +877,7 @@ export type DropUnknown = ((token: string) => boolean) | undefined;
  */
 export function unshieldString(s: string, tokens: ReadonlyMap<string, string>, drop?: DropUnknown): string {
   if (!s.includes("⟦") && !/[_＿﹍-﹏]/.test(s)) return s;
-  const r = readText(s, "keep");
+  const r = readText(s);
   let out = "";
   let at = 0;
   let dropped = false;
@@ -885,7 +953,7 @@ const mayHoldToken = (s: string) => /[⟦⟧_＿﹍-﹏]|[^\x00-\x7f]|(?:NAME|DO
  * an invisible character, a fullwidth or lookalike letter inside it does not hide it.
  */
 export function hasToken(s: string): boolean {
-  return mayHoldToken(s) && new RegExp(ANY_TOKEN.source, "u").test(readText(s, "keep").text);
+  return mayHoldToken(s) && new RegExp(ANY_TOKEN.source, "u").test(readText(s).text);
 }
 
 /** Marks where a placeholder was in a string being tidied. */
@@ -900,7 +968,7 @@ const MARK = "\u0000";
 export function stripTokens(s: string): string {
   if (!hasToken(s)) return s;
   const clean = s.replace(/\u0000/g, "");
-  const r = readText(clean, "keep");
+  const r = readText(clean);
   let marked = "";
   let at = 0;
   for (const m of r.text.matchAll(ANY_TOKEN)) {

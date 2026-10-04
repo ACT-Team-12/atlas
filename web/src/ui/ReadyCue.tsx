@@ -16,8 +16,19 @@ const LABEL: Record<Ready, string> = { steps: "Your steps are ready", plan: "You
  * "Percentages are resolved relative to the width of the undilated rectangle"), which collapses the band on a
  * landscape phone (Codex review, round 2).
  */
-export function readableRect(r: { top: number; bottom: number; height: number }, viewportHeight: number): boolean {
-  return r.height > 0 && r.top >= viewportHeight * 0.15 && r.bottom <= viewportHeight * 0.8;
+export function readableRect(r: { top: number; bottom: number; height: number }, viewportHeight: number, coveredTop = 0): boolean {
+  // Never under what is stuck to the top of the screen (the header, the stuck phone tab bar): measured, not guessed,
+  // because on a short landscape phone the tab bar reaches past 15% of the height (Codex review, round 3).
+  const top = Math.max(viewportHeight * 0.15, coveredTop + 4);
+  return r.height > 0 && r.top >= top && r.bottom <= viewportHeight * 0.8;
+}
+
+/** The lowest bottom edge of anything marked data-covers-top (the fixed header; the phone tab bar while stuck). */
+export function coveredTopNow(): number {
+  return [...document.querySelectorAll<HTMLElement>("[data-covers-top]")]
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.height > 0 && r.top < window.innerHeight / 2)
+    .reduce((low, r) => Math.max(low, r.bottom), 0);
 }
 
 /**
@@ -34,7 +45,7 @@ export function ReadyCue({ ready, announce, onGo, onSeen }: { ready: Ready | nul
     const check = () => {
       frame = 0;
       const el = document.getElementById(READY_TARGET[ready]);
-      if (el && readableRect(el.getBoundingClientRect(), window.innerHeight)) onSeen();
+      if (el && readableRect(el.getBoundingClientRect(), window.innerHeight, coveredTopNow())) onSeen();
     };
     const soon = () => { if (!frame) frame = requestAnimationFrame(check); };
     soon(); // it may already be in plain view when the result lands

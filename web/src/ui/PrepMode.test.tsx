@@ -156,6 +156,23 @@ describe("must-see steps are never folded", () => {
     expect(prepMustSee(byQuote("Bring your photo ID"))).toBe(false);
     expect(prepMustSee({ kind: "other", source_quote: "If you have chest pain, go to the emergency room." })).toBe(true);
   });
+
+  it("a call step stays visible even when the AI labels it something else (Codex review)", () => {
+    const paper = "THE EVENING BEFORE\n- Contact your clinic the evening before your procedure if your temperature reaches 101 degrees.\n- Pack a bag the evening before your procedure.\n\nTHE DAY BEFORE\n- Buy the prep kit the day before your procedure.";
+    const res = { ...buildPrepTimeline(paper, [
+      { kind: "other", source_quote: "Contact your clinic the evening before your procedure if your temperature reaches 101 degrees.", plain_language: "", ai_slot: "not_stated" },
+      { kind: "other", source_quote: "Pack a bag the evening before your procedure.", plain_language: "", ai_slot: "not_stated" },
+      { kind: "other", source_quote: "Buy the prep kit the day before your procedure.", plain_language: "", ai_slot: "not_stated" },
+    ]), model: "t", ms: 1 };
+    render(undefined, res);
+    const evening = groups().find((g) => g.dataset.prepGroup === "evening_before")!;
+    expect(groupToggle(evening).getAttribute("aria-expanded")).toBe("false");
+    const [contact, pack] = res.timeline.find((g) => g.slot === "evening_before")!.steps;
+    expect(visible(stepLi(contact.id))).toBe(true);
+    expect(visible(stepLi(pack.id))).toBe(false);
+    expect(prepMustSee({ kind: "other", source_quote: "Questions? 404-555-0199." })).toBe(true);
+    expect(prepMustSee({ kind: "other", source_quote: "Llame a la clínica si tiene fiebre." })).toBe(true);
+  });
 });
 
 describe("Ask your clinic when: one list", () => {
@@ -231,11 +248,21 @@ describe("the AI's words: never on a closed row, never without the paper's sente
 describe("accessibility", () => {
   it("group headings hold disclosure buttons; every step is a disclosure for its own panel", () => {
     render();
-    for (const g of groups()) {
-      const b = groupToggle(g);
-      expect(b.parentElement!.tagName).toBe("H3");
-      expect(document.getElementById(b.getAttribute("aria-controls")!)?.tagName).toBe("UL");
-    }
+    const check = () => {
+      for (const g of groups()) {
+        const b = groupToggle(g);
+        expect(b.parentElement!.tagName).toBe("H3");
+        const region = document.getElementById(b.getAttribute("aria-controls")!)!;
+        expect(region.tagName).toBe("UL");
+        // The controlled region is hidden exactly when the heading says collapsed (Codex review).
+        expect(region.hidden).toBe(b.getAttribute("aria-expanded") === "false");
+        // Open: every step of the group is in it, in paper order.
+        if (!region.hidden) expect([...region.querySelectorAll("li[data-prep-step]")].map((li) => li.getAttribute("data-prep-step"))).toEqual(RES.timeline.find((x) => x.slot === g.dataset.prepGroup)!.steps.map((s) => s.id));
+      }
+    };
+    check();
+    for (const g of groups()) act(() => groupToggle(g).click());
+    check();
     const toggles = [...host.querySelectorAll<HTMLButtonElement>("li[data-prep-step] > button[aria-expanded]")];
     expect(toggles).toHaveLength(STEPS.length);
     for (const b of toggles) {

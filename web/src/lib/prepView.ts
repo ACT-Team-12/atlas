@@ -54,14 +54,24 @@ export function shownExplanation(step: PrepStep, m: MeaningState): string | null
 /**
  * A step that must never be folded away: its paper sentence has a "do not" / "stop" word or an "only" / "until" /
  * "unless" limit (prepCues.ts, the same lists that hide explanations: "Stop drinking", "Do not eat", "drink only clear
- * liquids", "fasting"), it can't be read for those words (Ethiopic script), it is a "when to call" step, or it names
- * 911 or the emergency room. Its row stays visible in a closed group and keeps its whole sentence.
+ * liquids", "fasting"), it can't be read for those words (Ethiopic script), it says to call, contact or tell someone or
+ * prints a phone number, or it names 911 or the emergency room. All read from the paper's own sentence by our code; the
+ * AI's "call" kind can add a step but is never needed (Codex review). Its row stays visible and whole.
  */
 export function prepMustSee(s: Pick<PrepStep, "kind" | "source_quote">): boolean {
   // cuesForbid with no explanation: a "no" or "limit" cue word in the sentence, or a sentence it can't read.
-  return s.kind === "call" || cuesForbid(s.source_quote, "") ||
-    /(?<![\p{L}\p{N}])(?:911|emergency|emergencia|urgencias)(?![\p{L}\p{N}])/iu.test(s.source_quote);
+  return s.kind === "call" || cuesForbid(s.source_quote, "") || CALL_WORDS.test(s.source_quote) || PHONE.test(s.source_quote);
 }
+
+/** Words that tell the person to reach someone, or name an emergency (English, Spanish, French, Vietnamese). */
+const CALL_WORDS = new RegExp(String.raw`(?<![\p{L}\p{N}])(?:${[
+  "call", "calls", "calling", "phone", "contact", "notify", "tell", "let\\s+us\\s+know", "let\\s+your\\s+\\p{L}+\\s+know", "text", "page", "911", "emergency", "er",
+  "llame", "llamar", "llámenos", "llamenos", "comuníquese", "comuniquese", "contacte", "avise", "avísenos", "emergencia", "urgencias",
+  "appelez", "appeler", "contactez", "prévenez", "urgence", "urgences",
+  "gọi", "liên\\s+lạc", "báo", "cấp\\s+cứu",
+].join("|")})(?![\p{L}\p{N}])`, "iu");
+/** A phone number: at least 7 digits with the usual separators ("404-555-0199", "(404) 555 0199", "555.0199" is too short). */
+const PHONE = /(?:\+?\d[\s().-]*){7,}/;
 
 /**
  * What a closed prep row shows: the paper's own sentence (shortened at a word boundary, or whole for a must-see step)

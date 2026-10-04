@@ -244,8 +244,16 @@ export function PrepTimeline({ res, meaning }: { res: Pick<PrepResponse, "timeli
                   </span>
                 </button>
               </h3>
-              <ul id={listId} className={`space-y-2 ${folded === g.steps.length ? "" : "mt-2"}`}>
-                {g.steps.map((s) => <Step key={s.id} s={s} meaning={meaning} folded={shut && !prepMustSee(s)} />)}
+              {/* Open: every step in paper order, in the region the heading controls. Closed: that region is hidden, and
+                  the must-see steps show in their own list outside it, so the disclosure's state matches what it controls
+                  (Codex review). */}
+              {shut && folded < g.steps.length && (
+                <ul className="mt-2 space-y-2" data-must-see-list="">
+                  {g.steps.filter(prepMustSee).map((s) => <Step key={s.id} s={s} meaning={meaning} />)}
+                </ul>
+              )}
+              <ul id={listId} hidden={shut} className="mt-2 space-y-2">
+                {(shut ? g.steps.filter((s) => !prepMustSee(s)) : g.steps).map((s) => <Step key={s.id} s={s} meaning={meaning} />)}
               </ul>
               {/* Only when must-see steps show in a closed group: say that more sit behind its heading. */}
               {folded > 0 && folded < g.steps.length && (
@@ -270,7 +278,7 @@ function AskWhen({ steps, meaning }: { steps: PrepStep[]; meaning: MeaningState 
     <section aria-labelledby="prep-ask-title" className="mt-6 rounded-2xl border-2 border-dashed border-peach-deep bg-paper p-4" data-ask-when="">
       <h3 id="prep-ask-title" className="display text-xl">{ASK_LABEL} ({steps.length})</h3>
       <p className="text-sm font-semibold text-ink/70">Your paper does not say a day and time for these. Ask your clinic before your procedure.</p>
-      <ul className="mt-3 space-y-2">{steps.map((s) => <Step key={s.id} s={s} meaning={meaning} folded={false} />)}</ul>
+      <ul className="mt-3 space-y-2">{steps.map((s) => <Step key={s.id} s={s} meaning={meaning} />)}</ul>
       <div className="mt-3 flex items-center gap-2">
         <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">Copy these questions</button>
         <span role="status" className="text-xs font-semibold text-ink/70">{copied ? "Copied" : ""}</span>
@@ -279,7 +287,7 @@ function AskWhen({ steps, meaning }: { steps: PrepStep[]; meaning: MeaningState 
   );
 }
 
-function Step({ s, meaning, folded }: { s: PrepStep; meaning: MeaningState; folded: boolean }) {
+function Step({ s, meaning }: { s: PrepStep; meaning: MeaningState }) {
   const state = explainState(s, meaning);
   // The only way the AI's words reach this card: the shared paper-first rule (prepView.ts, paperFirst.ts).
   const shown = shownExplanation(s, meaning);
@@ -287,7 +295,7 @@ function Step({ s, meaning, folded }: { s: PrepStep; meaning: MeaningState; fold
   const [open, setOpen] = useState(false);
   const panelId = useId();
   return (
-    <li hidden={folded} data-prep-step={s.id} data-must-see={closed.full || undefined} data-open={open || undefined}
+    <li data-prep-step={s.id} data-must-see={closed.full || undefined} data-open={open || undefined}
       className={`min-w-0 rounded-2xl border-2 bg-paper ${closed.full ? "border-red" : open ? "border-ink" : "border-ink/20"}`}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId}
         className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl p-3 text-left">

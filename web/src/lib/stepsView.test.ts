@@ -202,6 +202,9 @@ describe("stepWhen: a medicine the PAPER says to stop goes under 'Right away'", 
       "Stop taking metformin if you are vomiting.",
       "Stop aspirin before your surgery.",
       "Do not take more than 4 tablets.",
+      "Do not suddenly stop taking prednisone.", // Codex review
+      "Do not take prednisone on an empty stomach.",
+      "Do not take ibuprofen with alcohol.",
     ]) {
       expect(stepWhen({ kind: "medication", source_quote: q, when: "" }, "certified").group, q).not.toBe("today");
     }

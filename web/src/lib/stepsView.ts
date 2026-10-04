@@ -125,10 +125,15 @@ export function whenFromText(text: string): TextWhen {
 /** Stop words a paper uses for a medicine, English and Spanish. */
 const STOP = word(String.raw`stop|stopped|discontinue|discontinued|do${S}not${S}take|don['’]t${S}take|never${S}take|deje${S}de${S}tomar|dejar${S}de${S}tomar|suspenda|suspender|no${S}tome|no${S}tomar`);
 /**
- * Words that make a stop NOT start now: a stop that is negated ("do not stop", "no deje de"), conditional ("if you
- * vomit"), tied to a later event ("before your surgery"), or a limit rather than a stop ("do not take more than").
+ * Words that make a stop NOT start now: a stop that is negated ("do not stop", "do not suddenly stop", "no deje de"),
+ * conditional ("if you vomit"), tied to a later event ("before your surgery"), a limit rather than a stop ("do not take
+ * more than"), or a rule about how to take it ("do not take it on an empty stomach", "with alcohol").
  */
-const NOT_NOW = word(String.raw`(?:do${S}not|don['’]t|never|not)${S}(?:stop|discontinue)|no${S}(?:deje|dejar|suspenda|suspender)|if|unless|when|before|after|si|cuando|antes${S}de|despu[eé]s${S}de|more${S}than|m[aá]s${S}de|exceed`);
+const NOT_NOW = word(
+  String.raw`(?:do${S}not|don['’]t|never|not)(?:${S}\p{L}+){0,2}${S}(?:stop|discontinue)|no(?:${S}\p{L}+){0,2}${S}(?:deje|dejar|suspenda|suspender)|if|unless|when|before|after|si|cuando|antes${S}de|despu[eé]s${S}de|more${S}than|m[aá]s${S}de|exceed` +
+    // How to take it, not a stop: "Do not take it on an empty stomach", "...with alcohol", "...at the same time as".
+    String.raw`|with|without|empty${S}stomach|same${S}time|together|con|sin|en${S}ayunas`,
+);
 const BULLET = /^\s*(?:[-*•‣–]|\d{1,2}[.)])\s+/u;
 
 /**

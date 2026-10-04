@@ -109,9 +109,8 @@ const GRAPHIC_BG = /^ink\/(15|20)$/;
  * Decorative lines carry no information of their own, so no minimum: faint hairlines (ink/10 to ink/40), and the amber
  * quote rule and callout frame (border-sun), which sits beside text that says what it is. It was 1.4:1 in the original
  * light design; in dark it is drawn in --sun-line. Control borders at ink and ink/60 to ink/80 are tested.
- * Known gap, kept visible here: some inputs and pickers (BookIt, CareSteps, PlanStart) use ink/40 as their only edge,
- * about 2.3:1 in light and dark. That predates the dark theme; raising it touches files open in PR 82, so it is a
- * follow-up, not hidden by this exemption.
+ * The exemption covers panels and cards only: "controls never wear a faint border" below fails any button, select,
+ * input or textarea whose edge is ink/10 to ink/40 (those inputs and pickers were 2.3:1 before; now ink/60).
  */
 const DECORATIVE_BORDER = (b: string) => /\/(10|20|30|40)$/.test(b) || b === "sun";
 
@@ -210,6 +209,16 @@ describe("theme tokens", () => {
     for (const k of ["text", "bg", "border"]) expect(used(k).length).toBeGreaterThan(5);
     expect(PAIRS.some((p) => p.fg === "red" && p.bg === "red-soft")).toBe(true); // warning text on its warning card
     expect(PAIRS.some((p) => p.fg === "ink/70" && p.bg === "paper")).toBe(true); // muted body text
+  });
+
+  it("controls never wear a faint border (WCAG 1.4.11: a control's edge needs 3:1)", () => {
+    // Each opening tag runs from "<button" (etc.) to the next "<", so its className, even a template, is inside it.
+    const tags = SOURCES.flatMap((f) =>
+      [...readFileSync(f, "utf8").matchAll(/<(button|select|input|textarea)\b[^<]*/g)].map((m) => ({ f, tag: m[0] })));
+    expect(tags.length).toBeGreaterThan(40);
+    const faint = tags.filter((t) => /\bborder-ink\/(10|20|30|40)\b/.test(t.tag))
+      .map((t) => `${t.f.slice(t.f.indexOf("src/"))}: ${t.tag.slice(0, 80)}`);
+    expect(faint).toEqual([]);
   });
 });
 

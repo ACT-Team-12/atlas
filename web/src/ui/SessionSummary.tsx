@@ -83,7 +83,7 @@ export function SessionSummary(props: SessionPlanState) {
       </div>
 
       <label htmlFor={id} className="mt-4 block text-xs font-bold text-ink/70">What it will say</label>
-      <textarea id={id} readOnly data-lenis-prevent value={s.text} className="mt-1 h-56 w-full rounded-xl border-2 border-ink/40 bg-paper p-2 font-mono text-xs" />
+      <textarea id={id} readOnly data-lenis-prevent value={s.text} className="mt-1 h-56 w-full rounded-xl border-2 border-ink/60 bg-paper p-2 font-mono text-xs" />
 
       {mounted && createPortal(
         <div id="atlas-session-sheet" className="atlas-session-sheet" aria-hidden="true">

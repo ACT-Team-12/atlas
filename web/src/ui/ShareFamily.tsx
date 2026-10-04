@@ -55,7 +55,7 @@ export function ShareFamily({ items, plan, questions, meaning, planItems, disabl
             <a className="rounded-full border-2 border-ink px-3 py-1.5" href={`sms:?&body=${encodeURIComponent(text)}`}>Text it</a>
           </div>
           <label className="mt-3 block text-xs font-bold text-ink/70">What they will get
-            <textarea readOnly data-lenis-prevent value={text} className="mt-1 h-40 w-full rounded-xl border-2 border-ink/40 bg-paper p-2 font-mono text-xs" />
+            <textarea readOnly data-lenis-prevent value={text} className="mt-1 h-40 w-full rounded-xl border-2 border-ink/60 bg-paper p-2 font-mono text-xs" />
           </label>
         </div>
       )}

@@ -66,7 +66,8 @@ export type PipSpot =
   | { at: "header"; mood: "arrive"; line: "allDone" }
   /**
    * First view when the current step is a quiet card: Pip greets once at the "Your steps" heading with the fixed
-   * "start" line, pointing down at the list, while the card itself (`id`) keeps a quiet Pip (neutral, no bubble, still).
+   * "start" line, pointing down at the list. Pip is one character, so the card itself (`id`) shows no Pip meanwhile:
+   * its slot stays reserved and empty. When the greeting ends, Pip moves to his normal spot on the current step.
    */
   | { at: "greet"; id: string; mood: "arrive"; line: "start" }
   | { at: "none" };

@@ -97,9 +97,8 @@ export function CareSteps(p: Props) {
   // The greeting shares the key of the same step's own "Start here", so a late check that turns that step quiet (or
   // back) moves the words between card and heading without reading them a second time (Codex review).
   const pipKey = spot.at === "step" ? `${spot.id}:${spot.mood}` : spot.at === "greet" ? `${spot.id}:arrive` : spot.at;
-  // On the card the greeting's step keeps a quiet Pip: neutral face, no bubble, no motion.
-  const cardPip: Extract<PipSpot, { at: "step" }> | null =
-    spot.at === "step" ? spot : spot.at === "greet" ? { at: "step", id: spot.id, mood: "quiet", line: null } : null;
+  // Pip is one character: during the heading greeting no card shows him (every card's slot stays reserved, empty).
+  const cardPip: Extract<PipSpot, { at: "step" }> | null = spot.at === "step" ? spot : null;
   const [pipSaid, setPipSaid] = useState("");
   useEffect(() => {
     const clear = setTimeout(() => setPipSaid(""), 0);

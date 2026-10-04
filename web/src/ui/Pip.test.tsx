@@ -81,6 +81,7 @@ const rowOf = (id: string) => host.querySelector<HTMLLIElement>(`li[data-step="$
 const pipRows = () => [...host.querySelectorAll<HTMLLIElement>("li[data-pip-here]")].map((li) => [li.dataset.step, li.dataset.pipHere]);
 const bubbles = () => [...host.querySelectorAll("[data-pip-bubble]")].map((b) => b.textContent);
 const live = () => host.querySelector("[data-pip-status]")!.textContent;
+const pipCount = () => host.querySelectorAll(".pip").length;
 const greetBubble = () => host.querySelector("[data-pip-greet] [data-pip-bubble]")?.textContent ?? null;
 const tick = (id: string) => act(() => { rowOf(id).querySelector<HTMLInputElement>('input[type="checkbox"]')!.click(); });
 const settle = (ms = 2000) => act(() => { vi.advanceTimersByTime(ms); });
@@ -138,7 +139,8 @@ describe("Pip on the steps", () => {
   });
 
   it("is quiet on a medicine step: neutral face, no motion, no blink, no bubble, and no cheer when it is done", () => {
-    render({ items: [MET, WALK] });
+    // A plan with a step done earlier (since removed), so no first-view greeting: Pip is on the card itself.
+    render({ items: [MET, WALK], initialDone: { earlier: true } });
     // Both are daily; metformin comes first.
     expect(pipRows()).toEqual([["met", "quiet"]]);
     const marker = rowOf("met").querySelector<HTMLElement>(".pip")!;
@@ -146,9 +148,7 @@ describe("Pip on the steps", () => {
     expect(marker.hasAttribute("data-blink")).toBe(false);
     expect(rowOf("met").querySelector("svg")!.dataset.face).toBe("norm");
     expect(rowOf("met").querySelector("[data-acc]")).toBeNull();
-    // Nothing on the card itself: the only bubble is the heading greeting.
-    expect(rowOf("met").querySelector("[data-pip-bubble]")).toBeNull();
-    expect(greetBubble()).toBe("Start here");
+    expect(bubbles()).toEqual([]);
     tick("met");
     // No cheer on medicine: straight to the next step.
     expect(pipRows()).toEqual([["walk", "arrive"]]);
@@ -156,7 +156,7 @@ describe("Pip on the steps", () => {
   });
 
   it("is quiet on a lab test, and never on a warning sign (warning cards have no slot at all)", () => {
-    render({ items: [W911, BMP, WALK] });
+    render({ items: [W911, BMP, WALK], initialDone: { earlier: true } });
     expect(pipRows()).toEqual([["bmp", "quiet"]]);
     expect(rowOf("bmp").querySelector("[data-pip-bubble]")).toBeNull();
     expect(rowOf("w911").querySelector("[data-pip-slot]")).toBeNull();
@@ -166,7 +166,7 @@ describe("Pip on the steps", () => {
 
   it("is quiet on a step the second check disagreed with: no bubble, no cheer", () => {
     const meaning: MeaningState = { status: "done", byId: { walk: { id: "walk", flagged: true, numbers_ok: true, unexpected_numbers: [], model_verdict: "different", what_differs: "", certified: false } } };
-    render({ items: [WALK, SODA], meaning });
+    render({ items: [WALK, SODA], meaning, initialDone: { earlier: true } });
     expect(pipRows()).toEqual([["walk", "quiet"]]);
     expect(rowOf("walk").querySelector("[data-pip-bubble]")).toBeNull();
     tick("walk");
@@ -177,17 +177,19 @@ describe("the heading greeting (first current step is quiet)", () => {
   const greet = () => host.querySelector<HTMLElement>("[data-pip-greet]");
   const headingPip = () => host.querySelector<HTMLElement>("[data-pip-heading] .pip");
 
-  it("a quiet first step: Pip says Start here once at the heading, pointing down, and the card stays quiet", () => {
+  it("a quiet first step: Pip says Start here once at the heading, pointing down, and no card shows a Pip", () => {
     render({ items: [MET, WALK] });
     expect(greetBubble()).toBe("Start here");
     expect(greet()!.querySelector("[data-pip-bubble]")!.getAttribute("data-point")).toBe("down");
     const hp = headingPip()!;
     expect(hp.dataset.pip).toBe("arrive");
     expect(hp.hasAttribute("data-calm")).toBe(false);
-    // The card: quiet Pip, neutral face, no blink, no bubble.
-    expect(pipRows()).toEqual([["met", "quiet"]]);
-    expect(rowOf("met").querySelector<HTMLElement>(".pip")!.hasAttribute("data-blink")).toBe(false);
-    expect(rowOf("met").querySelector("svg")!.dataset.face).toBe("norm");
+    // One Pip only: the card's slot is still reserved, but empty, and no card has a Pip or a bubble.
+    expect(pipRows()).toEqual([]);
+    expect(rowOf("met").querySelector("[data-pip-slot]")).not.toBeNull();
+    expect(rowOf("met").querySelector("[data-pip-slot]")!.childElementCount).toBe(0);
+    expect(host.querySelectorAll("li .pip, li [data-pip-bubble]")).toHaveLength(0);
+    expect(pipCount()).toBe(1);
     expect(bubbles()).toEqual(["Start here"]);
     // Read once, politely.
     settle();
@@ -268,8 +270,38 @@ describe("the heading greeting (first current step is quiet)", () => {
     const meaning: MeaningState = { status: "done", byId: { walk: { id: "walk", flagged: true, numbers_ok: true, unexpected_numbers: [], model_verdict: "different", what_differs: "", certified: false } } };
     render({ items: [WALK, SODA], meaning });
     expect(greetBubble()).toBe("Start here");
-    expect(pipRows()).toEqual([["walk", "quiet"]]);
+    expect(pipRows()).toEqual([]);
+    expect(pipCount()).toBe(1);
     for (let i = 0; i < 6; i++) { act(() => { vi.advanceTimersByTime(100); }); expect(live()).toBe("Start here"); }
+  });
+
+  it("exactly one Pip on screen in every state: greeting, normal, cheering, all done, calm", () => {
+    render({ items: [MET, WALK] });
+    expect(pipCount()).toBe(1); // greeting, at the heading
+    expect(headingPip()).not.toBeNull();
+    tick("met");
+    expect(pipCount()).toBe(1); // normal: Next up on walk (no cheer on medicine)
+    expect(pipRows()).toEqual([["walk", "arrive"]]);
+    tick("walk");
+    expect(pipCount()).toBe(1); // cheering on walk
+    expect(pipRows()).toEqual([["walk", "cheer"]]);
+    settle();
+    expect(pipCount()).toBe(1); // all done, at the heading
+    expect(host.querySelector("[data-pip-done-all]")).not.toBeNull();
+    act(() => root.unmount());
+    root = createRoot(host);
+    act(() => setCalmMode(true));
+    try {
+      render({ items: [MET, WALK] });
+      expect(pipCount()).toBe(1); // calm greeting
+      expect(headingPip()!.hasAttribute("data-calm")).toBe(true);
+      tick("met");
+      expect(pipCount()).toBe(1); // calm, moved to the current step, fading in
+      const card = rowOf("walk").querySelector<HTMLElement>(".pip")!;
+      expect(card.hasAttribute("data-calm")).toBe(true);
+    } finally {
+      act(() => setCalmMode(false));
+    }
   });
 
   it("is never on or beside the warning signs", () => {

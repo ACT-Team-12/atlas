@@ -131,8 +131,9 @@ export interface CallStore {
    */
   takeSlot(key: string, cap: number, now: number, ttlMs?: number): Promise<boolean>;
   releaseSlot(key: string): Promise<void>;
-  /** A counter's value inside its window (0 when absent or past it); null on a database error. */
-  counter(key: string, now?: number): Promise<number | null>;
+  /** A counter's value inside its window (0 when absent or past it); null on a database error. `now` is required so a
+   *  caller with a fixed clock (every test) can never compare against the wall clock by accident. */
+  counter(key: string, now: number): Promise<number | null>;
 }
 
 export const SCHEMA_SQL = `
@@ -411,7 +412,7 @@ export class PgCallStore implements CallStore {
     try { await this.db.query("update atlas_call_counters set n = n - 1 where id = $1 and n > 0", [key]); } catch (e) { logErr("call release failed", e); }
   }
 
-  async counter(key: string, now = Date.now()) {
+  async counter(key: string, now: number) {
     try {
       const r = await this.db.query("select n from atlas_call_counters where id = $1 and expires_at > $2", [key, new Date(now)]);
       return (r.rows[0]?.n as number | undefined) ?? 0;

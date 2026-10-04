@@ -92,6 +92,7 @@ const rowToggle = (row: Element) => row.querySelector<HTMLButtonElement>("h5 > b
 describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
   it("opens with the summary, the suggestions label, the top 3 and the needs-a-person note, none of them folded", async () => {
     const card = await planReady();
+    const follows = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
     const label = [...card.querySelectorAll("p")].find((p) => p.textContent?.startsWith("Suggestions from ATLAS, not your paper"))!;
     expect(label).toBeTruthy();
     expect(isFolded(label)).toBe(false);
@@ -108,13 +109,18 @@ describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
     expect(card.textContent).not.toMatch(/of your 6 problems/);
     expect(tops[0].textContent).toContain("Paying for the visit, lab or medicine");
     expect(tops[2].textContent).toContain("Verified on the official page");
+    // Who picked them, on every card and under the heading: ATLAS, not the doctor (caregiver's try, Oct 4).
+    expect(tops.map((li) => li.querySelector("[data-by-atlas]")?.textContent)).toEqual(Array(3).fill("Suggested by ATLAS"));
+    const placesNote = card.querySelector("[data-places-note]")!;
+    expect(placesNote.textContent).toContain("Your doctor did not send you to them.");
+    expect(isFolded(placesNote)).toBe(false);
+    expect(follows(heading, placesNote) && follows(placesNote, topList(card))).toBe(true);
     const person = [...card.querySelectorAll("p")].find((p) => p.textContent === "This needs a person too")!;
     expect(person).toBeTruthy();
     expect(isFolded(person)).toBe(false);
     expect(card.textContent).toContain(PLAN.ask_a_person_reason);
     // First screen: the note comes right after the summary, before the actions and the three calls.
     const note = person.closest("div")!;
-    const follows = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
     expect(follows([...card.querySelectorAll("p")].find((p) => p.textContent === PLAN.summary)!, note)).toBe(true);
     expect(follows(note, card.querySelector(".plan-dock")!)).toBe(true);
     expect(follows(note, heading)).toBe(true);
@@ -158,7 +164,8 @@ describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
     expect(t.getAttribute("aria-expanded")).toBe("true");
     expect(shut(body)).toBe(false);
     expect(body.textContent).toContain(PLAN.steps[0].action);
-    expect(body.textContent).toContain("Best option");
+    expect(body.textContent).toContain("Best option · Suggested by ATLAS, not your doctor");
+    expect(body.querySelector("[data-by-atlas]")?.textContent).toBe("Suggested by ATLAS"); // over the plan's own action
     act(() => t.click());
     expect(t.getAttribute("aria-expanded")).toBe("false");
     expect(shut(body)).toBe(true);

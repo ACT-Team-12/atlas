@@ -6,6 +6,7 @@ import { BARRIER_LABEL, type Barrier, formatHours, openNow, opensEvenings, opens
 import { directionsHref, helpsLine, primaryAction, resourceName, telHref, type RankedResource } from "@/lib/planTop";
 import { resourceScript } from "@/lib/booking";
 import { pipLine } from "@/lib/pip";
+import { BY_ATLAS, PLACES_NOTE } from "@/lib/provenance";
 import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
 
 /**
@@ -128,7 +129,10 @@ function TopCard({ r, rank, chosen, language, off, offId, pip }: { r: RankedReso
     <li className="grid content-start gap-2.5 rounded-[1.2rem] border-2 border-ink bg-paper p-4 shadow-[3px_4px_0_var(--ink)]" data-pip-here={pip ? "arrive" : undefined}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <span className={`chip ${card.type === "clinic" ? "bg-mint text-teal-deep" : "bg-sky text-sky-deep"}`}>{card.type === "clinic" ? "Health center" : "Program"}</span>
+          <span className="flex flex-wrap gap-1.5">
+            <span className={`chip ${card.type === "clinic" ? "bg-mint text-teal-deep" : "bg-sky text-sky-deep"}`}>{card.type === "clinic" ? "Health center" : "Program"}</span>
+            <span className="chip border border-ink/40 bg-paper text-ink" data-by-atlas="">{BY_ATLAS}</span>
+          </span>
           <h5 className="mt-1.5 text-lg font-extrabold leading-tight break-words">{name}</h5>
         </div>
         <span className="flex flex-none items-start gap-1">
@@ -191,6 +195,8 @@ export function TopCalls({ top, chosen, language, off, offId }: { top: RankedRes
           <CalmToggle />
         </span>
       </div>
+      {/* Who picked these: not the doctor. A caregiver could not tell (Oct 4 try). */}
+      <p className="mt-1 max-w-3xl text-sm font-semibold text-ink/80" data-places-note="">{PLACES_NOTE}</p>
       <ol className="mt-3 grid gap-3 lg:grid-cols-3">
         {top.map((r, i) => <TopCard key={r.id} r={r} rank={i + 1} chosen={chosen} language={language} off={off} offId={offId}
           pip={i === 0 && pipText ? { text: pipText, calm } : undefined} />)}
@@ -239,6 +245,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
         </h5>
       </div>
       <div id={ids.body} className={`plan-fold ${open ? "" : "plan-shut"} border-t-2 border-ink/10 px-3 pb-4 pt-3 sm:px-4`}>
+        <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink/70" data-by-atlas="">{BY_ATLAS}</p>
         <p className="font-semibold">{step.action}</p>
         {/* The plan step is a suggestion, never certified: the paper's own words for its steps stay right next to it. */}
         {quotes.map((q, k) => (
@@ -246,7 +253,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
         ))}
         {best && (
           <div className="mt-4">
-            <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-ink/70">Best option</p>
+            <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-ink/70">Best option · {BY_ATLAS}, not your doctor</p>
             <Resource r={best} off={off} proof={false} />
           </div>
         )}

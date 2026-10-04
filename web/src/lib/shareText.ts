@@ -3,6 +3,7 @@ import type { PlanResponse } from "./plan";
 import type { MeaningResult } from "./meaning";
 import { careStepView, checkOf, paperFirstLines } from "./paperFirst";
 import { planStepQuotes } from "./planQuotes";
+import { HELP_HEADING_SHARE } from "./provenance";
 import { visitQuestions } from "./visitQuestions";
 
 /** The second-model double-check, as the screen has it. "done" carries one result per item id. */
@@ -49,7 +50,7 @@ export function planShareText({ items, plan, questions, meaning, planItems }: { 
   const used = new Set(plan.steps.flatMap((s) => s.resource_ids));
   const help = Object.values(plan.resources).filter((r) => used.has(r.id));
   if (help.length) {
-    out.push("", "WHO CAN HELP (checked numbers)");
+    out.push("", HELP_HEADING_SHARE);
     for (const r of help) {
       if (r.type === "clinic") out.push(`- ${r.clinic.name}: ${r.clinic.phone}, ${r.clinic.address}, ${r.clinic.city} ${r.clinic.zip}`);
       else {

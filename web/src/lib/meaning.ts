@@ -168,6 +168,15 @@ const CONTEXT_STOP = new Set([
   "it", "you", "should", "please", "do", "not", "start", "stop", "continue", "keep", "inject", "swallow", "chew",
   "spray", "insert", "place", "put", "mix", "dissolve", "measure", "now",
 ]);
+/**
+ * One spelling for naming words that say the same thing, used only to line a number up with the number it names in
+ * the quote (never to read a value). "pill", "pills", "tablet" and "tablets" are one word here, so "2 pills (20 mg
+ * total)" lines its 20 mg up with the paper's "2 tablets (20 mg total)", and "you used to take 10 mg" lines up with
+ * "Previously 10 mg". Both sides are read through this, so a swap between two values still points at the other
+ * value's word and is refused.
+ */
+const SAME_NAME: Record<string, string> = { pill: "tablet", pills: "tablet", tablet: "tablet", tablets: "tablet", previously: "previously", formerly: "previously" };
+const nameOf = (w: string, next: string | undefined) => (w === "used" && next?.toLowerCase() === "to" ? "previously" : SAME_NAME[w] ?? w);
 const HALF_WORD_ONE = /^(?:half|halves|medio|media|medias|mitad|demi|demie|demis|moitié|nửa|半|반)$/iu;
 const QUARTER_WORD_ONE = /^(?:quarter|quarters|cuarto|cuartos|cuarta|quart|quarts)$/iu;
 
@@ -189,7 +198,7 @@ function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [strin
       const u = unitClass(w);
       if ((u && (u === cls || cls === null)) || CONTEXT_STOP.has(w)) continue;
       if (languages.some((l) => readNumberWords(w, l).numbers.length > 0)) break;
-      out.push(w);
+      out.push(nameOf(w, toks[k + 1]));
     }
     return out;
   };

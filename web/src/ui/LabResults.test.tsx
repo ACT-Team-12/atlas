@@ -163,7 +163,7 @@ describe("flagged results: one row each, the report's own words, our code's chip
     expect(panel.textContent).toContain("Your report marks this line as high.");
     const block = panel.querySelector("[data-lead]")!;
     expect(block.getAttribute("data-lead")).toBe("quote");
-    expect(block.firstElementChild!.textContent).toContain("Your report says:");
+    expect(block.firstElementChild!.textContent).toContain("Copied word for word from your report");
     expect(block.querySelector("[data-explanation]")!.textContent).toContain("not double-checked");
     expect(panel.querySelector("[data-lab-ask]")!.textContent).toContain("AI-ASK about [glucose fasting]?");
   });

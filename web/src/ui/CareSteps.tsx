@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { bookSafe, careStepView, paperFirstLines, type Check } from "@/lib/paperFirst";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { MeaningState } from "@/lib/meaningRun";
 import type { DeviceRun, DeviceStatus } from "@/lib/deviceRun";
 import { isWarning } from "@/lib/warningPin";
 import { closedRow, sealOf, shortQuote, stepWhen, WHEN_GROUPS, type Seal, type WhenGroup } from "@/lib/stepsView";
-import { askPerson } from "@/lib/askPerson";
+import { askPerson, type AskPerson } from "@/lib/askPerson";
 import { readingGeneralQuestions, stepVisitQuestion, uniqueStepQuestions } from "@/lib/visitQuestions";
 import { buildIcs } from "@/lib/booking";
 import { dayOptions, formatTime, googleCalendarUrl, localStart, timeOptions } from "@/lib/calendarLinks";
 import { SPEECH_LANG } from "@/lib/speechLang";
 import { pipLine, pipSpot, type PipSpot } from "@/lib/pip";
+import { nextOpen, walkLine, walkPip, walkSteps, type WalkStep } from "@/lib/walkThrough";
 import { PaperFirst } from "./PaperFirst";
 import { ShowOnPaper } from "./ShowOnPaper";
 import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
@@ -64,13 +65,12 @@ export function CareSteps(p: Props) {
   const { t, tn } = useUi();
 
   const warnings = items.filter(isWarning);
-  const groups = useMemo(() => {
-    const by = new Map<WhenGroup, VerifiedItem[]>(WHEN_GROUPS.map((g) => [g, []]));
-    for (const it of items) if (!isWarning(it)) by.get(stepWhen(it, checkFor(it.id), care.source_text).group)!.push(it);
-    return WHEN_GROUPS.map((g) => ({ g, list: by.get(g)! })).filter((x) => x.list.length > 0);
-  }, [items, checkFor, care.source_text]);
+  // Every step in the order shown (lib/walkThrough.ts): warning signs, then each time group. The list and "Walk me
+  // through it" both read this one order, so "Step 3 of 12" is row 3.
+  const walk = useMemo(() => walkSteps(items, isWarning, (it) => stepWhen(it, checkFor(it.id), care.source_text).group), [items, checkFor, care.source_text]);
+  const groups = useMemo(() => WHEN_GROUPS.map((g) => ({ g, list: walk.filter((s) => s.group === g).map((s) => s.it) })).filter((x) => x.list.length > 0), [walk]);
   // Numbered in the order shown, so "step 3" is the third row a person sees.
-  const order = [...warnings, ...groups.flatMap((x) => x.list)];
+  const order = walk.map((s) => s.it);
   const numberOf = (id: string) => order.findIndex((i) => i.id === id) + 1;
 
   // Pip (Akhil's "you are here" marker, lib/pip.ts): on the first step not done, earliest group first. Warning signs
@@ -91,12 +91,28 @@ export function CareSteps(p: Props) {
   const anyDoneAtAll = Object.values(p.done).some(Boolean);
   const spot = pipSpot(stepOrder, p.done, checkFor, cheering, !greetOver && !anyDoneAtAll);
   const { calm } = usePipCalm();
-  const pipText = spot.at !== "none" && spot.line ? pipLine(p.language, spot.line) : "";
+
+  // "Walk me through it" (lib/walkThrough.ts): one step at a time. `walkAt` is the step shown (by id, so a check
+  // that lands and regroups the list never swaps the step under the person), "end" the closing screen, null the list.
+  // The order is fixed when the walk starts: a late check can move a step to another time group, and the walk must
+  // neither skip it nor show it twice (Codex review). Each step still shows its current group and check.
+  const [walkAt, setWalkAt] = useState<string | "end" | null>(null);
+  const [walkIds, setWalkIds] = useState<string[]>([]);
+  const walkSeq = useMemo(() => walkIds.flatMap((id) => walk.filter((s) => s.it.id === id)), [walkIds, walk]);
+  const walkIndex = walkAt && walkAt !== "end" ? walkSeq.findIndex((s) => s.it.id === walkAt) : -1;
+  const walkStep = walkIndex >= 0 ? walkSeq[walkIndex] : null;
+  // A step removed while shown ends the walk on its closing screen, never on a different step.
+  const walking = walkAt !== null;
+  const shownPip = walkStep ? walkPip(spot, walkStep.it, checkFor(walkStep.it.id), walkStep.group === "warning") : null;
+  const listPipText = spot.at !== "none" && spot.line ? pipLine(p.language, spot.line) : "";
+  // While walking, Pip speaks only about the step on screen, by the same quiet rules (never on medicine, lab or warning).
+  const pipText = walking ? (shownPip?.line ? pipLine(p.language, shownPip.line) : "") : listPipText;
   // Keyed on where Pip is too, not only on the words: two steps cheered one after the other both say "Nice, that's
   // done", and the second must still be read. Clearing first makes the repeated words a fresh change (Codex review).
   // The greeting shares the key of the same step's own "Start here", so a late check that turns that step quiet (or
   // back) moves the words between card and heading without reading them a second time (Codex review).
-  const pipKey = spot.at === "step" ? `${spot.id}:${spot.mood}` : spot.at === "greet" ? `${spot.id}:arrive` : spot.at;
+  const listPipKey = spot.at === "step" ? `${spot.id}:${spot.mood}` : spot.at === "greet" ? `${spot.id}:arrive` : spot.at;
+  const pipKey = walking ? `walk:${walkAt}:${shownPip?.mood ?? "none"}` : listPipKey;
   // Pip is one character: during the heading greeting no card shows him (every card's slot stays reserved, empty).
   const cardPip: Extract<PipSpot, { at: "step" }> | null = spot.at === "step" ? spot : null;
   const [pipSaid, setPipSaid] = useState("");
@@ -128,12 +144,40 @@ export function CareSteps(p: Props) {
   const isOpen = (id: string) => open[id] ?? sealOf(checkFor(id)) === "recheck";
   const toggle = (id: string) => setOpen((o) => ({ ...o, [id]: !isOpen(id) }));
 
+  // One way to mark a step done, for the list and the walk-through alike: the same saved record, Pip's cheer, the end
+  // of the first-view greeting.
+  const markDone = (id: string, v: boolean) => { p.onDone(id, v); setCheering(v ? id : null); if (v) setGreetOver(true); };
+
+  const walkButton = useRef<HTMLButtonElement>(null);
+  const [walkReturn, setWalkReturn] = useState(0);
+  // Back on the list: focus returns to the button that opened the walk-through.
+  useEffect(() => { if (walkReturn) walkButton.current?.focus(); }, [walkReturn]);
+  const startWalk = () => {
+    if (walk.length === 0) return;
+    speech.stop(); // a row being read aloud is hidden once the walk opens
+    const at = nextOpen(walk, p.done, 0);
+    setWalkIds(walk.map((s) => s.it.id));
+    setWalkAt(walk[at < 0 ? 0 : at].it.id);
+  };
+
+  // Read aloud carries the explanation only when certified (paperFirstLines). If the step's check changes while it is
+  // being read (a late device check that disagrees), the queued lines no longer match, so the reading stops (Codex review).
+  const spokeAs = useRef<Check | null>(null);
+  const speakStep = (it: VerifiedItem) => {
+    spokeAs.current = checkFor(it.id);
+    speech.toggle(it.id, paperFirstLines(careStepView(it, spokeAs.current)));
+  };
+  const speakingCheck = speech.speaking ? checkFor(speech.speaking) : null;
+  const stopSpeech = speech.stop;
+  useEffect(() => { if (speakingCheck !== null && speakingCheck !== spokeAs.current) stopSpeech(); }, [speakingCheck, stopSpeech]);
+  const exitWalk = () => { speech.stop(); setWalkAt(null); setWalkReturn((n) => n + 1); };
+
   const row = (it: VerifiedItem, warn = false) => (
     <StepRow key={it.id} it={it} n={numberOf(it.id)} warn={warn} check={checkFor(it.id)} open={isOpen(it.id)} onToggle={() => toggle(it.id)}
-      done={!!p.done[it.id]} onDone={(v) => { p.onDone(it.id, v); setCheering(v ? it.id : null); if (v) setGreetOver(true); }} onRemove={() => p.onRemove(it.id)}
+      done={!!p.done[it.id]} onDone={(v) => markDone(it.id, v)} onRemove={() => p.onRemove(it.id)}
       pip={!warn && cardPip?.id === it.id ? cardPip : null} pipText={pipText} calm={calm}
       care={care} photo={p.photo} meaning={p.meaning} deviceRun={p.deviceRun} deviceStatus={p.deviceStatus}
-      speaking={speech.speaking === it.id} onSpeak={() => speech.toggle(it.id, paperFirstLines(careStepView(it, checkFor(it.id))))}
+      speaking={speech.speaking === it.id} onSpeak={() => speakStep(it)}
       onHover={setActive} />
   );
 
@@ -141,6 +185,14 @@ export function CareSteps(p: Props) {
     <div className="mt-8" data-steps="by-when">
       <p role="status" aria-live="polite" className="sr-only" data-flagged-status="">{spoken}</p>
       <p role="status" aria-live="polite" className="sr-only" data-pip-status="">{pipSaid}</p>
+      {walking && (
+        <WalkThrough step={walkStep} index={walkIndex} steps={walkSeq} done={p.done} checkFor={checkFor} language={p.language}
+          pip={shownPip} pipText={pipText} calm={calm} speaking={!!walkStep && speech.speaking === walkStep.it.id}
+          onSpeak={() => walkStep && speakStep(walkStep.it)}
+          onGo={(at) => { speech.stop(); setWalkAt(at); }} onDone={markDone} onExit={exitWalk} />
+      )}
+      {/* The full list stays in the page while walking: hidden on screen, printed as usual (globals.css, .walk-away). */}
+      <div className={walking ? "walk-away" : undefined} data-walk-away={walking || undefined}>
       {(care.has_warning_signs || warnings.length > 0) && (
         <section aria-labelledby="warn-title" className="mb-5 rounded-2xl border-2 border-red bg-red-soft p-4 text-red" data-warnings="">
           <h3 id="warn-title" className="display text-xl">{t("steps.warnTitle")}</h3>
@@ -167,6 +219,15 @@ export function CareSteps(p: Props) {
             {t("steps.simpler")}
           </button>
           <span id="simpler-why" className="text-xs font-semibold text-ink/70">{t("steps.simplerWhy")}</span>
+        </div>
+      )}
+      {walk.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <button ref={walkButton} type="button" onClick={startWalk} aria-describedby="walk-why" data-walk-open=""
+            className="min-h-[48px] rounded-full border-2 border-ink bg-teal px-5 py-2 text-base font-extrabold text-paper shadow-[0_2px_0_var(--ink)] hover:bg-teal-deep focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+            <span lang={SPEECH_LANG[p.language] ?? "en-US"}>{walkLine(p.language, "open")}</span>
+          </button>
+          <span id="walk-why" lang={SPEECH_LANG[p.language] ?? "en-US"} className="text-xs font-semibold text-ink/70">{walkLine(p.language, "openHint")}</span>
         </div>
       )}
 
@@ -238,6 +299,7 @@ export function CareSteps(p: Props) {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
@@ -358,6 +420,159 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
   );
 }
 
+type WalkProps = {
+  /** The step shown, or null for the closing screen. */
+  step: WalkStep<VerifiedItem> | null; index: number; steps: WalkStep<VerifiedItem>[];
+  done: Record<string, boolean>; checkFor: (id: string) => Check; language: string;
+  pip: ReturnType<typeof walkPip>; pipText: string; calm: boolean;
+  speaking: boolean; onSpeak: () => void;
+  /** Show another step by id, or the closing screen. */
+  onGo: (at: string | "end") => void;
+  onDone: (id: string, value: boolean) => void; onExit: () => void;
+};
+
+/**
+ * "Walk me through it": one step per screen, big type. The step's own words follow the paper-first rule exactly as
+ * the list does (PaperFirst), so unconfirmed AI words keep their "not double-checked yet" label. Done marks the step
+ * done the same way the list's tick does; Not yet moves on and leaves it open; Ask a person opens the step's own
+ * "Ask your pharmacist / clinic" help. Focus moves to the step's heading on every change; Escape goes back to the list.
+ */
+function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipText, calm, speaking, onSpeak, onGo, onDone, onExit }: WalkProps) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const box = useRef<HTMLElement>(null);
+  const shown = step?.it.id ?? "end";
+  // Each new step starts at the top of the screen (under the sticky header), with focus on its heading. Instant, no
+  // smooth scroll, so nothing moves for someone who asked for less motion.
+  useEffect(() => {
+    box.current?.scrollIntoView?.({ block: "start" });
+    heading.current?.focus({ preventScroll: true });
+  }, [shown]);
+  const t = (line: Parameters<typeof walkLine>[1], values?: Record<string, number>) => walkLine(language, line, values);
+  // The walk's own lines are in the person's language; the paper's words and the list's labels around them are not,
+  // so each line carries its own lang for screen readers, never the whole region (Codex review).
+  const lang = SPEECH_LANG[language] ?? "en-US";
+  const tl = (line: Parameters<typeof walkLine>[1], values?: Record<string, number>) => <span lang={lang}>{t(line, values)}</span>;
+  // Done and undo said out loud: the next heading takes focus, so this polite region confirms what just changed.
+  const [said, setSaid] = useState("");
+  const announce = (text: string) => { setSaid(""); setTimeout(() => setSaid(text), 50); };
+  const next = steps[index + 1]?.it.id ?? "end";
+  const doneCount = steps.filter((s) => done[s.it.id]).length;
+  const firstOpen = nextOpen(steps, done, 0);
+  return (
+    <section ref={box} role="region" aria-label={t("region")} data-walk-through="" className="walk-through scroll-mt-24 max-md:scroll-mt-44 rounded-3xl border-2 border-ink bg-paper p-4 sm:p-6"
+      onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onExit(); } }}>
+      <p role="status" aria-live="polite" className="sr-only" lang={lang} data-walk-status="">{said}</p>
+      <button type="button" onClick={onExit} data-walk-exit=""
+        className="min-h-[48px] rounded-full border-2 border-ink bg-paper px-4 py-2 text-base font-bold hover:bg-mint focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+        <span aria-hidden="true">← </span>{tl("back")}
+      </button>
+      {step ? (
+        <WalkCard key={step.it.id} step={step} index={index} total={steps.length} done={!!done[step.it.id]} check={checkFor(step.it.id)} tl={tl}
+          heading={heading} pip={pip} pipText={pipText} calm={calm} speaking={speaking} onSpeak={onSpeak}
+          onDone={() => { onDone(step.it.id, true); announce(t("doneAlready")); onGo(next); }}
+          // The undo button goes away with the done state, so focus returns to the step's heading.
+          onUndo={() => { onDone(step.it.id, false); announce(t("undoDone")); heading.current?.focus(); }} onNotYet={() => onGo(next)}
+          onPrevious={index > 0 ? () => onGo(steps[index - 1].it.id) : null} />
+      ) : (
+        <div className="walk-card mt-5" data-calm={calm || undefined} data-walk-end="">
+          <h3 ref={heading} tabIndex={-1} className="display text-3xl leading-tight outline-none focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-teal-deep" data-walk-heading="">
+            {tl("finished")}
+          </h3>
+          <p className="mt-2 text-xl font-bold">{tl("finishedCount", { done: doneCount, total: steps.length })}</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {firstOpen >= 0 && (
+              <button type="button" onClick={() => onGo(steps[firstOpen].it.id)}
+                className="min-h-[56px] rounded-2xl border-2 border-ink bg-sun px-4 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+                {tl("startOver")}
+              </button>
+            )}
+            <button type="button" onClick={onExit}
+              className="min-h-[56px] rounded-2xl border-2 border-ink bg-teal px-4 py-3 text-lg font-extrabold text-paper shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+              {tl("back")}
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+type WalkCardProps = {
+  step: WalkStep<VerifiedItem>; index: number; total: number; done: boolean; check: Check;
+  tl: (line: Parameters<typeof walkLine>[1], values?: Record<string, number>) => React.ReactNode;
+  heading: React.RefObject<HTMLHeadingElement | null>;
+  pip: ReturnType<typeof walkPip>; pipText: string; calm: boolean; speaking: boolean; onSpeak: () => void;
+  onDone: () => void; onUndo: () => void; onNotYet: () => void; onPrevious: (() => void) | null;
+};
+
+function WalkCard({ step, index, total, done, check, tl, heading, pip, pipText, calm, speaking, onSpeak, onDone, onUndo, onNotYet, onPrevious }: WalkCardProps) {
+  const { it, group } = step;
+  const warn = group === "warning";
+  const [asking, setAsking] = useState(false);
+  const askId = useId();
+  const ask = askPerson(it, check);
+  const question = stepVisitQuestion(it, check);
+  const seal = sealOf(check);
+  const kind = KIND[it.kind];
+  const { t } = useUi();
+  const big = "min-h-[56px] rounded-2xl border-2 border-ink px-4 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep";
+  return (
+    <div className={`walk-card mt-5 ${warn ? "rounded-2xl border-4 border-red p-3 sm:p-4" : ""}`} data-calm={calm || undefined} data-walk-step={it.id} data-walk-group={group} data-seal={seal}>
+      <div className="flex items-start justify-between gap-3">
+        <h3 ref={heading} tabIndex={-1} className="min-w-0 outline-none focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-teal-deep" data-walk-heading="">
+          <span className="block text-base font-extrabold uppercase tracking-wide text-ink/70" data-walk-progress="">{tl("progress", { n: index + 1, total })}</span>
+          <span className={`display block text-2xl leading-tight sm:text-3xl ${warn ? "text-red" : ""}`} data-walk-when="">{warn ? tl("warningLabel") : t(keyFor("when", group, "when.unclear"))}</span>
+        </h3>
+        {/* Pip's reserved spot, as on a list row; never on a warning sign. */}
+        {!warn && <PipSlot>{pip && <PipMarker key={pip.mood} mood={pip.mood} calm={calm} />}</PipSlot>}
+      </div>
+      {pip?.line && pipText && <div className="mt-1 flex justify-end"><PipBubble text={pipText} /></div>}
+      <div aria-hidden="true" className="mt-3 h-2 overflow-hidden rounded-full bg-ink/10"><div className="h-full rounded-full bg-teal" style={{ width: `${((index + 1) / total) * 100}%` }} /></div>
+      {!warn && group === "unclear" && <p className="mt-2 text-base font-semibold text-ink/70">{t("when.unclearNote")}</p>}
+      <p className="mt-3 flex flex-wrap items-center gap-2 text-sm font-bold text-ink/70">
+        {kind && <span className={`chip ${kind.cls}`}>{t(keyFor("kind", it.kind, "kind.step"))}</span>}
+        <SealMark seal={seal} />
+        <span data-seal-label="" className={seal === "recheck" ? "text-peach-deep" : ""}>{t(keyFor("seal", seal, "seal.once"))}</span>
+      </p>
+      {/* The paper's words, by the same rule as the list (PaperFirst), only bigger (globals.css, .walk-paper). */}
+      <div className="walk-paper mt-2 text-2xl leading-snug sm:text-3xl"><PaperFirst v={careStepView(it, check)} /></div>
+      {/* After the paper's words, never before them: the paper says what to do; this line only points back to it. */}
+      {warn && <p role="note" className="mt-3 rounded-xl bg-red-soft p-3 text-lg font-bold text-red" data-walk-warning="">{tl("warningDo")}</p>}
+      {question && check === "certified" && <p className="mt-3 rounded-xl bg-peach p-3 text-base font-semibold text-peach-deep">On your questions list: {question}</p>}
+      {done && (
+        <p className="mt-4 flex flex-wrap items-center gap-3 text-lg font-extrabold text-teal-deep" data-walk-done-status="">
+          <span>✓ {tl("doneAlready")}</span>
+          <button type="button" onClick={onUndo} className="min-h-[48px] rounded-full border-2 border-ink/60 bg-paper px-4 py-2 text-base font-bold text-ink hover:bg-mint">{tl("undoDone")}</button>
+        </p>
+      )}
+      <button type="button" onClick={onSpeak} aria-pressed={speaking} data-walk-speak=""
+        className={`mt-4 min-h-[48px] rounded-full border-2 border-ink px-5 py-2 text-base font-bold ${speaking ? "bg-ink text-paper" : "bg-paper hover:bg-mint"}`}>
+        <span aria-hidden="true">{speaking ? "⏹ " : "🔊 "}</span>{speaking ? tl("stop") : tl("readAloud")}
+      </button>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <button type="button" onClick={onDone} data-walk-done="" className={`${big} bg-teal text-paper`}>✓ {tl("done")}</button>
+        <button type="button" onClick={onNotYet} data-walk-not-yet="" className={`${big} bg-paper hover:bg-mint`}>{tl("notYet")} <span aria-hidden="true">→</span></button>
+        <button type="button" onClick={() => setAsking((a) => !a)} aria-expanded={asking} aria-controls={askId} data-walk-ask=""
+          className={`${big} bg-sun hover:bg-mint`}>💬 {tl("askPerson")}</button>
+      </div>
+      <div id={askId} hidden={!asking} className="mt-3 rounded-xl border-2 border-dashed border-ink/40 p-3 text-base" data-walk-ask-panel="">
+        <p className="font-extrabold">{tl("askTitle")}</p>
+        {warn ? <p className="mt-1 font-bold text-red">{tl("warningDo")}</p> : (
+          <>
+            {ask ? <div className="mt-1" data-ask-person-panel="" data-ask-person={ask.who}><AskPersonBody ask={ask} big /></div> : <p className="mt-1 font-semibold">{tl("askClinicCall")}</p>}
+            <p className="mt-2 text-sm font-semibold text-ink/70" data-walk-211="">{tl("ask211")}</p>
+          </>
+        )}
+      </div>
+      {onPrevious && (
+        <button type="button" onClick={onPrevious} data-walk-previous="" className="mt-4 min-h-[48px] rounded-full px-4 py-2 text-base font-bold underline decoration-2 underline-offset-4">
+          <span aria-hidden="true">← </span>{tl("previous")}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Every "Ask your clinic" question in one list. A step's question carries the paper line it is about. */
 function AskClinic({ stepQuestions, general }: { stepQuestions: { it: VerifiedItem; q: string }[]; general: string[] }) {
   const [copied, setCopied] = useState(false);
@@ -400,25 +615,37 @@ function AskClinic({ stepQuestions, general }: { stepQuestions: { it: VerifiedIt
  */
 function AskAPerson({ it, check }: { it: VerifiedItem; check: Check }) {
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
   const panelId = useId();
   const { t } = useUi();
   const ask = askPerson(it, check);
   if (!ask) return null;
-  function copy() {
-    navigator.clipboard?.writeText(ask!.question).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
-  }
   return (
     <>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId} data-ask-person={ask.who}
         className="mt-2 rounded-full border-2 border-ink bg-sun px-3 py-1 hover:bg-mint">💬 {t(ask.who === "pharmacist" ? "ask.pharmacist" : "ask.clinic")}</button>
       <div id={panelId} hidden={!open} className="basis-full rounded-xl border-2 border-dashed border-ink/40 p-3 text-sm" data-ask-person-panel="">
-        <p className="text-xs font-bold text-ink/70">{t(ask.who === "pharmacist" ? "ask.showPharmacist" : "ask.showClinic")}</p>
-        <p lang="en" className="mt-1 font-semibold" data-ask-question="">{ask.question}</p>
-        <div className="mt-2 flex items-center gap-2">
-          <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">{t("ask.copyQuestion")}</button>
-          <span role="status" className="text-xs font-semibold text-ink/70">{copied ? t("common.copied") : ""}</span>
-        </div>
+        <AskPersonBody ask={ask} />
+      </div>
+    </>
+  );
+}
+
+/** What "Ask your pharmacist" / "Ask your clinic" shows: who to show it to, the paper-words question, and a copy button. */
+/** `big`: the walk-through's sizes (a 48px copy button and larger text). The question stays in English (lang="en"):
+ *  it is read to the pharmacist or clinic and is built from the paper's own words. */
+function AskPersonBody({ ask, big = false }: { ask: AskPerson; big?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const { t } = useUi();
+  function copy() {
+    navigator.clipboard?.writeText(ask.question).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
+  }
+  return (
+    <>
+      <p className={`${big ? "text-sm" : "text-xs"} font-bold text-ink/70`}>{t(ask.who === "pharmacist" ? "ask.showPharmacist" : "ask.showClinic")}</p>
+      <p lang="en" className="mt-1 font-semibold" data-ask-question="">{ask.question}</p>
+      <div className="mt-2 flex items-center gap-2">
+        <button type="button" onClick={copy} className={`rounded-full border-2 border-ink font-bold hover:bg-mint ${big ? "min-h-[48px] px-4 py-2 text-base" : "px-3 py-1 text-xs"}`}>{t("ask.copyQuestion")}</button>
+        <span role="status" className="text-xs font-semibold text-ink/70">{copied ? t("common.copied") : ""}</span>
       </div>
     </>
   );
@@ -480,7 +707,9 @@ function RemindMe({ it, check }: { it: VerifiedItem; check: Check }) {
 
 /** One step read aloud with the device's voice, by the paper-first rule: the explanation only when certified. */
 function useStepSpeech(language: string) {
-  const [speaking, setSpeaking] = useState<string | null>(null);
+  const [speaking, setSpeakingState] = useState<string | null>(null);
+  const speakingNow = useRef<string | null>(null);
+  const setSpeaking = (id: string | null) => { speakingNow.current = id; setSpeakingState(id); };
   const run = useRef(0);
   useEffect(() => () => {
     run.current++;
@@ -501,7 +730,15 @@ function useStepSpeech(language: string) {
       window.speechSynthesis.speak(u);
     });
   }
-  return { speaking, toggle };
+  /** Stops a step being read (moving to another step, leaving the walk-through, or its check changing). Nothing else. */
+  const stop = useCallback(() => {
+    if (speakingNow.current === null) return;
+    run.current++;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    speakingNow.current = null;
+    setSpeakingState(null);
+  }, []);
+  return { speaking, toggle, stop };
 }
 
 function Highlighted({ text, items, active }: { text: string; items: VerifiedItem[]; active: string | null }) {

@@ -31,3 +31,19 @@ describe("privacy page: questions or deletion", () => {
     expect(text).toMatch(/An hourly cleanup deletes any count older than two days, and every use of Say your answer also deletes counts that have expired/);
   });
 });
+
+/** Ask my paper sends a new thing (the question) to the AI; the page must say so, and match what /api/ask keeps. */
+describe("privacy page: asking your paper a question", () => {
+  const text = renderToStaticMarkup(<PrivacyPage />).replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, " ");
+  const section = text.slice(text.indexOf("Asking your paper a question"), text.indexOf("Saying your answer out loud"));
+
+  it("names what is sent, to whom, and that neither is saved", () => {
+    expect(section).toMatch(/your question and the text of your paper go to our server and to Anthropic/);
+    expect(section).toMatch(/We do not save your question or your paper/);
+  });
+
+  it("describes the daily count as the day and the count only, and that emergency questions are never sent", () => {
+    expect(section).toMatch(/only the day and the count, nothing about you/);
+    expect(section).toMatch(/A question our own check recognizes as an emergency \(for example chest pain or trouble breathing\) is never sent/);
+  });
+});

@@ -1,7 +1,7 @@
 {
-  "measured_at": "2026-10-02T20:31:23.775Z",
-  "base_url": "local dev server",
-  "commit": "d108b9a",
+  "measured_at": "2026-10-04T15:28:40.312Z",
+  "base_url": "https://atlas-team12.vercel.app",
+  "commit": "8445081",
   "model": "claude-opus-5-5",
   "command": "node scripts/lab-eval.mjs",
   "reports": 7,
@@ -9,7 +9,7 @@
     "totals": {
       "rows": 45,
       "found": 45,
-      "right": 45,
+      "right": 44,
       "flags_truth": 22,
       "flags_right": 22,
       "false_flags": 0,
@@ -18,14 +18,14 @@
       "extra": 0,
       "lines_checked": 44,
       "lines_found": 44,
-      "median_ms": 8282
+      "median_ms": 8504
     },
     "rows": [
       {
         "id": "cbc",
         "title": "Complete blood count",
         "rows_total": 8,
-        "wall_ms": 9319,
+        "wall_ms": 11102,
         "rows": [
           {
             "test": "WBC",
@@ -90,13 +90,13 @@
           "checked": 8,
           "unchecked": []
         },
-        "ms": 9254
+        "ms": 10670
       },
       {
         "id": "lipid",
         "title": "Lipid panel",
         "rows_total": 6,
-        "wall_ms": 6742,
+        "wall_ms": 7284,
         "rows": [
           {
             "test": "Cholesterol, Total",
@@ -149,13 +149,13 @@
           "checked": 6,
           "unchecked": []
         },
-        "ms": 6728
+        "ms": 7165
       },
       {
         "id": "thyroid",
         "title": "Thyroid panel",
         "rows_total": 4,
-        "wall_ms": 6512,
+        "wall_ms": 6155,
         "rows": [
           {
             "test": "TSH",
@@ -196,13 +196,13 @@
           "checked": 4,
           "unchecked": []
         },
-        "ms": 6504
+        "ms": 5998
       },
       {
         "id": "diabetes-kidney",
         "title": "Diabetes and kidney check",
         "rows_total": 6,
-        "wall_ms": 8282,
+        "wall_ms": 7523,
         "rows": [
           {
             "test": "Hemoglobin A1c",
@@ -255,13 +255,13 @@
           "checked": 6,
           "unchecked": []
         },
-        "ms": 8269
+        "ms": 7447
       },
       {
         "id": "annual",
         "title": "Annual physical panel",
         "rows_total": 7,
-        "wall_ms": 9290,
+        "wall_ms": 8504,
         "rows": [
           {
             "test": "Platelet Count",
@@ -320,13 +320,13 @@
           "checked": 7,
           "unchecked": []
         },
-        "ms": 9275
+        "ms": 8299
       },
       {
         "id": "bmp-colon",
         "title": "Basic metabolic panel, one line per test",
         "rows_total": 6,
-        "wall_ms": 7872,
+        "wall_ms": 15248,
         "rows": [
           {
             "test": "Glucose",
@@ -379,19 +379,19 @@
           "checked": 5,
           "unchecked": []
         },
-        "ms": 7859
+        "ms": 15171
       },
       {
         "id": "edge-cases",
         "title": "Extra tests with tricky lines",
         "rows_total": 8,
-        "wall_ms": 10387,
+        "wall_ms": 12153,
         "rows": [
           {
             "test": "Urine Volume, 24 hour",
             "truth": "inside",
-            "got": "inside",
-            "right": true
+            "got": "unknown",
+            "right": false
           },
           {
             "test": "High Sensitivity CRP",
@@ -437,7 +437,7 @@
           }
         ],
         "found": 8,
-        "right": 8,
+        "right": 7,
         "flags_truth": 4,
         "flags_right": 4,
         "false_flags": 0,
@@ -450,7 +450,7 @@
           "checked": 8,
           "unchecked": []
         },
-        "ms": 10370
+        "ms": 11924
       }
     ]
   },
@@ -459,25 +459,25 @@
     "totals": {
       "rows": 45,
       "lines_numbers_right": 45,
-      "lines_exact": 34,
+      "lines_exact": 31,
       "unreadable_marks": 0,
       "found": 45,
-      "right": 45,
+      "right": 44,
       "false_flags": 0,
       "missed_flags": 0,
       "dropped": 0,
-      "median_read_ms": 3558
+      "median_read_ms": 3931
     },
     "rows": [
       {
         "id": "cbc",
         "rows_total": 8,
-        "read_ms": 4399,
+        "read_ms": 4927,
         "lines_numbers_right": 8,
-        "lines_exact": 8,
+        "lines_exact": 0,
         "lines_wrong": [],
         "unreadable_marks": 0,
-        "explain_wall_ms": 9273,
+        "explain_wall_ms": 9430,
         "rows": [
           {
             "test": "WBC",
@@ -542,17 +542,17 @@
           "checked": 8,
           "unchecked": []
         },
-        "ms": 9260
+        "ms": 9307
       },
       {
         "id": "lipid",
         "rows_total": 6,
-        "read_ms": 3630,
+        "read_ms": 3931,
         "lines_numbers_right": 6,
         "lines_exact": 6,
         "lines_wrong": [],
         "unreadable_marks": 0,
-        "explain_wall_ms": 10044,
+        "explain_wall_ms": 7004,
         "rows": [
           {
             "test": "Cholesterol, Total",
@@ -605,17 +605,17 @@
           "checked": 6,
           "unchecked": []
         },
-        "ms": 10028
+        "ms": 6810
       },
       {
         "id": "thyroid",
         "rows_total": 4,
-        "read_ms": 2620,
+        "read_ms": 5956,
         "lines_numbers_right": 4,
         "lines_exact": 4,
         "lines_wrong": [],
         "unreadable_marks": 0,
-        "explain_wall_ms": 8767,
+        "explain_wall_ms": 8705,
         "rows": [
           {
             "test": "TSH",
@@ -656,17 +656,17 @@
           "checked": 4,
           "unchecked": []
         },
-        "ms": 8750
+        "ms": 8602
       },
       {
         "id": "diabetes-kidney",
         "rows_total": 6,
-        "read_ms": 3203,
+        "read_ms": 3552,
         "lines_numbers_right": 6,
         "lines_exact": 0,
         "lines_wrong": [],
         "unreadable_marks": 0,
-        "explain_wall_ms": 8449,
+        "explain_wall_ms": 7196,
         "rows": [
           {
             "test": "Hemoglobin A1c",
@@ -719,17 +719,17 @@
           "checked": 6,
           "unchecked": []
         },
-        "ms": 8442
+        "ms": 7122
       },
       {
         "id": "annual",
         "rows_total": 7,
-        "read_ms": 3735,
+        "read_ms": 4128,
         "lines_numbers_right": 7,
         "lines_exact": 7,
         "lines_wrong": [],
         "unreadable_marks": 0,
-        "explain_wall_ms": 17385,
+        "explain_wall_ms": 8851,
         "rows": [
           {
             "test": "Platelet Count",
@@ -788,17 +788,17 @@
           "checked": 7,
           "unchecked": []
         },
-        "ms": 17373
+        "ms": 8707
       },
       {
         "id": "bmp-colon",
         "rows_total": 6,
-        "read_ms": 3558,
+        "read_ms": 3083,
         "lines_numbers_right": 6,
-        "lines_exact": 1,
+        "lines_exact": 6,
         "lines_wrong": [],
         "unreadable_marks": 0,
-        "explain_wall_ms": 7408,
+        "explain_wall_ms": 7264,
         "rows": [
           {
             "test": "Glucose",
@@ -851,23 +851,23 @@
           "checked": 5,
           "unchecked": []
         },
-        "ms": 7395
+        "ms": 7146
       },
       {
         "id": "edge-cases",
         "rows_total": 8,
-        "read_ms": 3265,
+        "read_ms": 3923,
         "lines_numbers_right": 8,
         "lines_exact": 8,
         "lines_wrong": [],
         "unreadable_marks": 0,
-        "explain_wall_ms": 9367,
+        "explain_wall_ms": 9475,
         "rows": [
           {
             "test": "Urine Volume, 24 hour",
             "truth": "inside",
-            "got": "inside",
-            "right": true
+            "got": "unknown",
+            "right": false
           },
           {
             "test": "High Sensitivity CRP",
@@ -913,7 +913,7 @@
           }
         ],
         "found": 8,
-        "right": 8,
+        "right": 7,
         "flags_truth": 4,
         "flags_right": 4,
         "false_flags": 0,
@@ -926,7 +926,7 @@
           "checked": 8,
           "unchecked": []
         },
-        "ms": 9360
+        "ms": 9404
       }
     ]
   }

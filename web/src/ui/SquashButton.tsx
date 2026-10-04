@@ -15,10 +15,13 @@ type Props = {
   type?: "button" | "submit";
   disabled?: boolean;
   className?: string;
+  id?: string;
+  /** aria-describedby, e.g. a note saying why the button is not available yet. */
+  describedBy?: string;
 };
 
 /** Primary button: the pill squashes and bounces (CSS), and each letter squashes and springs back (GSAP). */
-export function SquashButton({ href, onClick, children, icon = "→", bg, fg, accent, type = "button", disabled, className = "" }: Props) {
+export function SquashButton({ href, onClick, children, icon = "→", bg, fg, accent, type = "button", disabled, className = "", id, describedBy }: Props) {
   const label = useRef<HTMLSpanElement>(null);
   const split = useRef<SplitText | null>(null);
   const style = { "--btn-bg": bg, "--btn-fg": fg, "--btn-accent": accent } as CSSProperties;
@@ -42,13 +45,13 @@ export function SquashButton({ href, onClick, children, icon = "→", bg, fg, ac
   );
   if (href) {
     return (
-      <Link href={href} className={`btn ${className}`} style={style} onMouseEnter={bounce} onFocus={bounce}>
+      <Link href={href} id={id} className={`btn ${className}`} style={style} onMouseEnter={bounce} onFocus={bounce} onClick={onClick}>
         {inner}
       </Link>
     );
   }
   return (
-    <button type={type} disabled={disabled} className={`btn disabled:opacity-50 ${className}`} style={style} onMouseEnter={bounce} onFocus={bounce} onClick={onClick}>
+    <button type={type} id={id} aria-describedby={describedBy} disabled={disabled} className={`btn disabled:opacity-50 ${className}`} style={style} onMouseEnter={bounce} onFocus={bounce} onClick={onClick}>
       {inner}
     </button>
   );

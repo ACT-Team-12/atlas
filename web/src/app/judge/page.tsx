@@ -108,8 +108,8 @@ export default async function JudgePage() {
           </p>
 
           <ol className="mt-10 grid gap-5">
-            <Stop n={1} min="1 min" title="Read a paper" href="/#try" cta="Open the tool">
-              <p>Press <b>Use the sample paper</b>, then <b>Read my paper</b>. The sample is written by our team, not a real patient.</p>
+            <Stop n={1} min="1 min" title="Read a paper" href="/#try-sample" cta="Open the tool">
+              <p>The sample paper is already filled in. Press <b>Read my paper</b>. The sample is written by our team, not a real patient.</p>
               <p>Look for: every step shows the exact line it came from, highlighted in the paper. A second AI double-checks each explanation against its line.</p>
             </Stop>
             <Stop n={2} min="30 sec" title="Check I understood" href="/#try" cta="Open the tool">

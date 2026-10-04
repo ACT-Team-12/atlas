@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { setupGsap, useGSAP, gsap, SplitText, prefersReducedMotion } from "./motion/gsap";
 import { WaveBlobs } from "./WaveBlobs";
 import { SquashButton } from "./SquashButton";
+import { TRY_SAMPLE_EVENT } from "@/lib/sampleStart";
 
 /** Illustrative loop of what a plan card looks like. Built from our labeled sample paper, not a real patient. */
 const LOOP = [
@@ -87,7 +88,8 @@ export function Hero() {
               Atlanta health centers and programs. If it can&apos;t point to it, it won&apos;t say it.
             </p>
             <div data-reveal className="hero-cta mt-8 flex flex-wrap gap-3">
-              <SquashButton href="#try" bg="var(--teal)" accent="var(--sun)">Try it with a sample</SquashButton>
+              {/* Fills the sample in and brings "Read my paper" into view (lib/sampleStart.ts). */}
+              <SquashButton href="#try" onClick={() => window.dispatchEvent(new Event(TRY_SAMPLE_EVENT))} bg="var(--teal)" accent="var(--sun)">Try it with a sample</SquashButton>
               <SquashButton href="#how" bg="var(--paper)" fg="var(--ink)" accent="var(--sky)">How it works</SquashButton>
             </div>
           </div>

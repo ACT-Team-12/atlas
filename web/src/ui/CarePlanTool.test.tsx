@@ -11,6 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CarePlanResponse } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { CarePlanTool } from "./CarePlanTool";
+import { SAMPLE_AVS } from "@/lib/sample";
+import { TRY_SAMPLE_EVENT } from "@/lib/sampleStart";
 
 vi.mock("@/lib/deviceChecker", () => ({ loadDeviceChecker: () => Promise.reject(new Error("no wasm in tests")), sameSpan: () => false }));
 
@@ -949,5 +951,58 @@ describe("your steps, grouped by when (CareSteps inside the real tool)", () => {
     expect(screenText()).toContain("You removed 1");
     act(() => byText("Undo").click());
     expect(host.querySelector('li[data-step="c1"]')).not.toBeNull();
+  });
+});
+
+/**
+ * The first watched try (Oct 4): a medical assistant tapped "Try it with a sample" on the home page, landed on an empty
+ * box with "Read my paper" greyed out below the fold, and was "looking for just anything to press".
+ */
+describe("Try it with a sample lands with the sample in and Read my paper in view", () => {
+  const readButton = () => host.querySelector<HTMLButtonElement>("#read-my-paper")!;
+  const frame = () => new Promise((r) => setTimeout(r, 30));
+
+  it("an empty box says what to do first, and the button points at that note", () => {
+    expect(readButton().disabled).toBe(true);
+    expect(host.querySelector("#read-hint")?.textContent).toContain("Use the sample paper");
+    expect(readButton().getAttribute("aria-describedby")).toBe("read-hint");
+  });
+
+  it("the home page event fills the sample, enables the button, scrolls it into view and focuses it", async () => {
+    // The event's render commits when act ends; the scroll waits one frame after that.
+    act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+    await act(async () => { await frame(); });
+    expect(paperBox().value).toBe(SAMPLE_AVS);
+    expect(readButton().disabled).toBe(false);
+    expect(host.querySelector("#read-hint")).toBeNull();
+    expect(readButton().hasAttribute("aria-describedby")).toBe(false);
+    expect(scrolls).toContain("read-my-paper");
+    expect(document.activeElement).toBe(readButton());
+  });
+
+  it("never replaces a paper the person typed; it only shows them the button", async () => {
+    act(() => typeInto(paperBox(), "My dad's discharge paper: take one pill a day and call if dizzy."));
+    // The event's render commits when act ends; the scroll waits one frame after that.
+    act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+    await act(async () => { await frame(); });
+    expect(paperBox().value).toBe("My dad's discharge paper: take one pill a day and call if dizzy.");
+    expect(scrolls).toContain("read-my-paper");
+  });
+
+  it("Use the sample paper also brings the button into view", async () => {
+    await act(async () => { byText("Use the sample paper").click(); await frame(); });
+    expect(paperBox().value).toBe(SAMPLE_AVS);
+    expect(scrolls).toContain("read-my-paper");
+    expect(document.activeElement).toBe(readButton());
+  });
+
+  it("a link to /#try-sample fills the sample on load and leaves #try in the address bar", async () => {
+    act(() => root.unmount());
+    window.history.replaceState(null, "", "/#try-sample");
+    root = createRoot(host);
+    await act(async () => { root.render(<CarePlanTool />); await frame(); });
+    expect(paperBox().value).toBe(SAMPLE_AVS);
+    expect(window.location.hash).toBe("#try");
+    window.history.replaceState(null, "", "/");
   });
 });

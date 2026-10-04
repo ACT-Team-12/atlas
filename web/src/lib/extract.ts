@@ -37,11 +37,14 @@ const ModelOutput = z.object({
   not_in_document: z.array(z.string()),
 });
 
+/** Case and punctuation insensitive key for a question (the same key as visitQuestions.ts). */
+export const questionKey = (q: string) => q.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
 /** Drops repeated questions (case and punctuation insensitive). */
 export function dedupe(qs: string[]) {
   const seen = new Set<string>();
   return qs.filter((q) => {
-    const k = q.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    const k = questionKey(q);
     if (!k || seen.has(k)) return false;
     seen.add(k);
     return true;
@@ -100,15 +103,16 @@ export function finishCarePlan(req: ExtractRequest, raw: unknown, stopReason: st
   if (!source || source.trim().length < 10) throw new ExtractError("Could not read any text from that document.", 422);
 
   const { kept, refused } = verifyItems(source, parsed.data.items);
+  const stepQuestions = new Set(parsed.data.items.map((i) => questionKey(i.question_for_clinic)).filter(Boolean));
   return {
     source_text: source,
     source_kind: sourceKind,
     items: kept,
     refused,
-    questions_for_doctor: dedupe([
-      ...parsed.data.questions_for_doctor,
-      ...kept.filter((i) => i.needs_clarification && i.question_for_clinic).map((i) => i.question_for_clinic),
-    ]),
+    // General questions only. A step's own question stays on its step: it is AI-written, so the screens add it to the
+    // next-visit list only once that step is certified (visitQuestions.ts). A general question that repeats any step's
+    // question (grounded or not) is dropped, so an unchecked one cannot reach the list this way.
+    questions_for_doctor: dedupe(parsed.data.questions_for_doctor).filter((q) => !stepQuestions.has(questionKey(q))),
     not_in_document: parsed.data.not_in_document,
     has_warning_signs: kept.some((i) => i.kind === "warning_sign"),
     language: req.language,

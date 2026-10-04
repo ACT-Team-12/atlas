@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { planShareText } from "./shareText";
+import { planShareText, type ShareMeaning } from "./shareText";
 import type { VerifiedItem } from "./schema";
 import type { PlanResponse } from "./plan";
+import type { MeaningResult } from "./meaning";
 
 const item = (o: Partial<VerifiedItem>): VerifiedItem => ({
   id: "c1", kind: "lab_test", title: "Blood test", plain_language: "Get your blood drawn.", why: "", when: "within 2 weeks",
@@ -65,6 +66,24 @@ describe("send to family text", () => {
     const failed = planShareText({ items: [item({})], plan: plan(), questions: [], meaning: { status: "error", byId: {} } });
     expect(failed).not.toContain("Get your blood drawn.");
     expect(failed).toContain("(The plain-words explanation is left out here because it was not double-checked yet.)");
+  });
+
+  it("questions for the next visit: an unconfirmed step's AI question is never sent; a certified one is, once", () => {
+    const AI_Q = "Should I fast before the blood test?";
+    const asks = item({ needs_clarification: true, question_for_clinic: AI_Q });
+    // Older readings also carried the step's question in the general list: it must not leak through there either.
+    const general = [AI_Q, "Do I need a ride?"];
+    const r = (o: Partial<MeaningResult>): MeaningResult => ({ id: "c1", flagged: false, numbers_ok: true, unexpected_numbers: [], model_verdict: "same", what_differs: "", certified: true, ...o });
+    const notCertified: (ShareMeaning | undefined)[] = [undefined, { status: "error", byId: {} }, { status: "done", byId: { c1: r({ certified: false, flagged: true, model_verdict: "different" }) } }];
+    for (const meaning of notCertified) {
+      const t = planShareText({ items: [asks], plan: plan(), questions: general, meaning });
+      expect(t).not.toContain(AI_Q);
+      expect(t).toContain('- My paper says: "Return for basic metabolic panel within 2 weeks." Can you help me understand what I should do?');
+      expect(t).toContain("- Do I need a ride?");
+    }
+    const certified = planShareText({ items: [asks], plan: plan(), questions: general, meaning: { status: "done", byId: { c1: r({}) } } });
+    expect(certified.split(AI_Q).length - 1).toBe(1);
+    expect(certified).toContain(`- ${AI_Q}`);
   });
 
   it("says when the plan needs a person", () => {

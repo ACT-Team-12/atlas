@@ -382,7 +382,7 @@ describe("the expanded step", () => {
 
 describe("Ask your clinic: one list", () => {
   it("collects every step question (with the paper line it is about) and the questions for the doctor", () => {
-    render();
+    render({ meaning: certifiedAll() });
     const list = host.querySelector("[data-ask-clinic]")!;
     expect(list.querySelector("h3")?.textContent).toBe("Ask your clinic (2)");
     const li = [...list.querySelectorAll("li")];
@@ -392,6 +392,30 @@ describe("Ask your clinic: one list", () => {
     // The step row says it has a question.
     expect(toggleOf("ibu").textContent).toContain("? Ask");
     expect(toggleOf("met").textContent).not.toContain("? Ask");
+  });
+
+  it("paper first: an unconfirmed step's AI question never shows or copies; the paper's words stand in", () => {
+    // The reading also carries the step's question in its general list (older readings did): it must not leak there.
+    const care = careWith(ITEMS, { questions_for_doctor: ["Which pain medicines are safe for me instead?", "Do I need to call to book my 3-month visit?"] });
+    let copied = "";
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: (t: string) => { copied = t; return Promise.resolve(); } } });
+    render({ care });
+    const list = host.querySelector("[data-ask-clinic]")!;
+    expect(list.textContent).not.toContain("Which pain medicines are safe for me instead?");
+    expect(list.textContent).toContain('My paper says: "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function."');
+    expect(list.querySelector("h3")?.textContent).toBe("Ask your clinic (2)");
+    act(() => list.querySelector<HTMLButtonElement>("button")!.click());
+    expect(copied).not.toContain("Which pain medicines");
+    expect(copied).toContain("ibuprofen (ADVIL)");
+    expect(host.textContent).not.toContain("Which pain medicines are safe for me instead?");
+  });
+
+  it("lists a certified step's question once, even when the reading repeats it in the general list", () => {
+    const care = careWith(ITEMS, { questions_for_doctor: ["Which pain medicines are safe for me instead?", "Do I need to call to book my 3-month visit?"] });
+    render({ care, meaning: certifiedAll() });
+    const list = host.querySelector("[data-ask-clinic]")!;
+    expect(list.textContent!.split("Which pain medicines are safe for me instead?").length - 1).toBe(1);
+    expect(list.querySelector("h3")?.textContent).toBe("Ask your clinic (2)");
   });
 
   it("is left out when there are no questions", () => {

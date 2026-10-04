@@ -117,6 +117,23 @@ describe("paper first: every surface", () => {
     expect(html).toContain(PARA);
     expect(html).toContain("Your paper says:");
   });
+  // The step's own clinic question is AI-written too: it leaves the screen only when certified (visitQuestions.ts).
+  // The reading's general list repeats it, as older readings did, so a leak through either path fails.
+  const ASK = "QUESTION-WHICH-METFORMIN-DOSE";
+  const asks = () => item({ needs_clarification: true, question_for_clinic: ASK });
+  it.each(NOT_CERTIFIED)("next-visit questions ($name): printed and sent with the paper's words, never the AI's question", ({ meaning }) => {
+    const html = renderToStaticMarkup(createElement(HandoffSheetBody, { items: [asks()], plan, questions: [ASK], language: "English", meaning }));
+    const t = planShareText({ items: [asks()], plan, questions: [ASK], meaning });
+    for (const out of [html, t]) {
+      expect(out).not.toContain(ASK);
+      expect(out).toContain("Can you confirm what I should take?");
+    }
+  });
+  it("next-visit questions, certified: the step's own question is printed and sent, once", () => {
+    const html = renderToStaticMarkup(createElement(HandoffSheetBody, { items: [asks()], plan, questions: [ASK], language: "English", meaning: CERTIFIED }));
+    const t = planShareText({ items: [asks()], plan, questions: [ASK], meaning: CERTIFIED });
+    for (const out of [html, t]) expect(out.split(ASK).length - 1).toBe(1);
+  });
   it.each(NOT_CERTIFIED)("send to family text ($name): the paper's words, no AI words for the step", ({ meaning }) => {
     const t = planShareText({ items: [item()], plan, questions: [], meaning });
     quoteLeads(t);

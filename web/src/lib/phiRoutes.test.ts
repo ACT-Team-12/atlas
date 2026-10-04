@@ -105,16 +105,18 @@ describe("raw requests: the AI never sees the identifiers, the answer has the re
   });
 
   it("POST /api/understand", async () => {
-    answer = () => ({ questions: [{ item_id: "item-0", question: "How often?", options: ["2 times a day", "once", "never"], correct: 0, answer_quote: "2 times a day" }] });
+    // The AI is sent opaque step ids (phiGuard.ts opaqueSteps), so it answers with one.
+    answer = () => ({ questions: [{ item_id: "atlas-step-1", question: "How often?", options: ["2 times a day", "once", "never"], correct: 0, answer_quote: "2 times a day" }] });
     const r = await understand.POST(post("/api/understand", { source_text: NAMED_PAPER, language: "English", items: [{ id: "item-0", kind: "medication", title: "Metformin", source_quote: "Maria, take metformin 500 mg by mouth 2 times a day with meals." }] }));
     expect(r.status).toBe(200);
     neverSent();
     const q = (await r.json()).questions[0];
+    expect(q.item_id).toBe("item-0");
     expect(NAMED_PAPER.slice(q.span.start, q.span.end)).toBe("2 times a day");
   });
 
   it("POST /api/meaning", async () => {
-    answer = () => ({ results: [{ id: "a", verdict: "same", what_differs: "" }] });
+    answer = () => ({ results: [{ id: "atlas-step-1", verdict: "same", what_differs: "" }] });
     const r = await meaning.POST(post("/api/meaning", { items: [
       { id: "a", plain_language: "Take metformin twice a day.", when: "", source_quote: "Patient: Maria Lopez   DOB: 04/12/1961   MRN: 88412907" },
     ] }));
@@ -127,7 +129,7 @@ describe("rule 2: the plan, its voice and its call only ever hold what the AI wr
   it("POST /api/plan: a placeholder the AI copied never reaches the plan, and the read-aloud token still verifies", async () => {
     answer = () => ({
       summary: "⟦NAME_A⟧, here is your plan. NAME_B should rest.",
-      steps: [{ title: "Book the lab, ⟦NAME_A⟧", action: "Call the clinic (⟦MRN_A⟧) to book.", why: "⟦DOB_A⟧", barrier: "transport", care_ids: ["item-0"], resource_ids: [] }],
+      steps: [{ title: "Book the lab, ⟦NAME_A⟧", action: "Call the clinic (⟦MRN_A⟧) to book.", why: "⟦DOB_A⟧", barrier: "transport", care_ids: ["atlas-step-1"], resource_ids: [] }],
       ask_a_person: false,
       ask_a_person_reason: "",
     });
@@ -140,6 +142,7 @@ describe("rule 2: the plan, its voice and its call only ever hold what the AI wr
     expect(text).not.toMatch(/⟦|⟧|NAME_|MRN_|DOB_/);
     for (const id of IDENTIFIERS) expect(text).not.toContain(id);
     expect(body.summary).toBe("Here is your plan. Should rest.");
+    expect(body.steps[0].care_ids).toEqual(["item-0"]);
     expect(verifySpeakToken(body.speak_token, "English", text)).toBe(true);
   });
 });

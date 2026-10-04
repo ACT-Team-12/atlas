@@ -120,7 +120,7 @@ describe("the other AI routes' server pass", () => {
     const out = await guardUnderstand({ source_text: NAMED_PAPER, language: "English", items }, async (r): Promise<UnderstandResponse> => {
       seen = JSON.stringify(r);
       const { questions, dropped } = checkQuestions(r.source_text, r.items, [
-        { item_id: "item-0", question: "How often?", options: ["2 times a day", "once", "never"], correct: 0, answer_quote: "2 times a day" },
+        { item_id: r.items[0].id, question: "How often?", options: ["2 times a day", "once", "never"], correct: 0, answer_quote: "2 times a day" },
       ]);
       return { questions, dropped, model: "m", ms: 0 };
     });

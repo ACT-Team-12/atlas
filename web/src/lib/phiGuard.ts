@@ -1,7 +1,7 @@
 import { ExtractError } from "./extract";
 import { PhiShield, PhiShieldRefused, dropUnknownFor, unshieldDeep } from "./phiShield";
 import { shieldFields, shieldText, unshieldCarePlan, unshieldExtractEvent, unshieldUnderstand } from "./phiResponses";
-import type { CarePlanResponse, ExtractRequest } from "./schema";
+import { ITEM_KINDS, type CarePlanResponse, type ExtractRequest } from "./schema";
 import type { ExtractEvent } from "./extractEvents";
 import type { UnderstandRequest, UnderstandResponse } from "./understand";
 import type { MeaningRequest } from "./meaning";
@@ -60,24 +60,50 @@ export async function guardText<R extends { text: string }, T>(req: R, call: (re
   return unshieldDeep(await call({ ...req, text: ctx.result.text }), session.tokens, dropUnknownFor(session));
 }
 
+/**
+ * A step's `id` (and `kind`) is a free string the client picks, and the AI is sent it. No pattern can tell a bare name
+ * there ("Maria Lopez", with no label) from an id, so the AI never gets the client's id at all: each distinct id becomes
+ * an opaque one (`atlas-step-1`...), a kind outside the fixed list is sent blank, and the real ids are put back into the
+ * answer wherever a value is exactly an opaque id.
+ */
+export function opaqueSteps<T extends { id: string; kind?: string }>(items: readonly T[]): { items: T[]; restore: <R>(v: R) => R } {
+  const toOpaque = new Map<string, string>();
+  const toReal = new Map<string, string>();
+  const out = items.map((it) => {
+    let o = toOpaque.get(it.id);
+    if (!o) { o = `atlas-step-${toOpaque.size + 1}`; toOpaque.set(it.id, o); toReal.set(o, it.id); }
+    const kind = it.kind === undefined || (ITEM_KINDS as readonly string[]).includes(it.kind) ? it.kind : "";
+    return { ...it, id: o, ...(it.kind === undefined ? {} : { kind }) };
+  });
+  const walk = (v: unknown): unknown => {
+    if (typeof v === "string") return toReal.get(v) ?? v;
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    return v;
+  };
+  return { items: out, restore: <R>(v: R) => walk(v) as R };
+}
+
 /** /api/understand: the paper plus the steps; each proof span goes back onto the original paper. */
 export async function guardUnderstand(req: UnderstandRequest, call: (req: UnderstandRequest) => Promise<UnderstandResponse>): Promise<UnderstandResponse> {
   const session = new PhiShield();
+  const steps = opaqueSteps(req.items);
   const { ctx, items } = shieldOrRefuse(() => ({
     ctx: shieldText(session, req.source_text),
-    items: req.items.map((it) => shieldFields(session, it, ["title", "source_quote"])),
+    items: steps.items.map((it) => shieldFields(session, it, ["title", "source_quote"])),
   }));
-  return unshieldUnderstand(await call({ ...req, source_text: ctx.result.text, items }), ctx, session.tokens, dropUnknownFor(session));
+  return steps.restore(unshieldUnderstand(await call({ ...req, source_text: ctx.result.text, items }), ctx, session.tokens, dropUnknownFor(session)));
 }
 
 /** /api/meaning: the steps' quotes and explanations. */
 export async function guardMeaning<T>(req: MeaningRequest, call: (req: MeaningRequest) => Promise<T>): Promise<T> {
   const session = new PhiShield();
+  const steps = opaqueSteps(req.items);
   const items = shieldOrRefuse(() => {
-    for (const it of req.items) for (const s of [it.source_quote, it.plain_language, it.when]) session.learn(s);
-    return req.items.map((it) => shieldFields(session, it, ["source_quote", "plain_language", "when"]));
+    for (const it of steps.items) for (const s of [it.source_quote, it.plain_language, it.when]) session.learn(s);
+    return steps.items.map((it) => shieldFields(session, it, ["source_quote", "plain_language", "when"]));
   });
-  return unshieldDeep(await call({ ...req, items }), session.tokens, dropUnknownFor(session));
+  return steps.restore(unshieldDeep(await call({ ...req, items }), session.tokens, dropUnknownFor(session)));
 }
 
 /**
@@ -87,13 +113,15 @@ export async function guardMeaning<T>(req: MeaningRequest, call: (req: MeaningRe
  */
 export async function guardPlan<T>(req: PlanRequest, call: (req: PlanRequest) => Promise<T>): Promise<T> {
   const session = new PhiShield();
+  const steps = opaqueSteps(req.care);
   const { care, note } = shieldOrRefuse(() => {
-    for (const c of req.care) for (const s of [c.title, c.plain_language, c.when, c.source_quote]) session.learn(s);
+    for (const c of steps.items) for (const s of [c.title, c.plain_language, c.when, c.source_quote]) session.learn(s);
     session.learn(req.note);
     return {
-      care: req.care.map((c) => shieldFields(session, c, ["title", "plain_language", "when", "source_quote"])),
+      care: steps.items.map((c) => shieldFields(session, c, ["title", "plain_language", "when", "source_quote"])),
       note: session.shield(req.note).text,
     };
   });
-  return call({ ...req, care, note });
+  // Only the step ids (exact opaque values, e.g. in care_ids) are put back; the plan's words are not unshielded.
+  return steps.restore(await call({ ...req, care, note }));
 }

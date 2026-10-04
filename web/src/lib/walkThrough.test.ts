@@ -70,9 +70,10 @@ describe("walkPip: the list's Pip rules on one screen", () => {
     expect(walkPip(cheer, at("w2"), "unchecked", true)).toBeNull();
     expect(walkPip(cheer, at("soon1"), "flagged", false)).toBeNull();
   });
-  it("carries a cheer for a step just done onto the next screen when that step is not quiet", () => {
+  it("never carries a cheer onto another step's screen (it would read as that step being done)", () => {
     const cheer = pipSpot(ordered, { today1: true }, unchecked, "today1", false);
-    expect(walkPip(cheer, at("soon1"), "unchecked", false)).toEqual({ mood: "cheer", line: "done" });
+    expect(walkPip(cheer, at("soon1"), "unchecked", false)).toBeNull();
+    expect(walkPip(cheer, at("today1"), "unchecked", false)).toEqual({ mood: "cheer", line: "done" });
   });
   it("never cheers a quiet step that was just done (pipSpot already refuses it)", () => {
     const spot = pipSpot(ordered, { today2: true }, unchecked, "today2", false);

@@ -35,16 +35,15 @@ export type WalkPip = { mood: "arrive" | "cheer" | "quiet"; line: PipLine | null
 
 /**
  * Pip on the step shown, from the list's own spot (pipSpot). A warning sign or a quiet step (medicine, lab, flagged)
- * never gets a cheer or a line: if it is Pip's spot, a quiet Pip; otherwise no Pip. A cheer for a step just marked
- * done shows on the next screen only when that screen's step is not quiet. Otherwise Pip shows only where the list
- * would put it.
+ * never gets a cheer or a line: if it is Pip's spot, a quiet Pip; otherwise no Pip. Otherwise Pip shows only where the
+ * list would put it. A cheer belongs to the step just marked done, so it never shows on the next step's screen, where
+ * "Nice, that's done" would read as being about that step (Codex review).
  */
 export function walkPip(spot: PipSpot, shown: { id: string; kind: string }, check: Check, warning: boolean): WalkPip {
   if (warning || pipQuiet(shown.kind, check)) {
     const here = (spot.at === "step" || spot.at === "greet") && spot.id === shown.id;
     return here ? { mood: "quiet", line: null } : null;
   }
-  if (spot.at === "step" && spot.mood === "cheer") return { mood: "cheer", line: "done" };
   if (spot.at === "step" && spot.id === shown.id) return { mood: spot.mood, line: spot.line };
   return null;
 }

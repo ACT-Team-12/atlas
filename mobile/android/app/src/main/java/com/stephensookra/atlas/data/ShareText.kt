@@ -20,7 +20,7 @@ object ShareText {
      */
     fun plan(items: List<VerifiedItem>, plan: PlanResponse, questions: List<String>, meaning: MeaningState = MeaningState.IDLE,
              planItems: List<VerifiedItem>? = null): String {
-        val out = mutableListOf("Plan after the visit (from ATLAS)", "", "Suggestion from ATLAS, not the paper: ${plan.summary}")
+        val out = mutableListOf("Plan after the visit (from ATLAS)", "", "Suggestion from ATLAS (follow your paper first): ${plan.summary}")
 
         val grounded = items.filter { it.grounded }
         if (grounded.isNotEmpty()) {

@@ -13,7 +13,7 @@ type Spoken = Pick<PlanResponse, "summary" | "steps"> & Partial<Pick<PlanRespons
 export const paidSpeechText = (plan: Spoken) => planLines(plan).join("\n");
 
 /** Said first, every time: the plan is the AI's suggestion, and the paper wins. */
-export const PLAN_IS_A_SUGGESTION = "This plan is a suggestion from ATLAS, not your paper. If anything differs, follow your paper.";
+export const PLAN_IS_A_SUGGESTION = "This plan is a suggestion from ATLAS. If anything differs from your paper, follow your paper.";
 
 /**
  * The plan's own "this needs a person" line, worded as share and print word it (shareText.ts), or nothing. Only when

@@ -108,7 +108,7 @@ fun PlanScreen(model: AppModel) {
             PlanStepCard(i + 1, step, plan, quotes, remindEnabled = !outdated) {
                 // A plan step is the AI's suggestion: the reminder says so, and carries the paper's words.
                 reminder = ReminderTarget("Step ${i + 1} of your plan", quotes.firstOrNull() ?: "",
-                    "Suggestion from ATLAS, not the paper: ${step.title}. ${step.action}")
+                    "Suggestion from ATLAS (follow your paper first): ${step.title}. ${step.action}")
             }
         }
 
@@ -149,7 +149,7 @@ fun PlanStepCard(index: Int, step: PlanStep, plan: PlanResponse, quotes: List<St
         }
         if (remindEnabled) OutlinePill("Remind me", onClick = onRemind, fill = Palette.mint, icon = Icons.Filled.Notifications,
             contentDescription = "Remind me about step $index")
-        // Who picked these places: ATLAS, not the paper (caregiver's try, Oct 4; web lib/provenance.ts).
+        // Who picked these places: ATLAS (caregiver's try, Oct 4; web lib/provenance.ts).
         if (step.resource_ids.any { plan.resources[it] != null }) {
             Text("Suggested by ATLAS from checked records. Follow your paper first.", style = Type.sub.copy(fontWeight = FontWeight.Bold, color = Palette.inkSoft))
         }

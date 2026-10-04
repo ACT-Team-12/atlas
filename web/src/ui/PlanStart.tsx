@@ -51,7 +51,7 @@ export function Resource({ r, off, proof = true }: { r: ResourceCard; off?: stri
     const hours = formatHours(c.hours);
     const open = openNow(c);
     return (
-      <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
+      <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4" data-place-card="">
         <div className="flex flex-wrap items-center gap-2">
           <span className="chip bg-mint text-teal-deep">Health center</span>
           {/* On every place card, wherever it shows (best option, other options): who suggested it (Codex review). */}
@@ -88,7 +88,7 @@ export function Resource({ r, off, proof = true }: { r: ResourceCard; off?: stri
   }
   const p = r.program;
   return (
-    <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
+    <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4" data-place-card="">
       <span className="flex flex-wrap gap-1.5">
         <span className="chip bg-sky text-sky-deep">Program</span>
         <span className="chip border border-ink/40 bg-paper text-ink" data-by-atlas="">{BY_ATLAS}</span>
@@ -131,7 +131,7 @@ function TopCard({ r, rank, chosen, language, off, offId, pip }: { r: RankedReso
   const script = resourceScript(name, r.barriers, language);
   const open = card.type === "clinic" ? openNow(card.clinic) : null;
   return (
-    <li className="grid content-start gap-2.5 rounded-[1.2rem] border-2 border-ink bg-paper p-4 shadow-[3px_4px_0_var(--ink)]" data-pip-here={pip ? "arrive" : undefined}>
+    <li className="grid content-start gap-2.5 rounded-[1.2rem] border-2 border-ink bg-paper p-4 shadow-[3px_4px_0_var(--ink)]" data-place-card="" data-pip-here={pip ? "arrive" : undefined}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <span className="flex flex-wrap gap-1.5">
@@ -280,8 +280,9 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
           <div id={ids.why} className={`plan-fold ${why ? "" : "plan-shut"} mt-3 space-y-3`}>
             {step.why && <p className="text-sm text-ink/80">Why: {step.why}</p>}
             {programs.map((c) => c.type === "program" && (
-              <div key={c.id} className="rounded-xl bg-mint-soft/70 p-3">
-                <p className="text-sm font-extrabold">{c.program.name}</p>
+              <div key={c.id} className="rounded-xl bg-mint-soft/70 p-3" data-place-card="">
+                <p className="flex flex-wrap items-center gap-1.5 text-sm font-extrabold">{c.program.name}
+                  <span className="chip border border-ink/40 bg-paper text-ink" data-by-atlas="">{BY_ATLAS}</span></p>
                 {/* Can hold a number to call or text: not shown while the plan is outdated. */}
                 {!off && <p className="mt-1 border-l-4 border-sun pl-2 text-sm italic text-ink/75">&ldquo;{c.program.evidence_quote}&rdquo;</p>}
                 <div className="mt-1.5"><VerifiedSeal url={c.program.source_url} off={off} /></div>

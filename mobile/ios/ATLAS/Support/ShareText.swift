@@ -16,7 +16,7 @@ enum ShareText {
     /// `planItems`: every grounded step the plan could point at, removed or not, so a plan step's quote never drops out.
     static func plan(items: [VerifiedItem], plan: PlanResponse, questions: [String], meaning: MeaningState = .idle,
                      planItems: [VerifiedItem]? = nil) -> String {
-        var out = ["Plan after the visit (from ATLAS)", "", "Suggestion from ATLAS, not the paper: \(plan.summary)"]
+        var out = ["Plan after the visit (from ATLAS)", "", "Suggestion from ATLAS (follow your paper first): \(plan.summary)"]
 
         let grounded = items.filter(\.grounded)
         if !grounded.isEmpty {

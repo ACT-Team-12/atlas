@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import * as P from "./provenance";
@@ -36,6 +36,20 @@ describe("who suggested the places to call", () => {
       expect(l).toMatch(/ATLAS/);
       expect(l).not.toMatch(CONTRAST);
     }
+  });
+
+  it("no shipped line pairs ATLAS with a not-the-paper contrast, on the web or in either app", () => {
+    // Source files, not tests: tests quote the removed wording on purpose.
+    const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => {
+      const p = join(dir, n);
+      return statSync(p).isDirectory() ? (n === "node_modules" || n === "build" ? [] : walk(p)) : /\.(tsx?|swift|kt)$/.test(n) && !/test|Tests?\./i.test(n) ? [p] : [];
+    });
+    const files = ["web/src", "mobile/ios/ATLAS", "mobile/android/app/src/main"].flatMap((d) => walk(join(repo, d)));
+    expect(files.length).toBeGreaterThan(150); // a walk that finds nothing would pass silently
+    const bad = files.flatMap((f) => readFileSync(f, "utf8").split("\n").map((line, i) => ({ f, i, line })))
+      .filter(({ line }) => /ATLAS[^.\n]*\bnot\s+(?:(?:from|on|in|by)\s+)?(?:the|your|my)\s+(?:paper|doctor)\b/i.test(line))
+      .map(({ f, i, line }) => `${f.slice(repo.length + 1)}:${i + 1}: ${line.trim().slice(0, 120)}`);
+    expect(bad).toEqual([]);
   });
 
   it("the iPhone and Android apps use the same words as the website", () => {

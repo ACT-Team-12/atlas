@@ -180,7 +180,7 @@ describe("Codex round 12: removing a step never strips a plan step's quote", () 
   it("share text and read-aloud use every planned step's quote, even after it was removed from the list", () => {
     const t = planShareText({ items: [], plan, questions: [], planItems: [item()] });
     expect(t).toContain(`Your paper says: "${QUOTE}"`);
-    expect(t).toContain("Suggestion from ATLAS, not the paper:");
+    expect(t).toContain("Suggestion from ATLAS (follow your paper first):");
     const lines = speechLines(plan, [item()]);
     expect(lines).toContain(`Your paper says: "${QUOTE}"`);
   });

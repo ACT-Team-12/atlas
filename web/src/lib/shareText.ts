@@ -24,7 +24,7 @@ const KIND_LABEL: Record<string, string> = {
  * (visitQuestions.ts), so an unchecked step's AI-written question is never sent.
  */
 export function planShareText({ items, plan, questions, meaning, planItems }: { items: VerifiedItem[]; plan: PlanResponse; questions: string[]; meaning?: ShareMeaning; planItems?: VerifiedItem[] }): string {
-  const out: string[] = ["Plan after the visit (from ATLAS)", "", `Suggestion from ATLAS, not the paper: ${plan.summary}`];
+  const out: string[] = ["Plan after the visit (from ATLAS)", "", `Suggestion from ATLAS (follow your paper first): ${plan.summary}`];
 
   const grounded = items.filter((i) => i.grounded);
   if (grounded.length) {

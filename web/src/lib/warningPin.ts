@@ -17,7 +17,7 @@ const WARNING_WORDS = word(
     String.raw`emergency${S}(?:room|department|services|care)|emergencies|emergency`,
     String.raw`urgent${S}care|go${S}to${S}the${S}(?:nearest${S})?hospital`,
     String.raw`seek${S}(?:\p{L}+${S})?(?:care|help|attention|treatment)|get${S}(?:medical${S})?help${S}(?:right${S}away|now|immediately)`,
-    String.raw`call${S}(?:the${S}|your${S})?(?:office|clinic|doctor|provider|nurse|care${S}team)${S}(?:right${S}away|immediately|at${S}once|now)`,
+    String.raw`call${S}(?:(?:the|your|our)${S})?(?:\p{L}+['’]s${S})?(?:office|clinic|doctor|physician|provider|nurse|care${S}team)${S}(?:right${S}away|immediately|at${S}once|now)`,
     String.raw`chest${S}(?:pain|pressure|tightness)`,
     String.raw`(?:trouble|difficulty|hard)${S}breathing|short(?:ness)?${S}of${S}breath|can(?:no|['’])t${S}breathe|cannot${S}breathe`,
     String.raw`faint(?:ing|ed)|feel(?:s|ing)?${S}faint|pass(?:ing)?${S}out|seizures?|stroke`,

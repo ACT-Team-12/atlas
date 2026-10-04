@@ -18,6 +18,8 @@ describe("warning pinning: the paper's words can only add caution", () => {
     "Go to urgent care if the cut opens.",
     "Call the office right away if your temperature is above 101 F.", // Codex review
     "This is not an emergency, but call 911 if you cannot breathe.",
+    "Call our office right away if your fever is over 101 F.", // Codex review round 2
+    "Call the doctor's office immediately if the wound bleeds.",
     "Llame al 911 si tiene dolor de pecho.",
     "Vaya a la sala de emergencias si tiene dificultad para respirar.",
   ])("reads warning language in %s", (q) => {

@@ -101,6 +101,9 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     ["Paciente: María López\nExpediente: 88412907\n\nMaría debe descansar.", ["María López", "88412907", "María"]],
     // A name learned in lowercase is hidden in lowercase later.
     ["patient:maria lopez\nmaria should rest today.", ["maria lopez", "maria"]],
+    // Spanish labels broken across two lines.
+    ["Fecha de\nnacimiento: 01/01/1970", ["01/01/1970"]],
+    ["Número de historia\nclínica: 88412907", ["88412907"]],
   ];
   test.each(CASES)("%j", (paper, values) => {
     const r = shield(paper);
@@ -151,6 +154,8 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     "MRN: 884-¹-2907\nTake medicine today.",
     "MRN: 884-₁-2907",
     "MRN: 884 ¹ 2907",
+    "MRN: A¹-2907",
+    "MꭆN: 88412907",
   ];
   test.each([
     ["Patient email: maria\u2063.lopez@example.com", "maria\u2063.lopez@example.com"],
@@ -173,6 +178,10 @@ describe("bypass inputs: each identifier is hidden in full", () => {
 
   test.each(["Medication name: Lisinopril", "Test name: Hemoglobin A1c", "Drug name: Metformin"])("a clinical name field, decided by its label, stays: %j", (paper) => {
     expect(shield(paper).text).toBe(paper);
+  });
+
+  it("a Spanish instruction after a Paciente label keeps its care words", () => {
+    expect(shield("Paciente: tome metformina cada mañana.").text).toContain("metformina cada mañana");
   });
 
   test.each(REFUSED)("refused: %j", (paper) => {
@@ -440,5 +449,16 @@ describe("a step's free-form id and kind never reach the AI", () => {
     expect(sent).toHaveLength(3);
     for (const s of sent) expect(s).not.toMatch(/Maria|Lopez|88412907/);
     expect(sent[1]).toContain('"kind":"medication"');
+  });
+
+  it("only id fields are put back: a quote or option equal to an opaque id stays as it is", async () => {
+    const items = [{ id: "Maria Lopez", kind: "medication", title: "Take medicine", source_quote: "Take medicine" }];
+    const u = await guardUnderstand({ source_text: "Code atlas-step-1 is on the label.", language: "English", items } as never, async (r) => ({
+      questions: [{ item_id: r.items[0].id, question: "Which code?", options: ["atlas-step-1", "other"], correct: 0, answer_quote: "atlas-step-1", span: { start: 5, end: 17 } }],
+      dropped: [], model: "m", ms: 0,
+    }) as never);
+    expect(u.questions[0].item_id).toBe("Maria Lopez");
+    expect(u.questions[0].options).toEqual(["atlas-step-1", "other"]);
+    expect((u.questions[0] as unknown as { answer_quote: string }).answer_quote).toBe("atlas-step-1");
   });
 });

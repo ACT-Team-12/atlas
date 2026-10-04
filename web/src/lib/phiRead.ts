@@ -168,7 +168,7 @@ const SUPSUB_DIGIT = /[²³¹⁰⁴-⁹₀-₉]/;
  * languages: dotless i and j (ı ȷ), IPA letters (ɑ ɡ ɩ...), small capitals and phonetic letters (ᴀ ʙ ꜱ...). A model
  * reads "Nɑme" as "Name"; the patterns here would not, so they are refused like Cyrillic lookalikes.
  */
-const LATIN_LOOKALIKE = /[ıȷɐ-ʯᴀ-ᶿꜰ-ꟿ]/;
+const LATIN_LOOKALIKE = /[ıȷɐ-ʯᴀ-ᶿꜰ-ꟿꬰ-꭯]/;
 const LATIN = /\p{Script=Latin}/u;
 const CYRILLIC = /\p{Script=Cyrillic}/u;
 const GREEK = /\p{Script=Greek}/u;
@@ -275,11 +275,18 @@ export function canonicalize(raw: string): Canon {
     const base = raw.slice(i, end);
     if (STYLED.test(base)) throw new PhiCharRefused("styled or circled letters or numbers");
     if (LATIN_LOOKALIKE.test(base)) throw new PhiCharRefused("Latin letters that look like other letters (such as ı or ɑ)");
-    // A superscript or subscript digit could be read as part of a number ("555-12³4", "884-¹-2907"): refused, unless
-    // it sits right after a letter and before no digit ("m²", "CO₂", a footnote mark "aspirin¹").
+    // A superscript or subscript digit could be read as part of a number or id ("555-12³4", "884-¹-2907", "A¹-2907"):
+    // refused, unless it sits right after a letter in a run of non-space text with no other digit in it ("m²", "CO₂",
+    // a footnote mark "aspirin¹"). The run is read at most 64 characters each way.
     const nextCh = end < n ? String.fromCodePoint(raw.codePointAt(end)!) : "";
-    if (SUPSUB_DIGIT.test(base) && (!/\p{L}/u.test(text.slice(-1)) || /\p{N}/u.test(nextCh))) {
-      throw new PhiCharRefused("a superscript or subscript digit that could be read as part of a number");
+    if (SUPSUB_DIGIT.test(base)) {
+      let a = i, b = end;
+      while (a > 0 && i - a < 64 && !/\s/.test(raw[a - 1])) a--;
+      while (b < n && b - end < 64 && !/\s/.test(raw[b])) b++;
+      const run = raw.slice(a, i) + raw.slice(end, b);
+      if (!/\p{L}/u.test(text.slice(-1)) || /\p{N}/u.test(run)) {
+        throw new PhiCharRefused("a superscript or subscript digit that could be read as part of a number");
+      }
     }
     // A cluster: the code point and the combining marks after it (invisible characters inside it are removed).
     let cluster = base;

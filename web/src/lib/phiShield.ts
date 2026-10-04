@@ -147,6 +147,9 @@ const NOT_NAME = new Set([
   "emergency", "department", "summary", "after", "discharge", "instruction", "pcp", "doctor", "dr", "md", "do", "np", "rn", "pa",
   "address", "email", "e-mail", "tel", "cell", "home", "mobile", "unknown", "none", "n/a", "na", "self", "same", "above",
   "male", "female", "room", "allergies", "insurance", "diagnosis", "reason", "attending", "admitted", "discharged",
+  // Spanish instruction and field words (not the name particles de, la, del, which belong to names like "de la Cruz").
+  "tome", "tomar", "tomen", "use", "usar", "llame", "llamar", "regrese", "debe", "siga", "evite", "aplique", "por", "favor",
+  "usted", "su", "sus", "cada", "para", "con", "si", "no", "nombre", "fecha", "paciente", "medicamento", "dosis",
 ]);
 /** Kept out of name spreading: titles, suffixes, month and day names (a patient called "May" must not hide "May 5"). */
 const NO_SPREAD = new Set([
@@ -796,7 +799,7 @@ function detectLines(text: string, gaps: readonly number[]): Hit[] {
 }
 
 /** The last word of a line that may be the first half of a label broken across two lines. */
-const LABEL_TAIL = /(?:^|[^\p{L}])(?:patient(?:['’]s)?|pt\.?|name|full|first|last|middle|given|family|date|of|birth|d\.?o\.?b?\.?|medical|med\.?|record|rec\.?|chart|account|acct\.?|encounter|member|insurance|subscriber|policy|medicaid|medicare|social|soc\.?|security|sec\.?|home|cell|mobile|primary|contact|your|street|mailing|e-?mail|phone|emergency|parent|guardian|the)$/iu;
+const LABEL_TAIL = /(?:^|[^\p{L}])(?:patient(?:['’]s)?|pt\.?|name|full|first|last|middle|given|family|date|of|birth|d\.?o\.?b?\.?|medical|med\.?|record|rec\.?|chart|account|acct\.?|encounter|member|insurance|subscriber|policy|medicaid|medicare|social|soc\.?|security|sec\.?|home|cell|mobile|primary|contact|your|street|mailing|e-?mail|phone|emergency|parent|guardian|the|nombre|fecha|de|del|la|n[uú]mero|historia|expediente|tel[eé]fono|celular|paciente|completo|y)$/iu;
 
 /**
  * The last few words of `line` joined to `next`: a label that starts on `line` and ends on `next` gets its value read

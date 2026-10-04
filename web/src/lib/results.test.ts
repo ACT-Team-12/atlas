@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkRows, parseRange, printedFlag, ResultsReadRequestSchema } from "./results";
+import { checkRows, parseRange, printedFlag, resultLines, ResultsReadRequestSchema } from "./results";
 import { SAMPLE_LABS } from "./sampleLabs";
 
 const row = (o: Partial<{ test: string; value: string; unit: string; range_text: string; quote: string }>) => ({
@@ -159,5 +159,12 @@ describe("lab results: adversarial review cases", () => {
     const part = checkRows(src, [row({ test: "Sodium", value: "139", unit: "mmol/L", range_text: "136-145", quote: "Sodium 139 mmol/L 136-145" })]);
     expect(part.counts.outside).toBe(0);
     expect(part.coverage).toEqual({ candidates: 3, checked: 1, unchecked: ["Glucose 126 mg/dL 70-99 H", "Hemoglobin A1c 7.4 % <5.7 H"] });
+  });
+});
+
+describe("critical headings (Codex review)", () => {
+  it("a heading made only of the marker and heading words is not an unchecked result; a real critical line still is", () => {
+    const src = ["CRITICAL VALUES", "*** Panic Results ***", "Critical values and alerts:", "Troponin unable to calculate CRITICAL", "Potassium 6.9 mmol/L 3.5-5.1 HH"].join("\n");
+    expect(resultLines(src)).toEqual(["Troponin unable to calculate CRITICAL", "Potassium 6.9 mmol/L 3.5-5.1 HH"]);
   });
 });

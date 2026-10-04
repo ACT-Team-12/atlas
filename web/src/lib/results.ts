@@ -234,6 +234,13 @@ function lineOf(source: string, paper: MappedSource, quote: string): { line: str
   return { line: source.slice(start, nl < 0 ? source.length : nl).trim() };
 }
 
+/** True when every word on the line is a critical marker or a heading word, so nothing on it names a test. */
+const HEADING_WORDS = new Set(["critical", "panic", "hh", "ll", "value", "values", "result", "results", "lab", "labs", "range", "ranges", "alert", "alerts", "section", "list", "notification", "notifications", "and", "or"]);
+function isCriticalHeading(line: string): boolean {
+  if (/\p{N}/u.test(line)) return false;
+  return (line.match(/[\p{L}]+/gu) ?? []).every((w) => HEADING_WORDS.has(w.toLowerCase()));
+}
+
 /** Lines that look like a test result: a number standing on its own, plus a printed range or a High/Low flag. */
 export function resultLines(source: string): string[] {
   const seen = new Set<string>();
@@ -241,8 +248,9 @@ export function resultLines(source: string): string[] {
     const line = raw.trim();
     if (!line || seen.has(line)) continue;
     // A line the report marks critical or panic counts even with no number we can read ("Troponin unable to calculate
-    // CRITICAL"), so it is never left out of the coverage count (security review).
-    if (isCritical(line)) { seen.add(line); continue; }
+    // CRITICAL"), so it is never left out of the coverage count (security review). A heading made only of the marker
+    // and heading words ("CRITICAL VALUES", "*** Panic results ***") is not a result, so it raises no alarm (Codex review).
+    if (isCritical(line)) { if (!isCriticalHeading(line)) seen.add(line); continue; }
     if (!spans(ATOM, line).length) continue;
     if (spans(RANGE, line).some((s) => parseRange(s.text)) || printedFlag(line)) seen.add(line);
   }

@@ -20,7 +20,7 @@ import { topResources } from "@/lib/planTop";
 import { PIP_LINES } from "@/lib/pip";
 import { CareSteps } from "./CareSteps";
 import { TopCalls } from "./PlanStart";
-import { CALM_KEY } from "./Pip";
+import { CALM_KEY, setCalmMode } from "./Pip";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -206,6 +206,21 @@ describe("calm mode", () => {
     expect(marker.hasAttribute("data-blink")).toBe(false);
     const toggle = host.querySelector<HTMLButtonElement>("[data-calm-toggle]")!;
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("the toggle still works when storage reads but cannot be written (full or private window; Codex review)", () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new DOMException("full", "QuotaExceededError"); });
+    try {
+      render({ items: [WALK, SODA] });
+      const toggle = host.querySelector<HTMLButtonElement>("[data-calm-toggle]")!;
+      act(() => toggle.click());
+      expect(toggle.getAttribute("aria-pressed")).toBe("true");
+      expect(rowOf("walk").querySelector(".pip")!.hasAttribute("data-calm")).toBe(true);
+    } finally {
+      setItem.mockRestore();
+      act(() => setCalmMode(false)); // storage works again: back to off for the next test
+    }
+    expect(localStorage.getItem(CALM_KEY)).toBe("0");
   });
 
   it("the Calm mode toggle is saved on this device and turns the blink off", () => {

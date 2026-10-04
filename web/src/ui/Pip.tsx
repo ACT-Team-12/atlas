@@ -102,10 +102,13 @@ export function PipBubble({ text }: { text: string }) {
 export const CALM_KEY = "atlas.pipCalm";
 const REDUCED = "(prefers-reduced-motion: reduce)";
 const listeners = new Set<() => void>();
-// When storage is blocked (some private windows), the toggle still holds for this page.
+// When storage is blocked or full (some private windows), the toggle still holds for this page. Once a write fails,
+// memory wins: storage may still read fine and would otherwise undo the click (Codex review).
 let memoryCalm = false;
+let writeFailed = false;
 
 function savedCalm(): boolean {
+  if (writeFailed) return memoryCalm;
   try { return window.localStorage.getItem(CALM_KEY) === "1"; } catch { return memoryCalm; }
 }
 function systemReduced(): boolean {
@@ -126,7 +129,7 @@ function subscribe(cb: () => void) {
 const snapshot = () => `${savedCalm() ? 1 : 0}${systemReduced() ? 1 : 0}`;
 
 export function setCalmMode(on: boolean) {
-  try { window.localStorage.setItem(CALM_KEY, on ? "1" : "0"); } catch { /* private window: the toggle still works until reload */ }
+  try { window.localStorage.setItem(CALM_KEY, on ? "1" : "0"); writeFailed = false; } catch { writeFailed = true; /* the toggle still works until reload */ }
   memoryCalm = on;
   listeners.forEach((l) => l());
 }

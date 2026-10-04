@@ -142,11 +142,16 @@ describe("bypass inputs: each identifier is hidden in full", () => {
   });
 
   test.each([
-    "Medications\nName: Lisinopril\nDose: 10 mg",
-    "Name: Metformin\nDose: 500 mg\nRoute: by mouth",
-    "Orders placed today\nName: Hemoglobin A1c",
-    "Imaging\nName: MRI Brain\nStatus: ordered",
-  ])("a bare Name field in a clinical block stays: %j", (paper) => {
+    "Medications\nPatient: Maria Lopez\nmetformin 500 mg twice a day\nEmergency contact: John Lee 404-555-0101\nDose: 500 mg",
+    "Lab results\nTest   Result   Units\nPatient: Maria Lopez\nmetformin 500 mg\nEmergency contact: John Lee 404-555-0101\nResult: 6.1",
+    "Medications\nName: Maria Lopez\nmetformin 500 mg\nDose: 500 mg",
+  ])("a person's name and phone inside a clinical block are hidden; the medicine stays: %j", (paper) => {
+    const r = shield(paper);
+    for (const v of ["Maria Lopez", "John Lee", "404-555-0101"]) if (paper.includes(v)) expect(coveredInFull(paper, r, v), `${v} in ${r.text}`).toBe(true);
+    expect(r.text).toContain("metformin 500 mg");
+  });
+
+  test.each(["Medication name: Lisinopril", "Test name: Hemoglobin A1c", "Drug name: Metformin"])("a clinical name field, decided by its label, stays: %j", (paper) => {
     expect(shield(paper).text).toBe(paper);
   });
 

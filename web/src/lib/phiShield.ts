@@ -658,23 +658,6 @@ const NEXT_LINE_KINDS = new Set<LabelRule["kind"]>(["NAME", "DOB", "MRN", "ACCT"
 const kindOf = (k: LabelRule["kind"]): PhiKind =>
   k === "CONTACT_PHONE" ? "PHONE" : k === "CONTACT_ADDR" ? "ADDR" : k === "CONTACT_EMAIL" ? "EMAIL" : k;
 
-/** A label that is only "Name" (or "Full name"), with nothing saying whose. */
-const BARE_NAME = /^(?:full\s+)?name\b/i;
-/** A field line about a medicine, test, order or result ("Dose: 10 mg", "Result: 6.1"). */
-const CLINICAL_FIELD = /^\s*(?:[-*•>]\s*)?(?:dose|dosage|strength|route|frequency|sig|directions|qty|quantity|refills?|form|result|value|units?|reference|range|flag|status|type|code|cpt|icd|ndc|instructions|indication|reason|when|how\s+often|prescriber|ordered\s+by|specimen|modality|body\s+part|lot|manufacturer|date\s+given)\s*[:#-]/i;
-/** A heading line of a clinical section ("Medications", "Lab results", "Orders placed today"). */
-const CLINICAL_HEADING = /^\s*(?:[-*•>#]\s*)?(?:(?:current|new|active|home|discharge)\s+)?(?:medications?|meds|medicines?|prescriptions?|rx|allerg(?:y|ies)|labs?|lab\s+results|tests?|test\s+results|results|orders?(?:\s+placed(?:\s+today)?)?|imaging|procedures?|immunizations?|vaccines?|vaccinations?|problems?|diagnos[ei]s|devices?|supplies)\s*:?\s*$/i;
-/**
- * True when line `li` sits in a clinical block: a field line about a medicine or test right above or below it, or a
- * clinical section heading within the 3 lines above (with no blank line in between).
- */
-function clinicalBlock(lines: readonly Line[], li: number): boolean {
-  const near = (k: number) => k >= 0 && k < lines.length && lines[k].text.trim() !== "";
-  if ((near(li - 1) && CLINICAL_FIELD.test(lines[li - 1].text)) || (near(li + 1) && CLINICAL_FIELD.test(lines[li + 1].text))) return true;
-  for (let k = li - 1; k >= Math.max(0, li - 3) && near(k); k--) if (CLINICAL_HEADING.test(lines[k].text)) return true;
-  return false;
-}
-
 /** True when a placeholder was left out of the reading anywhere in [a, b] (inclusive). */
 type Filled = (a: number, b: number) => boolean;
 function filledIn(length: number, gaps: readonly number[]): Filled {
@@ -732,12 +715,10 @@ function detectLines(text: string, gaps: readonly number[]): Hit[] {
     const next = li + 1 < lines.length && lines[li + 1].text.trim() ? lines[li + 1] : null;
     let anchoredBelow = false;
     let filledAnchor = false;
-    const fields: { hit: LabelHit; len: number; from: number }[] = labels.map((hit, i) => {
+    const fields: { hit: LabelHit; len: number; from: number; end: number }[] = labels.map((hit, i) => {
       const end = valueEnd(stops, line.text.length, hit.valueStart, labels[i + 1]?.labelStart);
-      // A bare "Name:" in a clinical block (a medicine, test or order listed by name) is not the patient's name.
-      const bare = hit.rule.kind === "NAME" && BARE_NAME.test(line.text.slice(hit.labelStart, hit.valueStart));
-      const clinical = bare && clinicalBlock(lines, li);
-      if (clinical) return { hit, len: 0, from: 0 };
+      // No block exempts a person-name label: whether a name field is clinical is decided by its label alone
+      // ("Medication name:", "Test name:" are dropped in accept()); a bare "Name:" is always read as a person's name.
       const v = readValue(hit.rule.kind, line.text.slice(hit.valueStart, end));
       const len = v ? v.to : 0;
       const from = v ? v.from : 0;
@@ -753,7 +734,7 @@ function detectLines(text: string, gaps: readonly number[]): Hit[] {
           if (ANCHOR_KINDS.has(hit.rule.kind)) anchoredBelow = true;
         }
       }
-      return { hit, len, from };
+      return { hit, len, from, end };
     });
     // `anchored`: a value of the patient's was read on this line (or below its label). A line whose identity fields held
     // only placeholders is still the patient's line, but only a read value rules out a header table.
@@ -767,6 +748,14 @@ function detectLines(text: string, gaps: readonly number[]): Hit[] {
       if (contact && !f.hit.rule.explicit && !patientLine) continue;
       const start = line.start + f.hit.valueStart;
       hits.push({ start: start + f.from, end: start + f.len, kind: kindOf(k) });
+      // A phone right after a labeled name in the same field ("Emergency contact: John Lee 404-555-0101") is that
+      // person's phone.
+      if (k === "NAME") {
+        const rest = line.text.slice(f.hit.valueStart + f.len, f.end);
+        const lead = /^[\s,;(-]*(?:(?:ph(?:one)?|tel|cell|mobile|#)\.?:?\s*)?/i.exec(rest)![0].length;
+        const ph = PHONE_AT.exec(rest.slice(lead));
+        if (ph) hits.push({ start: start + f.len + lead, end: start + f.len + lead + ph[0].length, kind: "PHONE" });
+      }
       // An address can go on to a "City, ST 30310" line (matched with whitespace collapsed, so it cannot backtrack).
       if (k === "CONTACT_ADDR" && f.hit.valueStart + f.len >= trimmedLength && lines[li + 1] && cityLine(lines[li + 1].text)) {
         const nx = lines[li + 1];

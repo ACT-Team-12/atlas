@@ -5,9 +5,9 @@ import java.util.regex.Pattern
 
 /** One pattern from the website's safety rules: its exact source and JavaScript flags. */
 data class SafetyPattern(val source: String, val flags: String) {
-    /** Compiled with the website's meaning: "i" is case-insensitive (Unicode), \s is JavaScript's \s. */
+    /** Compiled with the website's meaning: "i" is case-insensitive (Unicode), \s is JavaScript's \s, \d is 0-9. */
     fun regex(): Regex = Pattern.compile(
-        source.replace("""\s""", JS_SPACE_CLASS),
+        source.replace("""\s""", JS_SPACE_CLASS).replace("""\d""", "[0-9]"),
         if ('i' in flags) Pattern.CASE_INSENSITIVE or Pattern.UNICODE_CASE else 0,
     ).toRegex()
 
@@ -23,10 +23,38 @@ object SafetyPatterns {
     val WARNING_WORDS = SafetyPattern("""(?<![\p{L}\p{N}])(?:911|emergency\s+(?:room|department|services|care)|emergencies|emergency|urgent\s+care|go\s+to\s+the\s+(?:nearest\s+)?hospital|seek\s+(?:\p{L}+\s+)?(?:care|help|attention|treatment)|get\s+(?:medical\s+)?help\s+(?:right\s+away|now|immediately)|call\s+(?:(?:the|your|our)\s+)?(?:\p{L}+['’]s\s+)?(?:office|clinic|doctor|physician|provider|nurse|care\s+team)\s+(?:right\s+away|immediately|at\s+once|now)|chest\s+(?:pain|pressure|tightness)|(?:trouble|difficulty|hard)\s+breathing|short(?:ness)?\s+of\s+breath|can(?:no|['’])t\s+breathe|cannot\s+breathe|faint(?:ing|ed)|feel(?:s|ing)?\s+faint|pass(?:ing)?\s+out|seizures?|stroke|sudden\s+(?:weakness|numbness|confusion)|severe\s+(?:bleeding|pain|headache|allergic)|suicid\p{L}*|llame\s+al\s+911|sala\s+de\s+emergencias?|emergencias?|urgencias|vaya\s+al\s+hospital|busque\s+(?:atenci[oó]n|ayuda)|dolor\s+(?:de|en\s+el)\s+pecho|dificultad\s+para\s+respirar|falta\s+de\s+aire|desmay\p{L}*|convulsi\p{L}*)(?![\p{L}\p{N}])""", "iu")
     val NOT_EMERGENCY = SafetyPattern("""(?<![\p{L}\p{N}])(?:not\s+(?:an\s+|a\s+)?|non-?|no\s+es\s+(?:una\s+)?)(?:emergency|emergencia|urgent)(?![\p{L}\p{N}])""", "giu")
     val ER = SafetyPattern("""(?<![\p{L}\p{N}])(?:ER)(?![\p{L}\p{N}])""", "u")
+    val WHEN_RULE_0 = SafetyPattern("""(?<![\p{L}\p{N}])(?:today|tonight|right\s+now|now|right\s+away|immediately|this\s+(?:morning|afternoon|evening))(?![\p{L}\p{N}])""", "giu")
+    val WHEN_RULE_1 = SafetyPattern("""(?<![\p{L}\p{N}])(?:hoy|ahora\s+mismo|ahora|de\s+inmediato|inmediatamente|enseguida|esta\s+(?:noche|tarde|ma[nñ]ana))(?![\p{L}\p{N}])""", "giu")
+    val WHEN_RULE_2 = SafetyPattern("""(?<![\p{L}\p{N}])(?:(?:within|in|after|in\s+the\s+next|over\s+the\s+next|during\s+the\s+next|due\s+in|dentro\s+de|en|en\s+l[oa]s\s+pr[oó]xim[oa]s|despu[eé]s\s+de)\s+(\d{1,3}|fourteen|fifteen|catorce|treinta|eleven|twelve|twenty|thirty|cuatro|quince|veinte|three|seven|eight|cinco|siete|nueve|four|five|nine|tres|seis|ocho|diez|once|doce|one|two|six|ten|una|uno|dos|an|un|a)\s+(days?|d[ií]as?|weeks?|semanas?))(?![\p{L}\p{N}])""", "giu")
+    val WHEN_RULE_3 = SafetyPattern("""(?<![\p{L}\p{N}])(?:tomorrow|this\s+week|next\s+week|in\s+a\s+few\s+days|within\s+a\s+few\s+days)(?![\p{L}\p{N}])""", "giu")
+    val WHEN_RULE_4 = SafetyPattern("""(?<![\p{L}\p{N}])(?:esta\s+semana|la\s+pr[oó]xima\s+semana|la\s+semana\s+que\s+viene|en\s+unos\s+d[ií]as)(?![\p{L}\p{N}])""", "giu")
+    val WHEN_RULE_5 = SafetyPattern("""(?<![\p{L}\p{N}])(?:(?:within|in|after|in\s+the\s+next|over\s+the\s+next|during\s+the\s+next|due\s+in|dentro\s+de|en|en\s+l[oa]s\s+pr[oó]xim[oa]s|despu[eé]s\s+de)\s+(\d{1,3}|fourteen|fifteen|catorce|treinta|eleven|twelve|twenty|thirty|cuatro|quince|veinte|three|seven|eight|cinco|siete|nueve|four|five|nine|tres|seis|ocho|diez|once|doce|one|two|six|ten|una|uno|dos|an|un|a)\s+(months?|mes|meses|years?|a[nñ]os?))(?![\p{L}\p{N}])""", "giu")
+    val WHEN_RULE_6 = SafetyPattern("""(?<![\p{L}\p{N}])(?:next\s+(?:month|year)|every\s+(\d{1,3}|fourteen|fifteen|catorce|treinta|eleven|twelve|twenty|thirty|cuatro|quince|veinte|three|seven|eight|cinco|siete|nueve|four|five|nine|tres|seis|ocho|diez|once|doce|one|two|six|ten|una|uno|dos|an|un|a)\s+(?:months|years)|el\s+pr[oó]ximo\s+(?:mes|a[nñ]o)|el\s+(?:mes|a[nñ]o)\s+que\s+viene|cada\s+(\d{1,3}|fourteen|fifteen|catorce|treinta|eleven|twelve|twenty|thirty|cuatro|quince|veinte|three|seven|eight|cinco|siete|nueve|four|five|nine|tres|seis|ocho|diez|once|doce|one|two|six|ten|una|uno|dos|an|un|a)\s+(?:meses|a[nñ]os))(?![\p{L}\p{N}])""", "giu")
+    val WHEN_RULE_7 = SafetyPattern("""(?<![\p{L}\p{N}])(?:daily|nightly|weekly|every\s+(?:day|morning|night|evening|afternoon|week)|each\s+(?:day|morning|night|evening|week)|at\s+bedtime|once\s+a\s+(?:day|week)|twice\s+a\s+(?:day|week)|(\d{1,3}|fourteen|fifteen|catorce|treinta|eleven|twelve|twenty|thirty|cuatro|quince|veinte|three|seven|eight|cinco|siete|nueve|four|five|nine|tres|seis|ocho|diez|once|doce|one|two|six|ten|una|uno|dos|an|un|a)\s+times?\s+(?:a|per|each)\s+(?:day|week)|(\d{1,3}|fourteen|fifteen|catorce|treinta|eleven|twelve|twenty|thirty|cuatro|quince|veinte|three|seven|eight|cinco|siete|nueve|four|five|nine|tres|seis|ocho|diez|once|doce|one|two|six|ten|una|uno|dos|an|un|a)\s+times\s+daily|(\d{1,3}|fourteen|fifteen|catorce|treinta|eleven|twelve|twenty|thirty|cuatro|quince|veinte|three|seven|eight|cinco|siete|nueve|four|five|nine|tres|seis|ocho|diez|once|doce|one|two|six|ten|una|uno|dos|an|un|a)\s+days?\s+(?:a|per|each)\s+week|every\s+(\d{1,3}|fourteen|fifteen|catorce|treinta|eleven|twelve|twenty|thirty|cuatro|quince|veinte|three|seven|eight|cinco|siete|nueve|four|five|nine|tres|seis|ocho|diez|once|doce|one|two|six|ten|una|uno|dos|an|un|a)\s+(?:hours|days|weeks)|(?:a|per)\s+day)(?![\p{L}\p{N}])""", "giu")
+    val WHEN_RULE_8 = SafetyPattern("""(?<![\p{L}\p{N}])(?:diario|diaria|diariamente|semanalmente|cada\s+(?:d[ií]a|ma[nñ]ana|noche|tarde|semana)|todos\s+los\s+d[ií]as|todas\s+las\s+(?:ma[nñ]anas|noches|tardes)|al\s+acostarse|una\s+vez\s+al\s+d[ií]a|dos\s+veces\s+al\s+d[ií]a|(\d{1,3}|fourteen|fifteen|catorce|treinta|eleven|twelve|twenty|thirty|cuatro|quince|veinte|three|seven|eight|cinco|siete|nueve|four|five|nine|tres|seis|ocho|diez|once|doce|one|two|six|ten|una|uno|dos|an|un|a)\s+veces\s+(?:al|por)\s+(?:d[ií]a|semana)|(\d{1,3}|fourteen|fifteen|catorce|treinta|eleven|twelve|twenty|thirty|cuatro|quince|veinte|three|seven|eight|cinco|siete|nueve|four|five|nine|tres|seis|ocho|diez|once|doce|one|two|six|ten|una|uno|dos|an|un|a)\s+d[ií]as\s+(?:a|por)\s+(?:la\s+)?semana|cada\s+(\d{1,3}|fourteen|fifteen|catorce|treinta|eleven|twelve|twenty|thirty|cuatro|quince|veinte|three|seven|eight|cinco|siete|nueve|four|five|nine|tres|seis|ocho|diez|once|doce|one|two|six|ten|una|uno|dos|an|un|a)\s+(?:horas|d[ií]as|semanas)|(?:al|por)\s+d[ií]a)(?![\p{L}\p{N}])""", "giu")
+    val OTHER_LATIN = SafetyPattern("""[ãõçâêôàèùûëïœ]""", "iu")
+    val NEGATION = SafetyPattern("""(?<![\p{L}])(?:not|\p{L}+n['’]t|never|no|nunca|ni|tampoco)(?![\p{L}])""", "iu")
+    val STOP = SafetyPattern("""(?<![\p{L}\p{N}])(?:stop|stopped|discontinue|discontinued|do\s+not\s+take|don['’]t\s+take|never\s+take|deje\s+de\s+tomar|dejar\s+de\s+tomar|suspenda|suspender|no\s+tome|no\s+tomar)(?![\p{L}\p{N}])""", "giu")
+    val NOT_NOW = SafetyPattern("""(?<![\p{L}\p{N}])(?:(?:do\s+not|don['’]t|never|not)(?:\s+\p{L}+){0,2}\s+(?:stop|discontinue)|no(?:\s+\p{L}+){0,2}\s+(?:deje|dejar|suspenda|suspender)|if|unless|when|before|after|si|cuando|antes\s+de|despu[eé]s\s+de|more\s+than|m[aá]s\s+de|exceed|with(?!\s+(?:no\s+)?delay)|without(?!\s+delay)|empty\s+stomach|same\s+time|together|con|sin(?!\s+demora)|en\s+ayunas)(?![\p{L}\p{N}])""", "giu")
+    val BULLET = SafetyPattern("""^\s*(?:[-*•‣–]|\d{1,2}[.)])\s+""", "u")
 
     val all: Map<String, SafetyPattern> = mapOf(
         "WARNING_WORDS" to WARNING_WORDS,
         "NOT_EMERGENCY" to NOT_EMERGENCY,
         "ER" to ER,
+        "WHEN_RULE_0" to WHEN_RULE_0,
+        "WHEN_RULE_1" to WHEN_RULE_1,
+        "WHEN_RULE_2" to WHEN_RULE_2,
+        "WHEN_RULE_3" to WHEN_RULE_3,
+        "WHEN_RULE_4" to WHEN_RULE_4,
+        "WHEN_RULE_5" to WHEN_RULE_5,
+        "WHEN_RULE_6" to WHEN_RULE_6,
+        "WHEN_RULE_7" to WHEN_RULE_7,
+        "WHEN_RULE_8" to WHEN_RULE_8,
+        "OTHER_LATIN" to OTHER_LATIN,
+        "NEGATION" to NEGATION,
+        "STOP" to STOP,
+        "NOT_NOW" to NOT_NOW,
+        "BULLET" to BULLET,
     )
 }

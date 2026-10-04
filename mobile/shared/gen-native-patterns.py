@@ -22,6 +22,8 @@ patterns = json.loads((root / "mobile/shared/safety-vectors.json").read_text(enc
 for name, p in patterns.items():
     src = p["source"]
     # Raw-string safety: Swift #"..."# and Kotlin """...""" (where $ would start a template).
+    # \s and \d are rewritten when compiled; neither may appear escaped (\\s) or inside a character class.
+    assert "\\\\" not in src and not any(c in src for c in ("[\\s", "[\\d")), f"{name} uses \\s or \\d in a way the rewrite would break"
     assert '"#' not in src and '"""' not in src and "$" not in src, f"{name} cannot be written as a raw string"
     assert name.isidentifier(), name
 
@@ -34,9 +36,10 @@ swift = [f"// {HEADER}", "import Foundation", "",
          "struct SafetyPattern: Sendable, Equatable {", "    let source: String", "    let flags: String", "",
          "    /// JavaScript's \\s, spelled out, so a pattern matches the same spaces as on the website.",
          f'    static let jsSpaceClass = #"{JS_SPACE}"#', "",
-         "    /// Compiled with the website's meaning: \"i\" is case-insensitive (Unicode), \\s is JavaScript's \\s.",
+         "    /// Compiled with the website's meaning: \"i\" is case-insensitive (Unicode), \\s is JavaScript's \\s and \\d is",
+         "    /// 0-9 only (ICU's \\d would also take other scripts' digits, which JavaScript's does not).",
          "    func regex() -> NSRegularExpression {",
-         '        let src = source.replacingOccurrences(of: #"\\s"#, with: Self.jsSpaceClass)',
+         '        let src = source.replacingOccurrences(of: #"\\s"#, with: Self.jsSpaceClass).replacingOccurrences(of: #"\\d"#, with: "[0-9]")',
          '        return try! NSRegularExpression(pattern: src, options: flags.contains("i") ? [.caseInsensitive] : [])',
          "    }", "}", "",
          "/// The patterns of web/src/lib/warningPin.ts and web/src/lib/stepsView.ts, word for word.",
@@ -51,9 +54,9 @@ swift += ["    ]", "}", ""]
 kotlin = [f"// {HEADER}", "package com.stephensookra.atlas.data", "", "import java.util.regex.Pattern", "",
           "/** One pattern from the website's safety rules: its exact source and JavaScript flags. */",
           "data class SafetyPattern(val source: String, val flags: String) {",
-          "    /** Compiled with the website's meaning: \"i\" is case-insensitive (Unicode), \\s is JavaScript's \\s. */",
+          "    /** Compiled with the website's meaning: \"i\" is case-insensitive (Unicode), \\s is JavaScript's \\s, \\d is 0-9. */",
           "    fun regex(): Regex = Pattern.compile(",
-          '        source.replace("""\\s""", JS_SPACE_CLASS),',
+          '        source.replace("""\\s""", JS_SPACE_CLASS).replace("""\\d""", "[0-9]"),',
           "        if ('i' in flags) Pattern.CASE_INSENSITIVE or Pattern.UNICODE_CASE else 0,",
           "    ).toRegex()", "",
           "    companion object {",

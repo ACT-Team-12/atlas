@@ -40,18 +40,18 @@ struct CareStepsView: View {
                         ReadAloudBar(speaker: speaker, language: language, lines: readLines)
                     }
 
-                    // Warning signs pinned on top (the website's isWarning), then the rest in paper order.
-                    ForEach(shownItems) { item in
-                        let check = model.check(for: item.id)
-                        CareItemCard(item: item, check: check, result: model.meaning.result(for: item.id),
-                                     checking: model.meaning.status == .loading, errored: model.meaning.status == .error,
-                                     done: doneBinding(item.id)) {
-                            // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
-                            reminder = ReminderTarget(title: PaperFirst.bookTitle(kind: item.kind), quote: item.source_quote,
-                                                      detail: PaperFirst.bookWhen(item, check: check))
-                        } onRemove: {
-                            model.removed[item.id] = true
-                        }
+                    // As on the website (CareSteps.tsx): warning signs pinned on top, then every other step in a time
+                    // group read from the paper's own words (StepsWhen), "Right away" first.
+                    let layout = self.layout(care)
+                    if !layout.warnings.isEmpty {
+                        StepGroupHeader(title: "Warning signs from your paper", count: layout.warnings.count,
+                                        note: "If you have any of them right now, do what your paper says: call your clinic, or call 911.",
+                                        warning: true)
+                        ForEach(layout.warnings) { card($0) }
+                    }
+                    ForEach(layout.groups) { g in
+                        StepGroupHeader(title: g.group.label, count: g.items.count, note: g.group.note)
+                        ForEach(g.items) { card($0) }
                     }
 
                     if !model.removedItems.isEmpty {
@@ -118,11 +118,28 @@ struct CareStepsView: View {
         .sheet(item: $reminder) { ReminderSheet(target: $0) }
     }
 
+    private func layout(_ care: CarePlanResponse) -> (warnings: [VerifiedItem], groups: [StepGroup]) {
+        StepsWhen.grouped(model.items, check: { model.check(for: $0) }, paper: care.source_text)
+    }
+
     /// Numbered and read in the order shown, so "step 3" is the third card a person sees.
     private var shownItems: [VerifiedItem] {
-        let warnings = model.warningItems
-        let pinned = Set(warnings.map(\.id))
-        return warnings + model.items.filter { !pinned.contains($0.id) }
+        guard let care = model.care else { return [] }
+        let l = layout(care)
+        return l.warnings + l.groups.flatMap(\.items)
+    }
+
+    private func card(_ item: VerifiedItem) -> some View {
+        let check = model.check(for: item.id)
+        return CareItemCard(item: item, check: check, result: model.meaning.result(for: item.id),
+                            checking: model.meaning.status == .loading, errored: model.meaning.status == .error,
+                            done: doneBinding(item.id)) {
+            // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
+            reminder = ReminderTarget(title: PaperFirst.bookTitle(kind: item.kind), quote: item.source_quote,
+                                      detail: PaperFirst.bookWhen(item, check: check))
+        } onRemove: {
+            model.removed[item.id] = true
+        }
     }
 
     private var readLines: [String] {
@@ -133,6 +150,28 @@ struct CareStepsView: View {
 
     private func doneBinding(_ id: String) -> Binding<Bool> {
         Binding(get: { model.done[id] == true }, set: { model.done[id] = $0 })
+    }
+}
+
+/// A time group's heading (CareSteps.tsx): its label, how many steps, and its note when it has one.
+struct StepGroupHeader: View {
+    let title: String
+    let count: Int
+    var note: String?
+    var warning = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).font(.title3.weight(.heavy)).foregroundStyle(warning ? Palette.red : Palette.ink).wraps()
+                Spacer()
+                Text("\(count) \(count == 1 ? "step" : "steps")").font(.caption.weight(.bold)).foregroundStyle(Palette.inkSoft)
+            }
+            if let note { Text(note).font(.caption.weight(.semibold)).foregroundStyle(warning ? Palette.red : Palette.inkSoft).wraps() }
+        }
+        .padding(.top, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 

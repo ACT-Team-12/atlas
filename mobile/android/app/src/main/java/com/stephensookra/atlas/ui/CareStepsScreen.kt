@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +48,7 @@ import com.stephensookra.atlas.data.Language
 import com.stephensookra.atlas.data.MeaningResult
 import com.stephensookra.atlas.data.MeaningStatus
 import com.stephensookra.atlas.data.PaperFirst
+import com.stephensookra.atlas.data.StepsWhen
 import com.stephensookra.atlas.data.VerifiedItem
 import com.stephensookra.atlas.data.WarningPin
 import com.stephensookra.atlas.services.Speaker
@@ -75,10 +77,11 @@ fun CareStepsScreen(model: AppModel) {
                 String.format(Locale.US, "%.1f", care.stats.ms / 1000.0) + "s",
             style = Type.foot.copy(fontWeight = FontWeight.Bold),
         )
-        // Warning signs pinned on top (the website's isWarning), then the rest in paper order. Numbered and read in
-        // the order shown, so "step 3" is the third card a person sees.
-        val warnings = model.warningItems
-        val items = warnings + model.items.filter { it !in warnings }
+        // As on the website (CareSteps.tsx): warning signs pinned on top, then every other step in a time group read
+        // from the paper's own words (StepsWhen), "Right away" first. Numbered and read in the order shown, so "step 3"
+        // is the third card a person sees.
+        val (warnings, groups) = StepsWhen.grouped(model.items, { model.checkFor(it) }, care.source_text)
+        val items = warnings + groups.flatMap { it.items }
         when (model.meaning.status) {
             MeaningStatus.loading -> Text("Double-checking each explanation against your paper...", style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
             MeaningStatus.error -> Text("The double-check is not available right now, so each step shows your paper's own words first.",
@@ -94,7 +97,7 @@ fun CareStepsScreen(model: AppModel) {
         }
 
         // Keyed by id, so a step's open "Why?" and "Ask your pharmacist" state never moves to the next step on Remove.
-        items.forEach { item -> key(item.id) {
+        val card: @Composable (VerifiedItem) -> Unit = { item -> key(item.id) {
             val check = model.checkFor(item.id)
             CareItemCard(
                 item = item,
@@ -109,6 +112,15 @@ fun CareStepsScreen(model: AppModel) {
                 onRemove = { model.remove(item.id) },
             )
         } }
+        if (warnings.isNotEmpty()) {
+            StepGroupHeader("Warning signs from your paper", warnings.size,
+                "If you have any of them right now, do what your paper says: call your clinic, or call 911.", warning = true)
+            warnings.forEach { card(it) }
+        }
+        groups.forEach { g ->
+            StepGroupHeader(g.group.label, g.items.size, g.group.note)
+            g.items.forEach { card(it) }
+        }
 
         val removed = model.removedItems
         if (removed.isNotEmpty()) {
@@ -152,6 +164,21 @@ fun CareStepsScreen(model: AppModel) {
         }
     }
     reminder?.let { ReminderDialog(it) { reminder = null } }
+}
+
+/** A time group's heading (CareSteps.tsx): its label, how many steps, and its note when it has one. */
+@Composable
+fun StepGroupHeader(title: String, count: Int, note: String?, warning: Boolean = false) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp).semantics(mergeDescendants = true) { heading() },
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = Type.headline.copy(color = if (warning) Palette.red else Palette.ink), modifier = Modifier.weight(1f))
+            Text("$count ${if (count == 1) "step" else "steps"}", style = Type.caption.copy(fontWeight = FontWeight.Bold))
+        }
+        note?.let { Text(it, style = Type.caption.copy(fontWeight = FontWeight.SemiBold, color = if (warning) Palette.red else Palette.inkSoft)) }
+    }
 }
 
 @Composable

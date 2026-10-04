@@ -9,8 +9,22 @@ struct SafetyVectorsTests {
     struct Vectors: Decodable {
         let patterns: [String: Pattern]
         let warning: [Warning]
+        let when_rule_groups: [String]
+        let num_words: [String: Int]
+        let group_labels: [[String]]
+        let when: [When]
+        let papers: [String: String]
+        let heading: [Heading]
+        let step: [Step]
         struct Pattern: Decodable { let source: String; let flags: String }
         struct Warning: Decodable { let quote: String; let kind: String; let paper: Bool; let pinned: Bool }
+        struct When: Decodable { let text: String; let group: String; let words: [String] }
+        struct Heading: Decodable { let paper: String; let span: TextSpan?; let heading: String }
+        struct Expected: Decodable { let group: String; let words: [String]; let from: String }
+        struct Step: Decodable {
+            let paper: String; let quote: String; let span: TextSpan?; let kind: String; let check: String; let when: String
+            let expected: Expected
+        }
     }
 
     final class Token {}
@@ -45,6 +59,59 @@ struct SafetyVectorsTests {
         #expect(v.warning.count > 100)
         #expect(v.warning.contains { $0.paper } && v.warning.contains { !$0.paper })
         print("safety vectors: warning \(passed) of \(v.warning.count) equal to the web reference")
+    }
+
+    @Test func timeTablesAreTheWebsites() throws {
+        let v = try Self.load()
+        #expect(StepsWhen.ruleGroups == v.when_rule_groups)
+        #expect(StepsWhen.numWords == v.num_words)
+        #expect(v.group_labels.map { $0[0] } == WhenGroup.allCases.map(\.rawValue))
+        for pair in v.group_labels { #expect(WhenGroup(rawValue: pair[0])?.label == pair[1], "label of \(pair[0])") }
+    }
+
+    @Test func byWhenGroupsMatchTheWebsite() throws {
+        let v = try Self.load()
+        var passed = 0, total = 0
+        for w in v.when {
+            let got = StepsWhen.fromText(w.text)
+            #expect(got.group.rawValue == w.group && got.words == w.words, "whenFromText(\(w.text)): \(got)")
+            if got.group.rawValue == w.group && got.words == w.words { passed += 1 }
+            total += 1
+        }
+        for h in v.heading {
+            let got = StepsWhen.listHeading(try #require(v.papers[h.paper]), span: h.span)
+            #expect(got == h.heading, "listHeading(\(h.paper), \(String(describing: h.span)))")
+            if got == h.heading { passed += 1 }
+            total += 1
+        }
+        var stopNow = 0
+        for s in v.step {
+            let got = StepsWhen.step(quote: s.quote, when: s.when, kind: s.kind, span: s.span, check: try #require(Check(rawValue: s.check)),
+                                     paper: try #require(v.papers[s.paper]))
+            let same = got.group.rawValue == s.expected.group && got.words == s.expected.words && got.from == s.expected.from
+            #expect(same, "stepWhen(\(s.quote), \(s.kind), \(s.check), \(s.when)) on \(s.paper): \(got)")
+            if same { passed += 1 }
+            if s.expected.group == "today" && s.expected.words.isEmpty && s.expected.from == "paper" { stopNow += 1 }
+            total += 1
+        }
+        #expect(v.step.count > 1000 && stopNow > 10)
+        print("safety vectors: when \(passed) of \(total) equal to the web reference")
+    }
+
+    @Test func groupedPutsWarningsFirstAndStopNowUnderRightAway() {
+        let paper = "STOP taking these medications:\n- ibuprofen 200 mg tablet.\nCall 911 if you have chest pain.\nWalk daily."
+        let ns = paper as NSString
+        func item(_ id: String, _ kind: String, _ quote: String) -> VerifiedItem {
+            let r = ns.range(of: quote)
+            return VerifiedItem(id: id, kind: kind, title: id, plain_language: id, source_quote: quote,
+                                span: TextSpan(start: r.location, end: r.location + r.length))
+        }
+        let items = [item("walk", "self_care", "Walk daily."), item("stop", "medication", "ibuprofen 200 mg tablet."),
+                     item("call", "self_care", "Call 911 if you have chest pain.")]
+        let l = StepsWhen.grouped(items, check: { _ in .unchecked }, paper: paper)
+        #expect(l.warnings.map(\.id) == ["call"])
+        #expect(l.groups.map(\.group) == [.today, .daily])
+        #expect(l.groups.map { $0.items.map(\.id) } == [["stop"], ["walk"]])
     }
 
     @Test func aStepTheModelMislabeledIsStillStyledAndPinnedAsAWarning() {

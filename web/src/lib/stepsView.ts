@@ -208,6 +208,22 @@ export function shortQuote(quote: string, max = 72): string {
   return `${head}…`;
 }
 
+/**
+ * The patterns and tables above, exported only so mobile/shared/safety-vectors.json can carry their exact text: the
+ * iOS and Android ports keep the same patterns and their tests fail if it drifts from this file. WHEN_RULE_n is RULES[n];
+ * WHEN_RULE_GROUPS says which group each one gives ("count" is the rule that counts days or weeks ahead).
+ */
+export const STEPS_PATTERNS: Record<string, RegExp> = {
+  ...Object.fromEntries(RULES.map((r, i) => [`WHEN_RULE_${i}`, r.re])),
+  OTHER_LATIN,
+  NEGATION,
+  STOP,
+  NOT_NOW,
+  BULLET,
+};
+export const WHEN_RULE_GROUPS = RULES.map((r) => (typeof r.group === "function" ? "count" : r.group));
+export { NUM_WORDS };
+
 /** What a closed row shows. Only the certified kind carries any AI-written words. */
 export type ClosedRow =
   | { lead: "explanation"; title: string; when: string }

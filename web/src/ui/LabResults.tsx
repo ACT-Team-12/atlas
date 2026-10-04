@@ -3,7 +3,7 @@
 import { labRowView } from "@/lib/paperFirst";
 import { PaperFirst } from "./PaperFirst";
 import { useId, useState } from "react";
-import { labChip, labClosedRow, labGroups, labQuestions, labQuestionsText, type LabChip, type LabQuestion } from "@/lib/labsView";
+import { isCritical, labChip, labClosedRow, labGroups, labQuestions, labQuestionsText, type LabChip, type LabQuestion } from "@/lib/labsView";
 import { LANGUAGES } from "@/lib/schema";
 import type { ResultRow, ResultsResponse } from "@/lib/results";
 import { SAMPLE_LABS, SAMPLE_LABS_LABEL } from "@/lib/sampleLabs";
@@ -142,12 +142,7 @@ export function LabResults() {
                     {res.dropped.length > 0 && ` ${res.dropped.length} line${res.dropped.length === 1 ? "" : "s"} left out because the AI's copy didn't match your report.`}
                   </p>
                 )}
-                {res.rows.length > 0 && res.coverage.unchecked.length > 0 && (
-                  <div className="mt-4 rounded-2xl border-2 border-ink/30 bg-paper p-4">
-                    <p className="font-bold">We checked {res.coverage.checked} of {res.coverage.candidates} result lines. These lines were not checked, so look at them yourself:</p>
-                    <ul className="mt-2 space-y-1 font-mono text-xs">{res.coverage.unchecked.map((l, i) => <li key={i} className="border-l-4 border-sun pl-2">{l}</li>)}</ul>
-                  </div>
-                )}
+                <UncheckedLines coverage={res.coverage} />
                 <LabRows rows={res.rows} />
                 <p className="mt-4 text-xs text-ink/70">Ranges differ between labs and people. Only your clinic can say what a result means for you.</p>
               </div>
@@ -159,11 +154,34 @@ export function LabResults() {
   );
 }
 
+/**
+ * Result lines our code found but no row covers. Shown whenever there are any, even with no rows at all, and a line the
+ * report marks critical or panic is red and first (security review). Says how many were left off past the cap.
+ */
+export function UncheckedLines({ coverage }: { coverage: ResultsResponse["coverage"] }) {
+  const { checked, candidates, unchecked } = coverage;
+  if (unchecked.length === 0) return null;
+  const crit = unchecked.filter(isCritical);
+  const more = candidates - checked - unchecked.length;
+  return (
+    <div className={`mt-4 rounded-2xl border-2 p-4 ${crit.length ? "border-red bg-red-soft" : "border-ink/30 bg-paper"}`} data-unchecked="">
+      {crit.length > 0 && <p className="font-extrabold text-red" data-unchecked-critical="">Your report marks {crit.length === 1 ? "a line" : `${crit.length} lines`} critical that we couldn&apos;t check. Call your clinic about {crit.length === 1 ? "it" : "them"} today.</p>}
+      <p className="font-bold">We checked {checked} of {candidates} result lines. These lines were not checked, so look at them yourself:</p>
+      <ul className="mt-2 space-y-1 font-mono text-xs">{unchecked.map((l, i) => (
+        <li key={i} data-critical={isCritical(l) || undefined} className={`border-l-4 pl-2 ${isCritical(l) ? "border-red font-bold text-red" : "border-sun"}`}>{l}</li>
+      ))}</ul>
+      {more > 0 && <p className="mt-2 text-xs font-bold">And {more} more {more === 1 ? "line" : "lines"} not shown here. Read your whole report.</p>}
+    </div>
+  );
+}
+
 /** Never a report-wide all-clear unless every result line our code found was checked. */
 function headline(res: ResultsResponse) {
   const { outside, unknown } = res.counts;
   const { checked, candidates } = res.coverage;
-  if (res.rows.length === 0) return "We couldn't read any results from this. Check the text or ask your clinic.";
+  if (res.rows.length === 0) return res.coverage.unchecked.length
+    ? "We couldn't check any results on this. Read the lines below on your report, or ask your clinic."
+    : "We couldn't read any results from this. Check the text or ask your clinic.";
   if (outside > 0) return `${outside} ${outside === 1 ? "result is" : "results are"} outside the range on your report.`;
   if (checked < candidates) return `We checked ${checked} of ${candidates} result lines. None of the ones we checked is outside its range.`;
   if (unknown > 0) return `Nothing is marked outside its range, but we couldn't tell for ${unknown} ${unknown === 1 ? "result" : "results"}.`;

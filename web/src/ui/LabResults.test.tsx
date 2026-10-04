@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { checkRows, type ResultRow } from "@/lib/results";
 import { SAMPLE_LABS } from "@/lib/sampleLabs";
 import { labClosedRow, labQuestionsText } from "@/lib/labsView";
-import { LabRows } from "./LabResults";
+import { LabRows, UncheckedLines } from "./LabResults";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -69,13 +69,17 @@ const visible = (el: Element | null) => { for (let e = el; e; e = e.parentElemen
  * line, inside the same opened row panel or the same question item, and never on a closed row (a button).
  */
 function assertAiNeverWithoutLine(rows: ResultRow[]) {
+  // Walk the DOM once, then check every AI string against it (the same checks, without a full walk per string).
+  const attrs: [string, string][] = [];
+  for (const el of host.querySelectorAll("*")) for (const a of el.getAttributeNames()) attrs.push([`${a} on <${el.tagName}>`, el.getAttribute(a) ?? ""]);
+  const texts: Node[] = [];
+  const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) texts.push(n);
+  expect(texts.length).toBeGreaterThan(0);
   for (const r of rows) {
     for (const ai of [r.plain_name, r.ask]) {
-      for (const el of host.querySelectorAll("*")) {
-        for (const a of el.getAttributeNames()) expect(el.getAttribute(a) ?? "", `${a} on <${el.tagName}>`).not.toContain(ai);
-      }
-      const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
-      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      for (const [where, value] of attrs) if (value.includes(ai)) expect(value, where).not.toContain(ai);
+      for (const n of texts) {
         if (!n.textContent?.includes(ai)) continue;
         const el = n.parentElement!;
         expect(el.closest("button"), `"${ai}" on a closed row`).toBeNull();
@@ -368,6 +372,30 @@ describe("security review checklist", () => {
     }
     expect(rowNamed("Vitamin D").querySelector("[data-report-range]")).toBeNull();
     expect(rowNamed("CRITICAL Sodium").dataset.critical).toBe("true");
+  });
+
+  it("third Codex pass: earlier numbers, short marks, critical-only reports and the 40-line cap all fail closed", () => {
+    const one = (line: string, test: string, value: string, unit = "mg/dL", range_text = "70-99") =>
+      checkRows(`${line}\n`, [{ test, value, unit, range_text, quote: line, plain_name: "a", ask: "b" }]).rows[0];
+    // The AI's name starts the search after the real result.
+    expect(one("Glucose 250 previous result 80 mg/dL 70-99", "previous result", "80").status).toBe("unknown");
+    // Short marks printedFlag doesn't name.
+    for (const mark of ["A", "ABN", "abn", "CRIT", "hh", "ll", "!", "*"]) expect(one(`Glucose 90 mg/dL 70-99 ${mark}`, "Glucose", "90").status, mark).not.toBe("inside");
+    // Unmarked lines still read in range.
+    expect(one("Glucose 90 mg/dL 70-99", "Glucose", "90").status).toBe("inside");
+    // A critical-only report: no rows, and the critical line is shown, loud.
+    const only = checkRows("Troponin unable to calculate CRITICAL\n", []);
+    expect(only.rows).toEqual([]);
+    act(() => root.render(<UncheckedLines coverage={only.coverage} />));
+    expect(host.querySelector("[data-unchecked-critical]")!.textContent).toContain("critical");
+    expect(host.querySelector("li[data-critical]")!.textContent).toBe("Troponin unable to calculate CRITICAL");
+    // Past the 40-line cap, a critical line is kept first and the rest are counted.
+    const lines = ["Sodium 139 mmol/L 136-145", ...Array.from({ length: 40 }, (_, i) => `Test${i} ${i + 1} mg/dL 0-${i + 50}`), "Potassium 2.0 mmol/L 3.5-5.1 PANIC"];
+    const capped = checkRows(lines.join("\n") + "\n", [{ test: "Sodium", value: "139", unit: "mmol/L", range_text: "136-145", quote: lines[0], plain_name: "a", ask: "b" }]).coverage;
+    expect(capped).toMatchObject({ candidates: 42, checked: 1 });
+    expect(capped.unchecked[0]).toBe("Potassium 2.0 mmol/L 3.5-5.1 PANIC");
+    act(() => root.render(<UncheckedLines coverage={capped} />));
+    expect(host.textContent).toContain("And 1 more line not shown here.");
   });
 
   it("(4) critical rows stay pinned in the flagged group and open, with the in-range fold closed", () => {

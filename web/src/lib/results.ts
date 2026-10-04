@@ -110,6 +110,9 @@ const ATOM = new RegExp(String.raw`(?<=^|[\s(\[:=])(?:<=|>=|≤|≥|<|>)?\s?-?${
 // A range printed on a line: "70-99", "4.0 - 11.0", "150,000-400,000", "-2 to 3", "<200", ">=60". Never part of a date.
 const RANGE = new RegExp(String.raw`(?<![\w.^/-])(?:(?:<=|>=|≤|≥|<|>)\s*-?${NUMC}|-?${NUMC}\s*(?:-|–|to)\s*-?${NUMC})(?![\w.]|-\d)`, "g");
 
+/** Short report marks beyond printedFlag's: A, ABN, CRIT, hh/ll/h/l in any case, or a standalone "!" or "*". */
+const OTHER_MARK = /(?:^|[\s(\[])(?:A|[Aa][Bb][Nn]|[Cc][Rr][Ii][Tt]|[HhLl]{1,2})(?=$|[\s)\]*!])|(?:^|\s)[!*]+(?=$|\s)/;
+
 type Span = { text: string; start: number; end: number };
 const spans = (re: RegExp, s: string): Span[] => [...s.matchAll(re)].map((m) => ({ text: m[0], start: m.index ?? 0, end: (m.index ?? 0) + m[0].length }));
 const inside = (a: Span, b: Span) => a.start >= b.start && a.end <= b.end;
@@ -160,7 +163,9 @@ function readLine(line: string, r: Pick<ModelRow, "test" | "unit" | "range_text"
   for (const s of [...spans(RANGE, line), value]) whole = whole.slice(0, s.start) + " ".repeat(s.end - s.start) + whole.slice(s.end);
   return {
     verdicts: others.map((s) => parseRange(s.text)).filter((x): x is Interval => !!x).map((x) => classify(valueRange, x)),
-    lineMark: printedFlag(whole),
+    // Also short marks printedFlag doesn't name (A, ABN, CRIT, "!", lowercase hh/ll/h/l): any of them keeps a line
+    // out of "in range" (security review). Over-cautious on purpose: "Vitamin A" reads as can't tell.
+    lineMark: printedFlag(whole) ?? (OTHER_MARK.test(whole) ? "abnormal" : null),
     value, valueRange, range: pick ? parseRange(pick.text) : null, rangeText: pick ? pick.text.trim() : "",
     flag: printedFlag(tail), loneL: !at && words.length === 1 && words[0] === "L", unitSeen: !!at,
   };
@@ -190,10 +195,10 @@ function failClosed(r: ModelRow, judged: Omit<ResultRow, keyof ModelRow>): Omit<
   if (judged.status !== "inside") return judged;
   const read = readLine(r.quote, r);
   if (!read) return judged;
-  // The AI's test name decides where the value search starts. A name that swallows a number on the line could move
-  // the search past the real result ("Glucose 250 (prev 80)" named "Glucose 250 prev"), so it can't be in range.
-  const name = findName(r.quote, r.test);
-  if (name && spans(ATOM, name.text).length) return { status: "unknown", direction: null, reason: "This line has a number before the result we read, so we can't be sure which number is the result. Look at the line, or ask your clinic." };
+  // The AI's test name decides where the value search starts. Any number standing on its own before the value we read
+  // (inside the name or before it: "Glucose 250 previous result 80" named "previous result") may be the real result,
+  // so the line can't be in range (security review).
+  if (spans(ATOM, r.quote).some((a) => a.start < read.value.start)) return { status: "unknown", direction: null, reason: "This line has a number before the result we read, so we can't be sure which number is the result. Look at the line, or ask your clinic." };
   if (new Set(read.verdicts).size > 1) return { status: "unknown", direction: null, reason: "Your report prints more than one range on this line, and they disagree. Ask your clinic which one applies." };
   if (read.lineMark) return { status: "unknown", direction: null, reason: "Your report has a mark on this line we couldn't place. Look at the line, or ask your clinic." };
   return judged;
@@ -270,8 +275,10 @@ export function checkRows(source: string, rows: ModelRow[]): Pick<ResultsRespons
   out.sort((a, b) => order[a.status] - order[b.status]);
   const candidates = resultLines(source);
   const covered = new Set(out.map((r) => r.quote));
+  // Critical lines first, so the 40-line cap never drops one (security review); the page names how many were left off.
   const unchecked = candidates.filter((l) => !covered.has(l));
-  return { rows: out, dropped, counts, coverage: { candidates: candidates.length, checked: candidates.length - unchecked.length, unchecked: unchecked.slice(0, 40) } };
+  const shown = [...unchecked.filter(isCritical), ...unchecked.filter((l) => !isCritical(l))].slice(0, 40);
+  return { rows: out, dropped, counts, coverage: { candidates: candidates.length, checked: candidates.length - unchecked.length, unchecked: shown } };
 }
 
 const SYSTEM = `You read a person's lab report and list every test result on it.

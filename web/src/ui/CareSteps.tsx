@@ -207,7 +207,7 @@ export function CareSteps(p: Props) {
       {walk.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
           <button ref={walkButton} type="button" onClick={startWalk} aria-describedby="walk-why" data-walk-open=""
-            className="min-h-11 rounded-full border-2 border-ink bg-teal px-5 py-2 text-base font-extrabold text-paper shadow-[0_2px_0_var(--ink)] hover:bg-teal-deep focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+            className="min-h-[48px] rounded-full border-2 border-ink bg-teal px-5 py-2 text-base font-extrabold text-paper shadow-[0_2px_0_var(--ink)] hover:bg-teal-deep focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
             {walkLine(p.language, "open")}
           </button>
           <span id="walk-why" className="text-xs font-semibold text-ink/70">{walkLine(p.language, "openHint")}</span>
@@ -431,7 +431,7 @@ function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipTex
     <section role="region" aria-label={t("region")} data-walk-through="" className="walk-through rounded-3xl border-2 border-ink bg-paper p-4 sm:p-6"
       onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onExit(); } }}>
       <button type="button" onClick={onExit} data-walk-exit=""
-        className="min-h-11 rounded-full border-2 border-ink bg-paper px-4 py-2 text-base font-bold hover:bg-mint focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+        className="min-h-[48px] rounded-full border-2 border-ink bg-paper px-4 py-2 text-base font-bold hover:bg-mint focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
         <span aria-hidden="true">← </span>{t("back")}
       </button>
       {step ? (
@@ -448,12 +448,12 @@ function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipTex
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {firstOpen >= 0 && (
               <button type="button" onClick={() => onGo(steps[firstOpen].it.id)}
-                className="min-h-14 rounded-2xl border-2 border-ink bg-sun px-4 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+                className="min-h-[56px] rounded-2xl border-2 border-ink bg-sun px-4 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
                 {t("startOver")}
               </button>
             )}
             <button type="button" onClick={onExit}
-              className="min-h-14 rounded-2xl border-2 border-ink bg-teal px-4 py-3 text-lg font-extrabold text-paper shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+              className="min-h-[56px] rounded-2xl border-2 border-ink bg-teal px-4 py-3 text-lg font-extrabold text-paper shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
               {t("back")}
             </button>
           </div>
@@ -480,7 +480,7 @@ function WalkCard({ step, index, total, done, check, t, heading, pip, pipText, c
   const question = stepVisitQuestion(it, check);
   const seal = sealOf(check);
   const kind = KIND[it.kind];
-  const big = "min-h-14 rounded-2xl border-2 border-ink px-4 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep";
+  const big = "min-h-[56px] rounded-2xl border-2 border-ink px-4 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep";
   return (
     <div className={`walk-card mt-5 ${warn ? "rounded-2xl border-4 border-red p-3 sm:p-4" : ""}`} data-calm={calm || undefined} data-walk-step={it.id} data-walk-group={group} data-seal={seal}>
       <div className="flex items-start justify-between gap-3">
@@ -506,11 +506,11 @@ function WalkCard({ step, index, total, done, check, t, heading, pip, pipText, c
       {done && (
         <p className="mt-4 flex flex-wrap items-center gap-3 text-lg font-extrabold text-teal-deep" data-walk-done-status="">
           <span>✓ {t("doneAlready")}</span>
-          <button type="button" onClick={onUndo} className="min-h-11 rounded-full border-2 border-ink/60 bg-paper px-4 py-2 text-base font-bold text-ink hover:bg-mint">{t("undoDone")}</button>
+          <button type="button" onClick={onUndo} className="min-h-[48px] rounded-full border-2 border-ink/60 bg-paper px-4 py-2 text-base font-bold text-ink hover:bg-mint">{t("undoDone")}</button>
         </p>
       )}
       <button type="button" onClick={onSpeak} aria-pressed={speaking} data-walk-speak=""
-        className={`mt-4 min-h-11 rounded-full border-2 border-ink px-5 py-2 text-base font-bold ${speaking ? "bg-ink text-paper" : "bg-paper hover:bg-mint"}`}>
+        className={`mt-4 min-h-[48px] rounded-full border-2 border-ink px-5 py-2 text-base font-bold ${speaking ? "bg-ink text-paper" : "bg-paper hover:bg-mint"}`}>
         <span aria-hidden="true">{speaking ? "⏹ " : "🔊 "}</span>{speaking ? t("stop") : t("readAloud")}
       </button>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -523,13 +523,13 @@ function WalkCard({ step, index, total, done, check, t, heading, pip, pipText, c
         <p className="font-extrabold">{t("askTitle")}</p>
         {warn ? <p className="mt-1 font-bold text-red">{t("warningDo")}</p> : (
           <>
-            {ask ? <div className="mt-1" data-ask-person-panel="" data-ask-person={ask.who}><AskPersonBody ask={ask} /></div> : <p className="mt-1 font-semibold">{t("askClinicCall")}</p>}
+            {ask ? <div className="mt-1" data-ask-person-panel="" data-ask-person={ask.who}><AskPersonBody ask={ask} big /></div> : <p className="mt-1 font-semibold">{t("askClinicCall")}</p>}
             <p className="mt-2 text-sm font-semibold text-ink/70" data-walk-211="">{t("ask211")}</p>
           </>
         )}
       </div>
       {onPrevious && (
-        <button type="button" onClick={onPrevious} data-walk-previous="" className="mt-4 min-h-11 rounded-full px-4 py-2 text-base font-bold underline decoration-2 underline-offset-4">
+        <button type="button" onClick={onPrevious} data-walk-previous="" className="mt-4 min-h-[48px] rounded-full px-4 py-2 text-base font-bold underline decoration-2 underline-offset-4">
           <span aria-hidden="true">← </span>{t("previous")}
         </button>
       )}
@@ -593,17 +593,18 @@ function AskAPerson({ it, check }: { it: VerifiedItem; check: Check }) {
 }
 
 /** What "Ask your pharmacist" / "Ask your clinic" shows: who to show it to, the paper-words question, and a copy button. */
-function AskPersonBody({ ask }: { ask: AskPerson }) {
+/** `big`: the walk-through's sizes (a 48px copy button and larger text). */
+function AskPersonBody({ ask, big = false }: { ask: AskPerson; big?: boolean }) {
   const [copied, setCopied] = useState(false);
   function copy() {
     navigator.clipboard?.writeText(ask.question).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
   }
   return (
     <>
-      <p className="text-xs font-bold text-ink/70">{ask.who === "pharmacist" ? "Show or read this to your pharmacist. It uses only your paper's words." : "Show or read this to your clinic. It uses only your paper's words."}</p>
+      <p className={`${big ? "text-sm" : "text-xs"} font-bold text-ink/70`}>{ask.who === "pharmacist" ? "Show or read this to your pharmacist. It uses only your paper's words." : "Show or read this to your clinic. It uses only your paper's words."}</p>
       <p className="mt-1 font-semibold" data-ask-question="">{ask.question}</p>
       <div className="mt-2 flex items-center gap-2">
-        <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">Copy question</button>
+        <button type="button" onClick={copy} className={`rounded-full border-2 border-ink font-bold hover:bg-mint ${big ? "min-h-[48px] px-4 py-2 text-base" : "px-3 py-1 text-xs"}`}>Copy question</button>
         <span role="status" className="text-xs font-semibold text-ink/70">{copied ? "Copied" : ""}</span>
       </div>
     </>

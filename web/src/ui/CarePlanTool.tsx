@@ -1062,7 +1062,8 @@ export function CarePlanTool() {
               <Understand key={`${care.source_text.length}:${items.map((i) => i.id).join(",")}:${language}`} care={care} items={items} language={language} />
               {/* "Ask my paper": answers only in the paper's own words, checked, or "your paper doesn't say" (lib/ask.ts). */}
               {/* Off while the paper on screen differs from the one read: it would answer from the old text (Codex review). */}
-              {!careOutdated && <AskPaper key={`${runIdFor(care)}:${language}`} care={care} items={items} language={language} />}
+              {!careOutdated && <AskPaper key={`${runIdFor(care)}:${language}`} care={care} items={items} language={language}
+                photo={readPhoto?.for === care ? readPhoto.file : null} />}
               <button type="button" onClick={() => pickTab(2, false)}
                 className="md:hidden mt-8 w-full rounded-full border-2 border-ink bg-sun px-5 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
                 Next: your needs →

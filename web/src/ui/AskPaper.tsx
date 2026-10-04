@@ -7,7 +7,8 @@ import { askAboutQuestion, askText, isUrgentQuestion, MAX_QUESTION } from "@/lib
 import { warningFromPaper } from "@/lib/warningPin";
 import { ShowOnPaper } from "./ShowOnPaper";
 
-type Props = { care: CarePlanResponse; items: VerifiedItem[]; language: string };
+/** `photo`: the photo this paper was read from, while it is still open, so Show on my paper can mark it (as the steps do). */
+type Props = { care: CarePlanResponse; items: VerifiedItem[]; language: string; photo?: File | null };
 
 type State =
   | { kind: "idle" }
@@ -22,7 +23,7 @@ type State =
  * from the person's own words. An urgent question gets 911 / 211 guidance and the paper's own warning lines, never
  * an AI answer, and is caught here before anything is sent. The parent remounts this on any new paper or language.
  */
-export function AskPaper({ care, items, language }: Props) {
+export function AskPaper({ care, items, language, photo = null }: Props) {
   const t = askText(language);
   const [question, setQuestion] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
@@ -117,7 +118,7 @@ export function AskPaper({ care, items, language }: Props) {
                 {res.quotes.map((q, i) => (
                   <li key={`${q.span.start}-${q.span.end}`}>
                     <p className="font-semibold">&ldquo;{q.text}&rdquo;</p>
-                    <ShowOnPaper care={care} photo={null} check="unchecked"
+                    <ShowOnPaper care={care} photo={care.source_kind === "image" ? photo : null} check="unchecked"
                       item={{ id: `ask-${i}`, kind: "self_care", title: "", plain_language: "", why: "", when: "", source_quote: q.text, needs_clarification: false, question_for_clinic: "", grounded: true, span: q.span }} />
                   </li>
                 ))}

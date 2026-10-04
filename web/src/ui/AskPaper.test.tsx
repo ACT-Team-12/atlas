@@ -3,6 +3,9 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
+// Records what Show on my paper is given, so the photo passthrough can be checked without reading a photo.
+const shown: { photo: File | null }[] = [];
+vi.mock("./ShowOnPaper", () => ({ ShowOnPaper: (p: { photo: File | null }) => { shown.push({ photo: p.photo }); return null; } }));
 import { AskPaper } from "./AskPaper";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -49,7 +52,7 @@ describe("Ask my paper on screen", () => {
     // Paper first: the quote comes before the AI's words in the page.
     expect(quote.compareDocumentPosition(lead) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(host.querySelector("[data-ask-held]")?.textContent).toContain("1 quote from the AI held back");
-    expect(host.textContent).toContain("Show on my paper");
+    expect(shown.length).toBeGreaterThan(0);
   });
 
   it("the refusal is fixed text plus a question made only from the person's words, with no AI text at all", async () => {
@@ -78,6 +81,18 @@ describe("Ask my paper on screen", () => {
     await askIt("¿puedo manejar?", "Spanish");
     expect(host.querySelector("[role=alert]")?.textContent).toBe("Demasiadas preguntas por ahora. Espere unos minutos e inténtelo de nuevo, o pregunte en su clínica o a su farmacéutico.");
     expect(host.querySelector("[data-ask-result]")).toBeNull();
+  });
+
+  it("passes the photo the paper was read from to Show on my paper, as the steps do (Codex review, round 5)", async () => {
+    shown.length = 0;
+    const photo = new File(["x"], "paper.jpg", { type: "image/jpeg" });
+    reply = { status: 200, body: { kind: "answer", quotes: [{ text: "Return to clinic in 3 months.", span: { start: 0, end: 29 } }], topic: null, topic_dropped: null, dropped: [], model: "m", ms: 1 } };
+    await act(async () => { root.render(<AskPaper care={{ ...care, source_kind: "image" } as CarePlanResponse} items={items} language="English" photo={photo} />); });
+    const input = host.querySelector("input") as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    await act(async () => { setter.call(input, "when do I come back?"); input.dispatchEvent(new Event("input", { bubbles: true })); });
+    await act(async () => { (host.querySelector("button[type=submit]") as HTMLButtonElement).click(); });
+    expect(shown.at(-1)?.photo).toBe(photo);
   });
 
   it("the shared daily cap says try tomorrow, not wait a few minutes", async () => {

@@ -245,7 +245,7 @@ function LabRow({ r }: { r: ResultRow }) {
   const outside = r.status === "outside";
   return (
     <li data-lab-row={r.status} data-critical={closed.critical || undefined} data-open={open || undefined}
-      className={`rounded-2xl border-2 ${closed.critical ? "border-red bg-red-soft" : outside ? "border-red/70 bg-paper" : open ? "border-ink bg-paper" : "border-ink/20 bg-paper"}`}>
+      className={`rounded-2xl border-2 ${closed.critical ? "border-red bg-red-soft" : outside ? "border-red bg-paper" : open ? "border-ink bg-paper" : "border-ink/20 bg-paper"}`}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId}
         className="group grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-2xl p-3 text-left">
         <span className="min-w-0" data-closed-row="report">

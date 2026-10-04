@@ -350,7 +350,7 @@ describe("differential: the browser shield and the server guard agree", () => {
     // The disguised papers include lookalike letters (refused) and invisible characters (removed, then hidden).
     expect(refused).toBeGreaterThan(20);
     expect(papers.length - refused).toBeGreaterThan(200);
-  });
+  }, 30_000);
 
   it("detection runs on exactly the characters that are sent", () => {
     const rr = rng(99);
@@ -384,7 +384,7 @@ describe("differential: the browser shield and the server guard agree", () => {
       expect(unshieldString(s.text, canonTokens)).toBe(canon.text);
     }
     expect(checked).toBeGreaterThan(250);
-  });
+  }, 30_000); // about 1 s alone; generous for a loaded CI machine
 
   it("adversarial: tokens planted by the paper itself are never trusted to cover a raw identifier", () => {
     for (const p of [

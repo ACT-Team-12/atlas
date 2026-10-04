@@ -27,9 +27,13 @@ describe("lab results: planted mistakes (no AI)", () => {
 
   const report = runLabPlantedTest();
 
-  it("judges every correct row the same as the hand-labeled truth", () => {
+  it("judges every correct row the same as the hand-labeled truth, except rows marked cautious, which show as can't tell", () => {
     expect(report.real.wrong).toEqual([]);
-    expect(report.real.right).toBe(report.real.total);
+    // Only a row the fixture itself marks cautious may differ, and only as "can't tell" (never folded as in range).
+    const marked = LAB_REPORTS.flatMap((r) => r.rows.filter((x) => x.cautious).map((x) => `${r.id}/${x.test}`));
+    expect(report.real.cautious.map((c) => `${c.report}/${c.test}`)).toEqual(marked);
+    expect(marked.length).toBeLessThanOrEqual(1);
+    expect(report.real.right + report.real.cautious.length).toBe(report.real.total);
   });
 
   it("drops or correctly judges every planted mistake", () => {

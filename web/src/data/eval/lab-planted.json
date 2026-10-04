@@ -1,11 +1,19 @@
 {
-  "measured_at": "2026-10-04T00:36:54.725Z",
+  "measured_at": "2026-10-04T01:29:27.390Z",
   "command": "node scripts/lab-planted.mjs",
   "reports": 7,
   "real": {
     "total": 45,
-    "right": 45,
-    "wrong": []
+    "right": 44,
+    "wrong": [],
+    "cautious": [
+      {
+        "report": "edge-cases",
+        "test": "Urine Volume, 24 hour",
+        "truth": "inside",
+        "why": "Our code shows this as can't tell on purpose: a lone L after the number may mean liters or Low, and only the AI calls it a unit. Counted apart from right and wrong."
+      }
+    ]
   },
   "planted": {
     "total": 453,

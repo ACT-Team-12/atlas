@@ -164,7 +164,8 @@ struct CareItemCard: View {
                             .strikethrough(done, color: Palette.ink.opacity(0.4)).wraps()
                     }
                     PaperFirstBlock(view: PaperFirst.careStep(item, check: check), done: done && !certified)
-                    if item.needs_clarification && !item.question_for_clinic.isEmpty {
+                    // Not certified: the AI's question stays off the card; AskPersonBox below offers the paper's words instead.
+                    if certified && item.needs_clarification && !item.question_for_clinic.isEmpty {
                         Text("Ask your clinic: \(item.question_for_clinic)")
                             .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.peachDeep).wraps()
                             .padding(8).frame(maxWidth: .infinity, alignment: .leading)

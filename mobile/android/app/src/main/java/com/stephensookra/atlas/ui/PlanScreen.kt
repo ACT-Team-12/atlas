@@ -112,7 +112,8 @@ fun PlanScreen(model: AppModel) {
             }
         }
 
-        val questions = model.care?.questions_for_doctor.orEmpty()
+        // Paper first (PaperFirst.visitQuestions): a step's own question only when certified.
+        val questions = PaperFirst.visitQuestions(model.items.filter { it.grounded }, model.care?.questions_for_doctor.orEmpty(), model.removedItems) { model.checkFor(it) }
         if (questions.isNotEmpty()) {
             AtlasCard {
                 Text("Questions for your next visit", style = Type.title3)

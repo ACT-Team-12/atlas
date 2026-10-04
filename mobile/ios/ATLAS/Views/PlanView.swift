@@ -75,10 +75,13 @@ struct PlanView: View {
                         }
                     }
 
-                    if let care = model.care, !care.questions_for_doctor.isEmpty {
+                    // Paper first (PaperFirst.visitQuestions): a step's own question only when certified.
+                    let nextVisit = PaperFirst.visitQuestions(items: model.items.filter(\.grounded), general: model.care?.questions_for_doctor ?? [],
+                                                              also: model.removedItems, check: { model.check(for: $0) })
+                    if !nextVisit.isEmpty {
                         Card {
                             Text("Questions for your next visit").font(.title3.weight(.black))
-                            ForEach(Array(care.questions_for_doctor.enumerated()), id: \.offset) { _, q in
+                            ForEach(Array(nextVisit.enumerated()), id: \.offset) { _, q in
                                 Label(q, systemImage: "questionmark.circle").font(.subheadline)
                             }
                         }

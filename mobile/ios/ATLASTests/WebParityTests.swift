@@ -208,6 +208,30 @@ struct WebParityTests {
         #expect(!ShareText.plan(items: items, plan: plan, questions: []).contains("one pill"))
     }
 
+    @Test func nextVisitQuestionsCarryTheAIQuestionOnlyWhenCertified() throws {
+        let aiQ = "QUESTION-WHICH-METFORMIN-DOSE"
+        let asks = VerifiedItem(id: "a", kind: "medication", title: "Diabetes medicine", plain_language: "Take one pill.",
+                                source_quote: "Take metformin 500 mg twice a day.", needs_clarification: true, question_for_clinic: aiQ)
+        let base = try JSONDecoder().decode(PlanResponse.self, from: Fixture.data("plan_sample_30303_live"))
+        let plan = PlanResponse(summary: base.summary, steps: [], resources: [:], ask_a_person: false, ask_a_person_reason: "",
+                                located: base.located, stats: base.stats, model: base.model)
+        // Older readings also repeat the step's question in the general list: it must not leak through there either.
+        let general = [aiQ, "Do I need a ride?"]
+        for meaning in [MeaningState.idle, MeaningState(status: .error), MeaningState(status: .done, byId: ["a": flagged("a")])] {
+            let text = ShareText.plan(items: [asks], plan: plan, questions: general, meaning: meaning, planItems: [asks])
+            #expect(!text.contains(aiQ))
+            #expect(text.contains("- My paper says: \"Take metformin 500 mg twice a day.\" Can you confirm what I should take?"))
+            #expect(text.contains("- Do I need a ride?"))
+        }
+        let ok = ShareText.plan(items: [asks], plan: plan, questions: general, meaning: MeaningState(status: .done, byId: ["a": certified("a")]), planItems: [asks])
+        #expect(ok.components(separatedBy: aiQ).count - 1 == 1)
+        // A removed step's question stays out of the general list as well.
+        #expect(PaperFirst.visitQuestions(items: [], general: general, also: [asks], check: { _ in .certified }) == ["Do I need a ride?"])
+        #expect(PaperFirst.questionKey("  Which pain-medicines, are SAFE?? ") == "which pain medicines are safe")
+        let web = try repoFile("web/src/lib/visitQuestions.ts")
+        #expect(web.contains("export function visitQuestions"), "visitQuestions.ts moved")
+    }
+
     @Test func extractResponseCarriesItsLanguageAndOldFilesStillLoad() throws {
         let care = try JSONDecoder().decode(CarePlanResponse.self, from: Data(#"{"items":[],"stats":{"extracted":0,"grounded":0,"refused":0,"ms":1},"language":"Korean"}"#.utf8))
         #expect(care.language == .Korean)

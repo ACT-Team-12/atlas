@@ -186,7 +186,8 @@ fun CareItemCard(item: VerifiedItem, check: Check, result: MeaningResult?, check
                 }
                 if (certified) Text(item.title, style = Type.headline.copy(textDecoration = if (done) TextDecoration.LineThrough else null))
                 PaperFirstBlock(PaperFirst.careStep(item, check), done = done && !certified)
-                if (item.needs_clarification && item.question_for_clinic.isNotEmpty()) {
+                // Not certified: the AI's question stays off the card; AskPersonBox below offers the paper's words instead.
+                if (certified && item.needs_clarification && item.question_for_clinic.isNotEmpty()) {
                     Text(
                         "Ask your clinic: ${item.question_for_clinic}",
                         style = Type.sub.copy(color = Palette.peachDeep),

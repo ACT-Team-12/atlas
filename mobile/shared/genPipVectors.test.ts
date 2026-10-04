@@ -6,9 +6,10 @@
  * - "quiet_kinds": the kinds of step Pip stays quiet on (QUIET_KINDS).
  * - "cases": a list of steps in the order shown (id and kind), which are done, the second check's verdict per step,
  *   the step just marked done ("cheering") and whether the heading greeting is still allowed ("greet"), with the web's
- *   answer: "spot" is pipSpot exactly, and "card" / "heading" are where the one Pip is drawn (CareSteps.tsx): on a card
- *   only when the spot is a step, at the heading for the greeting and for "All done for now". During the greeting no
- *   card shows Pip, so there is never more than one on screen.
+ *   answer: "spot" is pipSpot exactly. "card" / "heading" are where the one Pip is drawn: on a card only when the spot is
+ *   a step, at the heading for the greeting and for "All done for now", so never more than one on screen. That mapping
+ *   is the screen's rule (web/src/ui/CareSteps.tsx), written out here rather than imported, so it is NOT regenerated
+ *   from the web: the web's own guard for it is Pip.test.tsx ("exactly one Pip on screen in every state").
  *
  * Not part of the web suite. CI regenerates it with mobile/shared/check-vectors.sh (web-ci) and fails when the
  * committed file differs. To regenerate by hand (needs web/src/lib/pip.ts):

@@ -30,7 +30,8 @@ python3 mobile/shared/gen-native-patterns.py
 line he can say in the seven app languages, the kinds of step he stays quiet on, and 618 cases (the web tests' own plus
 600 seeded random ones) of steps in the order shown, which are done, each step's check, the step just marked done and
 whether the heading greeting is still allowed, with `pipSpot`'s answer and where the one Pip is drawn (a card, or the
-heading for the greeting and "All done for now"; never both). iOS replays it in `mobile/ios/ATLASTests/PipTests.swift`
+heading for the greeting and "All done for now"; never both). The drawing rule is the screen's (`CareSteps.tsx`) and is
+written out in the generator, not regenerated from it; the web guards it in `Pip.test.tsx`. iOS replays it in `mobile/ios/ATLASTests/PipTests.swift`
 (a test resource referenced from `project.yml`) and Android in `mobile/android/app/src/test/java/com/stephensookra/atlas/PipVectorsTest.kt`.
 `check-vectors.sh` regenerates it in web-ci once `pip.ts` is on the branch (PR 82). To regenerate by hand:
 

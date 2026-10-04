@@ -18,6 +18,7 @@
  */
 
 import { type Check } from "./paperFirst";
+import { BULLET_ANY, HEADING_ENDS, SAFETY_WORD_PATTERNS, stopNowMore } from "./safetyWords";
 
 export const WHEN_GROUPS = ["today", "soon", "daily", "later", "unclear"] as const;
 export type WhenGroup = (typeof WHEN_GROUPS)[number];
@@ -143,15 +144,28 @@ const BULLET = /^\s*(?:[-*•‣–]|\d{1,2}[.)])\s+/u;
  * medications:" above "- ibuprofen ..." is the classic after-visit summary layout. Anything else gives "".
  */
 export function listHeading(paper: string, span: { start: number; end: number } | null | undefined): string {
+  return headingAbove(paper, span, BULLET, [":"]);
+}
+
+/**
+ * listHeading for the other app languages too (safetyWords.ts): "・" and "1、" list lines, and a heading that ends with
+ * ":", "：" or "፦". Used only by the added-languages stop rule, so the English/Spanish answer above never changes.
+ */
+export function listHeadingAny(paper: string, span: { start: number; end: number } | null | undefined): string {
+  return headingAbove(paper, span, BULLET_ANY, HEADING_ENDS);
+}
+
+function headingAbove(paper: string, span: { start: number; end: number } | null | undefined, bullet: RegExp, ends: readonly string[]): string {
   if (!span || span.start < 0 || span.start > paper.length) return "";
   const lines = paper.slice(0, span.start).split("\n");
   const own = (lines.pop() ?? "") + paper.slice(span.start).split("\n")[0];
-  if (!BULLET.test(own)) return "";
+  if (!bullet.test(own)) return "";
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     if (!line.trim()) return "";
-    if (BULLET.test(line)) continue;
-    return line.trim().endsWith(":") ? line.trim() : "";
+    if (bullet.test(line)) continue;
+    const t = line.trim();
+    return ends.some((e) => t.endsWith(e)) ? t : "";
   }
   return "";
 }
@@ -163,6 +177,12 @@ export function listHeading(paper: string, span: { start: number; end: number } 
  */
 export function stopNowFromPaper(it: { kind?: string; source_quote: string; span?: { start: number; end: number } | null }, paper = ""): boolean {
   if (it.kind !== "medication") return false;
+  // The other app languages (safetyWords.ts) can only add: their answer is OR'ed with the English/Spanish one.
+  return stopNowEnEs(it, paper) || stopNowMore(it.source_quote, listHeadingAny(paper, it.span));
+}
+
+/** The English and Spanish rule, exactly as before the other languages were added. */
+function stopNowEnEs(it: { source_quote: string; span?: { start: number; end: number } | null }, paper: string): boolean {
   const texts = [it.source_quote, listHeading(paper, it.span)].map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
   if (OTHER_LATIN.test(texts.join(" "))) return false;
   const reset = (re: RegExp) => { re.lastIndex = 0; return re; };
@@ -207,6 +227,24 @@ export function shortQuote(quote: string, max = 72): string {
   const head = t.slice(0, at).replace(/[\s,;:.\-\u2013(]+$/u, "");
   return `${head}…`;
 }
+
+/**
+ * The patterns and tables above, exported only so mobile/shared/safety-vectors.json can carry their exact text: the
+ * iOS and Android ports keep the same patterns and their tests fail if it drifts from this file. WHEN_RULE_n is RULES[n];
+ * WHEN_RULE_GROUPS says which group each one gives ("count" is the rule that counts days or weeks ahead).
+ */
+export const STEPS_PATTERNS: Record<string, RegExp> = {
+  ...Object.fromEntries(RULES.map((r, i) => [`WHEN_RULE_${i}`, r.re])),
+  OTHER_LATIN,
+  NEGATION,
+  STOP,
+  NOT_NOW,
+  BULLET,
+  ...SAFETY_WORD_PATTERNS,
+};
+export { HEADING_ENDS };
+export const WHEN_RULE_GROUPS = RULES.map((r) => (typeof r.group === "function" ? "count" : r.group));
+export { NUM_WORDS };
 
 /** What a closed row shows. Only the certified kind carries any AI-written words. */
 export type ClosedRow =

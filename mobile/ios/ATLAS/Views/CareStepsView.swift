@@ -17,7 +17,9 @@ struct CareStepsView: View {
                             ? "These steps were saved by an older version of ATLAS, so we can't tell which text, language or reading level they were read with. Read your paper again to update them."
                             : "You changed the text, language or reading level since this was read. Read your paper again to update these steps.")
                     }
-                    if care.has_warning_signs { WarningBanner() }
+                    // One warning section, as on the website: the pinned steps' own heading below when there are any; this banner only
+                    // when the reading flags warnings but no shown step is pinned.
+                    if model.hasWarnings && model.warningItems.isEmpty { WarningBanner() }
 
                     Text("\(care.stats.grounded) steps found in your paper · \(care.stats.refused) held back because we couldn't show their words from your paper · \(String(format: "%.1f", Double(care.stats.ms) / 1000))s")
                         .font(.footnote.weight(.bold)).foregroundStyle(Palette.inkSoft)
@@ -40,17 +42,18 @@ struct CareStepsView: View {
                         ReadAloudBar(speaker: speaker, language: language, lines: readLines)
                     }
 
-                    ForEach(model.items) { item in
-                        let check = model.check(for: item.id)
-                        CareItemCard(item: item, check: check, result: model.meaning.result(for: item.id),
-                                     checking: model.meaning.status == .loading, errored: model.meaning.status == .error,
-                                     done: doneBinding(item.id)) {
-                            // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
-                            reminder = ReminderTarget(title: PaperFirst.bookTitle(kind: item.kind), quote: item.source_quote,
-                                                      detail: PaperFirst.bookWhen(item, check: check))
-                        } onRemove: {
-                            model.removed[item.id] = true
-                        }
+                    // As on the website (CareSteps.tsx): warning signs pinned on top, then every other step in a time
+                    // group read from the paper's own words (StepsWhen), "Right away" first.
+                    let layout = self.layout(care)
+                    if !layout.warnings.isEmpty {
+                        StepGroupHeader(title: "Warning signs from your paper", count: layout.warnings.count,
+                                        note: "If you have any of them right now, do what your paper says: call your clinic, or call 911.",
+                                        warning: true)
+                        ForEach(layout.warnings) { card($0) }
+                    }
+                    ForEach(layout.groups) { g in
+                        StepGroupHeader(title: g.group.label, count: g.items.count, note: g.group.note)
+                        ForEach(g.items) { card($0) }
                     }
 
                     if !model.removedItems.isEmpty {
@@ -117,14 +120,60 @@ struct CareStepsView: View {
         .sheet(item: $reminder) { ReminderSheet(target: $0) }
     }
 
+    private func layout(_ care: CarePlanResponse) -> (warnings: [VerifiedItem], groups: [StepGroup]) {
+        StepsWhen.grouped(model.items, check: { model.check(for: $0) }, paper: care.source_text)
+    }
+
+    /// Numbered and read in the order shown, so "step 3" is the third card a person sees.
+    private var shownItems: [VerifiedItem] {
+        guard let care = model.care else { return [] }
+        let l = layout(care)
+        return l.warnings + l.groups.flatMap(\.items)
+    }
+
+    private func card(_ item: VerifiedItem) -> some View {
+        let check = model.check(for: item.id)
+        return CareItemCard(item: item, check: check, result: model.meaning.result(for: item.id),
+                            checking: model.meaning.status == .loading, errored: model.meaning.status == .error,
+                            done: doneBinding(item.id)) {
+            // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
+            reminder = ReminderTarget(title: PaperFirst.bookTitle(kind: item.kind), quote: item.source_quote,
+                                      detail: PaperFirst.bookWhen(item, check: check))
+        } onRemove: {
+            model.removed[item.id] = true
+        }
+    }
+
     private var readLines: [String] {
-        model.items.enumerated().flatMap { i, it in
+        shownItems.enumerated().flatMap { i, it in
             ["\(i + 1)."] + PaperFirst.lines(PaperFirst.careStep(it, check: model.check(for: it.id)))
         }
     }
 
     private func doneBinding(_ id: String) -> Binding<Bool> {
         Binding(get: { model.done[id] == true }, set: { model.done[id] = $0 })
+    }
+}
+
+/// A time group's heading (CareSteps.tsx): its label, how many steps, and its note when it has one.
+struct StepGroupHeader: View {
+    let title: String
+    let count: Int
+    var note: String?
+    var warning = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).font(.title3.weight(.heavy)).foregroundStyle(warning ? Palette.red : Palette.ink).wraps()
+                Spacer()
+                Text("\(count) \(count == 1 ? "step" : "steps")").font(.caption.weight(.bold)).foregroundStyle(Palette.inkSoft)
+            }
+            if let note { Text(note).font(.caption.weight(.semibold)).foregroundStyle(warning ? Palette.red : Palette.inkSoft).wraps() }
+        }
+        .padding(.top, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -141,7 +190,8 @@ struct CareItemCard: View {
 
     var body: some View {
         let style = KindStyle.of(item.kind)
-        let warning = item.itemKind == .warning_sign
+        // Styled as a warning exactly when it is pinned as one: the model's kind or the paper's own words.
+        let warning = WarningPin.isWarning(item)
         let certified = check == .certified
         // The AI's title is only a label once it is certified; otherwise the card is named by its kind.
         let name = certified ? item.title : style.label

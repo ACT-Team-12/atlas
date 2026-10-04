@@ -4,8 +4,10 @@
  * The model's kind may only ADD caution: a step it labels "warning_sign" is pinned, and so is any step whose own quote
  * from the paper carries warning language (call 911, the emergency room, seek care, chest pain, trouble breathing...),
  * whatever kind the model gave it. A mislabeled "self_care" that says "go to the emergency room" is never hidden in a
- * time group. English and Spanish words, read from the paper's quote only.
+ * time group. English and Spanish words here; the app's other languages in safetyWords.ts. Read from the quote only.
  */
+
+import { warningFromPaperMore } from "./safetyWords";
 
 /** A whole-word pattern with letter-aware edges ("días", "atención"). */
 const word = (src: string, flags = "iu") => new RegExp(String.raw`(?<![\p{L}\p{N}])(?:${src})(?![\p{L}\p{N}])`, flags);
@@ -36,8 +38,15 @@ const ER = word("ER", "u");
 export function warningFromPaper(quote: string): boolean {
   // "This is not an emergency" is not warning language; any other warning words in the quote still count.
   const t = quote.replace(/\s+/g, " ").replace(NOT_EMERGENCY, " ");
-  return WARNING_WORDS.test(t) || ER.test(t);
+  // Vietnamese, Korean, Chinese, Amharic and French (safetyWords.ts) can only add a pin, never remove one.
+  return WARNING_WORDS.test(t) || ER.test(t) || warningFromPaperMore(quote);
 }
 
 /** Pinned as a warning sign: the model said so, or the paper's quote does. Never removed by the model's kind. */
 export const isWarning = (it: { kind: string; source_quote: string }) => it.kind === "warning_sign" || warningFromPaper(it.source_quote);
+
+/**
+ * The patterns above, exported only so mobile/shared/safety-vectors.json can carry their exact source: the iOS and
+ * Android ports keep the same pattern text and their tests fail if it drifts from this file.
+ */
+export const WARNING_PATTERNS = { WARNING_WORDS, NOT_EMERGENCY, ER } as const;

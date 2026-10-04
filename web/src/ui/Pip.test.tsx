@@ -255,6 +255,12 @@ describe("the heading greeting (first current step is quiet)", () => {
     expect(pipRows()).toEqual([["met", "quiet"]]);
   });
 
+  it("does not greet when a step since removed was marked done (its mark stays in the saved record; Codex review)", () => {
+    render({ items: [MET, WALK], initialDone: { removedEarlier: true } });
+    expect(greet()).toBeNull();
+    expect(pipRows()).toEqual([["met", "quiet"]]);
+  });
+
   it("a late check that turns the first step quiet moves Start here to the heading without reading it twice (Codex review)", () => {
     render({ items: [WALK, SODA] });
     settle();

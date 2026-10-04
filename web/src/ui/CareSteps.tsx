@@ -87,7 +87,8 @@ export function CareSteps(p: Props) {
   // "Your steps" heading instead, so a first-time person still hears it. Gone for good once any step is marked done,
   // warning signs included (they are never Pip's spot, but a done one still means this is not a first view).
   const [greetOver, setGreetOver] = useState(false);
-  const anyDoneAtAll = items.some((i) => p.done[i.id]);
+  // Any step ever marked done, including one since removed (its done mark stays in the saved record; Codex review).
+  const anyDoneAtAll = Object.values(p.done).some(Boolean);
   const spot = pipSpot(stepOrder, p.done, checkFor, cheering, !greetOver && !anyDoneAtAll);
   const { calm } = usePipCalm();
   const pipText = spot.at !== "none" && spot.line ? pipLine(p.language, spot.line) : "";

@@ -275,6 +275,17 @@ describe("focus and keyboard", () => {
     expect(document.activeElement).toBe(q("[data-walk-open]"));
   });
 
+  it("brings each step to the top of the screen, instantly", () => {
+    const scrolled: unknown[] = [];
+    const before = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element, o?: unknown) { if (this.hasAttribute("data-walk-through")) scrolled.push(o); } as Element["scrollIntoView"];
+    render();
+    open();
+    click(q("[data-walk-not-yet]"));
+    expect(scrolled).toEqual([{ block: "start" }, { block: "start" }]);
+    Element.prototype.scrollIntoView = before;
+  });
+
   it("Escape goes back to the list", () => {
     render();
     open();

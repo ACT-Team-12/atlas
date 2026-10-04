@@ -421,14 +421,20 @@ type WalkProps = {
  */
 function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipText, calm, speaking, onSpeak, onGo, onDone, onExit }: WalkProps) {
   const heading = useRef<HTMLHeadingElement>(null);
+  const box = useRef<HTMLElement>(null);
   const shown = step?.it.id ?? "end";
-  useEffect(() => { heading.current?.focus(); }, [shown]);
+  // Each new step starts at the top of the screen (under the sticky header), with focus on its heading. Instant, no
+  // smooth scroll, so nothing moves for someone who asked for less motion.
+  useEffect(() => {
+    box.current?.scrollIntoView?.({ block: "start" });
+    heading.current?.focus({ preventScroll: true });
+  }, [shown]);
   const t = (line: Parameters<typeof walkLine>[1], values?: Record<string, number>) => walkLine(language, line, values);
   const next = steps[index + 1]?.it.id ?? "end";
   const doneCount = steps.filter((s) => done[s.it.id]).length;
   const firstOpen = nextOpen(steps, done, 0);
   return (
-    <section role="region" aria-label={t("region")} data-walk-through="" className="walk-through rounded-3xl border-2 border-ink bg-paper p-4 sm:p-6"
+    <section ref={box} role="region" aria-label={t("region")} data-walk-through="" className="walk-through scroll-mt-24 max-md:scroll-mt-44 rounded-3xl border-2 border-ink bg-paper p-4 sm:p-6"
       onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onExit(); } }}>
       <button type="button" onClick={onExit} data-walk-exit=""
         className="min-h-[48px] rounded-full border-2 border-ink bg-paper px-4 py-2 text-base font-bold hover:bg-mint focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">

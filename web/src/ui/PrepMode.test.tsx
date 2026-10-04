@@ -71,13 +71,17 @@ const visible = (el: Element | null) => { for (let e = el; e; e = e.parentElemen
 
 /** Every AI explanation: only inside an opened step panel, after the paper's full sentence; never on a row or attribute. */
 function assertAiNeverWithoutQuote(steps: PrepStep[]) {
+  // Walk the DOM once; the attribute check does not depend on the step, so it runs once too.
+  for (const el of host.querySelectorAll("*")) {
+    for (const a of el.getAttributeNames()) expect(el.getAttribute(a) ?? "", `${a} on <${el.tagName}>`).not.toContain("AI-PLAIN");
+  }
+  const texts: Node[] = [];
+  const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) texts.push(n);
+  expect(texts.length).toBeGreaterThan(0);
   for (const s of steps) {
     const ai = `AI-PLAIN ${ITEMS.find((i) => SAMPLE_PREP.includes(i.source_quote) && s.source_quote.includes(i.source_quote))!.plain_language.slice(9)}`;
-    for (const el of host.querySelectorAll("*")) {
-      for (const a of el.getAttributeNames()) expect(el.getAttribute(a) ?? "", `${a} on <${el.tagName}>`).not.toContain("AI-PLAIN");
-    }
-    const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
-    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    for (const n of texts) {
       if (!n.textContent?.includes(ai)) continue;
       const el = n.parentElement!;
       expect(el.closest("button"), `"${ai}" on a closed row`).toBeNull();

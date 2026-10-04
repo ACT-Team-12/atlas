@@ -71,8 +71,9 @@ fun CareStepsScreen(model: AppModel) {
     // Pip (data/Pip.kt): the step just marked done, cheered for a moment, and whether the first-view heading greeting is
     // over (for good once a step is marked done here).
     val pipCalm = rememberPipCalm()
-    var cheering by remember { mutableStateOf<String?>(null) }
-    var greetOver by remember { mutableStateOf(false) }
+    // Keyed on the reading: "Read my paper again" replaces the steps in place, and a new reading is a new first view.
+    var cheering by remember(model.readingCount) { mutableStateOf<String?>(null) }
+    var greetOver by remember(model.readingCount) { mutableStateOf(false) }
     LaunchedEffect(cheering) {
         if (cheering != null) { delay(Pip.CHEER_MILLIS); cheering = null }
     }
@@ -108,7 +109,7 @@ fun CareStepsScreen(model: AppModel) {
         val calm = pipCalm.calm
         // What Pip says is read once through a polite live region. Keyed on where he is too, so a second "Nice, that's
         // done" on another step is still read; cleared first so the repeated words are a fresh change.
-        LaunchedEffect(Pip.announceKey(spot), pipText) { pipSaid = ""; delay(300); pipSaid = pipText }
+        LaunchedEffect(model.readingCount, Pip.announceKey(spot), pipText) { pipSaid = ""; delay(300); pipSaid = pipText }
         Box(Modifier.size(1.dp).semantics { liveRegion = LiveRegionMode.Polite; contentDescription = pipSaid })
         when (model.meaning.status) {
             MeaningStatus.loading -> Text("Double-checking each explanation against your paper...", style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
@@ -126,7 +127,7 @@ fun CareStepsScreen(model: AppModel) {
 
         // Keyed by id, so a step's open "Why?" and "Ask your pharmacist" state never moves to the next step on Remove.
         // `warning`: a pinned warning sign, which has no Pip slot at all (Pip is never on or beside them).
-        val card: @Composable (VerifiedItem, Boolean) -> Unit = { item, warning -> key(item.id) {
+        val card: @Composable (VerifiedItem, Boolean) -> Unit = { item, warning -> key(model.readingCount, item.id) {
             val check = model.checkFor(item.id)
             val here = drawn.card?.takeIf { it.id == item.id }
             CareItemCard(
@@ -160,7 +161,7 @@ fun CareStepsScreen(model: AppModel) {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CalmToggle(pipCalm)
-                    PipSlot { drawn.heading?.let { mood -> key(Pip.announceKey(spot)) { PipMarker(mood, calm) } } }
+                    PipSlot { drawn.heading?.let { mood -> key(model.readingCount, Pip.announceKey(spot)) { PipMarker(mood, calm) } } }
                 }
                 if (drawn.heading != null && pipText.isNotEmpty()) PipBubble(pipText, pointDown = spot is Pip.Spot.Greet)
             }

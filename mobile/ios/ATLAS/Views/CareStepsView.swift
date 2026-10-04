@@ -68,7 +68,7 @@ struct CareStepsView: View {
                                 CalmToggle()
                                 PipSlot {
                                     if let mood = pip.drawn.heading {
-                                        PipMarker(mood: mood, calm: pip.calm).id(Pip.announceKey(pip.spot))
+                                        PipMarker(mood: mood, calm: pip.calm).id("\(model.readingCount):\(Pip.announceKey(pip.spot))")
                                     }
                                 }
                             }
@@ -144,6 +144,9 @@ struct CareStepsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear { speaker.stop() }
         .sheet(item: $reminder) { ReminderSheet(target: $0) }
+        // A new reading ("Read my paper again" replaces the steps in place) is a new first view, as on the website, which
+        // keys its steps on the run.
+        .onChange(of: model.readingCount) { cheering = nil; greetOver = false }
         // A cheer lasts a moment, then Pip moves on.
         .task(id: cheering) {
             guard cheering != nil else { return }
@@ -189,7 +192,7 @@ struct CareStepsView: View {
     private var pipAnnouncement: Announcement? {
         guard let care = model.care else { return nil }
         let s = pipState(layout(care))
-        return Announcement(key: Pip.announceKey(s.spot), text: s.text)
+        return Announcement(key: "\(model.readingCount):\(Pip.announceKey(s.spot))", text: s.text)
     }
 
     /// Numbered and read in the order shown, so "step 3" is the third card a person sees.
@@ -206,7 +209,7 @@ struct CareStepsView: View {
         return CareItemCard(item: item, check: check, result: model.meaning.result(for: item.id),
                             checking: model.meaning.status == .loading, errored: model.meaning.status == .error,
                             pipSlot: !warning, pip: here, pipText: here?.line == nil ? "" : (pip?.text ?? ""),
-                            calm: pip?.calm ?? false,
+                            calm: pip?.calm ?? false, reading: model.readingCount,
                             done: doneBinding(item.id)) {
             // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
             reminder = ReminderTarget(title: PaperFirst.bookTitle(kind: item.kind), quote: item.source_quote,
@@ -268,6 +271,8 @@ struct CareItemCard: View {
     var pip: Pip.Drawn.Card?
     var pipText = ""
     var calm = false
+    /// The reading this card belongs to, so Pip arrives again on a new reading even when step ids repeat.
+    var reading = 0
     @Binding var done: Bool
     let onRemind: () -> Void
     let onRemove: () -> Void
@@ -324,7 +329,7 @@ struct CareItemCard: View {
                 }
                 if pipSlot {
                     PipSlot {
-                        if let pip { PipMarker(mood: pip.mood, calm: calm).id("\(pip.id):\(pip.mood.rawValue)") }
+                        if let pip { PipMarker(mood: pip.mood, calm: calm).id("\(reading):\(pip.id):\(pip.mood.rawValue)") }
                     }
                 }
             }

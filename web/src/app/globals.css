@@ -181,6 +181,21 @@ mark {
   color: var(--ink);
 }
 
+/* Placeholder text ("Paste the lab report here..."): Tailwind's default is ink at 50% (3.0:1); 70% reads at 4.5:1+. */
+::placeholder {
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+  opacity: 1;
+}
+
+/* Theme toggle (ui/ThemeToggle.tsx): the picked option is drawn from <html data-theme-pref>, so it is right before
+   hydration. No attribute yet (script blocked) means System. */
+.theme-opt { color: var(--ink); }
+@media (hover: hover) { .theme-opt:hover { background: var(--mint-soft); } }
+:root:not([data-theme-pref]) .theme-opt[data-theme-option="system"],
+:root[data-theme-pref="system"] .theme-opt[data-theme-option="system"],
+:root[data-theme-pref="light"] .theme-opt[data-theme-option="light"],
+:root[data-theme-pref="dark"] .theme-opt[data-theme-option="dark"] { background: var(--ink); color: var(--paper); }
+
 ::selection {
   background: var(--mint);
   color: var(--ink);

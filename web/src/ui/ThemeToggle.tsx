@@ -25,7 +25,11 @@ function watchPref(onChange: () => void) {
   return () => obs.disconnect();
 }
 
-/** System / Light / Dark. A radio group: arrow keys move the choice, as with any radio buttons. */
+/**
+ * System / Light / Dark. A radio group: arrow keys move the choice, as with any radio buttons. The picked button is
+ * colored by CSS from <html data-theme-pref> (globals.css .theme-opt), so it is right from the first paint, before React
+ * hydrates; aria-checked follows once it does.
+ */
 export function ThemeToggle({ className = "" }: { className?: string }) {
   // The inline script in app/layout.tsx already applied the saved choice to <html>; the buttons just read it from there.
   const pref = useSyncExternalStore(watchPref, readThemePref, () => "system" as ThemePref);
@@ -45,7 +49,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       {THEME_PREFS.map((p) => (
         <button key={p} type="button" role="radio" aria-checked={pref === p} tabIndex={pref === p ? 0 : -1} title={HINT[p]}
           data-theme-option={p} onClick={() => pick(p)}
-          className={`flex min-h-8 min-w-8 items-center justify-center gap-1 rounded-full px-2 py-1 text-xs font-bold ${pref === p ? "bg-ink text-paper" : "text-ink hover:bg-mint-soft"}`}>
+          className="theme-opt flex min-h-8 min-w-8 items-center justify-center gap-1 rounded-full px-2 py-1 text-xs font-bold">
           <Icon pref={p} />
           {/* Phones: the icons stay, the words are read out; from 640px the words show too. */}
           <span className="sr-only sm:not-sr-only">{LABEL[p]}</span>

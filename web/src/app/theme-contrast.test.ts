@@ -145,6 +145,9 @@ function pairs(): Pair[] {
 
   // 4. Styles that live in globals.css rather than in a className.
   add({ fg: "ink", bg: "mint", min: 4.5, why: "::selection" });
+  for (const bg of SURFACES) add({ fg: "ink/70", bg, min: 4.5, why: "::placeholder (globals.css)" });
+  add({ fg: "paper", bg: "ink", min: 4.5, why: ".theme-opt picked" });
+  add({ fg: "ink", bg: "mint-soft", min: 4.5, why: ".theme-opt hover" });
   for (const bg of ["sun", "sun/35"]) add({ fg: "ink", bg, min: 4.5, why: "<mark> highlight on the paper (globals.css mark)" });
   add({ fg: "ink", bg: "paper", min: 3, why: ".card border and plan-dock top edge" });
   for (const accent of ["mint", "sun", "sky", ...squash("accent")]) add({ fg: "ink", bg: accent, min: 4.5, why: ".btn-icon arrow on its accent" });
@@ -182,6 +185,10 @@ describe("theme tokens", () => {
 
   it("<mark> takes the theme's ink, not the browser's black", () => {
     expect(CSS).toMatch(/\nmark \{\s*color: var\(--ink\);/);
+  });
+
+  it("placeholders are ink at 70% (tested above), not Tailwind's 50%", () => {
+    expect(CSS).toMatch(/::placeholder \{\s*color: color-mix\(in srgb, var\(--ink\) 70%, transparent\);\s*opacity: 1;/);
   });
 
   it("print forces the light palette, whatever the theme", () => {

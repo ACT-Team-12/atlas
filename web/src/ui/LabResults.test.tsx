@@ -423,12 +423,17 @@ describe("security review checklist", () => {
     expect(host.querySelector("[data-unchecked-critical]")!.textContent).toContain("critical");
     expect(host.querySelector("li[data-critical]")!.textContent).toBe("Troponin unable to calculate CRITICAL");
     // Past the 40-line cap, a critical line is kept first and the rest are counted.
-    const lines = ["Sodium 139 mmol/L 136-145", ...Array.from({ length: 40 }, (_, i) => `Test${i} ${i + 1} mg/dL 0-${i + 50}`), "Potassium 2.0 mmol/L 3.5-5.1 PANIC"];
+    const lines = ["Sodium 139 mmol/L 136-145", ...Array.from({ length: 41 }, (_, i) => `Test${i} ${i + 1} mg/dL 0-${i + 50}`), "Potassium 2.0 mmol/L 3.5-5.1 PANIC"];
     const capped = checkRows(lines.join("\n") + "\n", [{ test: "Sodium", value: "139", unit: "mmol/L", range_text: "136-145", quote: lines[0], plain_name: "a", ask: "b" }]).coverage;
-    expect(capped).toMatchObject({ candidates: 42, checked: 1 });
+    expect(capped).toMatchObject({ candidates: 43, checked: 1 });
     expect(capped.unchecked[0]).toBe("Potassium 2.0 mmol/L 3.5-5.1 PANIC");
     act(() => root.render(<UncheckedLines coverage={capped} />));
     expect(host.textContent).toContain("And 1 more line not shown here.");
+    // More than 40 critical lines: every one is kept; the cap only applies to the rest (Codex review, round 2).
+    const many = Array.from({ length: 45 }, (_, i) => `Analyte${i} ${i + 1} mg/dL 0-${i + 60} CRITICAL`);
+    const all = checkRows([...many, "Sodium 139 mmol/L 136-145"].join("\n") + "\n", []).coverage;
+    expect(all.unchecked.filter((l) => l.includes("CRITICAL"))).toEqual(many);
+    expect(all.unchecked).toHaveLength(46);
   });
 
   it("(4) critical rows stay pinned in the flagged group and open, with the in-range fold closed", () => {

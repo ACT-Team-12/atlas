@@ -235,9 +235,11 @@ function lineOf(source: string, paper: MappedSource, quote: string): { line: str
 }
 
 /** True when every word on the line is a critical marker or a heading word, so nothing on it names a test. */
-const HEADING_WORDS = new Set(["critical", "panic", "hh", "ll", "value", "values", "result", "results", "lab", "labs", "range", "ranges", "alert", "alerts", "section", "list", "notification", "notifications", "and", "or"]);
+const HEADING_WORDS = new Set(["critical", "panic", "hh", "ll", "value", "values", "result", "results", "lab", "labs", "range", "ranges", "alert", "alerts", "section", "list", "notification", "notifications", "and", "or", "page", "of", "continued", "cont"]);
 function isCriticalHeading(line: string): boolean {
-  if (/\p{N}/u.test(line)) return false;
+  // Page and count marks ("PAGE 2", "2 of 3", "(2)", "#2") are not a result value (Codex review, round 2).
+  const bare = line.replace(/\bpage\s*\d+(?:\s*(?:of|\/)\s*\d+)?/giu, " ").replace(/\b\d+\s*(?:of|\/)\s*\d+\b/giu, " ").replace(/[(#[]\s*\d+\s*[)\]]?/gu, " ");
+  if (/\p{N}/u.test(bare)) return false;
   return (line.match(/[\p{L}]+/gu) ?? []).every((w) => HEADING_WORDS.has(w.toLowerCase()));
 }
 
@@ -283,9 +285,10 @@ export function checkRows(source: string, rows: ModelRow[]): Pick<ResultsRespons
   out.sort((a, b) => order[a.status] - order[b.status]);
   const candidates = resultLines(source);
   const covered = new Set(out.map((r) => r.quote));
-  // Critical lines first, so the 40-line cap never drops one (security review); the page names how many were left off.
+  // Every critical line, first; the 40-line cap applies only to the rest, so it never drops one (security review,
+  // Codex review round 2). The page names how many were left off.
   const unchecked = candidates.filter((l) => !covered.has(l));
-  const shown = [...unchecked.filter(isCritical), ...unchecked.filter((l) => !isCritical(l))].slice(0, 40);
+  const shown = [...unchecked.filter(isCritical), ...unchecked.filter((l) => !isCritical(l)).slice(0, 40)];
   return { rows: out, dropped, counts, coverage: { candidates: candidates.length, checked: candidates.length - unchecked.length, unchecked: shown } };
 }
 

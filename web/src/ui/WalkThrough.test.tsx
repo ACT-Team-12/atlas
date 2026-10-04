@@ -189,6 +189,61 @@ describe("Done, Not yet, Ask a person", () => {
   });
 });
 
+describe("checks that land while walking (Codex review)", () => {
+  it("a step a late check moves to an earlier group is still visited, exactly once", () => {
+    render();
+    open();
+    const seen: string[] = [shownId()!];
+    // "Limit sugary drinks" names no time, so it starts under "Check the date on your paper" (last). Certified, its
+    // AI "when" ("Every day") moves it ahead of steps not yet seen.
+    while (shownId() !== "a1c") { click(q("[data-walk-not-yet]")); seen.push(shownId()!); }
+    render({ meaning: { status: "done", byId: { soda: result("soda", { certified: true, model_verdict: "same" }) } } });
+    while (q("[data-walk-end]") === null) { click(q("[data-walk-not-yet]")); if (shownId()) seen.push(shownId()!); }
+    expect(seen.filter((id) => id === "soda")).toHaveLength(1);
+    expect(new Set(seen).size).toBe(ITEMS.length);
+    expect(seen).toHaveLength(ITEMS.length);
+  });
+
+  it("stops reading aloud when the step's check changes mid-reading", () => {
+    const certified = { status: "done" as const, byId: Object.fromEntries(ITEMS.map((i) => [i.id, result(i.id, { certified: true, model_verdict: "same" })])) };
+    render({ meaning: certified });
+    open();
+    while (shownId() !== "eye") click(q("[data-walk-not-yet]"));
+    click(q("[data-walk-speak]"));
+    expect(spoken.join(" ")).toContain("PLAIN AI-TITLE Eye doctor will call");
+    const cancels = (globalThis.speechSynthesis.cancel as ReturnType<typeof vi.fn>).mock.calls.length;
+    render({ meaning: { status: "done", byId: { ...certified.byId, eye: result("eye", { flagged: true, model_verdict: "different" }) } } });
+    expect((globalThis.speechSynthesis.cancel as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(cancels);
+    expect(q("[data-walk-speak]").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("Pip's cheer for a step just done never shows on the next step's screen", () => {
+    render();
+    open();
+    while (shownId() !== "walk") click(q("[data-walk-not-yet]"));
+    click(q("[data-walk-done]"));
+    expect(card().querySelector('[data-pip="cheer"]')).toBeNull();
+    expect(card().textContent).not.toContain("Nice, that's done");
+  });
+
+  it("says Done and Undo out loud, and keeps focus on the step after Undo", async () => {
+    vi.useFakeTimers();
+    render();
+    open();
+    click(q("[data-walk-done]"));
+    act(() => { vi.advanceTimersByTime(100); });
+    expect(q("[data-walk-status]").textContent).toBe("Marked done");
+    click(q("[data-walk-previous]"));
+    const undo = q<HTMLButtonElement>("[data-walk-done-status] button");
+    undo.focus();
+    expect(document.activeElement).toBe(undo);
+    click(undo);
+    act(() => { vi.advanceTimersByTime(100); });
+    expect(q("[data-walk-status]").textContent).toBe("Not done after all");
+    expect(document.activeElement).toBe(q("[data-walk-heading]"));
+  });
+});
+
 describe("warning pin and paper-first labels", () => {
   it("shows the warning pin on a warning step, and no Pip there", () => {
     render();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { bookSafe, careStepView, paperFirstLines, type Check } from "@/lib/paperFirst";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { MeaningState } from "@/lib/meaningRun";
@@ -95,10 +95,14 @@ export function CareSteps(p: Props) {
 
   // "Walk me through it" (lib/walkThrough.ts): one step at a time. `walkAt` is the step shown (by id, so a check
   // that lands and regroups the list never swaps the step under the person), "end" the closing screen, null the list.
+  // The order is fixed when the walk starts: a late check can move a step to another time group, and the walk must
+  // neither skip it nor show it twice (Codex review). Each step still shows its current group and check.
   const [walkAt, setWalkAt] = useState<string | "end" | null>(null);
-  const walkIndex = walkAt && walkAt !== "end" ? walk.findIndex((s) => s.it.id === walkAt) : -1;
-  const walkStep = walkIndex >= 0 ? walk[walkIndex] : null;
-  // A step removed while shown (or a new reading) ends the walk on its closing screen, never on a different step.
+  const [walkIds, setWalkIds] = useState<string[]>([]);
+  const walkSeq = useMemo(() => walkIds.flatMap((id) => walk.filter((s) => s.it.id === id)), [walkIds, walk]);
+  const walkIndex = walkAt && walkAt !== "end" ? walkSeq.findIndex((s) => s.it.id === walkAt) : -1;
+  const walkStep = walkIndex >= 0 ? walkSeq[walkIndex] : null;
+  // A step removed while shown ends the walk on its closing screen, never on a different step.
   const walking = walkAt !== null;
   const shownPip = walkStep ? walkPip(spot, walkStep.it, checkFor(walkStep.it.id), walkStep.group === "warning") : null;
   const listPipText = spot.at !== "none" && spot.line ? pipLine(p.language, spot.line) : "";
@@ -150,9 +154,22 @@ export function CareSteps(p: Props) {
   // Back on the list: focus returns to the button that opened the walk-through.
   useEffect(() => { if (walkReturn) walkButton.current?.focus(); }, [walkReturn]);
   const startWalk = () => {
+    if (walk.length === 0) return;
     const at = nextOpen(walk, p.done, 0);
-    setWalkAt(walk.length === 0 ? null : walk[at < 0 ? 0 : at].it.id);
+    setWalkIds(walk.map((s) => s.it.id));
+    setWalkAt(walk[at < 0 ? 0 : at].it.id);
   };
+
+  // Read aloud carries the explanation only when certified (paperFirstLines). If the step's check changes while it is
+  // being read (a late device check that disagrees), the queued lines no longer match, so the reading stops (Codex review).
+  const spokeAs = useRef<Check | null>(null);
+  const speakStep = (it: VerifiedItem) => {
+    spokeAs.current = checkFor(it.id);
+    speech.toggle(it.id, paperFirstLines(careStepView(it, spokeAs.current)));
+  };
+  const speakingCheck = speech.speaking ? checkFor(speech.speaking) : null;
+  const stopSpeech = speech.stop;
+  useEffect(() => { if (speakingCheck !== null && speakingCheck !== spokeAs.current) stopSpeech(); }, [speakingCheck, stopSpeech]);
   const exitWalk = () => { speech.stop(); setWalkAt(null); setWalkReturn((n) => n + 1); };
 
   const row = (it: VerifiedItem, warn = false) => (
@@ -160,7 +177,7 @@ export function CareSteps(p: Props) {
       done={!!p.done[it.id]} onDone={(v) => markDone(it.id, v)} onRemove={() => p.onRemove(it.id)}
       pip={!warn && cardPip?.id === it.id ? cardPip : null} pipText={pipText} calm={calm}
       care={care} photo={p.photo} meaning={p.meaning} deviceRun={p.deviceRun} deviceStatus={p.deviceStatus}
-      speaking={speech.speaking === it.id} onSpeak={() => speech.toggle(it.id, paperFirstLines(careStepView(it, checkFor(it.id))))}
+      speaking={speech.speaking === it.id} onSpeak={() => speakStep(it)}
       onHover={setActive} />
   );
 
@@ -169,9 +186,9 @@ export function CareSteps(p: Props) {
       <p role="status" aria-live="polite" className="sr-only" data-flagged-status="">{spoken}</p>
       <p role="status" aria-live="polite" className="sr-only" data-pip-status="">{pipSaid}</p>
       {walking && (
-        <WalkThrough step={walkStep} index={walkIndex} steps={walk} done={p.done} checkFor={checkFor} language={p.language}
+        <WalkThrough step={walkStep} index={walkIndex} steps={walkSeq} done={p.done} checkFor={checkFor} language={p.language}
           pip={shownPip} pipText={pipText} calm={calm} speaking={!!walkStep && speech.speaking === walkStep.it.id}
-          onSpeak={() => walkStep && speech.toggle(walkStep.it.id, paperFirstLines(careStepView(walkStep.it, checkFor(walkStep.it.id))))}
+          onSpeak={() => walkStep && speakStep(walkStep.it)}
           onGo={(at) => { speech.stop(); setWalkAt(at); }} onDone={markDone} onExit={exitWalk} />
       )}
       {/* The full list stays in the page while walking: hidden on screen, printed as usual (globals.css, .walk-away). */}
@@ -430,12 +447,16 @@ function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipTex
     heading.current?.focus({ preventScroll: true });
   }, [shown]);
   const t = (line: Parameters<typeof walkLine>[1], values?: Record<string, number>) => walkLine(language, line, values);
+  // Done and undo said out loud: the next heading takes focus, so this polite region confirms what just changed.
+  const [said, setSaid] = useState("");
+  const announce = (text: string) => { setSaid(""); setTimeout(() => setSaid(text), 50); };
   const next = steps[index + 1]?.it.id ?? "end";
   const doneCount = steps.filter((s) => done[s.it.id]).length;
   const firstOpen = nextOpen(steps, done, 0);
   return (
     <section ref={box} role="region" aria-label={t("region")} data-walk-through="" className="walk-through scroll-mt-24 max-md:scroll-mt-44 rounded-3xl border-2 border-ink bg-paper p-4 sm:p-6"
       onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onExit(); } }}>
+      <p role="status" aria-live="polite" className="sr-only" data-walk-status="">{said}</p>
       <button type="button" onClick={onExit} data-walk-exit=""
         className="min-h-[48px] rounded-full border-2 border-ink bg-paper px-4 py-2 text-base font-bold hover:bg-mint focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
         <span aria-hidden="true">← </span>{t("back")}
@@ -443,7 +464,9 @@ function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipTex
       {step ? (
         <WalkCard key={step.it.id} step={step} index={index} total={steps.length} done={!!done[step.it.id]} check={checkFor(step.it.id)} t={t}
           heading={heading} pip={pip} pipText={pipText} calm={calm} speaking={speaking} onSpeak={onSpeak}
-          onDone={() => { onDone(step.it.id, true); onGo(next); }} onUndo={() => onDone(step.it.id, false)} onNotYet={() => onGo(next)}
+          onDone={() => { onDone(step.it.id, true); announce(t("doneAlready")); onGo(next); }}
+          // The undo button goes away with the done state, so focus returns to the step's heading.
+          onUndo={() => { onDone(step.it.id, false); announce(t("undoDone")); heading.current?.focus(); }} onNotYet={() => onGo(next)}
           onPrevious={index > 0 ? () => onGo(steps[index - 1].it.id) : null} />
       ) : (
         <div className="walk-card mt-5" data-calm={calm || undefined} data-walk-end="">
@@ -672,7 +695,9 @@ function RemindMe({ it, check }: { it: VerifiedItem; check: Check }) {
 
 /** One step read aloud with the device's voice, by the paper-first rule: the explanation only when certified. */
 function useStepSpeech(language: string) {
-  const [speaking, setSpeaking] = useState<string | null>(null);
+  const [speaking, setSpeakingState] = useState<string | null>(null);
+  const speakingNow = useRef<string | null>(null);
+  const setSpeaking = (id: string | null) => { speakingNow.current = id; setSpeakingState(id); };
   const run = useRef(0);
   useEffect(() => () => {
     run.current++;
@@ -693,13 +718,14 @@ function useStepSpeech(language: string) {
       window.speechSynthesis.speak(u);
     });
   }
-  /** Stops whatever is being read (moving to another step, or leaving the walk-through). */
-  function stop() {
-    if (speaking === null) return;
+  /** Stops a step being read (moving to another step, leaving the walk-through, or its check changing). Nothing else. */
+  const stop = useCallback(() => {
+    if (speakingNow.current === null) return;
     run.current++;
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    setSpeaking(null);
-  }
+    speakingNow.current = null;
+    setSpeakingState(null);
+  }, []);
   return { speaking, toggle, stop };
 }
 

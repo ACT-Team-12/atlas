@@ -348,6 +348,10 @@ describe("PR 76 follow-ups: stricter only", () => {
     ])("still certifies a correct one: %s", (plain) => {
       expect(certifies(paper, plain)).toBe(true);
     });
+    it("a decimal point is not a sentence end (Codex review round 2)", () => {
+      expect(certifies("Take aspirin 2.5 mg. Take warfarin 1 tablet daily.", "Take 2.5 mg warfarin daily.")).toBe(false);
+      expect(certifies("Take aspirin 2.5 mg. Take warfarin 1 tablet daily.", "Take aspirin 2.5 mg.")).toBe(true);
+    });
     it("a time is never read as a medicine's dose (the second half of the prep, 5 hours before)", () => {
       expect(certifies("5 hours before your procedure, drink the second half of the bowel prep.", "Drink the second half of the prep 5 hours before.")).toBe(true);
     });

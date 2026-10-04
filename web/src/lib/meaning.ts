@@ -315,7 +315,8 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
   if (p.pairs.some(([n, c], k) => c !== null && DOSE.has(c) && values(c).size < 2 && pCtx[k].some((w) => otherOnly(n).has(w)))) return true;
   // A name after the number ("Take 2 mg warfarin") is outside that window: a sentence of the explanation that gives a
   // dose, names only another dose's medicine and none of this one's own names, is refused too (Codex review).
-  for (const sentence of plain.split(/[.;!?\n]+/)) {
+  // A decimal point ("2.5 mg") is not a sentence end.
+  for (const sentence of plain.split(/(?<!\d)\.|\.(?!\d)|[;!?\n]+/)) {
     const sp = numberUnits(sentence, languages).pairs.filter(([n, c]) => plainNumbers.has(n) && c !== null && DOSE.has(c) && values(c).size < 2);
     if (sp.length === 0) continue;
     const words = new Set([...sentence.toLowerCase().matchAll(/[\p{L}\p{M}]+/gu)].map((m) => SAME_NAME[m[0]] ?? m[0]));

@@ -1,0 +1,787 @@
+{
+ "about": "Web reference vectors for the safety rules (web/src/lib/warningPin.ts). Regenerate: see mobile/shared/README.md.",
+ "patterns": {
+  "WARNING_WORDS": {
+   "source": "(?<![\\p{L}\\p{N}])(?:911|emergency\\s+(?:room|department|services|care)|emergencies|emergency|urgent\\s+care|go\\s+to\\s+the\\s+(?:nearest\\s+)?hospital|seek\\s+(?:\\p{L}+\\s+)?(?:care|help|attention|treatment)|get\\s+(?:medical\\s+)?help\\s+(?:right\\s+away|now|immediately)|call\\s+(?:(?:the|your|our)\\s+)?(?:\\p{L}+['’]s\\s+)?(?:office|clinic|doctor|physician|provider|nurse|care\\s+team)\\s+(?:right\\s+away|immediately|at\\s+once|now)|chest\\s+(?:pain|pressure|tightness)|(?:trouble|difficulty|hard)\\s+breathing|short(?:ness)?\\s+of\\s+breath|can(?:no|['’])t\\s+breathe|cannot\\s+breathe|faint(?:ing|ed)|feel(?:s|ing)?\\s+faint|pass(?:ing)?\\s+out|seizures?|stroke|sudden\\s+(?:weakness|numbness|confusion)|severe\\s+(?:bleeding|pain|headache|allergic)|suicid\\p{L}*|llame\\s+al\\s+911|sala\\s+de\\s+emergencias?|emergencias?|urgencias|vaya\\s+al\\s+hospital|busque\\s+(?:atenci[oó]n|ayuda)|dolor\\s+(?:de|en\\s+el)\\s+pecho|dificultad\\s+para\\s+respirar|falta\\s+de\\s+aire|desmay\\p{L}*|convulsi\\p{L}*)(?![\\p{L}\\p{N}])",
+   "flags": "iu"
+  },
+  "NOT_EMERGENCY": {
+   "source": "(?<![\\p{L}\\p{N}])(?:not\\s+(?:an\\s+|a\\s+)?|non-?|no\\s+es\\s+(?:una\\s+)?)(?:emergency|emergencia|urgent)(?![\\p{L}\\p{N}])",
+   "flags": "giu"
+  },
+  "ER": {
+   "source": "(?<![\\p{L}\\p{N}])(?:ER)(?![\\p{L}\\p{N}])",
+   "flags": "u"
+  }
+ },
+ "warning": [
+  {
+   "quote": "Call 911 or go to the nearest emergency room if you have chest pain, trouble breathing, or sudden weakness on one side of your body.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Go to the ER if the swelling spreads.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Seek medical care if your fever lasts more than 3 days.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "If you have chest pressure, get help right away.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call us if you feel short of breath.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Go to urgent care if the cut opens.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call the office right away if your temperature is above 101 F.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "This is not an emergency, but call 911 if you cannot breathe.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call our office right away if your fever is over 101 F.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call the doctor's office immediately if the wound bleeds.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call the doctor’s office immediately if the wound bleeds.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Llame al 911 si tiene dolor de pecho.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Vaya a la sala de emergencias si tiene dificultad para respirar.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Busque atención médica si se desmaya.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Si tiene convulsiones, llame al 911.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "No es una emergencia. Llame a la clínica en horario de oficina.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "metformin (GLUCOPHAGE) 500 mg tablet. Take 1 tablet by mouth 2 times a day with meals.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Walk 30 minutes, 5 days a week, as tolerated.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Limit sugary drinks such as soda and sweet tea.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Hemoglobin A1c - due in 3 months",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Take it after dinner every evening.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "This is not an emergency. Call your doctor during office hours.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Call the office if you have questions.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "This is a non-emergency line.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "It is not urgent.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Go to the er if needed.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Peter will call you.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "CALL 911 IF YOU HAVE CHEST PAIN.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "call 911 now",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call 9110 for billing.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Room 911B is on the left.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Seek care.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Seek prompt medical attention.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "You may feel faint when you stand up.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Watch for signs of a stroke.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Severe headache or sudden numbness: go to the hospital.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Go to the nearest hospital.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Get medical help right away if you have a rash.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "If you have thoughts of suicide, call 988.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Do not drive for 24 hours after the procedure.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "AFTER VISIT SUMMARY",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Sample Patient   DOB: 01/01/1970   Visit: 10/01/2026   Midtown Family Medicine (sample clinic)",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Provider: Sample Provider, MD",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Reason for visit: Follow-up for high blood sugar and blood pressure.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Your diagnoses today:",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "- Type 2 diabetes mellitus without complications (E11.9)",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "- Essential hypertension (I10)",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Medication changes",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "START taking these medications:",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "- metformin (GLUCOPHAGE) 500 mg tablet. Take 1 tablet by mouth 2 times a day with meals.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "CHANGE how you take these medications:",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "- lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily. Previously 10 mg once daily.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "STOP taking these medications:",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "- ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Orders placed today",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "- Hemoglobin A1c - due in 3 months",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "- Basic metabolic panel - fasting, complete within 2 weeks at any Quest or Labcorp location",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "- Referral to Ophthalmology for diabetic eye exam. Their office will call you to schedule. If you have not heard from them in 10 days, call 404-555-0134.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Follow-up",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Return to clinic in 3 months, or sooner if needed.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Patient instructions",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Check your blood sugar every morning before breakfast and write down the number. Bring your log to your next visit.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "When to seek care",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call the office if your blood sugar is above 300 two times in a row.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Sample Patient   Visit: 10/01/2026   Midtown Family Medicine (sample clinic)",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "START metformin 500 mg tablet. Take 1 tablet by mouth 2 times a day with meals.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "CHANGE lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "STOP ibuprofen 200 mg tablet. Avoid NSAIDs due to kidney function.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Basic metabolic panel - fasting, complete within 2 weeks",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Referral to Ophthalmology for diabetic eye exam. Their office will call you to schedule.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Provider note (not for patient action): consider statin at next visit if LDL remains high.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Billing code: 99214",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Call 911 if you have chest pain or trouble breathing.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "EMERGENCY DEPARTMENT DISCHARGE INSTRUCTIONS",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Sample Child   Age 7   Discharged 10/01/2026",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Diagnosis: Asthma exacerbation",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Medicines",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Albuterol inhaler: 2 puffs with spacer every 4 hours as needed for wheezing or cough.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Prednisolone 15 mg by mouth once daily for 5 days. Start tomorrow morning.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "See your pediatrician in 2 to 3 days.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Home care",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Keep your child away from cigarette smoke.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Return to the emergency department right away if your child's lips turn blue or they are struggling to breathe.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "ED attending reviewed chest x-ray: no pneumonia.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "VISIT SUMMARY - Sample Health Center",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Reason: High blood pressure",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "New medicine: amlodipine 5 mg, take 1 tablet every morning.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Check your blood pressure at home once a day and write it down. Bring the log to your next visit.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Lab: basic metabolic panel in 1 week at any lab location.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Referral: cardiology. Please call 404-555-0177 to schedule.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Next visit: 4 weeks.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Cut back on salt.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Go to the emergency room if your blood pressure is over 180/120 and you have a severe headache, chest pain, or vision changes.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "URGENT CARE VISIT - SAMPLE",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Diagnosis: urinary tract infection",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Take nitrofurantoin 100 mg by mouth 2 times a day for 5 days. Finish all of it even if you feel better.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Drink plenty of water.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "We sent a urine culture. We will call you if the results mean your medicine needs to change.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Come back or go to the ER if you get a fever over 101 F, back or side pain, or vomiting.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "PRENATAL VISIT SUMMARY (SAMPLE)",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Weeks pregnant: 28",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Today you received the Tdap vaccine.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Start iron (ferrous sulfate) 325 mg by mouth once daily.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Glucose tolerance test at your next visit. Do not eat or drink anything but water for 8 hours before.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Count your baby's kicks every evening.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Next visit in 2 weeks.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Call us right away or go to Labor and Delivery if you have bleeding, leaking fluid, or fewer than 10 movements in 2 hours.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "HOSPITAL DISCHARGE SUMMARY - FOR PATIENT (SAMPLE)",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "You were treated for heart failure.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Furosemide 40 mg: take 1 tablet every morning.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "STOP taking ibuprofen and naproxen.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Every day",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Weigh yourself every morning after using the bathroom and write it down.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Limit salt to 2,000 mg a day.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Appointments",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Cardiology follow-up in 7 days. The clinic will call you with the time.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Blood work (kidney function) in 1 week.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Call your doctor if you gain more than 3 pounds in a day or 5 pounds in a week, or your legs swell more.",
+   "kind": "self_care",
+   "paper": false,
+   "pinned": false
+  },
+  {
+   "quote": "Call 911 if you cannot catch your breath.",
+   "kind": "self_care",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call the office if your blood sugar is above 300 two times in a row.",
+   "kind": "warning_sign",
+   "paper": false,
+   "pinned": true
+  },
+  {
+   "quote": "Take 1 tablet daily.",
+   "kind": "warning_sign",
+   "paper": false,
+   "pinned": true
+  },
+  {
+   "quote": "",
+   "kind": "warning_sign",
+   "paper": false,
+   "pinned": true
+  },
+  {
+   "quote": "Call 911 or go to the nearest emergency room if you have chest pain, trouble breathing, or sudden weakness on one side of your body.",
+   "kind": "medication",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call 911 or go to the nearest emergency room if you have chest pain, trouble breathing, or sudden weakness on one side of your body.",
+   "kind": "lab_test",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call 911 or go to the nearest emergency room if you have chest pain, trouble breathing, or sudden weakness on one side of your body.",
+   "kind": "referral",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call 911 or go to the nearest emergency room if you have chest pain, trouble breathing, or sudden weakness on one side of your body.",
+   "kind": "follow_up_visit",
+   "paper": true,
+   "pinned": true
+  },
+  {
+   "quote": "Call 911 or go to the nearest emergency room if you have chest pain, trouble breathing, or sudden weakness on one side of your body.",
+   "kind": "unknown_kind",
+   "paper": true,
+   "pinned": true
+  }
+ ]
+}

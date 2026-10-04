@@ -31,7 +31,7 @@ struct PlanView: View {
                             .disabled(!model.canPlan)
                         }
                     }
-                    if model.care?.has_warning_signs == true { WarningBanner() }
+                    if model.hasWarnings { WarningBanner() }
 
                     Text(PaperFirst.planIsASuggestion).font(.caption.weight(.semibold)).foregroundStyle(Palette.inkSoft).wraps()
                     Text(plan.summary).font(.title3.weight(.semibold)).foregroundStyle(Palette.ink)

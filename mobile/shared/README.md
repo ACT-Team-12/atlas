@@ -1,5 +1,24 @@
 # Shared test vectors for the phone apps
 
+## Safety rules (safety-vectors.json)
+
+`safety-vectors.json` is the website's own answer for the safety rules the phone apps port by hand: which steps are
+pinned as warning signs (`web/src/lib/warningPin.ts`). It also carries the exact source and flags of every pattern
+those rules use. `gen-native-patterns.py` copies that pattern table into `mobile/ios/ATLAS/Support/SafetyPatterns.swift`
+and `mobile/android/app/src/main/java/com/stephensookra/atlas/data/SafetyPatterns.kt`, so all three apps run the same
+pattern text; `SafetyVectorsTests.swift` and `SafetyVectorsTest.kt` fail if a phone's table differs from the file or
+gives a different answer for any case. `check-vectors.sh` regenerates the file in web-ci on every branch and fails on
+any drift. To change a word list: edit the web file, regenerate, then run the pattern script:
+
+```sh
+cp mobile/shared/genSafetyVectors.test.ts web/src/lib/
+cd web && VECTORS_OUT=../mobile/shared/safety-vectors.json pnpm exec vitest run src/lib/genSafetyVectors.test.ts
+rm src/lib/genSafetyVectors.test.ts && cd ..
+python3 mobile/shared/gen-native-patterns.py
+```
+
+## Missed lines (missed-lines-vectors.json)
+
 `missed-lines-vectors.json` is the website's own answer for the "Lines on your paper we didn't turn into steps"
 check, so the Android and iOS apps can prove they compute the same thing from the `missed_lines` field of
 `/api/extract`. Each fixture holds a `payload` (exactly what the server sends), `source_length` (the UTF-16 length

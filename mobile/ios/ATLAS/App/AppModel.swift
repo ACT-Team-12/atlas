@@ -73,6 +73,10 @@ final class AppModel {
 
     var items: [VerifiedItem] { (care?.items ?? []).filter { removed[$0.id] != true } }
     var removedItems: [VerifiedItem] { (care?.items ?? []).filter { removed[$0.id] == true } }
+    /// The steps as shown: warning signs pinned on top (WarningPin, the website's isWarning), then the rest in paper order.
+    var warningItems: [VerifiedItem] { items.filter(WarningPin.isWarning) }
+    /// The reading's warning flag, or any shown step the paper's own words pin as a warning (CareSteps.tsx).
+    var hasWarnings: Bool { care?.has_warning_signs == true || !warningItems.isEmpty }
     var careByID: [String: VerifiedItem] {
         Dictionary((care?.items ?? []).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
     }

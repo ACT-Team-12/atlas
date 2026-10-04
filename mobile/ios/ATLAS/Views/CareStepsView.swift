@@ -17,7 +17,7 @@ struct CareStepsView: View {
                             ? "These steps were saved by an older version of ATLAS, so we can't tell which text, language or reading level they were read with. Read your paper again to update them."
                             : "You changed the text, language or reading level since this was read. Read your paper again to update these steps.")
                     }
-                    if care.has_warning_signs { WarningBanner() }
+                    if model.hasWarnings { WarningBanner() }
 
                     Text("\(care.stats.grounded) steps found in your paper · \(care.stats.refused) held back because we couldn't show their words from your paper · \(String(format: "%.1f", Double(care.stats.ms) / 1000))s")
                         .font(.footnote.weight(.bold)).foregroundStyle(Palette.inkSoft)
@@ -40,7 +40,8 @@ struct CareStepsView: View {
                         ReadAloudBar(speaker: speaker, language: language, lines: readLines)
                     }
 
-                    ForEach(model.items) { item in
+                    // Warning signs pinned on top (the website's isWarning), then the rest in paper order.
+                    ForEach(shownItems) { item in
                         let check = model.check(for: item.id)
                         CareItemCard(item: item, check: check, result: model.meaning.result(for: item.id),
                                      checking: model.meaning.status == .loading, errored: model.meaning.status == .error,
@@ -117,8 +118,15 @@ struct CareStepsView: View {
         .sheet(item: $reminder) { ReminderSheet(target: $0) }
     }
 
+    /// Numbered and read in the order shown, so "step 3" is the third card a person sees.
+    private var shownItems: [VerifiedItem] {
+        let warnings = model.warningItems
+        let pinned = Set(warnings.map(\.id))
+        return warnings + model.items.filter { !pinned.contains($0.id) }
+    }
+
     private var readLines: [String] {
-        model.items.enumerated().flatMap { i, it in
+        shownItems.enumerated().flatMap { i, it in
             ["\(i + 1)."] + PaperFirst.lines(PaperFirst.careStep(it, check: model.check(for: it.id)))
         }
     }
@@ -141,7 +149,8 @@ struct CareItemCard: View {
 
     var body: some View {
         let style = KindStyle.of(item.kind)
-        let warning = item.itemKind == .warning_sign
+        // Styled as a warning exactly when it is pinned as one: the model's kind or the paper's own words.
+        let warning = WarningPin.isWarning(item)
         let certified = check == .certified
         // The AI's title is only a label once it is certified; otherwise the card is named by its kind.
         let name = certified ? item.title : style.label

@@ -41,3 +41,9 @@ export function warningFromPaper(quote: string): boolean {
 
 /** Pinned as a warning sign: the model said so, or the paper's quote does. Never removed by the model's kind. */
 export const isWarning = (it: { kind: string; source_quote: string }) => it.kind === "warning_sign" || warningFromPaper(it.source_quote);
+
+/**
+ * The patterns above, exported only so mobile/shared/safety-vectors.json can carry their exact source: the iOS and
+ * Android ports keep the same pattern text and their tests fail if it drifts from this file.
+ */
+export const WARNING_PATTERNS = { WARNING_WORDS, NOT_EMERGENCY, ER } as const;

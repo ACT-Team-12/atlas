@@ -62,6 +62,9 @@ targets:
       # The web reference vectors shared with Android (referenced, not copied): MissedLinesTests replays every case.
       - path: ../shared/missed-lines-vectors.json
         buildPhase: resources
+      # The safety rules' web reference (warning pins, by-when groups, stop-now): SafetyVectorsTests replays it.
+      - path: ../shared/safety-vectors.json
+        buildPhase: resources
     dependencies:
       - target: ATLAS
     settings:

@@ -72,7 +72,7 @@ fun PlanScreen(model: AppModel) {
             if (!model.careOutdated) PillButton("Update the plan", onClick = { speaker.stop(); model.makePlan() },
                 fill = Palette.ink, textColor = Palette.paper, shadow = Palette.mint)
         }
-        if (model.care?.has_warning_signs == true) WarningBanner()
+        if (model.hasWarnings) WarningBanner()
         Text(PaperFirst.PLAN_IS_A_SUGGESTION, style = Type.caption)
         Text(plan.summary, style = Type.title3.copy(fontWeight = FontWeight.SemiBold, fontSize = 19.sp))
         // The plan is a suggestion and never certified: each step is followed by the paper's own words for it.

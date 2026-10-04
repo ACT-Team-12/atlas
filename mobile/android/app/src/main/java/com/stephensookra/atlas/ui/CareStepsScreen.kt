@@ -43,12 +43,12 @@ import androidx.compose.ui.unit.dp
 import com.stephensookra.atlas.AppModel
 import com.stephensookra.atlas.Route
 import com.stephensookra.atlas.data.Check
-import com.stephensookra.atlas.data.ItemKind
 import com.stephensookra.atlas.data.Language
 import com.stephensookra.atlas.data.MeaningResult
 import com.stephensookra.atlas.data.MeaningStatus
 import com.stephensookra.atlas.data.PaperFirst
 import com.stephensookra.atlas.data.VerifiedItem
+import com.stephensookra.atlas.data.WarningPin
 import com.stephensookra.atlas.services.Speaker
 import java.util.Locale
 
@@ -69,13 +69,16 @@ fun CareStepsScreen(model: AppModel) {
         ScreenTitle("Your steps", "Each one is quoted from your paper.")
         if (model.careProvenanceUnknown) OutdatedNote("These steps were saved by an older version of ATLAS, which did not keep what they were read from. Read your paper again to update them.")
         else if (model.careOutdated) OutdatedNote("You changed the text, language or reading level since this was read. Read your paper again to update these steps.")
-        if (care.has_warning_signs) WarningBanner()
+        if (model.hasWarnings) WarningBanner()
         Text(
             "${care.stats.grounded} steps found in your paper · ${care.stats.refused} held back because we couldn't show their words from your paper · " +
                 String.format(Locale.US, "%.1f", care.stats.ms / 1000.0) + "s",
             style = Type.foot.copy(fontWeight = FontWeight.Bold),
         )
-        val items = model.items
+        // Warning signs pinned on top (the website's isWarning), then the rest in paper order. Numbered and read in
+        // the order shown, so "step 3" is the third card a person sees.
+        val warnings = model.warningItems
+        val items = warnings + model.items.filter { it !in warnings }
         when (model.meaning.status) {
             MeaningStatus.loading -> Text("Double-checking each explanation against your paper...", style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
             MeaningStatus.error -> Text("The double-check is not available right now, so each step shows your paper's own words first.",
@@ -155,7 +158,8 @@ fun CareStepsScreen(model: AppModel) {
 fun CareItemCard(item: VerifiedItem, check: Check, result: MeaningResult?, checking: Boolean, done: Boolean,
                  onToggleDone: () -> Unit, onRemind: () -> Unit, onRemove: () -> Unit, errored: Boolean = false) {
     val style = KindStyle.of(item.kind)
-    val warning = item.itemKind == ItemKind.warning_sign
+    // Styled as a warning exactly when it is pinned as one: the model's kind or the paper's own words.
+    val warning = WarningPin.isWarning(item)
     val certified = check == Check.certified
     // The AI's title is only a label once it is certified; otherwise the card is named by its kind.
     val name = if (certified) item.title else style.label

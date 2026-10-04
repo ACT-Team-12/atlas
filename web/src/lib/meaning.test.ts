@@ -335,6 +335,7 @@ describe("PR 76 follow-ups: stricter only", () => {
     it.each([
       "Take warfarin 2 mg daily.",
       "Take aspirin 1 tablet. Take warfarin 2 mg daily.",
+      "Take 2 mg warfarin daily.", // the name after the number (Codex review)
     ])("refuses %s", (plain) => {
       expect(certifies(paper, plain)).toBe(false);
     });
@@ -342,6 +343,8 @@ describe("PR 76 follow-ups: stricter only", () => {
       "Take aspirin 2 mg. Take warfarin 1 tablet daily.",
       "Take aspirin 2 mg.",
       "Take warfarin 1 tablet each day.",
+      "Take aspirin 2 mg and warfarin 1 tablet daily.",
+      "Take 2 mg of aspirin.",
     ])("still certifies a correct one: %s", (plain) => {
       expect(certifies(paper, plain)).toBe(true);
     });

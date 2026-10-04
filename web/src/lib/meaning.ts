@@ -313,6 +313,18 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
     return new Set(q.flatMap(([qn, qc], k) => (qn !== n && qc !== null && DOSE.has(qc) ? qCtx[k] : [])).filter((w) => !mine.has(w) && !ALIAS_NAMES.has(w) && unitClass(w) === null));
   };
   if (p.pairs.some(([n, c], k) => c !== null && DOSE.has(c) && values(c).size < 2 && pCtx[k].some((w) => otherOnly(n).has(w)))) return true;
+  // A name after the number ("Take 2 mg warfarin") is outside that window: a sentence of the explanation that gives a
+  // dose, names only another dose's medicine and none of this one's own names, is refused too (Codex review).
+  for (const sentence of plain.split(/[.;!?\n]+/)) {
+    const sp = numberUnits(sentence, languages).pairs.filter(([n, c]) => plainNumbers.has(n) && c !== null && DOSE.has(c) && values(c).size < 2);
+    if (sp.length === 0) continue;
+    const words = new Set([...sentence.toLowerCase().matchAll(/[\p{L}\p{M}]+/gu)].map((m) => SAME_NAME[m[0]] ?? m[0]));
+    for (const [n] of sp) {
+      const other = otherOnly(n);
+      const own = [...namesOfValue(n)].filter((w) => !other.has(w) && !ALIAS_NAMES.has(w) && unitClass(w) === null && !q.some(([qn], k) => qn !== n && qCtx[k].includes(w)));
+      if ([...other].some((w) => words.has(w)) && !own.some((w) => words.has(w))) return true;
+    }
+  }
   // A dose the paper says was the OLD one ("Previously 10 mg once daily"): an explanation that gives that kind of dose
   // must give at least one of the paper's current doses too, so "You previously took 10 mg" alone is not certified.
   for (const c of DOSE) {

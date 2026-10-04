@@ -124,7 +124,8 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     "DOB \u{1D7CE}\u{1D7CF}/\u{1D7CE}\u{1D7CF}/\u{1D7CF}\u{1D7D7}\u{1D7D5}\u{1D7CE}",
     "MRN \u2460\u2461\u2462\u2463\u2464\u2465",
     "Patient: Maria Lopez\nPhone: 555-12\u00B34-5678",
-    "MRN: \u216B\u2160\u2163 2907",
+    "MRN: 884\uFE0F12907",
+    "MRN: 884\u{E0100}12907",
     "Patient: \u{1D40C}aria Lopez",
     "Patient: \u041C\u0430\u0440\u0456\u0430 Lopez",
     "MRN: \u0391\u0392\u0395 88412907 \u03BF\u03B1",
@@ -136,6 +137,8 @@ describe("bypass inputs: each identifier is hidden in full", () => {
   ];
   test.each([
     ["Patient email: maria\u2063.lopez@example.com", "maria\u2063.lopez@example.com"],
+    ["Patient: Maria Lopez\nPhone: 404\uFE0F-555-0182", "404\uFE0F-555-0182"],
+    ["Patient: Maria Lopez\nEmail: maria\uFE0F.lopez@example.com", "maria\uFE0F.lopez@example.com"],
   ])("an invisible separator beside punctuation is removed, and the value hidden whole: %j", (paper, value) => {
     const r = shield(paper);
     expect(coveredInFull(paper, r, value)).toBe(true);
@@ -165,6 +168,10 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     "\u1218\u12F5\u1203\u1292\u1275\u1295 \u1260\u1240\u1295 \u12A0\u1295\u12F5 \u130A\u12DC \u12ED\u12CD\u1230\u12F1\u1362",
     "\u60A3\u8005\uFF1A\u6BCF\u5929\u65E9\u4E0A\u670D\u836F\u3002",
     "Patiente : prenez le m\u00E9dicament \u00E0 9 h.",
+    "\uBCF5\uC6A9\uB7C9: 500\u338E",
+    "\u5242\u91CF\uFF1A500\u338E",
+    "Stage \u2163 cancer",
+    "\u12F0\u1228\u1303 \u2163",
   ])("a paper in a supported language passes the character check: %j", (paper) => {
     expect(() => shield(paper)).not.toThrow();
   });
@@ -204,6 +211,12 @@ describe("second-model review findings", () => {
     "Device name: Glucose Monitor",
   ])("a clinical name field stays: %s", (paper) => {
     expect(shield(paper).text).toBe(paper);
+  });
+
+  test.each(["Take \u27E6NAME_\nA\u27E7 medicine.", "Take \u27E6NAME_A\n\u27E7 medicine."])("a placeholder broken across lines is removed whole: %j", (t) => {
+    const out = stripTokens(t);
+    expect(out).not.toMatch(/NAME|\u27E6|\u27E7/);
+    expect(hasToken(out)).toBe(false);
   });
 
   test.each(["NAME_A", "Name_A", "name_a", "NAME A", "⟦name_a⟧"])("placeholder variant %j never reaches voice, call or UI", (t) => {

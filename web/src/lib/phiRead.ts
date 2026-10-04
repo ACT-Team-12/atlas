@@ -247,18 +247,20 @@ export function canonicalize(raw: string): Canon {
     if (code < 0x20 || (code >= 0x7f && code < 0xa0)) throw new PhiCharRefused("a control character");
     if (BIDI_CONTROL.test(c)) throw new PhiCharRefused("a hidden text-direction control");
     if (BLANK.test(c)) { endWord(); emit(" ", i, i + 1); i++; continue; }
-    if (IGNORABLE.test(c)) {
+    const cpAt = (k: number) => String.fromCodePoint(raw.codePointAt(k)!);
+    const c1 = cpAt(i);
+    if (IGNORABLE.test(c1)) {
       // An invisible character inside a word or number ("Ma\u200Bria", "884\u200B12907") is refused: removing it joins
       // what may have been two words ("Maria\u200BLopez" sent as "MariaLopez" would let "Lopez" alone through), and
       // keeping it hides the word from the patterns. Only a soft hyphen (a line-break hint in a word) is removed there.
       // Elsewhere (a BOM, a mark beside a space or punctuation) it is removed.
-      let k = i + 1;
-      while (k < n && k - i <= 8 && IGNORABLE.test(raw[k])) k++;
-      if (k - i > 8) throw new PhiCharRefused("a run of invisible characters"); // bounded: no rescanning a long run
+      let k = i + c1.length;
+      while (k < n && k - i <= 16 && IGNORABLE.test(cpAt(k))) k += cpAt(k).length;
+      if (k - i > 16) throw new PhiCharRefused("a run of invisible characters"); // bounded: no rescanning a long run
       const inWord = /[\p{L}\p{N}]/u.test(text.slice(-1)) && k < n && /[\p{L}\p{N}\p{M}]/u.test(String.fromCodePoint(raw.codePointAt(k)!));
       if (inWord && c !== "\u00AD") throw new PhiCharRefused("an invisible character inside a word or number");
-      emit("", i, i + 1);
-      i++;
+      emit("", i, i + c1.length);
+      i += c1.length;
       continue;
     }
     if (SPACE.test(c)) { endWord(); emit(" ", i, i + 1); i++; continue; }
@@ -276,20 +278,23 @@ export function canonicalize(raw: string): Canon {
     let cluster = base;
     while (end < n) {
       const ch = String.fromCodePoint(raw.codePointAt(end)!);
-      if (MARK.test(ch)) cluster += ch;
+      if (MARK.test(ch) && !IGNORABLE.test(ch)) cluster += ch;
       else if (BLANK.test(ch) || BIDI_CONTROL.test(ch) || !IGNORABLE.test(ch)) break;
       else {
         // An invisible character inside a cluster is removed only when a combining mark follows it; otherwise the
         // cluster ends and the character is judged on its own (inside a word: refused).
         let k = end + ch.length;
-        while (k < n && k - end <= 8 && IGNORABLE.test(raw[k])) k++;
-        if (k >= n || !MARK.test(String.fromCodePoint(raw.codePointAt(k)!))) break;
+        while (k < n && k - end <= 16 && IGNORABLE.test(String.fromCodePoint(raw.codePointAt(k)!))) k += String.fromCodePoint(raw.codePointAt(k)!).length;
+        const after = k < n ? String.fromCodePoint(raw.codePointAt(k)!) : "";
+        if (!MARK.test(after) || IGNORABLE.test(after)) break;
       }
       end += ch.length;
     }
     let out = cluster.normalize("NFC");
     if (cp >= 0xff01 && cp <= 0xff5e) out = String.fromCharCode(cp - 0xfee0) + cluster.slice(base.length).normalize("NFC"); // fullwidth ASCII
     else if (cp >= 0xfb00 && cp <= 0xfb06) out = out.normalize("NFKC"); // ﬁ ﬂ ﬀ ligatures
+    // Unit squares (㎎ ㎖ ㎏) and Roman numerals (Stage Ⅳ): common on medical papers, sent as plain letters.
+    else if ((cp >= 0x3380 && cp <= 0x33df) || (cp >= 0x2160 && cp <= 0x217f)) out = out.normalize("NFKC");
     else if (PUNCT[base]) out = PUNCT[base] + cluster.slice(base.length);
     else if (cp > 0x7f && DIGIT.test(base)) out = asciiDigit(cp) + cluster.slice(base.length);
     else {

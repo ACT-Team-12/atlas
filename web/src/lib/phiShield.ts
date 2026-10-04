@@ -930,7 +930,7 @@ const anyCase = (w: string) => [...w].map((c) => `[${c}${c.toLowerCase()}]`).joi
  * only, so "ID a" or "Email us" in a sentence stay).
  */
 const ANY_TOKEN = new RegExp(
-  String.raw`⟦[^⟧\n]{0,40}⟧|[⟦⟧]|(?<![\p{L}\p{N}_])(?:${PHI_KINDS.map(anyCase).join("|")})_[A-Za-z]{1,3}(?![\p{L}\p{N}_])|(?<![\p{L}\p{N}_])(?:NAME|DOB|MRN|ACCT|SSN|PHONE|EMAIL|ADDR) [A-Z](?![\p{L}\p{N}_])`,
+  String.raw`⟦[^⟦⟧]{0,40}⟧|[⟦⟧]|(?<![\p{L}\p{N}_])(?:${PHI_KINDS.map(anyCase).join("|")})_[A-Za-z]{1,3}(?![\p{L}\p{N}_])|(?<![\p{L}\p{N}_])(?:NAME|DOB|MRN|ACCT|SSN|PHONE|EMAIL|ADDR) [A-Z](?![\p{L}\p{N}_])`,
   "gu",
 );
 

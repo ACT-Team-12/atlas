@@ -3,7 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { ExtractError, MODEL } from "./extract";
 import { LANGUAGES } from "./schema";
-import { crossesSentence, enclosingSentence, findSpanIn, mapSource, normalize } from "./verify";
+import { enclosingSentence, findSpanIn, mapSource, normalize, type MappedSource } from "./verify";
 import { cuesForbid } from "./prepCues";
 import { numbersIn } from "./meaning";
 import { MAX_QUESTION } from "./askText";
@@ -37,7 +37,7 @@ const ModelOutput = z.object({
 export type DraftAnswer = z.infer<typeof ModelOutput>;
 
 /** Why a quote from the model was not shown. */
-export type AskDrop = "not_in_paper" | "too_short" | "skips_across" | "sentence_too_long" | "ambiguous" | "duplicate" | "too_many";
+export type AskDrop = "not_in_paper" | "too_short" | "ellipsis" | "sentence_too_long" | "ambiguous" | "duplicate" | "too_many";
 /** Why the lead-in was left out (the quotes still show). */
 export type TopicDrop = "too_long" | "not_in_quotes" | "has_number" | "has_cue";
 
@@ -81,21 +81,18 @@ export function checkAnswer(source: string, draft: DraftAnswer): Pick<Extract<As
   const quotes: AskQuote[] = [];
   const dropped: AskDrop[] = [];
   for (const raw of draft.quotes) {
-    if (normalize(raw).replace(/\.\.\.|…/g, "").length < MIN_QUOTE) { dropped.push("too_short"); continue; }
+    // One contiguous run of the paper's words only: a "..." quote resolves each piece to its first occurrence, which
+    // can't be checked for repeats piece by piece.
+    if (/\.\.\.|…/.test(raw)) { dropped.push("ellipsis"); continue; }
+    if (normalize(raw).length < MIN_QUOTE) { dropped.push("too_short"); continue; }
     const found = findSpanIn(paper, raw);
     if (!found) { dropped.push("not_in_paper"); continue; }
-    // The model's own words found more than once ("Take one tablet" under two medicines): findSpanIn takes the first,
-    // which may be the wrong medicine. Which one answers can't be checked, so it is held back (Codex review, round 2).
-    if (repeats(paper.norm, raw)) { dropped.push("ambiguous"); continue; }
-    // A "..." quote may only skip words inside one sentence on one line (verify.ts, verifyItem).
-    if (/\.\.\.|…/.test(raw) && crossesSentence(source, found)) { dropped.push("skips_across"); continue; }
+    // The model's words, or their whole sentence, found more than once ("Take one tablet" under two medicines):
+    // findSpanIn takes the first, which may be the wrong medicine, and Show on my paper would highlight it. Which one
+    // answers can't be checked, so it is held back (Codex review, rounds 1 and 2).
     const span = enclosingSentence(source, found);
+    if (!occursOnce(paper, found) || !occursOnce(paper, span)) { dropped.push("ambiguous"); continue; }
     if (span.end - span.start > MAX_SENTENCE) { dropped.push("sentence_too_long"); continue; }
-    // The same words twice on the paper (a dose under two headings): which one answers is not something we can check,
-    // and Show on my paper would highlight the first. Held back (Codex review).
-    const words = normalize(source.slice(span.start, span.end));
-    const first = paper.norm.indexOf(words);
-    if (first >= 0 && paper.norm.indexOf(words, first + 1) >= 0) { dropped.push("ambiguous"); continue; }
     if (quotes.some((q) => span.start < q.span.end && q.span.start < span.end)) { dropped.push("duplicate"); continue; }
     if (quotes.length >= MAX_QUOTES) { dropped.push("too_many"); continue; }
     quotes.push({ text: source.slice(span.start, span.end), span });
@@ -103,29 +100,52 @@ export function checkAnswer(source: string, draft: DraftAnswer): Pick<Extract<As
   return { quotes, ...checkTopic(draft.topic, quotes), dropped };
 }
 
-/** True when any part of the quote (split at "...") occurs more than once in the normalized paper. Over-counts, never under. */
-function repeats(norm: string, quote: string): boolean {
-  return normalize(quote).split(/\.\.\.|…/).map((f) => f.replace(/^["'\s]+|["'\s]+$/g, "").trim()).filter(Boolean).some((f) => {
-    const at = norm.indexOf(f);
-    return at >= 0 && norm.indexOf(f, at + 1) >= 0;
-  });
+/**
+ * True only when the words at `span` occur exactly once in the paper. Both sides come from the ONE mapped paper: the
+ * span's words are read out of `paper.norm` through its own offsets and searched in that same `paper.norm`, never
+ * normalized a second way (security review finding: a second normalization that disagreed would read "not found" as
+ * "not repeated"). A span that maps to no words, or whose words can't be found, fails closed (false). Plain substring
+ * search, so it over-counts ("tablet" inside "tablets") and never under-counts.
+ */
+export function occursOnce(paper: MappedSource, span: { start: number; end: number }): boolean {
+  let a = -1;
+  let b = -1;
+  for (let k = 0; k < paper.norm.length; k++) {
+    if (paper.starts[k] >= span.start && paper.ends[k] <= span.end) {
+      if (a < 0) a = k;
+      b = k + 1;
+    }
+  }
+  if (a < 0) return false;
+  const words = paper.norm.slice(a, b).trim();
+  if (!words) return false;
+  const first = paper.norm.indexOf(words);
+  if (first < 0) return false;
+  return paper.norm.indexOf(words, first + 1) < 0;
 }
 
 /**
  * The lead-in is a FIXED sentence per language ("Your paper says this about \"...\":", askText.ts) around one short
  * topic that must itself be words from a shown quote. So the AI can't write advice into it (Codex review, round 2):
- * the most it chooses is which few words of the paper name the topic. Any number, or any "do not" / "stop" / "only"
- * cue in the topic (cuesForbid, which also always refuses Amharic script), and it is left out. Shown under "not
+ * the most it chooses is which few words of the paper name the topic. Any number in the topic, or any "do not" /
+ * "stop" / "only" cue in the topic OR the quote it came from (cuesForbid, which also always refuses Amharic script),
+ * and it is left out. Shown under "not
  * double-checked yet", since choosing the topic is still the AI's call.
  */
 function checkTopic(topic: string, quotes: AskQuote[]): { topic: string | null; topic_dropped: TopicDrop | null } {
   const text = topic.replace(/\s+/g, " ").trim().replace(/^["'“”‘’]+|["'“”‘’:.,;]+$/g, "");
   if (!text || quotes.length === 0) return { topic: null, topic_dropped: null };
   if (text.length > MAX_TOPIC) return { topic: null, topic_dropped: "too_long" };
-  if (!quotes.some((q) => findSpanIn(mapSource(q.text), text))) return { topic: null, topic_dropped: "not_in_quotes" };
-  if (/\p{N}/u.test(text) || numbersIn(text).length > 0) return { topic: null, topic_dropped: "has_number" };
-  if (cuesForbid(text, text)) return { topic: null, topic_dropped: "has_cue" };
-  return { topic: text, topic_dropped: null };
+  let from: AskQuote | undefined;
+  let at: { start: number; end: number } | null = null;
+  for (const q of quotes) { at = findSpanIn(mapSource(q.text), text); if (at) { from = q; break; } }
+  if (!from || !at) return { topic: null, topic_dropped: "not_in_quotes" };
+  // Shown in the paper's own spelling, cut from the quote, never the model's copy (security review finding).
+  const words = from.text.slice(at.start, at.end);
+  if (/\p{N}/u.test(words) || numbersIn(words).length > 0) return { topic: null, topic_dropped: "has_number" };
+  // The quote it came from counts too: "take ibuprofen" out of "Do not take ibuprofen." (Codex review, round 3).
+  if (cuesForbid(from.text, words)) return { topic: null, topic_dropped: "has_cue" };
+  return { topic: words, topic_dropped: null };
 }
 
 /** One paid model call, then the checker. The route has already ruled out urgent questions and spent a daily slot. */

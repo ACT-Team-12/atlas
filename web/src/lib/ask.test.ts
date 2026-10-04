@@ -15,7 +15,8 @@ vi.mock("@anthropic-ai/sdk", () => ({
   },
 }));
 
-const { checkAnswer, finishAnswer, answerFromPaper, MAX_QUOTES, AskRequestSchema } = await import("./ask");
+const { checkAnswer, finishAnswer, answerFromPaper, MAX_QUOTES, AskRequestSchema, occursOnce } = await import("./ask");
+const { mapSource } = await import("./verify");
 
 const paper = SAMPLE_AVS;
 const draft = (quotes: string[], topic = "", answered = true, urgent = false) => ({ answered, urgent, topic, quotes });
@@ -70,13 +71,13 @@ describe("ask checker: quotes", () => {
 
   it("drops a quote too short to prove anything", () => {
     expect(checkAnswer(paper, draft(["Take"])).dropped).toEqual(["too_short"]);
-    expect(checkAnswer(paper, draft(["... 911 ..."])).dropped).toEqual(["too_short"]);
+    expect(checkAnswer(paper, draft(["911 or"])).dropped).toEqual(["too_short"]);
   });
 
   it("drops a '...' quote that joins two lines of the paper", () => {
     const r = checkAnswer(paper, draft(["STOP taking these medications ... Avoid NSAIDs due to kidney function"]));
     expect(r.quotes).toEqual([]);
-    expect(r.dropped).toEqual(["skips_across"]);
+    expect(r.dropped).toEqual(["ellipsis"]);
   });
 
   it("holds back a sentence that appears twice on the paper (which one answers can't be checked)", () => {
@@ -92,6 +93,30 @@ describe("ask checker: quotes", () => {
     expect(r.quotes).toEqual([]);
     expect(r.dropped).toEqual(["ambiguous"]);
     expect(checkAnswer(meds, draft(["Take one tablet at night"])).quotes.map((x) => x.text)).toEqual(["Warfarin: Take one tablet at night."]);
+  });
+
+  // Security review finding: the ambiguity checks normalized the quote with normalize() and searched mapSource().norm.
+  // A fuzz over every code point U+0000 to U+2FFFF (three positions) found no input where the two differ, but the
+  // count now reads both sides from the mapped paper, and a span it can't locate is held back (fails closed).
+  it("counts a span's words from the mapped paper itself, and fails closed on a span it can't locate", () => {
+    const m = mapSource("Take one tablet in the morning. Take one tablet at night.");
+    expect(occursOnce(m, { start: 32, end: 57 })).toBe(true);
+    expect(occursOnce(m, { start: 0, end: 15 })).toBe(false); // "Take one tablet" is there twice
+    expect(occursOnce(m, { start: 5, end: 5 })).toBe(false); // empty span: nothing to count, so not "once"
+    expect(occursOnce(m, { start: 900, end: 950 })).toBe(false); // outside the paper
+  });
+
+  it("holds back a twice-written sentence even when its two copies differ only in spacing, case or dashes", () => {
+    const p = "Warfarin \u2013 Take ONE tablet at night.\nAspirin:\nWarfarin - take one   tablet at night.";
+    const r = checkAnswer(p, draft(["Warfarin - Take ONE tablet at night."]));
+    expect(r.quotes).toEqual([]);
+    expect(r.dropped).toEqual(["ambiguous"]);
+  });
+
+  it("drops any '...' quote: only one contiguous run of the paper's words can be checked for repeats", () => {
+    const r = checkAnswer(paper, draft(["Take 1 tablet by mouth ... with meals"]));
+    expect(r.quotes).toEqual([]);
+    expect(r.dropped).toEqual(["ellipsis"]);
   });
 
   it("shows a sentence once, and at most MAX_QUOTES sentences", () => {
@@ -114,9 +139,16 @@ describe("ask checker: the lead-in topic (fixed words around a few words of a sh
   const ibu = ["ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function."];
 
   it("keeps a topic copied from a shown quote", () => {
-    const r = checkAnswer(paper, draft(ibu, "ibuprofen"));
-    expect(r.topic).toBe("ibuprofen");
+    const r = checkAnswer(paper, draft(["Return to clinic in 3 months, or sooner if needed."], "Return to clinic"));
+    expect(r.topic).toBe("Return to clinic");
     expect(r.topic_dropped).toBeNull();
+    // From a quote with "Avoid" in it, even a cue-free topic is left out.
+    expect(checkAnswer(paper, draft(ibu, "ibuprofen")).topic_dropped).toBe("has_cue");
+  });
+
+  it("shows the topic in the paper's own spelling, not the model's (security review finding)", () => {
+    const r = checkAnswer(paper, draft(["Return to clinic in 3 months, or sooner if needed."], "RETURN  TO clinic"));
+    expect(r.topic).toBe("Return to clinic");
   });
 
   it("leaves out advice the AI wrote, since it is not words from the quote (Codex review, round 2)", () => {
@@ -141,6 +173,14 @@ describe("ask checker: the lead-in topic (fixed words around a few words of a sh
     expect(r.topic).toBeNull();
     expect(r.topic_dropped).toBe("has_cue");
     expect(checkAnswer(paper, draft(["STOP taking these medications:"], "STOP taking")).topic_dropped).toBe("has_cue");
+  });
+
+  it("leaves out a topic taken from a quote that has a cue, even if the topic itself has none (Codex review, round 3)", () => {
+    const p = "MEDICINES\nDo not take ibuprofen.\nReturn to clinic in 3 months.";
+    const r = checkAnswer(p, draft(["Do not take ibuprofen."], "take ibuprofen"));
+    expect(r.quotes).toHaveLength(1);
+    expect(r.topic).toBeNull();
+    expect(r.topic_dropped).toBe("has_cue");
   });
 
   it("leaves out a long topic, and never shows one without a surviving quote", () => {
@@ -185,7 +225,8 @@ describe("ask: the model call (mocked)", () => {
     if (r.kind !== "answer") return;
     expect(r.quotes.map((q) => q.text)).toEqual(["STOP taking these medications:", "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function."]);
     expect(r.dropped).toEqual(["not_in_paper"]);
-    expect(r.topic).toBe("ibuprofen");
+    expect(r.topic).toBeNull(); // its quote carries "Avoid" and "STOP"
+    expect(r.topic_dropped).toBe("has_cue");
   });
 
   it("closes no prompt tags early: <paper> and <question> inside the person's text are neutralized", async () => {

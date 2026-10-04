@@ -10,11 +10,14 @@ export const READY_TARGET: Record<Ready, string> = { steps: "steps-title", plan:
 const LABEL: Record<Ready, string> = { steps: "Your steps are ready", plan: "Your plan is ready" };
 
 /**
- * Plainly on screen: the whole heading inside the middle band of the viewport (the observer's rootMargin keeps the
- * sticky header and the bottom bar out). One edge entering the viewport is not enough (Codex review).
+ * Plainly on screen: the whole heading between 15% and 80% of the viewport's HEIGHT, clear of the sticky header and
+ * the bottom bar. One edge entering the viewport is not enough (Codex review). Plain geometry rather than an
+ * IntersectionObserver rootMargin, whose percentages resolve against the viewport's width (W3C Intersection Observer,
+ * "Percentages are resolved relative to the width of the undilated rectangle"), which collapses the band on a
+ * landscape phone (Codex review, round 2).
  */
-export function readableNow(e: { isIntersecting: boolean; intersectionRatio: number }): boolean {
-  return e.isIntersecting && e.intersectionRatio >= 0.99;
+export function readableRect(r: { top: number; bottom: number; height: number }, viewportHeight: number): boolean {
+  return r.height > 0 && r.top >= viewportHeight * 0.15 && r.bottom <= viewportHeight * 0.8;
 }
 
 /**
@@ -26,13 +29,18 @@ export function readableNow(e: { isIntersecting: boolean; intersectionRatio: num
  */
 export function ReadyCue({ ready, announce, onGo, onSeen }: { ready: Ready | null; announce: boolean; onGo: (r: Ready) => void; onSeen: () => void }) {
   useEffect(() => {
-    if (!ready || typeof IntersectionObserver === "undefined") return;
-    const el = document.getElementById(READY_TARGET[ready]);
-    if (!el) return;
-    const io = new IntersectionObserver((entries) => { if (entries.some(readableNow)) onSeen(); },
-      { rootMargin: "-20% 0px -25% 0px", threshold: [1] });
-    io.observe(el);
-    return () => io.disconnect();
+    if (!ready) return;
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      const el = document.getElementById(READY_TARGET[ready]);
+      if (el && readableRect(el.getBoundingClientRect(), window.innerHeight)) onSeen();
+    };
+    const soon = () => { if (!frame) frame = requestAnimationFrame(check); };
+    soon(); // it may already be in plain view when the result lands
+    window.addEventListener("scroll", soon, { passive: true });
+    window.addEventListener("resize", soon);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("scroll", soon); window.removeEventListener("resize", soon); };
   }, [ready, onSeen]);
 
   return (

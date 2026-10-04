@@ -50,7 +50,7 @@ describe("Ask my paper strings", () => {
 
   it("no em dashes or curly quotes in any string", () => {
     const all = JSON.stringify(ASK_TEXT) + LANGUAGES.map((l) => ASK_TEXT[l].readyQuestion("q") + ASK_TEXT[l].held(3)).join("");
-    expect(all).not.toMatch(/[—–“”‘’]/);
+    expect(all).not.toMatch(/[\u2014\u2013\u201C\u201D\u2018\u2019]/);
   });
 });
 

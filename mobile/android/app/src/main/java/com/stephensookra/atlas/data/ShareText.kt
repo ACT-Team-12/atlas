@@ -47,7 +47,7 @@ object ShareText {
         val used = plan.steps.flatMap { it.resource_ids }.toSet()
         val help = plan.resources.filterKeys { it in used }.toSortedMap().values
         if (help.isNotEmpty()) {
-            out += listOf("", "WHO CAN HELP (suggested by ATLAS, not from the paper; checked numbers)")
+            out += listOf("", "WHO CAN HELP (suggested by ATLAS from checked records; follow the paper first)")
             for (r in help) {
                 when (r) {
                     is ResourceCard.ClinicCard -> {

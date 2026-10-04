@@ -156,7 +156,7 @@ struct PlanStepCard: View {
 
             // Who picked these places: ATLAS, not the paper (caregiver's try, Oct 4; web lib/provenance.ts).
             if step.resource_ids.contains(where: { plan.resources[$0] != nil }) {
-                Text("Suggested by ATLAS, not from your paper").font(.caption.weight(.heavy)).foregroundStyle(Palette.inkSoft)
+                Text("Suggested by ATLAS from checked records. Follow your paper first.").font(.caption.weight(.heavy)).foregroundStyle(Palette.inkSoft)
             }
             ForEach(step.resource_ids, id: \.self) { id in
                 if let r = plan.resources[id] { ResourceView(card: r, open: open) }

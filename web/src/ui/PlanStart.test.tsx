@@ -112,7 +112,7 @@ describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
     // Who picked them, on every card and under the heading: ATLAS, not the doctor (caregiver's try, Oct 4).
     expect(tops.map((li) => li.querySelector("[data-by-atlas]")?.textContent)).toEqual(Array(3).fill("Suggested by ATLAS"));
     const placesNote = card.querySelector("[data-places-note]")!;
-    expect(placesNote.textContent).toContain("They are suggestions, not instructions from your paper.");
+    expect(placesNote.textContent).toContain("They are ATLAS's suggestions. If your paper says who to call, follow your paper");
     expect(placesNote.textContent).not.toMatch(/doctor did not/);
     expect(isFolded(placesNote)).toBe(false);
     expect(follows(heading, placesNote) && follows(placesNote, topList(card))).toBe(true);
@@ -165,7 +165,7 @@ describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
     expect(t.getAttribute("aria-expanded")).toBe("true");
     expect(shut(body)).toBe(false);
     expect(body.textContent).toContain(PLAN.steps[0].action);
-    expect(body.textContent).toContain("Best option · Suggested by ATLAS, not from your paper");
+    expect(body.textContent).toContain("Best option · Suggested by ATLAS");
     expect(body.querySelector("[data-by-atlas]")?.textContent).toBe("Suggested by ATLAS"); // over the plan's own action
     act(() => t.click());
     expect(t.getAttribute("aria-expanded")).toBe("false");

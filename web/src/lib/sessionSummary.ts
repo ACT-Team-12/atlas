@@ -21,7 +21,7 @@ import { isWarning } from "./warningPin";
 export const SESSION_HEADINGS = [
   "Upstream drivers the person picked",
   "Action plan (steps from the paper)",
-  "Community resources suggested by ATLAS (not from the paper)",
+  "Community resources suggested by ATLAS (from checked records)",
   "Education topics in the plan",
   "Appointments on the paper",
   "Time by activity (minutes, total)",

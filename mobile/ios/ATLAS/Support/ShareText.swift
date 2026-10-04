@@ -46,7 +46,7 @@ enum ShareText {
         let used = Set(plan.steps.flatMap(\.resource_ids))
         let help = plan.resources.filter { used.contains($0.key) }.sorted { $0.key < $1.key }.map(\.value)
         if !help.isEmpty {
-            out += ["", "WHO CAN HELP (suggested by ATLAS, not from the paper; checked numbers)"]
+            out += ["", "WHO CAN HELP (suggested by ATLAS from checked records; follow the paper first)"]
             for r in help {
                 switch r {
                 case let .clinic(_, _, c):

@@ -6,7 +6,7 @@ import { BARRIER_LABEL, type Barrier, formatHours, openNow, opensEvenings, opens
 import { directionsHref, helpsLine, primaryAction, resourceName, telHref, type RankedResource } from "@/lib/planTop";
 import { resourceScript } from "@/lib/booking";
 import { pipLine } from "@/lib/pip";
-import { BY_ATLAS, BY_ATLAS_NOT_PAPER, PLACES_NOTE } from "@/lib/provenance";
+import { BY_ATLAS, PLACES_NOTE } from "@/lib/provenance";
 import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
 
 /**
@@ -253,7 +253,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
         ))}
         {best && (
           <div className="mt-4">
-            <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-ink/70">Best option · {BY_ATLAS_NOT_PAPER}</p>
+            <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-ink/70">Best option · {BY_ATLAS}</p>
             <Resource r={best} off={off} proof={false} />
           </div>
         )}

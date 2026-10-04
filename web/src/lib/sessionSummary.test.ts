@@ -83,7 +83,7 @@ describe("helper session summary", () => {
   it("gives only the resources the plan uses, with name and phone or link, and no address", () => {
     const t = sessionSummary(state(), helper()).text;
     // Copied into a helper's notes, away from the screen: it says who picked them (Codex review of PR 96).
-    expect(t).toContain("Community resources suggested by ATLAS (not from the paper)\n- Mercy Care: (678) 843-8500 (health center)");
+    expect(t).toContain("Community resources suggested by ATLAS (from checked records)\n- Mercy Care: (678) 843-8500 (health center)");
     expect(t).toContain("- Georgia Medicaid: https://gateway.ga.gov (program)");
     expect(t).not.toContain("Not Used Clinic");
     expect(t).not.toContain("424 Decatur");

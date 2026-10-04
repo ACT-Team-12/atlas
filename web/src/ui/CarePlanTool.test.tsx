@@ -11,6 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CarePlanResponse } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { CarePlanTool } from "./CarePlanTool";
+import { SAMPLE_AVS } from "@/lib/sample";
+import { TRY_SAMPLE_EVENT } from "@/lib/sampleStart";
 
 vi.mock("@/lib/deviceChecker", () => ({ loadDeviceChecker: () => Promise.reject(new Error("no wasm in tests")), sameSpan: () => false }));
 
@@ -949,5 +951,111 @@ describe("your steps, grouped by when (CareSteps inside the real tool)", () => {
     expect(screenText()).toContain("You removed 1");
     act(() => byText("Undo").click());
     expect(host.querySelector('li[data-step="c1"]')).not.toBeNull();
+  });
+});
+
+/**
+ * The first watched try (Oct 4): a medical assistant tapped "Try it with a sample" on the home page, landed on an empty
+ * box with "Read my paper" greyed out below the fold, and was "looking for just anything to press".
+ */
+describe("Try it with a sample lands with the sample in and Read my paper in view", () => {
+  const readButton = () => host.querySelector<HTMLButtonElement>("#read-my-paper")!;
+  const frame = () => new Promise((r) => setTimeout(r, 30));
+
+  it("an empty box says what to do first, and the button points at that note", () => {
+    expect(readButton().disabled).toBe(true);
+    expect(host.querySelector("#read-hint")?.textContent).toContain("Use the sample paper");
+    expect(readButton().getAttribute("aria-describedby")).toBe("read-hint");
+  });
+
+  it("the home page event fills the sample, enables the button, scrolls it into view and focuses it", async () => {
+    // The event's render commits when act ends; the scroll waits one frame after that.
+    act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+    await act(async () => { await frame(); });
+    expect(paperBox().value).toBe(SAMPLE_AVS);
+    expect(readButton().disabled).toBe(false);
+    expect(host.querySelector("#read-hint")).toBeNull();
+    expect(readButton().hasAttribute("aria-describedby")).toBe(false);
+    expect(scrolls).toContain("read-my-paper");
+    expect(document.activeElement).toBe(readButton());
+  });
+
+  it("never replaces a paper the person typed; it only shows them the button", async () => {
+    act(() => typeInto(paperBox(), "My dad's discharge paper: take one pill a day and call if dizzy."));
+    // The event's render commits when act ends; the scroll waits one frame after that.
+    act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+    await act(async () => { await frame(); });
+    expect(paperBox().value).toBe("My dad's discharge paper: take one pill a day and call if dizzy.");
+    expect(scrolls).toContain("read-my-paper");
+  });
+
+  it("Use the sample paper also brings the button into view", async () => {
+    await act(async () => { byText("Use the sample paper").click(); await frame(); });
+    expect(paperBox().value).toBe(SAMPLE_AVS);
+    expect(scrolls).toContain("read-my-paper");
+    expect(document.activeElement).toBe(readButton());
+  });
+
+  it("a link to /#try-sample fills the sample on load and leaves #try in the address bar", async () => {
+    act(() => root.unmount());
+    window.history.replaceState(null, "", "/#try-sample");
+    root = createRoot(host);
+    await act(async () => { root.render(<CarePlanTool />); await frame(); });
+    expect(paperBox().value).toBe(SAMPLE_AVS);
+    expect(window.location.hash).toBe("#try");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("the home button's own href carries the request, so a tap before the page is interactive still works", () => {
+    // Codex review: with href="#try" the request lived only in the click handler, which does not exist before hydration.
+    const hero = readFileSync(join(__dirname, "Hero.tsx"), "utf8");
+    // One line: the opening tag (whose onClick contains "=>") through the label.
+    expect(hero).toMatch(/<SquashButton href=\{TRY_SAMPLE_HASH\}[^\n]*>Try it with a sample<\/SquashButton>/);
+  });
+
+  it("on a phone with their own paper on another tab: keeps the paper, opens tab 1, then jumps (Codex review)", async () => {
+    phone = true;
+    act(() => typeInto(paperBox(), "My dad's discharge paper: take one pill a day and call if dizzy."));
+    act(() => host.querySelector<HTMLButtonElement>("#tab-step-2")!.click());
+    expect(host.querySelector("#tab-step-2")?.getAttribute("aria-selected")).toBe("true");
+    act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+    await act(async () => { await frame(); });
+    expect(paperBox().value).toBe("My dad's discharge paper: take one pill a day and call if dizzy.");
+    expect(host.querySelector("#tab-step-1")?.getAttribute("aria-selected")).toBe("true");
+    expect(scrolls).toContain("read-my-paper");
+  });
+
+  describe("while the first-visit intro holds the page", () => {
+    afterEach(() => { document.documentElement.style.overflow = ""; });
+
+    it("waits for the intro to let go, then jumps once (Preloader's real order: intro-done while locked, then again)", async () => {
+      document.documentElement.style.overflow = "hidden";
+      act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+      await act(async () => { await frame(); });
+      expect(scrolls).not.toContain("read-my-paper");
+      // First intro-done: mid-animation, the page is still locked. Codex review: this used to consume the jump.
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls).not.toContain("read-my-paper");
+      // Second intro-done: finish() has cleared the lock.
+      document.documentElement.style.overflow = "";
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls.filter((s) => s === "read-my-paper")).toHaveLength(1);
+      expect(document.activeElement).toBe(readButton());
+      // Any later intro-done does nothing more.
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls.filter((s) => s === "read-my-paper")).toHaveLength(1);
+    });
+
+    it("a late intro never pulls the person out of what they started (Codex review)", async () => {
+      document.documentElement.style.overflow = "hidden";
+      act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+      await act(async () => { await frame(); });
+      // The person starts typing in their own note before the intro lets go.
+      act(() => { paperBox().focus(); window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" })); });
+      document.documentElement.style.overflow = "";
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls).not.toContain("read-my-paper");
+      expect(document.activeElement).toBe(paperBox());
+    });
   });
 });

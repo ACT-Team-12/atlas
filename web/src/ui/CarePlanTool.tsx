@@ -4,11 +4,12 @@ import { bookSafe, careStepView, checkOf, type Check } from "@/lib/paperFirst";
 import { readingGeneralQuestions, visitQuestions } from "@/lib/visitQuestions";
 import { PaperFirst } from "./PaperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
+import { mayFillSample, TRY_SAMPLE_EVENT, TRY_SAMPLE_HASH } from "@/lib/sampleStart";
 import { BARRIERS, BARRIER_LABEL, type Barrier } from "@/lib/resources";
 import type { PlanResponse } from "@/lib/plan";
 import { topResources } from "@/lib/planTop";
@@ -383,8 +384,69 @@ export function CarePlanTool() {
   // A helper link (/helper) starts a fresh plan with its presets in the normal inputs. Runs after the restore above.
   const helper = useHelperArrival((p) => { newPlan(); if (p.language) setLanguage(p.language); if (p.level) setLevel(p.level); if (p.zip) setZip(p.zip); });
 
+  // "Try it with a sample" (lib/sampleStart.ts): fill the sample in, then bring "Read my paper" into view and focus it,
+  // so the next thing to press is on screen. Each bump of readJump asks for one jump, after the render that enabled it.
+  const [readJump, setReadJump] = useState(0);
+  const loadSample = () => { setText(SAMPLE_AVS); setPhoto(null); setTab(1); setReadJump((n) => n + 1); };
+  const arriveWithSample = useEffectEvent(() => {
+    // Never replace a paper the person typed or photographed; just show them the button. On a phone a restored plan
+    // can be open on tab 2 or 3, where step 1 is hidden, so the button's tab is opened first either way (Codex review).
+    if (mayFillSample(live.current.text, !!live.current.photo, SAMPLE_AVS)) loadSample();
+    else { setTab(1); setReadJump((n) => n + 1); }
+  });
+  useEffect(() => {
+    const toTry = () => { try { window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#try`); } catch {} };
+    const fromHash = () => {
+      if (window.location.hash !== TRY_SAMPLE_HASH) return;
+      toTry();
+      arriveWithSample();
+    };
+    // The home button's href is #try-sample, so a tap before this page is interactive still arrives here on load.
+    // Once it is, the button also sends the event (Next changes the hash without a hashchange); tidy the hash after.
+    let tidy = 0;
+    const fromEvent = () => {
+      arriveWithSample();
+      window.clearTimeout(tidy);
+      tidy = window.setTimeout(() => { if (window.location.hash === TRY_SAMPLE_HASH) toTry(); }, 100);
+    };
+    fromHash();
+    window.addEventListener(TRY_SAMPLE_EVENT, fromEvent);
+    window.addEventListener("hashchange", fromHash);
+    return () => { window.clearTimeout(tidy); window.removeEventListener(TRY_SAMPLE_EVENT, fromEvent); window.removeEventListener("hashchange", fromHash); };
+  }, []);
+  useEffect(() => {
+    if (!readJump) return;
+    const askedAt = performance.now();
+    const go = () => {
+      // Never pull the person away: not after they have tapped, typed or scrolled since, nor out of a field they are in.
+      if (lastInteraction.current > askedAt) return;
+      if (isEditable(document.activeElement as HTMLElement | null)) return;
+      const el = document.getElementById("read-my-paper");
+      if (!el) return;
+      el.scrollIntoView({ block: "center" });
+      el.focus({ preventScroll: true });
+    };
+    // The first-visit intro (Preloader) holds the page with overflow hidden for about a second and a half, and says
+    // "atlas:intro-done" twice: once mid-animation (still locked) and once after it lets go. Jump once: right away, or
+    // on the first intro-done that arrives after the lock is gone, never both.
+    if (document.documentElement.style.overflow === "hidden") {
+      const onIntro = () => {
+        if (document.documentElement.style.overflow === "hidden") return; // still locked: wait for the next one
+        window.removeEventListener("atlas:intro-done", onIntro);
+        go();
+      };
+      window.addEventListener("atlas:intro-done", onIntro);
+      const stop = window.setTimeout(() => window.removeEventListener("atlas:intro-done", onIntro), 6000);
+      return () => { window.clearTimeout(stop); window.removeEventListener("atlas:intro-done", onIntro); };
+    }
+    const frame = requestAnimationFrame(go);
+    return () => cancelAnimationFrame(frame);
+  }, [readJump]);
+
   // Is the reading (or the plan) on screen still the one these inputs would get? A plan built from an outdated reading is outdated too.
   const careOutdated = !!care && careFp !== null && readFingerprintFor({ text, photo, language, level }) !== careFp;
+  // Not enough to read yet: "Read my paper" is off and a note says what to do first.
+  const needsPaper = !photo && text.trim().length < 20;
   const planOutdated = !!plan && planFp !== null && (careOutdated || planFingerprint({
     careIds: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id),
     barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc,
@@ -983,7 +1045,7 @@ export function CarePlanTool() {
               <textarea data-lenis-prevent aria-label="After-visit summary text" className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 placeholder="Paste the after-visit summary here..." value={text} onChange={(e) => { setText(e.target.value); setPhoto(null); }} />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
-                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setText(SAMPLE_AVS); setPhoto(null); setTab(1); }}>Use the sample paper</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={loadSample}>Use the sample paper</button>
                 <label className="cursor-pointer rounded-full border-2 border-ink px-4 py-2 hover:bg-mint">
                   📷 {photo ? photo.name : "Take or upload a photo"}
                   <input type="file" accept="image/*" capture="environment" className="hidden"
@@ -1003,7 +1065,10 @@ export function CarePlanTool() {
                   {READING_LEVELS.map((l) => <option key={l}>{l}</option>)}
                 </select>
               </label>
-              <SquashButton onClick={() => readPaper()} disabled={reading || (!photo && text.trim().length < 20)} bg="var(--teal)" accent="var(--sun)" className="mt-auto">
+              {/* A greyed-out button alone says nothing; say what to do first (the Oct 4 watched try). */}
+              {needsPaper && <p id="read-hint" className="mt-auto text-sm font-bold text-ink/80">Add your paper first: paste it, take a photo, or tap Use the sample paper.</p>}
+              <SquashButton id="read-my-paper" onClick={() => readPaper()} disabled={reading || needsPaper} describedBy={needsPaper ? "read-hint" : undefined}
+                bg="var(--teal)" accent="var(--sun)" className={needsPaper ? "" : "mt-auto"}>
                 {reading ? "Reading..." : "Read my paper"}
               </SquashButton>
             </div>

@@ -348,7 +348,7 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
   const kind = KIND[it.kind];
   return (
     <li id={`step-${it.id}`} onMouseEnter={() => onHover(it.id)} onMouseLeave={() => onHover(null)} data-step={it.id} data-seal={seal} data-open={open || undefined} data-pip-here={pip?.mood}
-      className={`scroll-mt-24 rounded-2xl border-2 bg-paper ${warn ? "border-red" : open ? "border-ink" : "border-ink/20"}`}>
+      className={`scroll-mt-44 md:scroll-mt-24 rounded-2xl border-2 bg-paper ${warn ? "border-red" : open ? "border-ink" : "border-ink/20"}`}>
       <div className="flex items-start gap-3 p-3">
         <input type="checkbox" aria-label={`Mark step ${n} done`} className="mt-1 h-6 w-6 flex-none accent-[var(--teal)]"
           checked={done} onChange={(e) => onDone(e.target.checked)} />

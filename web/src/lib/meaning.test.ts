@@ -293,6 +293,15 @@ describe("a correct dose change in everyday words certifies; a wrong number, fre
     expect(at(two, "Take 2 mg vitamin K pills once a day.").certified).toBe(false);
     expect(at(two, "Take warfarin 2 mg pill and vitamin K 5 mg pill once a day.").certified).toBe(true);
   });
+  it.each([
+    // "used to" without a person is not "previously": the 5 mL here is the old dose, not the one to measure now.
+    ["Previously 5 mL. Use the cup to measure 10 mL.", "Use the cup used to measure 5 mL."],
+    // A shared "tablet" never stands in for the medicine name the three-word window dropped.
+    ["Take aspirin pill 2 times daily. Take warfarin 5 times daily.", "Take warfarin extended release tablet 2 times daily."],
+    ["The aspirin pill contains 2 mg. Warfarin contains 5 mg.", "The warfarin extended release tablet contains 2 mg."],
+  ])("Codex: %j explained as %j is never certified", (paper, plain) => {
+    expect(at(paper, plain).certified).toBe(false);
+  });
   it("the model still decides: a dose change it calls different is flagged", () => {
     expect(combine("x", { ...base, source_quote: lisinopril, plain_language: "Take 2 pills (20 mg total) by mouth once a day." }, "different", "x").flagged).toBe(true);
   });

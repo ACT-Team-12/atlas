@@ -173,10 +173,14 @@ const CONTEXT_STOP = new Set([
  * the quote (never to read a value). "pill", "pills", "tablet" and "tablets" are one word here, so "2 pills (20 mg
  * total)" lines its 20 mg up with the paper's "2 tablets (20 mg total)", and "you used to take 10 mg" lines up with
  * "Previously 10 mg". Both sides are read through this, so a swap between two values still points at the other
- * value's word and is refused.
+ * value's word and is refused. "used to" means "previously" only after a person ("you used to take"), never in "the
+ * cup used to measure". These shared words are weak on their own: see `ALIAS_NAMES` in `unitsSwapped`.
  */
 const SAME_NAME: Record<string, string> = { pill: "tablet", pills: "tablet", tablet: "tablet", tablets: "tablet", previously: "previously", formerly: "previously" };
-const nameOf = (w: string, next: string | undefined) => (w === "used" && next?.toLowerCase() === "to" ? "previously" : SAME_NAME[w] ?? w);
+const ALIAS_NAMES = new Set(Object.values(SAME_NAME));
+const PERSON = new Set(["you", "i", "we", "they", "he", "she"]);
+const nameOf = (w: string, prev: string | undefined, next: string | undefined) =>
+  w === "used" && next?.toLowerCase() === "to" && PERSON.has(prev?.toLowerCase() ?? "") ? "previously" : SAME_NAME[w] ?? w;
 const HALF_WORD_ONE = /^(?:half|halves|medio|media|medias|mitad|demi|demie|demis|moitié|nửa|半|반)$/iu;
 const QUARTER_WORD_ONE = /^(?:quarter|quarters|cuarto|cuartos|cuarta|quart|quarts)$/iu;
 
@@ -198,7 +202,7 @@ function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [strin
       const u = unitClass(w);
       if ((u && (u === cls || cls === null)) || CONTEXT_STOP.has(w)) continue;
       if (languages.some((l) => readNumberWords(w, l).numbers.length > 0)) break;
-      out.push(nameOf(w, toks[k + 1]));
+      out.push(nameOf(w, toks[k - 1], toks[k + 1]));
     }
     return out;
   };
@@ -285,7 +289,12 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
     const others = [...values(c)].filter((v) => v !== n).map((v) => namesOf(v, c));
     const own = [...namesOf(n, c)].filter((w) => !others.some((o) => o.has(w)));
     const pointsElsewhere = ctx.some((w) => others.some((o) => o.has(w)) && !namesOf(n, c).has(w));
-    return own.some((w) => ctx.includes(w)) && !pointsElsewhere;
+    if (pointsElsewhere) return false;
+    if (own.some((w) => ctx.includes(w) && !ALIAS_NAMES.has(w))) return true;
+    // Lined up only by a shared word ("tablet", "previously"): every naming word must be this number's own, or a
+    // medicine name past the three-word window could hide behind it (Codex: "warfarin extended release tablet 2").
+    const mine = namesOf(n, c);
+    return own.some((w) => ctx.includes(w)) && ctx.every((w) => mine.has(w));
   };
   const free = new Set(["clockmin", "phone"]);
   if (p.pairs.some(([n, c], k) => c !== null && !free.has(c) && values(c).size >= 2 && !aligned(n, c, pCtx[k]))) return true;

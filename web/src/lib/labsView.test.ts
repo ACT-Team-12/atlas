@@ -36,5 +36,7 @@ describe("labsView", () => {
     expect(at("High Sensitivity CRP 1.0 mg/L 0.0-3.0", "CRP", "1.0")).toBe("High Sensitivity CRP");
     expect(at("Cholesterol, HDL: 38 mg/dL >40 L", "Cholesterol", "38")).toBe("Cholesterol, HDL");
     expect(at("Vitamin B12   450   pg/mL   200-900", "Vitamin B12", "450")).toBe("Vitamin B12");
+    // Digits in the name that equal the result are not the result (round 2).
+    expect(at("Vitamin B12 12 pg/mL 5-20", "Vitamin", "12")).toBe("Vitamin B12");
   });
 });

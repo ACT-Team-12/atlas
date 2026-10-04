@@ -35,6 +35,36 @@ fi
 echo "safety vectors match the web reference ($(wc -c < "$safety_out") bytes)"
 rm -f "$safety_out"
 
+# Pip vectors (where the "you are here" marker goes and what he says; mobile/shared/pip-vectors.json). The web reference,
+# web/src/lib/pip.ts, arrives with PR 82. Without it the check cannot run: it FAILS when ENFORCE=true (main and pull
+# requests into main) and otherwise warns, so the phone port can be reviewed before PR 82 lands.
+if [ -f "$web/src/lib/pip.ts" ]; then
+  pip_gen="$web/src/lib/genPipVectors.test.ts"
+  pip_out="$(mktemp "${TMPDIR:-/tmp}/pip-vectors.XXXXXX")"
+  cp "$root/mobile/shared/genPipVectors.test.ts" "$pip_gen"
+  (cd "$web" && VECTORS_OUT="$pip_out" pnpm exec vitest run src/lib/genPipVectors.test.ts) || { rm -f "$pip_gen" "$pip_out"; exit 1; }
+  rm -f "$pip_gen"
+  if [ ! -s "$pip_out" ]; then
+    echo "::error::the Pip generator wrote no vectors"
+    rm -f "$pip_out"
+    exit 1
+  fi
+  if ! cmp -s "$pip_out" "$root/mobile/shared/pip-vectors.json"; then
+    echo "::error::mobile/shared/pip-vectors.json is out of date with web/src/lib/pip.ts. Regenerate it (mobile/shared/README.md) and commit the result."
+    rm -f "$pip_out"
+    exit 1
+  fi
+  echo "pip vectors match the web reference ($(wc -c < "$pip_out") bytes)"
+  rm -f "$pip_out"
+else
+  msg="web/src/lib/pip.ts is not on this branch (PR 82), so the Pip vectors cannot be regenerated here."
+  if [ "${ENFORCE:-true}" = "true" ]; then
+    echo "::error::$msg"
+    exit 1
+  fi
+  echo "::warning::$msg Not enforced on this branch; enforced on main and on pull requests into main."
+fi
+
 if ! grep -q "export function missedLinesPayload" "$web/src/lib/missedLines.ts"; then
   msg="web/src/lib/missedLines.ts has no missedLinesPayload (PR 66), so the missed-lines vectors cannot be regenerated here."
   if [ "${ENFORCE:-true}" = "true" ]; then

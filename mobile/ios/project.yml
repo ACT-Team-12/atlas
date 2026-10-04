@@ -65,6 +65,9 @@ targets:
       # The safety rules' web reference (warning pins, by-when groups, stop-now): SafetyVectorsTests replays it.
       - path: ../shared/safety-vectors.json
         buildPhase: resources
+      # Pip's web reference (web/src/lib/pip.ts: placement, the quiet rule, the fixed lines): PipTests replays it.
+      - path: ../shared/pip-vectors.json
+        buildPhase: resources
     dependencies:
       - target: ATLAS
     settings:

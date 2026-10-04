@@ -86,6 +86,12 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     /** What `care` was read from and what `plan` was built from (StaleGuard). Null when unknown. */
     private var readFp by mutableStateOf<String?>(null)
     private var planFp by mutableStateOf<String?>(null)
+    /**
+     * Counts the readings in this run of the app, so a screen can reset per-reading state (Pip's greeting and cheer) when
+     * "Read my paper again" replaces the steps in place, as the website does by keying its steps on the run. Not saved.
+     */
+    var readingCount by mutableStateOf(0)
+        private set
     /** When the steps or the plan last changed (SavedSession.savedAt). Input changes and helper links keep it. */
     private var planChangedAt: Long? = null
 
@@ -263,6 +269,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         planFp = null
         readFp = StaleGuard.readFingerprint(text, language, level)
         done.clear(); removed.clear()
+        readingCount++
         restoredAt = null
     }
 

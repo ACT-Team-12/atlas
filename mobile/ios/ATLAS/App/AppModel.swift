@@ -36,6 +36,9 @@ final class AppModel {
     /// What `care` was read from and what `plan` was built from (StaleGuard). Nil when unknown (older saved files).
     private(set) var readFingerprint: String?
     private(set) var planFingerprint: String?
+    /// Counts the readings in this run of the app, so a screen can reset per-reading state (Pip's greeting and cheer) when
+    /// "Read my paper again" replaces the steps in place, as the website does by keying its steps on the run. Not saved.
+    private(set) var readingCount = 0
     /// When the steps or the plan last changed (SavedSession.savedAt). Input changes and helper links keep it.
     @ObservationIgnored private var planChangedAt: Date?
 
@@ -207,6 +210,7 @@ final class AppModel {
                 readFingerprint = StaleGuard.readFingerprint(text: text, language: language, level: level)
                 planFingerprint = nil
                 care = result
+                readingCount += 1
                 plan = nil
                 done = [:]
                 removed = [:]

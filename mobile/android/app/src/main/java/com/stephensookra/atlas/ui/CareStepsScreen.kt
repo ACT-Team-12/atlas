@@ -1,6 +1,7 @@
 package com.stephensookra.atlas.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -36,6 +38,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -48,11 +52,13 @@ import com.stephensookra.atlas.data.Language
 import com.stephensookra.atlas.data.MeaningResult
 import com.stephensookra.atlas.data.MeaningStatus
 import com.stephensookra.atlas.data.PaperFirst
+import com.stephensookra.atlas.data.Pip
 import com.stephensookra.atlas.data.StepsWhen
 import com.stephensookra.atlas.data.VerifiedItem
 import com.stephensookra.atlas.data.WarningPin
 import com.stephensookra.atlas.services.Speaker
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 /** What a "Remind me" button is about. */
 data class ReminderTarget(val title: String, val quote: String, val detail: String = "")
@@ -62,6 +68,16 @@ data class ReminderTarget(val title: String, val quote: String, val detail: Stri
 fun CareStepsScreen(model: AppModel) {
     val speaker = rememberSpeaker()
     var reminder by remember { mutableStateOf<ReminderTarget?>(null) }
+    // Pip (data/Pip.kt): the step just marked done, cheered for a moment, and whether the first-view heading greeting is
+    // over (for good once a step is marked done here).
+    val pipCalm = rememberPipCalm()
+    // Keyed on the reading: "Read my paper again" replaces the steps in place, and a new reading is a new first view.
+    var cheering by remember(model.readingCount) { mutableStateOf<String?>(null) }
+    var greetOver by remember(model.readingCount) { mutableStateOf(false) }
+    LaunchedEffect(cheering) {
+        if (cheering != null) { delay(Pip.CHEER_MILLIS); cheering = null }
+    }
+    var pipSaid by remember { mutableStateOf("") }
     val care = model.care
     if (care == null) {
         ScreenBody { Text("No steps yet. Go back and read your paper.", style = Type.body) }
@@ -84,6 +100,17 @@ fun CareStepsScreen(model: AppModel) {
         // is the third card a person sees.
         val (warnings, groups) = StepsWhen.grouped(model.items, { model.checkFor(it) }, care.source_text)
         val items = warnings + groups.flatMap { it.items }
+        // Pip: on the first step not done in the order shown, earliest group first; warning signs are never his spot.
+        val pipOrder = groups.flatMap { it.items }.map { Pip.Step(it.id, it.kind) }
+        val doneMap = model.done.toMap()
+        val spot = Pip.spot(pipOrder, doneMap, { model.checkFor(it) }, cheering, Pip.greetAllowed(greetOver, doneMap))
+        val drawn = Pip.drawn(spot)
+        val pipText = spot.line?.let { Pip.line(model.language, it) } ?: ""
+        val calm = pipCalm.calm
+        // What Pip says is read once through a polite live region. Keyed on where he is too, so a second "Nice, that's
+        // done" on another step is still read; cleared first so the repeated words are a fresh change.
+        LaunchedEffect(model.readingCount, Pip.announceKey(spot), pipText) { pipSaid = ""; delay(300); pipSaid = pipText }
+        Box(Modifier.size(1.dp).semantics { liveRegion = LiveRegionMode.Polite; contentDescription = pipSaid })
         when (model.meaning.status) {
             MeaningStatus.loading -> Text("Double-checking each explanation against your paper...", style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
             MeaningStatus.error -> Text("The double-check is not available right now, so each step shows your paper's own words first.",
@@ -99,8 +126,10 @@ fun CareStepsScreen(model: AppModel) {
         }
 
         // Keyed by id, so a step's open "Why?" and "Ask your pharmacist" state never moves to the next step on Remove.
-        val card: @Composable (VerifiedItem) -> Unit = { item -> key(item.id) {
+        // `warning`: a pinned warning sign, which has no Pip slot at all (Pip is never on or beside them).
+        val card: @Composable (VerifiedItem, Boolean) -> Unit = { item, warning -> key(model.readingCount, item.id) {
             val check = model.checkFor(item.id)
+            val here = drawn.card?.takeIf { it.id == item.id }
             CareItemCard(
                 item = item,
                 check = check,
@@ -108,20 +137,38 @@ fun CareStepsScreen(model: AppModel) {
                 checking = model.meaning.status == MeaningStatus.loading,
                 errored = model.meaning.status == MeaningStatus.error,
                 done = model.done[item.id] == true,
-                onToggleDone = { model.setDone(item.id, model.done[item.id] != true) },
+                onToggleDone = {
+                    val v = model.done[item.id] != true
+                    model.setDone(item.id, v)
+                    // A done step gets Pip's short cheer (only a non-quiet one, Pip.spot decides) and ends the greeting.
+                    cheering = if (v) item.id else null
+                    if (v) greetOver = true
+                },
                 // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
                 onRemind = { reminder = ReminderTarget(PaperFirst.bookTitle(item.kind), item.source_quote, PaperFirst.bookWhen(item, check)) },
                 onRemove = { model.remove(item.id) },
+                pipSlot = !warning, pip = here, pipText = if (here?.line != null) pipText else "", calm = calm,
             )
         } }
         if (warnings.isNotEmpty()) {
             StepGroupHeader("Warning signs from your paper", warnings.size,
                 "If you have any of them right now, do what your paper says: call your clinic, or call 911.", warning = true)
-            warnings.forEach { card(it) }
+            warnings.forEach { card(it, true) }
+        }
+        // Pip's heading spot: the first-view greeting, or every step done. Reserved either way, beside the Calm mode
+        // switch, so nothing shifts when he comes or goes. Never beside the warning signs.
+        if (pipOrder.isNotEmpty()) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CalmToggle(pipCalm)
+                    PipSlot { drawn.heading?.let { mood -> key(model.readingCount, Pip.announceKey(spot)) { PipMarker(mood, calm) } } }
+                }
+                if (drawn.heading != null && pipText.isNotEmpty()) PipBubble(pipText, pointDown = spot is Pip.Spot.Greet)
+            }
         }
         groups.forEach { g ->
             StepGroupHeader(g.group.label, g.items.size, g.group.note)
-            g.items.forEach { card(it) }
+            g.items.forEach { card(it, false) }
         }
 
         val removed = model.removedItems
@@ -185,7 +232,10 @@ fun StepGroupHeader(title: String, count: Int, note: String?, warning: Boolean =
 
 @Composable
 fun CareItemCard(item: VerifiedItem, check: Check, result: MeaningResult?, checking: Boolean, done: Boolean,
-                 onToggleDone: () -> Unit, onRemind: () -> Unit, onRemove: () -> Unit, errored: Boolean = false) {
+                 onToggleDone: () -> Unit, onRemind: () -> Unit, onRemove: () -> Unit, errored: Boolean = false,
+                 // Pip's reserved spot on the trailing edge (every step card but a warning sign keeps it, so text never moves
+                 // when he hops), Pip himself when he is on this card, what he says here, and calm mode.
+                 pipSlot: Boolean = false, pip: Pip.Drawn.Card? = null, pipText: String = "", calm: Boolean = false) {
     val style = KindStyle.of(item.kind)
     // Styled as a warning exactly when it is pinned as one: the model's kind or the paper's own words.
     val warning = WarningPin.isWarning(item)
@@ -238,6 +288,10 @@ fun CareItemCard(item: VerifiedItem, check: Check, result: MeaningResult?, check
                         modifier = Modifier.semantics { contentDescription = "Remove $name" })
                 }
             }
+            if (pipSlot) PipSlot { pip?.let { key("${it.id}:${it.mood}") { PipMarker(it.mood, calm) } } }
+        }
+        if (pip?.line != null && pipText.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { PipBubble(pipText) }
         }
     }
 }

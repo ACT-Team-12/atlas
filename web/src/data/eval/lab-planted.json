@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-10-03T06:02:52.303Z",
+  "measured_at": "2026-10-04T00:36:54.725Z",
   "command": "node scripts/lab-planted.mjs",
   "reports": 7,
   "real": {

@@ -322,6 +322,54 @@ describe("security review checklist", () => {
     expect(one("HDL Cholesterol   44   mg/dL   >40", "HDL Cholesterol", "44", "mg/dL", ">40").status).toBe("inside");
   });
 
+  it("in every row panel the report line comes before any AI text, and the question shows once", () => {
+    render();
+    act(() => host.querySelector<HTMLButtonElement>('[data-lab-group="inside"] > button')!.click());
+    for (const r of ROWS) {
+      const li = rowNamed(labClosedRow(r).name);
+      if (toggleOf(li).getAttribute("aria-expanded") === "false") act(() => toggleOf(li).click());
+      const panel = panelOf(li);
+      const text = panel.textContent!;
+      const lineAt = text.indexOf(`“${r.quote}”`);
+      expect(lineAt).toBeGreaterThan(-1);
+      for (const ai of [r.plain_name, r.ask]) {
+        expect(text.indexOf(ai), ai).toBeGreaterThan(lineAt);
+        expect(text.split(ai).length - 1, `${ai} once`).toBe(1);
+      }
+      // Only our code's reason sits above the line.
+      expect(text.slice(0, lineAt)).not.toMatch(/AI-/);
+    }
+  });
+
+  it("AI fields only add caution: the model dressing a line as normal never folds it (security review)", () => {
+    const L = {
+      h: "Potassium 4.0 H 3.5-5.1",
+      crit: "CRITICAL Sodium 140 mmol/L 136-145",
+      none: "Vitamin D 18 ng/mL",
+      liter: "Urine Volume 1.8 L 0.8-2.0",
+      skip: "Glucose 250 prev 80 mg/dL 70-99",
+    };
+    const src = Object.values(L).join("\n") + "\n";
+    const m = (quote: string, test: string, value: string, unit: string, range_text: string) => ({ test, value, unit, range_text, quote, plain_name: "a", ask: "b" });
+    const res = checkRows(src, [
+      m(L.h, "Potassium", "4.0", "H", "3.5-5.1"), // the H flag called a unit
+      m(L.crit, "CRITICAL Sodium", "140", "mmol/L", "136-145"), // the marker swallowed by the name
+      m(L.none, "Vitamin D", "18", "ng/mL", "10-100"), // a range the line does not print
+      m(L.liter, "Urine Volume", "1.8", "L", "0.8-2.0"), // a lone L called liters
+      m(L.skip, "Glucose 250 prev", "80", "mg/dL", "70-99"), // the name skips past the real result
+    ]);
+    expect(res.rows).toHaveLength(5);
+    expect(res.counts.inside).toBe(0);
+    render(res.rows);
+    expect(host.querySelector('[data-lab-group="inside"]')).toBeNull();
+    for (const li of host.querySelectorAll<HTMLLIElement>("li[data-lab-row]")) {
+      expect(visible(li)).toBe(true);
+      expect(li.dataset.labRow).not.toBe("inside");
+    }
+    expect(rowNamed("Vitamin D").querySelector("[data-report-range]")).toBeNull();
+    expect(rowNamed("CRITICAL Sodium").dataset.critical).toBe("true");
+  });
+
   it("(4) critical rows stay pinned in the flagged group and open, with the in-range fold closed", () => {
     render();
     const crit = rowNamed("Potassium, repeat");

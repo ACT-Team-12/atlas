@@ -135,8 +135,9 @@ describe("lab results: adversarial review cases", () => {
   });
 
   it("3. a flag is only read after the value, never from the unit or the test name", () => {
-    // A liter "L" is not Low, with or without the AI naming the unit.
-    expect(status(one("Volume 3.0 L 2.0-4.0", { test: "Volume", value: "3.0", unit: "L", range_text: "2.0-4.0" }))).toEqual([["inside", null]]);
+    // A lone "L" may be liters or Low. The AI naming the unit "L" may only add caution, never clear it: in range by the
+    // printed range is still "can't tell", shown and never folded (security review; this was "inside" before).
+    expect(status(one("Volume 3.0 L 2.0-4.0", { test: "Volume", value: "3.0", unit: "L", range_text: "2.0-4.0" }))).toEqual([["unknown", null]]);
     expect(status(one("Volume 3.0 L 2.0-4.0", { test: "Volume", value: "3.0", unit: "", range_text: "2.0-4.0" }))).toEqual([["unknown", null]]);
     expect(status(one("Potassium 3.2 L 3.5-5.1", { test: "Potassium", value: "3.2", unit: "", range_text: "3.5-5.1" }))).toEqual([["outside", "low"]]);
     expect(status(one("CRP 1.0 mg/L 0.0-3.0", { test: "CRP", value: "1.0", unit: "mg/L", range_text: "0.0-3.0" }))).toEqual([["inside", null]]);

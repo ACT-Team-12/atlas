@@ -155,10 +155,9 @@ function readLine(line: string, r: Pick<ModelRow, "test" | "unit" | "range_text"
   const words = tail.trim().split(/\s+/).filter(Boolean);
   // The whole line with only our code's spans blanked (the ranges and the value), never the AI's name or unit.
   let whole = line;
-  // The one exception is a liter "L" right where the unit sits: liters are a real unit, and the printed range already
-  // settles it above. Any other AI-named unit ("H", "High") is not taken out, so it can't hide a flag.
-  const literAt = at && unit === "L" ? [{ start: value.end + at.index, end: value.end + at.index + 1 }] : [];
-  for (const s of [...spans(RANGE, line), value, ...literAt]) whole = whole.slice(0, s.start) + " ".repeat(s.end - s.start) + whole.slice(s.end);
+  // No exception, not even a liter "L": the unit is the AI's word, and an AI field may only add caution (security
+  // review). "1.8 L 0.8-2.0" is "can't tell", shown, never folded as in range.
+  for (const s of [...spans(RANGE, line), value]) whole = whole.slice(0, s.start) + " ".repeat(s.end - s.start) + whole.slice(s.end);
   return {
     verdicts: others.map((s) => parseRange(s.text)).filter((x): x is Interval => !!x).map((x) => classify(valueRange, x)),
     lineMark: printedFlag(whole),
@@ -191,6 +190,10 @@ function failClosed(r: ModelRow, judged: Omit<ResultRow, keyof ModelRow>): Omit<
   if (judged.status !== "inside") return judged;
   const read = readLine(r.quote, r);
   if (!read) return judged;
+  // The AI's test name decides where the value search starts. A name that swallows a number on the line could move
+  // the search past the real result ("Glucose 250 (prev 80)" named "Glucose 250 prev"), so it can't be in range.
+  const name = findName(r.quote, r.test);
+  if (name && spans(ATOM, name.text).length) return { status: "unknown", direction: null, reason: "This line has a number before the result we read, so we can't be sure which number is the result. Look at the line, or ask your clinic." };
   if (new Set(read.verdicts).size > 1) return { status: "unknown", direction: null, reason: "Your report prints more than one range on this line, and they disagree. Ask your clinic which one applies." };
   if (read.lineMark) return { status: "unknown", direction: null, reason: "Your report has a mark on this line we couldn't place. Look at the line, or ask your clinic." };
   return judged;

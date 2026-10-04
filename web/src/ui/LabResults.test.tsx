@@ -9,7 +9,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { checkRows, type ResultRow } from "@/lib/results";
 import { SAMPLE_LABS } from "@/lib/sampleLabs";
-import { labQuestionsText } from "@/lib/labsView";
+import { labClosedRow, labQuestionsText } from "@/lib/labsView";
 import { LabRows } from "./LabResults";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -61,6 +61,8 @@ const rowsIn = (g: string) => [...host.querySelectorAll<HTMLLIElement>(`[data-la
 const rowNamed = (name: string) => [...host.querySelectorAll<HTMLLIElement>("li[data-lab-row]")].find((li) => li.querySelector("[data-report-name]")?.textContent === name)!;
 const toggleOf = (li: HTMLElement) => li.querySelector<HTMLButtonElement>(":scope > button[aria-expanded]")!;
 const panelOf = (li: HTMLElement) => document.getElementById(toggleOf(li).getAttribute("aria-controls")!)!;
+/** Visible means neither it nor any parent is hidden. */
+const visible = (el: Element | null) => { for (let e = el; e; e = e.parentElement) if ((e as HTMLElement).hidden) return false; return !!el; };
 
 /**
  * Every place an AI-written string shows up, in text nodes and attributes. Each must sit after the report's own full
@@ -193,10 +195,18 @@ describe("critical lines stay loud and open", () => {
     expect(host.querySelector("[data-ask-clinic]")!.textContent).toContain("AI-ASK [k]?");
   });
 
-  it("a test name with the word critical in it does not make a line critical", () => {
-    const line = "Critical Care Panel Sodium   139   mmol/L   136-145";
-    const res = checkRows(`${line}\n`, [{ test: "Critical Care Panel Sodium", value: "139", unit: "mmol/L", range_text: "136-145", quote: line, plain_name: "x", ask: "y" }]);
-    expect(res.rows[0].status).toBe("inside");
+  it("the AI's test name can never swallow a critical marker (security review): fails closed", () => {
+    const line = "CRITICAL Potassium      4.0       mmol/L     3.5-5.1";
+    // The AI names the test "CRITICAL Potassium", so the name covers the marker. The line is still critical.
+    const res = checkRows(`${line}\n`, [{ test: "CRITICAL Potassium", value: "4.0", unit: "mmol/L", range_text: "3.5-5.1", quote: line, plain_name: "AI-PLAIN [k]", ask: "AI-ASK [k]?" }]);
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0]).toMatchObject({ status: "outside", reason: "Your report marks this line critical." });
+    render(res.rows);
+    expect(host.querySelector('[data-lab-group="inside"]')).toBeNull();
+    expect(host.querySelector("li[data-lab-row]")!.getAttribute("data-critical")).toBe("true");
+    // A name that itself says "critical" is loud too: never quieter than the report.
+    const named = "Critical Care Panel Sodium   139   mmol/L   136-145";
+    expect(checkRows(`${named}\n`, [{ test: "Critical Care Panel Sodium", value: "139", unit: "mmol/L", range_text: "136-145", quote: named, plain_name: "x", ask: "y" }]).rows[0].status).toBe("outside");
   });
 });
 
@@ -235,6 +245,67 @@ describe("Ask your clinic: one list with Copy", () => {
       expect(next).toMatch(/^ {3}Your report says: "/);
     }
     expect(labQuestionsText([])).toBe("");
+  });
+});
+
+describe("security review checklist", () => {
+  it("(1) every row's AI text comes after the report's exact line, in every row state; no path shows it alone", () => {
+    render();
+    for (const r of ROWS) {
+      const li = rowNamed(labClosedRow(r).name);
+      if (toggleOf(li).getAttribute("aria-expanded") === "false") act(() => toggleOf(li).click());
+      const block = panelOf(li).querySelector("[data-lead]")!;
+      // The lab plain name is never certified (labRowView): the report's line always leads.
+      expect(block.getAttribute("data-lead")).toBe("quote");
+      expect(block.firstElementChild!.hasAttribute("data-paper-quote")).toBe(true);
+      expect(block.firstElementChild!.textContent).toContain(`“${r.quote}”`);
+    }
+    act(() => host.querySelector<HTMLButtonElement>('[data-lab-group="inside"] > button')!.click());
+    assertAiNeverWithoutLine(ROWS);
+  });
+
+  it("(2) a line with no range, or one our code can't place, is never folded as in range (fails closed)", () => {
+    const src = "Vitamin D    18    ng/mL\nFerritin    <5    ng/mL    10-200\nSodium   139   mmol/L   136-145\n";
+    const res = checkRows(src, [
+      { test: "Vitamin D", value: "18", unit: "ng/mL", range_text: "", quote: "Vitamin D    18    ng/mL", plain_name: "a", ask: "b" },
+      { test: "Ferritin", value: "<5", unit: "ng/mL", range_text: "10-200", quote: "Ferritin    <5    ng/mL    10-200", plain_name: "a", ask: "b" },
+      { test: "Sodium", value: "139", unit: "mmol/L", range_text: "136-145", quote: "Sodium   139   mmol/L   136-145", plain_name: "a", ask: "b" },
+    ]);
+    render(res.rows);
+    const inside = rowsIn("inside").map((li) => li.querySelector("[data-report-name]")!.textContent);
+    expect(inside).toEqual(["Sodium"]);
+    // Vitamin D has no range: "Can't tell", visible, not in the fold.
+    const d = rowNamed("Vitamin D");
+    expect(d.dataset.labRow).toBe("unknown");
+    expect(d.closest('[data-lab-group="unknown"]')).not.toBeNull();
+    expect(visible(d)).toBe(true);
+    // No range on the line means no range on the row: nothing is filled in.
+    expect(d.querySelector("[data-report-range]")).toBeNull();
+    // Ferritin "<5" against 10-200 is below the range: flagged, visible.
+    expect(rowNamed("Ferritin").closest('[data-lab-group="outside"]')).not.toBeNull();
+    for (const li of rowsIn("inside")) expect(li.dataset.labRow).toBe("inside");
+  });
+
+  it("(3) the chip comes from the report's own line, never from the AI's copy of the range", () => {
+    const line = "Glucose, fasting         126       mg/dL      70-99";
+    // The AI claims a range of 70-200 (which would make 126 in range). Our code reads the line's own 70-99.
+    const res = checkRows(`${line}\n`, [{ test: "Glucose, fasting", value: "126", unit: "mg/dL", range_text: "70-200", quote: line, plain_name: "a", ask: "b" }]);
+    render(res.rows);
+    const g = rowNamed("Glucose, fasting");
+    expect(g.querySelector("[data-chip]")!.textContent).toBe("High");
+    expect(g.querySelector("[data-report-range]")!.textContent).toBe("70-99");
+    // And an H printed on the line wins over an AI range that says otherwise.
+    const flagged = "Potassium   4.0   mmol/L   3.5-5.1   H";
+    expect(checkRows(`${flagged}\n`, [{ test: "Potassium", value: "4.0", unit: "mmol/L", range_text: "3.5-5.1", quote: flagged, plain_name: "a", ask: "b" }]).rows[0]).toMatchObject({ status: "outside", direction: "high" });
+  });
+
+  it("(4) critical rows stay pinned in the flagged group and open, with the in-range fold closed", () => {
+    render();
+    const crit = rowNamed("Potassium, repeat");
+    expect(visible(crit)).toBe(true);
+    expect(visible(panelOf(crit))).toBe(true);
+    expect(crit.closest('[data-lab-group="outside"]')).not.toBeNull();
+    expect(document.getElementById(host.querySelector('[data-lab-group="inside"] > button')!.getAttribute("aria-controls")!)!.hidden).toBe(true);
   });
 });
 

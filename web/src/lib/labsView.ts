@@ -33,12 +33,13 @@ export function isCritical(line: string): boolean {
 }
 
 /**
- * isCritical on the line with the test name blanked out, so a name never makes a line critical and a marker anywhere
- * else on it (before the value too: "CRITICAL Potassium 4.0") does. results.ts (judgeRow) and the row use this one rule.
+ * The one critical rule results.ts (judgeRow) and the row both use: a marker anywhere on the report's whole line,
+ * before the value too ("CRITICAL Potassium 4.0"). Nothing the AI returns is taken out first: the test name is the
+ * AI's choice of words, so blanking it would let a name like "CRITICAL Potassium" swallow the marker (security review).
+ * It fails closed: a test name that itself says "critical" makes the line loud too.
  */
-export function criticalOnLine(line: string, test: string): boolean {
-  const name = findTestName(line, test);
-  return isCritical(name ? line.slice(0, name.start) + " ".repeat(name.text.length) + line.slice(name.end) : line);
+export function criticalOnLine(line: string): boolean {
+  return isCritical(line);
 }
 
 export type LabChip ={ label: string; tone: "high" | "low" | "flag" | "inside" | "unknown" };
@@ -56,7 +57,7 @@ export type LabClosedRow = { name: string; value: string; unit: string; range: s
 export function labClosedRow(r: Pick<ResultRow, "quote" | "test" | "value" | "unit" | "range_text">): LabClosedRow {
   // checkRows keeps a row only when the name is on its line, so the fallback (the start of the line) is a safety net.
   const name = findTestName(r.quote, r.test)?.text ?? r.quote.split(/\s{2,}|\t/)[0].trim();
-  return { name, value: r.value, unit: r.unit, range: r.range_text, critical: criticalOnLine(r.quote, r.test) };
+  return { name, value: r.value, unit: r.unit, range: r.range_text, critical: criticalOnLine(r.quote) };
 }
 
 /** The rows by what our code decided: outside first, then the ones it couldn't tell, then the ones in range. */

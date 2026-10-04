@@ -164,7 +164,7 @@ export function judgeRow(r: ModelRow): Omit<ResultRow, keyof ModelRow> {
   const judged = judgeByValue(r);
   // A line the report marks critical or panic (anywhere on it but the test name, before the value too) is never in
   // range and never "can't tell": a range check must not give it an all-clear (Codex review).
-  if (criticalOnLine(r.quote, r.test) && judged.status !== "outside") {
+  if (criticalOnLine(r.quote) && judged.status !== "outside") {
     return { status: "outside", direction: null, reason: "Your report marks this line critical." };
   }
   return judged;

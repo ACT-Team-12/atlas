@@ -272,9 +272,12 @@ function LabRow({ r }: { r: ResultRow }) {
 
 /** Every question in one list, each with the report line it is about. Copy carries the lines too. */
 function LabAskClinic({ questions }: { questions: LabQuestion[] }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState("");
   function copy() {
-    navigator.clipboard?.writeText(labQuestionsText(questions)).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
+    // No clipboard, or permission denied: say so, so the button never fails silently (Codex review).
+    Promise.resolve().then(() => navigator.clipboard.writeText(labQuestionsText(questions)))
+      .then(() => { setCopied("Copied"); setTimeout(() => setCopied(""), 1800); })
+      .catch(() => setCopied("Couldn't copy. Select the questions above and copy them yourself."));
   }
   return (
     <section aria-labelledby="labs-ask-title" className="rounded-2xl border-2 border-dashed border-peach-deep bg-paper p-4" data-ask-clinic="">
@@ -290,7 +293,7 @@ function LabAskClinic({ questions }: { questions: LabQuestion[] }) {
       </ol>
       <div className="mt-3 flex items-center gap-2">
         <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">Copy questions</button>
-        <span role="status" className="text-xs font-semibold text-ink/70">{copied ? "Copied" : ""}</span>
+        <span role="status" className="text-xs font-semibold text-ink/70">{copied}</span>
       </div>
     </section>
   );

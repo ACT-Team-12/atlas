@@ -252,6 +252,16 @@ describe("Ask your clinic: one list with Copy", () => {
     }
     expect(labQuestionsText([])).toBe("");
   });
+
+  it.each([
+    ["denied", { clipboard: { writeText: () => Promise.reject(new Error("denied")) } }],
+    ["missing", {}],
+  ])("Copy says so when the clipboard is %s (Codex review)", async (_, nav) => {
+    vi.stubGlobal("navigator", nav);
+    render();
+    await act(async () => { [...host.querySelectorAll("button")].find((b) => b.textContent === "Copy questions")!.click(); });
+    expect(host.querySelector("[data-ask-clinic] [role=status]")!.textContent).toMatch(/^Couldn't copy/);
+  });
 });
 
 describe("security review checklist", () => {

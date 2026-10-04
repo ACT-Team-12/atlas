@@ -270,9 +270,12 @@ export function PrepTimeline({ res, meaning }: { res: Pick<PrepResponse, "timeli
 
 /** "Ask your clinic when": one list, always open, with Copy. Each line is the paper's own sentence. */
 function AskWhen({ steps, meaning }: { steps: PrepStep[]; meaning: MeaningState }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState("");
   function copy() {
-    navigator.clipboard?.writeText(prepAskText(steps)).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
+    // No clipboard, or permission denied: say so, so the button never fails silently (Codex review).
+    Promise.resolve().then(() => navigator.clipboard.writeText(prepAskText(steps)))
+      .then(() => { setCopied("Copied"); setTimeout(() => setCopied(""), 1800); })
+      .catch(() => setCopied("Couldn't copy. Select the questions above and copy them yourself."));
   }
   return (
     <section aria-labelledby="prep-ask-title" className="mt-6 rounded-2xl border-2 border-dashed border-peach-deep bg-paper p-4" data-ask-when="">
@@ -281,7 +284,7 @@ function AskWhen({ steps, meaning }: { steps: PrepStep[]; meaning: MeaningState 
       <ul className="mt-3 space-y-2">{steps.map((s) => <Step key={s.id} s={s} meaning={meaning} />)}</ul>
       <div className="mt-3 flex items-center gap-2">
         <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">Copy these questions</button>
-        <span role="status" className="text-xs font-semibold text-ink/70">{copied ? "Copied" : ""}</span>
+        <span role="status" className="text-xs font-semibold text-ink/70">{copied}</span>
       </div>
     </section>
   );

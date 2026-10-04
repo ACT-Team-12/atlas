@@ -205,6 +205,16 @@ describe("Ask your clinic when: one list", () => {
     for (const s of RES.ask) expect(text).toContain(`Your paper says: "${s.source_quote}"`);
     expect(text).not.toContain("AI-PLAIN");
   });
+
+  it.each([
+    ["denied", { clipboard: { writeText: () => Promise.reject(new Error("denied")) } }],
+    ["missing", {}],
+  ])("Copy says so when the clipboard is %s (Codex review)", async (_, nav) => {
+    vi.stubGlobal("navigator", nav);
+    render();
+    await act(async () => { [...host.querySelectorAll("button")].find((b) => b.textContent === "Copy these questions")!.click(); });
+    expect(host.querySelector("[data-ask-when] [role=status]")!.textContent).toMatch(/^Couldn't copy/);
+  });
 });
 
 describe("the AI's words: never on a closed row, never without the paper's sentence", () => {

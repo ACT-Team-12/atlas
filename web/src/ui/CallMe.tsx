@@ -162,7 +162,7 @@ export function CallMe({ plan, language, short }: { plan: PlanResponse; language
   const callable = cfg.languages.includes(language);
   const tooLong = text.length > MAX_CALL_CHARS;
   const showStart = !st || ["code_missed", "expired", "failed", "gone", "done"].includes(st.phase);
-  const input = "mt-1 w-full max-w-xs rounded-xl border-2 border-ink bg-paper px-3 py-2 font-mono focus:outline-none focus:ring-4 focus:ring-sun";
+  const input = "mt-1 w-full max-w-xs rounded-xl border-2 border-ink bg-paper px-3 py-2 font-mono focus:outline-none focus:ring-4 focus:ring-sky-deep";
   const button = "rounded-full border-2 border-ink bg-sun px-4 py-2 font-extrabold disabled:opacity-60";
 
   return (

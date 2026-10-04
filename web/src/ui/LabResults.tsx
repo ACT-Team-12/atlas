@@ -109,7 +109,7 @@ export function LabResults() {
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint"
                   onClick={() => { setText(SAMPLE_LABS); setFromPhoto(false); setChecked(false); setRes(null); }}>Use the sample lab report</button>
-                <label className={`rounded-full border-2 border-ink px-4 py-2 hover:bg-mint focus-within:ring-4 focus-within:ring-teal/60 ${reading ? "opacity-50" : "cursor-pointer"}`}>
+                <label className={`rounded-full border-2 border-ink px-4 py-2 hover:bg-mint focus-within:ring-4 focus-within:ring-teal-deep ${reading ? "opacity-50" : "cursor-pointer"}`}>
                   📷 Take or upload a photo / screenshot
                   <input type="file" accept="image/*" className="sr-only" disabled={reading}
                     onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void readPhoto(f); }} />

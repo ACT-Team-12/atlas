@@ -10,12 +10,14 @@
  *   card and the list can never disagree about a stop.
  * - CHANGE, START, KEEP from the word lists below, in the seven app languages.
  * - Anything the words do not settle goes to "Ask your pharmacist", never to a guessed row: a negated action ("do not
- *   stop"), a condition ("if", "unless", "until"), a hold ("hold for 2 days, then restart"), two different actions on
+ *   stop", "no need to stop"), a condition or a later moment ("if", "until", "when", "after starting"), a
+ *   description or history ("you stopped taking it last year", "you may feel dizzy"), a hold ("hold for 2 days, then restart"), two different actions on
  *   one line, a line that disagrees with its heading, a stop word the stop rule does not accept ("do not take more
  *   than"), or no action word at all.
  *
  * Doses. A CHANGE row shows the old dose struck through and the new one only when both are written in the quote
- * ("Previously 10 mg" with one other dose of the same kind, or "from 10 mg to 20 mg"), the number reading of the
+ * ("Previously 10 mg" with one other dose of the same kind, or "from 10 mg to 20 mg" next to a change verb such as
+ * "increase", never a range of strengths), the new dose is written once, the number reading of the
  * meaning check (meaning.ts doseReadings) finds exactly those two values of that kind on the line, their naming words
  * do not point at two different medicines, and no other word names what the new dose is for. Otherwise: the quote
  * alone. The doses shown are the paper's characters, copied, never computed.
@@ -49,6 +51,7 @@ export type MedReason =
   | "stop_not_now"
   | "mixed"
   | "heading_disagrees"
+  | "not_an_instruction" // a description or history ("you stopped taking it last year", "you may feel dizzy")
   | "no_action_words";
 
 export type DoseChange = { was: string; now: string };
@@ -73,7 +76,12 @@ const bare = (src: string) => new RegExp(src, "iu");
 /** A copy without the global flag, so .test() keeps no state between calls. */
 const once = (re: RegExp) => new RegExp(re.source, re.flags.replace("g", ""));
 
-type Lists = { start: RegExp; change: RegExp; keep: RegExp; hold: RegExp; neg: RegExp; cond: RegExp };
+/**
+ * Per language: the action words, a hold, a negation of an action, a condition or a later moment ("if", "when",
+ * "after starting"), and words that make the line a description or history rather than an instruction ("you stopped
+ * taking it last year", "you may feel dizzy"). The last three send the line to "Ask your pharmacist".
+ */
+type Lists = { start: RegExp; change: RegExp; keep: RegExp; hold: RegExp; neg: RegExp; cond: RegExp; history: RegExp };
 
 const EN: Lists = {
   start: edged(String.raw`start|started|starting|begin|begins|beginning|restart|resume|new${S}(?:medicines?|medications?|prescriptions?)`),
@@ -90,9 +98,13 @@ const EN: Lists = {
   keep: edged(String.raw`continue|continuing|keep${S}(?:taking|using)`),
   hold: edged(String.raw`hold|held|holding|pause|paused|temporarily`),
   neg: edged(
-    String.raw`(?:do${S}not|don['’]t|never|not|no${S}longer)(?:${S}\p{L}+){0,2}${S}(?:stop|discontinue|start|begin|increase|decrease|reduce|lower|raise|change|continue|restart|resume|keep|hold|switch)|no${S}changes?`,
+    String.raw`(?:do${S}not|don['’]t|never|not|no${S}longer)(?:${S}\p{L}+){0,2}${S}(?:stop|discontinue|start|begin|increase|decrease|reduce|lower|raise|change|continue|restart|resume|keep|hold|switch)|no${S}changes?|no${S}need${S}to|need${S}not|needn['’]t|not${S}necessary|unnecessary|without${S}stopping`,
   ),
-  cond: edged(String.raw`if|unless|in${S}case|until`),
+  // "when", "after", "before" are a later moment, except a meal or bedtime ("before breakfast" is how to take it).
+  cond: edged(
+    String.raw`if|unless|in${S}case|until|when|whenever|while|after(?!${S}(?:meals?|breakfast|lunch|dinner|supper|eating|food))|before(?!${S}(?:meals?|breakfast|lunch|dinner|supper|eating|food|bed|bedtime|sleep))`,
+  ),
+  history: edged(String.raw`you(?:${S}have)?${S}(?:stopped|started|began|took|were|used)|last${S}(?:year|month|week)|ago|already|in${S}the${S}past|may|might|could`),
 };
 const ES: Lists = {
   start: edged(String.raw`empiece|empezar|comience|comenzar|inicie|iniciar|reanude|reanudar|reinicie|reiniciar|vuelva${S}a${S}(?:tomar|empezar)|nuevos?${S}medicamentos?|nuevas?${S}medicinas?`),
@@ -100,9 +112,12 @@ const ES: Lists = {
   keep: edged(String.raw`contin[uú]e|continuar|siga${S}tomando|seguir${S}tomando`),
   hold: edged(String.raw`temporalmente|pausa|pause`),
   neg: edged(
-    String.raw`(?:no|nunca)(?:${S}\p{L}+){0,2}${S}(?:deje|dejar|suspenda|suspender|empiece|empezar|comience|comenzar|inicie|aumente|disminuya|reduzca|cambie|contin[uú]e|reanude)|sin${S}cambios?`,
+    String.raw`(?:no|nunca)(?:${S}\p{L}+){0,2}${S}(?:deje|dejar|suspenda|suspender|empiece|empezar|comience|comenzar|inicie|aumente|disminuya|reduzca|cambie|contin[uú]e|reanude)|sin${S}cambios?|no${S}(?:hay${S}(?:necesidad|que)|es${S}necesario|necesita)`,
   ),
-  cond: edged(String.raw`si|a${S}menos${S}que|en${S}caso${S}de|hasta${S}que`),
+  cond: edged(
+    String.raw`si|a${S}menos${S}que|en${S}caso${S}de|hasta${S}que|cuando|mientras|despu[eé]s${S}de(?!${S}(?:las${S})?(?:comidas?|desayun\p{L}*|cenar?|almorzar|comer))|antes${S}de(?!${S}(?:las${S})?(?:comidas?|desayun\p{L}*|cenar?|almorzar|comer|acostarse|dormir))`,
+  ),
+  history: edged(String.raw`puede|pueden|podr[ií]a|el${S}año${S}pasado|usted${S}(?:dej[oó]|empez[oó]|tomaba)`),
 };
 const FR: Lists = {
   start: edged(String.raw`commencez|commencer|débutez|débuter|reprenez|reprendre|recommencez|recommencer|nouveaux?${S}médicaments?`),
@@ -110,42 +125,49 @@ const FR: Lists = {
   keep: edged(String.raw`continuez|continuer|poursuivez|poursuivre`),
   hold: edged(String.raw`temporairement|pause`),
   neg: new RegExp(
-    String.raw`(?<![\p{L}\p{N}])(?:ne${S}(?:\p{L}+${S}){0,2}|n['’]\s*)(?:commencez|augmentez|diminuez|réduisez|changez|modifiez|continuez|poursuivez|reprenez|arrêtez|arretez|cessez|interrompez|suspendez)(?![\p{L}\p{N}])|(?<![\p{L}\p{N}])aucun${S}changement`,
+    String.raw`(?<![\p{L}\p{N}])(?:ne${S}(?:\p{L}+${S}){0,2}|n['’]\s*)(?:commencez|augmentez|diminuez|réduisez|changez|modifiez|continuez|poursuivez|reprenez|arrêtez|arretez|cessez|interrompez|suspendez)(?![\p{L}\p{N}])|(?<![\p{L}\p{N}])(?:aucun${S}changement|pas${S}(?:nécessaire|besoin)|inutile)(?![\p{L}\p{N}])`,
     "iu",
   ),
-  cond: edged(String.raw`si|s['’]ils?|sauf${S}si|en${S}cas|jusqu['’]à`),
+  cond: edged(
+    String.raw`si|s['’]ils?|sauf${S}si|en${S}cas|jusqu['’]à|quand|lorsque|lorsqu['’]\p{L}+|pendant${S}que|après(?!${S}(?:les${S})?(?:repas|manger))|avant(?!${S}(?:les${S})?(?:repas|manger|le${S}coucher|de${S}dormir))`,
+  ),
+  history: edged(String.raw`peut|peuvent|pourrait|l['’]an${S}dernier|vous${S}avez${S}(?:arrêté|commencé|pris)`),
 };
 const VI: Lists = {
   start: edged(String.raw`bắt${S}đầu|thuốc${S}mới|dùng${S}lại|uống${S}lại`),
   change: edged(String.raw`tăng${S}liều|giảm${S}liều|đổi${S}liều|thay${S}đổi${S}liều|điều${S}chỉnh${S}liều|liều${S}mới|đổi${S}sang|trước${S}đây`),
   keep: edged(String.raw`tiếp${S}tục|vẫn${S}(?:dùng|uống)`),
   hold: edged(String.raw`tạm${S}(?:ngưng|ngừng|dừng|thời)`),
-  neg: edged(String.raw`(?:không|đừng|chớ)(?:${S}\p{L}+){0,3}${S}(?:ngưng|ngừng|dừng|bắt${S}đầu|tăng|giảm|đổi|tiếp${S}tục)|không${S}thay${S}đổi`),
-  cond: edged(String.raw`nếu|trừ${S}khi|trường${S}hợp|cho${S}đến${S}khi`),
+  neg: edged(String.raw`(?:không|đừng|chớ)(?:${S}\p{L}+){0,3}${S}(?:ngưng|ngừng|dừng|bắt${S}đầu|tăng|giảm|đổi|tiếp${S}tục)|không${S}thay${S}đổi|không${S}cần`),
+  cond: edged(String.raw`nếu|trừ${S}khi|trường${S}hợp|cho${S}đến${S}khi|(?:sau|trước)${S}khi(?!${S}(?:ăn|ngủ))|(?<!(?:sau|trước)${S})khi`),
+  history: edged(String.raw`có${S}thể|năm${S}ngoái|đã${S}(?:ngưng|ngừng|dừng|bắt${S}đầu|uống|dùng)`),
 };
 const KO: Lists = {
   start: bare(String.raw`시작|새로\s*처방|새\s*약|새로운\s*약|재개`),
   change: bare(String.raw`증량|감량|용량\s*(?:을\s*)?(?:늘리|늘려|줄이|줄여|변경|조정)|이전\s*용량|(?:으로|로)\s*변경`),
   keep: bare(String.raw`계속`),
   hold: bare(String.raw`일시\s*중단|잠시\s*중단|일시적으로`),
-  neg: bare(String.raw`(?:중단|중지|멈추|끊|시작|증량|감량|늘리|줄이|변경|계속)\p{L}*?지\s*(?:마|말|않)|변경\s*없`),
-  cond: bare(String.raw`경우|만약|만일|때까지`),
+  neg: bare(String.raw`(?:중단|중지|멈추|끊|시작|증량|감량|늘리|줄이|변경|계속)\p{L}*?지\s*(?:마|말|않)|변경\s*없|필요\s*(?:가|는)?\s*없|않아도`),
+  cond: bare(String.raw`경우|만약|만일|때까지|(?<!식)후|(?<!식)전에|때(?!문)`),
+  history: bare(String.raw`수\s*있|작년`),
 };
 const ZH: Lists = {
   start: bare(String.raw`开始|開始|新药|新藥|新处方|新處方|加用|恢复服用|恢復服用|重新服用`),
   change: bare(String.raw`增加剂量|增加劑量|剂量增加|劑量增加|减少剂量|減少劑量|剂量减少|劑量減少|加量|减量|減量|改为|改為|改成|调整剂量|調整劑量|更改剂量|更改劑量|增至|减至|減至|原来|原來|此前`),
   keep: bare(String.raw`继续|繼續`),
   hold: bare(String.raw`暂停|暫停|暂时|暫時`),
-  neg: bare(String.raw`(?:不要|不可|不能|不得|请勿|請勿|勿|别|別|切勿)\p{L}{0,6}?(?:停|开始|開始|增加|减少|減少|加量|减量|減量|改|继续|繼續|恢复|恢復)|不变|不變`),
-  cond: bare(String.raw`如果|如若|假如|一旦|如有|直到|(?<![\p{L}])若`),
+  neg: bare(String.raw`(?:不要|不可|不能|不得|请勿|請勿|勿|别|別|切勿)\p{L}{0,6}?(?:停|开始|開始|增加|减少|減少|加量|减量|減量|改|继续|繼續|恢复|恢復)|不变|不變|不需要|不必|无需|無需|不用`),
+  cond: bare(String.raw`如果|如若|假如|一旦|如有|直到|(?<![\p{L}])若|(?<![饭飯餐])[后後]|之前|以前|(?<![小暂暫同按及准準])[时時]`),
+  history: bare(String.raw`可能|去年|曾经|曾經|已经|已經`),
 };
 const AM: Lists = {
   start: bare(String.raw`ይጀምሩ|ጀምሩ|አዲስ\s*መድ[ሀሃሐ]ኒት|አዲስ\s*መድኃኒት|እንደገና`),
   change: bare(String.raw`ይጨምሩ|ይቀንሱ|ይቀይሩ`),
   keep: bare(String.raw`ይቀጥሉ`),
   hold: bare(String.raw`ለጊዜው`),
-  neg: bare(String.raw`አይጀምሩ|አይጨምሩ|አይቀንሱ|አይቀይሩ|አያቁሙ|አያቋርጡ|አይቀጥሉ`),
-  cond: bare(String.raw`ከሆነ|ካለብዎት|ካጋጠመዎት|ቢያጋጥምዎ|እስከ`),
+  neg: bare(String.raw`አይጀምሩ|አይጨምሩ|አይቀንሱ|አይቀይሩ|አያቁሙ|አያቋርጡ|አይቀጥሉ|አያስፈልግም`),
+  cond: bare(String.raw`ከሆነ|ካለብዎት|ካጋጠመዎት|ቢያጋጥምዎ|እስከ|በኋላ|በፊት`),
+  history: bare(String.raw`ይችላል`),
 };
 const LANG_LISTS: [string, Lists][] = [["en", EN], ["es", ES], ["fr", FR], ["vi", VI], ["ko", KO], ["zh", ZH], ["am", AM]];
 
@@ -163,22 +185,48 @@ const PREVIOUSLY = new RegExp(String.raw`(?<![\p{L}\p{N}])(?:previously|formerly
 
 const prepare = (t: string) => t.normalize("NFC").replace(/\s+/g, " ").trim();
 
-type Signals = { stop: boolean; change: boolean; start: boolean; keep: boolean; hold: boolean; neg: boolean; cond: boolean };
+/** A verb that changes a dose. A "from 10 mg to 20 mg" counts as a change only next to one ("strengths range from"). */
+const CHANGE_VERB = edged(
+  String.raw`increase[sd]?|decrease[sd]?|reduce[sd]?|lower(?:ed)?|raise[sd]?|change[sd]?|switch(?:ed)?|adjust(?:ed)?|aumente|disminuya|reduzca|baje|cambie|ajuste|augmentez|diminuez|réduisez|baissez|changez|modifiez|ajustez|tăng|giảm|đổi|thay${S}đổi|điều${S}chỉnh`,
+);
+/** The sentence of `t` that holds position `at`. */
+const sentenceAt = (t: string, at: number) => {
+  const start = Math.max(...[".", ";", "!", "?", "。", "；"].map((c) => t.lastIndexOf(c, at - 1))) + 1;
+  const ends = [".", ";", "!", "?", "。", "；"].map((c) => t.indexOf(c, at)).filter((i) => i >= 0);
+  return t.slice(start, ends.length ? Math.min(...ends) : t.length);
+};
+const fromToWithVerb = (t: string) => [...t.matchAll(FROM_TO)].filter((m) => CHANGE_VERB.test(sentenceAt(t, m.index ?? 0)));
+
+/**
+ * A negation earlier in the same clause than the first action word: "No need to stop", "No hay necesidad de dejar",
+ * "Il n'est pas nécessaire d'arrêter", "不需要停止". The stop phrases that ARE a negation ("do not take", "no tome",
+ * "ne prenez pas", "不要服用") start the match themselves, so they still read as a stop.
+ */
+const NEG_TOKEN = /(?<![\p{L}])(?:not|no|never|without|nunca|sin|ne|pas|jamais|sans|không|đừng|chớ|chưa)(?![\p{L}])|n['’]|[不别別勿无無未没沒]/giu;
+function negatedBeforeAction(t: string, actions: RegExp[]): boolean {
+  for (const clause of t.split(/[.;:!?。；：]/)) {
+    const at = Math.min(...actions.map((re) => { const m = once(re).exec(clause); return m ? m.index : Infinity; }));
+    if (!Number.isFinite(at)) continue;
+    for (const m of clause.matchAll(NEG_TOKEN)) if ((m.index ?? 0) < at) return true;
+  }
+  return false;
+}
+
+type Signals = { stop: boolean; change: boolean; start: boolean; keep: boolean; hold: boolean; neg: boolean; cond: boolean; history: boolean };
 
 function signalsOf(text: string): Signals {
   const t = prepare(text);
   const any = (pick: (l: Lists) => RegExp) => LANG_LISTS.some(([, l]) => pick(l).test(t));
-  FROM_TO.lastIndex = 0;
-  const fromTo = FROM_TO.test(t);
-  FROM_TO.lastIndex = 0;
+  const actions = [...STOP_WORDS, ...LANG_LISTS.flatMap(([, l]) => [l.start, l.change, l.keep]), CHANGE_VERB];
   return {
     stop: STOP_WORDS.some((re) => re.test(t)),
-    change: any((l) => l.change) || fromTo,
+    change: any((l) => l.change) || fromToWithVerb(t).length > 0,
     start: any((l) => l.start),
     keep: any((l) => l.keep),
     hold: any((l) => l.hold),
-    neg: any((l) => l.neg),
+    neg: any((l) => l.neg) || negatedBeforeAction(t, actions),
     cond: any((l) => l.cond),
+    history: any((l) => l.history),
   };
 }
 
@@ -197,6 +245,7 @@ export function classifyMedicine(it: Item, paper = ""): { row: MedRow; reason: M
   if (both.some((s) => s.neg)) return ask("negated");
   if (both.some((s) => s.cond)) return ask("conditional");
   if (both.some((s) => s.hold)) return ask("hold");
+  if (both.some((s) => s.history)) return ask("not_an_instruction");
   // A stop word counts only where the "Right away" rule accepts it, so the card and the list agree about every stop.
   if (both.some((s) => s.stop) && !stopNowFromPaper(it, paper)) return ask("stop_not_now");
   const qr = rowsOf(q);
@@ -240,7 +289,8 @@ const unitWord = (amount: string) => amount.replace(/^[\d.,\s]+/, "").replace(/\
  */
 export function doseChangeFromPaper(quote: string): DoseChange | null {
   const t = quote.replace(/\s+/g, " ");
-  const fromTo = [...t.matchAll(FROM_TO)];
+  // A range ("strengths range from 10 mg to 20 mg") is not a change: only a from-to next to a change verb counts.
+  const fromTo = fromToWithVerb(t);
   const prev = [...t.matchAll(PREVIOUSLY)];
   if (fromTo.length + prev.length !== 1) return null;
   let was: string;
@@ -271,7 +321,8 @@ export function doseChangeFromPaper(quote: string): DoseChange | null {
   const readings = doseReadings(t);
   const wasR = readings.filter((r) => r.value.replace(",", ".") === valueOf(was));
   const nowR = readings.filter((r) => r.value.replace(",", ".") === valueOf(now));
-  if (wasR.length === 0 || nowR.length === 0) return null;
+  // The new dose written once: two medicines on the same new value can't be told apart (Codex review).
+  if (wasR.length === 0 || nowR.length !== 1) return null;
   const unitKind = nowR[0].unit;
   if (wasR.some((r) => r.unit !== unitKind) || nowR.some((r) => r.unit !== unitKind)) return null;
   const values = new Set(readings.filter((r) => r.unit === unitKind).map((r) => r.value.replace(",", ".")));

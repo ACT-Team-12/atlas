@@ -224,7 +224,7 @@
    "quote": "Stop taking aspirin 5 days before your surgery.",
    "expect": {
     "row": "ask",
-    "reason": "stop_not_now"
+    "reason": "conditional"
    }
   },
   {
@@ -238,14 +238,14 @@
    }
   },
   {
-   "name": "risk words under a START heading are not a change",
+   "name": "risk words are never a change; 'may' makes it a description, so ask",
    "language": "English",
    "kind": "medication",
    "quote": "warfarin 5 mg tablet. Warfarin may increase your risk of bleeding.",
    "paper": "START taking these medications:\n- warfarin 5 mg tablet. Warfarin may increase your risk of bleeding.",
    "expect": {
-    "row": "start",
-    "reason": "heading"
+    "row": "ask",
+    "reason": "not_an_instruction"
    }
   },
   {
@@ -649,6 +649,193 @@
    "expect": {
     "row": "keep",
     "reason": "words"
+   }
+  },
+  {
+   "name": "codex: a strength range is not a dose change",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Available tablet strengths range from 10 mg to 20 mg.",
+   "expect": {
+    "row": "ask",
+    "reason": "no_action_words"
+   }
+  },
+  {
+   "name": "codex: a strength range under a CHANGE heading shows no doses",
+   "language": "English",
+   "kind": "medication",
+   "quote": "lisinopril tablets. Available tablet strengths range from 10 mg to 20 mg.",
+   "paper": "CHANGE how you take these medications:\n- lisinopril tablets. Available tablet strengths range from 10 mg to 20 mg.",
+   "expect": {
+    "row": "change",
+    "reason": "heading",
+    "dose": null
+   }
+  },
+  {
+   "name": "codex: another medicine's old dose with the same new value",
+   "language": "English",
+   "kind": "medication",
+   "quote": "lisinopril 20 mg once daily and metoprolol 20 mg once daily. Metoprolol previously 10 mg once daily.",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": null
+   }
+  },
+  {
+   "name": "codex: no need to stop",
+   "language": "English",
+   "kind": "medication",
+   "quote": "No need to stop taking metoprolol 25 mg.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "codex: es no need to stop",
+   "language": "Spanish",
+   "kind": "medication",
+   "quote": "No hay necesidad de dejar de tomar metoprolol.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "codex: fr not necessary to stop",
+   "language": "French",
+   "kind": "medication",
+   "quote": "Il n’est pas nécessaire d’arrêter le métoprolol.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "codex: zh no need to stop",
+   "language": "Chinese",
+   "kind": "medication",
+   "quote": "不需要停止服用美托洛尔。",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "codex: after starting is not a start",
+   "language": "English",
+   "kind": "medication",
+   "quote": "After starting prednisone, you may feel dizzy.",
+   "expect": {
+    "row": "ask"
+   }
+  },
+  {
+   "name": "codex: a past stop is not a stop",
+   "language": "English",
+   "kind": "medication",
+   "quote": "You stopped taking aspirin last year.",
+   "expect": {
+    "row": "ask"
+   }
+  },
+  {
+   "name": "codex: start when a symptom returns",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Start prednisone when wheezing returns.",
+   "expect": {
+    "row": "ask",
+    "reason": "conditional"
+   }
+  },
+  {
+   "name": "codex: es after starting",
+   "language": "Spanish",
+   "kind": "medication",
+   "quote": "Después de empezar la prednisona, puede sentirse mareado.",
+   "expect": {
+    "row": "ask"
+   }
+  },
+  {
+   "name": "codex: vi after starting",
+   "language": "Vietnamese",
+   "kind": "medication",
+   "quote": "Sau khi bắt đầu dùng prednisone, bạn có thể bị chóng mặt.",
+   "expect": {
+    "row": "ask"
+   }
+  },
+  {
+   "name": "codex: ko after starting",
+   "language": "Korean",
+   "kind": "medication",
+   "quote": "프레드니손을 시작한 후 어지러울 수 있습니다.",
+   "expect": {
+    "row": "ask"
+   }
+  },
+  {
+   "name": "codex: zh after starting",
+   "language": "Chinese",
+   "kind": "medication",
+   "quote": "开始服用泼尼松后，您可能会感到头晕。",
+   "expect": {
+    "row": "ask"
+   }
+  },
+  {
+   "name": "start before breakfast is still a start",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Start levothyroxine 50 mcg every morning before breakfast.",
+   "expect": {
+    "row": "start",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "not needed words in Vietnamese",
+   "language": "Vietnamese",
+   "kind": "medication",
+   "quote": "Không cần ngưng metoprolol.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "clause negation: no reason to stop (negation earlier in the clause)",
+   "language": "English",
+   "kind": "medication",
+   "quote": "No reason to stop taking metoprolol.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "clause negation: fr it is not necessary to stop, ne faut pas",
+   "language": "French",
+   "kind": "medication",
+   "quote": "Il ne faut pas arrêter le métoprolol.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "clause negation: zh no need, meiyou biyao",
+   "language": "Chinese",
+   "kind": "medication",
+   "quote": "没有必要停用美托洛尔。",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
    }
   }
  ]

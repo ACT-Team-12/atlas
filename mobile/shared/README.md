@@ -11,11 +11,15 @@ those rules use. `gen-native-patterns.py` copies that pattern table into `mobile
 and `mobile/android/app/src/main/java/com/stephensookra/atlas/data/SafetyPatterns.kt`, so all three apps run the same
 pattern text; `SafetyVectorsTests.swift` and `SafetyVectorsTest.kt` fail if a phone's table differs from the file or
 gives a different answer for any case. `check-vectors.sh` regenerates the file in web-ci on every branch and fails on
-any drift. To change a word list: edit the web file, regenerate, then run the pattern script:
+any drift. `safety-floor.json` is a ratchet: it records every pinned line and every step's group, and the generator fails if
+a rule change unpins a recorded line, moves a recorded step to a later group, or drops a case. A change that only adds
+caution is recorded by regenerating with `UPDATE_FLOOR=1`; anything else needs a deliberate, reviewed edit of the floor.
+
+To change a word list: edit the web file, regenerate, then run the pattern script:
 
 ```sh
 cp mobile/shared/genSafetyVectors.test.ts web/src/lib/
-cd web && VECTORS_OUT=../mobile/shared/safety-vectors.json pnpm exec vitest run src/lib/genSafetyVectors.test.ts
+cd web && UPDATE_FLOOR=1 VECTORS_OUT=../mobile/shared/safety-vectors.json pnpm exec vitest run src/lib/genSafetyVectors.test.ts
 rm src/lib/genSafetyVectors.test.ts && cd ..
 python3 mobile/shared/gen-native-patterns.py
 ```

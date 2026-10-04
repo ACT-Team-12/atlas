@@ -13,6 +13,9 @@
  * has no spaces, and Korean and Amharic attach particles and prefixes to the word ("응급실에", "የደረት"), so word edges
  * would miss them. Their exclusions (negated, conditional, later-event, limits, how-to-take) are listed explicitly.
  *
+ * How-to-take exclusions name what is taken with ("alcohol", "uống cùng với", "함께 복용", "同时服用"), never a bare
+ * "with": "stop this medicine and talk WITH your doctor" is still a stop (Codex review).
+ *
  * NATIVE-SPEAKER REVIEW NEEDED for every non-English entry below. Amharic is the least certain.
  *
  * Sources. Terms marked "seen" appear in the cited public patient handout; the rest are standard patient-instruction
@@ -50,7 +53,7 @@ const WARNING_VI = [
   String.raw`gọi${S}(?:ngay${S})?(?:cho${S})?cấp${S}cứu|cấp${S}cứu|khẩn${S}cấp`,
   String.raw`đau${S}ngực|tức${S}ngực|khó${S}thở|thở${S}gấp|ngất${S}xỉu|ngất|bất${S}tỉnh|co${S}giật|đột${S}quỵ`,
   String.raw`chảy${S}máu${S}(?:nhiều|không${S}cầm)|(?:đến|đi)${S}bệnh${S}viện${S}ngay`,
-  String.raw`gọi${S}(?:cho${S})?(?:bác${S}sĩ|phòng${S}khám)(?:${S}\p{L}+)?${S}ngay`,
+  String.raw`gọi${S}(?:cho${S})?(?:bác${S}sĩ|phòng${S}khám)(?:${S}\p{L}+){0,3}${S}ngay`,
 ].join("|");
 const WARNING_FR = [
   String.raw`urgences?|appele[rz]${S}les${S}secours`,
@@ -123,7 +126,7 @@ const STOP_LANGS: { lang: string; stop: RegExp; notNow: RegExp }[] = [
           String.raw`nếu|trừ${S}khi|khi|trường${S}hợp`,
           String.raw`trước|sau${S}(?:khi|\d|một|hai|ba|bốn|năm|vài)`,
           String.raw`quá|nhiều${S}hơn|tối${S}đa|vượt`,
-          String.raw`với|cùng${S}lúc|lúc${S}đói|bụng${S}đói|rượu`,
+          String.raw`uống${S}cùng${S}với|cùng${S}lúc|lúc${S}đói|bụng${S}đói|rượu`,
         ].join("|"),
       ),
       "iu",
@@ -139,7 +142,7 @@ const STOP_LANGS: { lang: string; stop: RegExp; notNow: RegExp }[] = [
           String.raw`si|s['’]ils?|sauf|lorsque|lorsqu['’]\p{L}+|quand|en${S}cas`,
           String.raw`avant|après|dès${S}que`,
           String.raw`plus${S}de|dépasse[rz]|au-delà|maximum`,
-          String.raw`avec|sans(?!${S}(?:délai|tarder|attendre))|à${S}jeun|estomac${S}vide|en${S}même${S}temps|ensemble|alcool`,
+          String.raw`sans(?!${S}(?:délai|tarder|attendre))|à${S}jeun|estomac${S}vide|en${S}même${S}temps|alcool`,
         ].join("|"),
       ),
       "iu",
@@ -147,14 +150,14 @@ const STOP_LANGS: { lang: string; stop: RegExp; notNow: RegExp }[] = [
   },
   {
     lang: "ko",
-    stop: new RegExp(String.raw`중단|중지|끊으|끊고|끊어|복용하지\s*마|드시지\s*마|먹지\s*마|사용하지\s*마|복용\s*금지`, "iu"),
+    stop: new RegExp(String.raw`중단|중지|멈추|멈춰|끊으|끊고|끊어|복용하지\s*마|드시지\s*마|먹지\s*마|사용하지\s*마|복용\s*금지`, "iu"),
     notNow: new RegExp(
       [
-        String.raw`(?:중단|중지|끊)\p{L}*?지\s*(?:마|말|않)`,
+        String.raw`(?:중단|중지|멈추|끊)\p{L}*?지\s*(?:마|말|않)`,
         String.raw`경우|만약|만일|(?:하|으|이|되|나|생기|나타나|있으|없으|않으)면(?![\p{L}])|때(?!문)`,
         String.raw`전에|이전|후에|이후|일\s*후|주\s*후|수술\s*전`,
         String.raw`이상|초과|넘게|넘지|최대`,
-        String.raw`함께|같이|동시에|공복|빈속|식전|식후`,
+        String.raw`(?:함께|같이|동시에)\s*(?:복용|드시|먹)|공복|빈속|식전|식후|술과|술을|음주`,
       ].join("|"),
       "iu",
     ),
@@ -168,7 +171,7 @@ const STOP_LANGS: { lang: string; stop: RegExp; notNow: RegExp }[] = [
         String.raw`如果|如若|若|假如|一旦|如有|如出现|如出現|(?<![小暂暫同按及准準])[时時]`,
         String.raw`之前|以前|术前|術前|前一天|之后|之後|以后|以後|[天日周週月]后|[天日周週月]後`,
         String.raw`超过|超過|多于|多於|最多`,
-        String.raw`空腹|同时|同時|一起|同服|饮酒|飲酒|酒精`,
+        String.raw`空腹|同时服用|同時服用|一起服用|同服|饮酒|飲酒|酒精`,
       ].join("|"),
       "iu",
     ),
@@ -182,7 +185,7 @@ const STOP_LANGS: { lang: string; stop: RegExp; notNow: RegExp }[] = [
         String.raw`እስከ|ከሆነ|ካለብዎት|ካለዎት|ካጋጠመዎት|ቢያጋጥምዎ|ቢሰማዎ|ከተሰማዎ`,
         String.raw`በፊት|በኋላ`,
         String.raw`በላይ`,
-        String.raw`ጋር|በባዶ\s*ሆድ|አልኮል`,
+        String.raw`በባዶ\s*ሆድ|አልኮል`,
       ].join("|"),
       "iu",
     ),

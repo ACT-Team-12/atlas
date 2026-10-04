@@ -11,13 +11,19 @@
  * - "heading_any": listHeadingAny, the heading reader the other languages' stop rule uses (web/src/lib/safetyWords.ts).
  * - "when_rule_groups", "num_words", "heading_ends", "stop_langs": the tables the rules read beside their patterns.
  *
+ * SAFETY RATCHET (mobile/shared/safety-floor.json). Every pinned line and every step's group is recorded there, and this
+ * generator fails if a rule change unpins a recorded line or moves a recorded step to a later group (or drops the case).
+ * Changes that only add caution update the floor with UPDATE_FLOOR=1; anything else needs a deliberate, reviewed edit of
+ * the floor file by hand. A floor that is out of date also fails, so CI cannot pass with an unrecorded change.
+ *
  * Not part of the web suite. CI regenerates it with mobile/shared/check-vectors.sh (web-ci) and fails when the
  * committed file differs. To regenerate by hand:
  *   cp mobile/shared/genSafetyVectors.test.ts web/src/lib/
  *   cd web && VECTORS_OUT=../mobile/shared/safety-vectors.json pnpm exec vitest run src/lib/genSafetyVectors.test.ts
  *   rm src/lib/genSafetyVectors.test.ts
  */
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, it } from "vitest";
 import { isWarning, warningFromPaper, WARNING_PATTERNS } from "./warningPin";
 import { HEADING_ENDS, listHeading, listHeadingAny, NUM_WORDS, stepWhen, STEPS_PATTERNS, whenFromText, WHEN_GROUP_LABEL, WHEN_GROUPS, WHEN_RULE_GROUPS } from "./stepsView";
@@ -75,7 +81,7 @@ const WARNING_LINES = [
   "",
   // Vietnamese, Korean, Chinese, Amharic, French (safetyWords.ts): warnings, negated emergencies, plain lines.
   "Hãy gọi ngay 9-1-1 nếu quý vị bị đau ngực hoặc khó thở.", "Đến phòng cấp cứu nếu quý vị bị ngất xỉu.", "ĐÂY LÀ TRƯỜNG HỢP CẤP CỨU!",
-  "Gọi cho bác sĩ ngay nếu vết thương chảy máu nhiều.", "Uống 1 viên mỗi sáng sau khi ăn.", "Đây không phải là trường hợp cấp cứu. Gọi phòng khám trong giờ làm việc.",
+  "Gọi cho bác sĩ ngay nếu vết thương chảy máu nhiều.", "Gọi cho bác sĩ của quý vị ngay lập tức.", "Uống 1 viên mỗi sáng sau khi ăn.", "Đây không phải là trường hợp cấp cứu. Gọi phòng khám trong giờ làm việc.",
   "Đến phòng cấp cứu nếu quý vị bị ngất xỉu.".normalize("NFD"),
   "다음과 같은 경우 911에 전화하여 즉시 도움을 받으십시오: 호흡 곤란.", "가슴 통증이 있으면 응급실로 가십시오.", "숨이 차서 말을 하기 어렵다면 9-1-1 로 전화하십시오.",
   "의식을 잃거나 경련이 있으면 구급차를 부르십시오.", "하루에 두 번 식사와 함께 1정을 복용하십시오.", "응급 상황이 아닙니다. 진료 시간에 병원에 전화하십시오.", "비응급 상담 전화입니다.",
@@ -115,12 +121,12 @@ const STEP_PAPERS: Record<string, string> = {
   "stop-gap": "STOP taking these medications:\n\nibuprofen 200 mg tablet.",
   "stop-numbered": "Stop these medicines:\n1. aspirin 81 mg tablet\n2) warfarin 5 mg tablet",
   "stop-es": "DEJE de tomar estos medicamentos:\n- ibuprofeno 200 mg tableta.\nSIGA tomando estos medicamentos:\n- metformina 500 mg tableta, dos veces al día.",
-  "stop-vi": "NGƯNG dùng các thuốc sau:\n- ibuprofen 200 mg viên.\nNgừng uống aspirin.\nKhông được tự ý ngưng thuốc metformin.\nĐừng ngưng thuốc prednisone đột ngột.\nNgưng dùng aspirin nếu quý vị bị chảy máu.\nNgưng dùng thuốc sau 5 ngày.\nKhông uống quá 4 viên mỗi ngày.\nNgưng aspirin trước khi phẫu thuật.\nNgưng dùng naproxen ngay.",
-  "stop-ko": "다음 약의 복용을 중단하십시오:\n- 이부프로펜 200mg 정제\n아스피린 복용을 중단하십시오.\n나프록센을 끊으십시오.\n메트포르민을 임의로 중단하지 마십시오.\n구토하면 메트포르민 복용을 중단하십시오.\n5일 후에 복용을 중단하십시오.\n하루에 4정 이상 복용하지 마십시오.\n수술 전에 아스피린을 중단하십시오.",
-  "stop-zh": "停止服用以下药物：\n1、布洛芬 200毫克\n2、萘普生 220毫克\n停用阿司匹林。\n請停用布洛芬。\n请勿在未告知您医生的情况下突然停止服用利伐沙班。\n如果出现皮疹，请停用此药。\n在手术前暂时停止服用阿哌沙班。\n不要服用超过4片。\n服药7天后停用。",
+  "stop-vi": "NGƯNG dùng các thuốc sau:\n- ibuprofen 200 mg viên.\nNgừng uống aspirin.\nKhông được tự ý ngưng thuốc metformin.\nĐừng ngưng thuốc prednisone đột ngột.\nNgưng dùng aspirin nếu quý vị bị chảy máu.\nNgưng dùng thuốc sau 5 ngày.\nKhông uống quá 4 viên mỗi ngày.\nNgưng aspirin trước khi phẫu thuật.\nNgưng dùng naproxen ngay.\nNgừng dùng thuốc và liên hệ với bác sĩ ngay.\nKhông uống aspirin cùng với rượu.",
+  "stop-ko": "다음 약의 복용을 중단하십시오:\n- 이부프로펜 200mg 정제\n아스피린 복용을 중단하십시오.\n나프록센을 끊으십시오.\n메트포르민을 임의로 중단하지 마십시오.\n구토하면 메트포르민 복용을 중단하십시오.\n5일 후에 복용을 중단하십시오.\n하루에 4정 이상 복용하지 마십시오.\n수술 전에 아스피린을 중단하십시오.\n약 복용을 멈추십시오.\n복용을 중단하고 의사와 함께 상의하십시오.\n갑자기 멈추지 마십시오.\n이 약을 다른 약과 함께 복용하지 마십시오.",
+  "stop-zh": "停止服用以下药物：\n1、布洛芬 200毫克\n2、萘普生 220毫克\n停用阿司匹林。\n請停用布洛芬。\n请勿在未告知您医生的情况下突然停止服用利伐沙班。\n如果出现皮疹，请停用此药。\n在手术前暂时停止服用阿哌沙班。\n不要服用超过4片。\n服药7天后停用。\n立即停用本药，同时联系医生。\n不要与酒精同时服用。",
   "stop-zh-dots": "停用這些藥物：\n・布洛芬 200毫克",
-  "stop-am": "እነዚህን መድሃኒቶች መውሰድ ያቁሙ፦\n- ኢቡፕሮፌን 200 ሚግ\nየቲቢ መድኃኒት መውሰድዎን ያቁሙ።\nአስፕሪን አይውሰዱ።\nመድሃኒቱን በድንገት አያቁሙ።\nዶክተርዎ ያቁሙ እስከሚሉዎት ደረስ መውሰድ አለብዎት።\nሽፍታ ካለብዎት መውሰድ ያቁሙ።\nከቀዶ ጥገና በፊት አስፕሪን ያቁሙ።",
-  "stop-fr": "ARRÊTEZ de prendre ces médicaments :\n- ibuprofène 200 mg comprimé\nArrêtez l'aspirine.\nCessez de prendre le naproxène sans délai.\nN'arrêtez pas de prendre la metformine.\nNe pas arrêter brusquement la prednisone.\nArrêtez l'aspirine si vous saignez.\nArrêtez l'aspirine avant votre chirurgie.\nNe prenez pas plus de 3000 mg sur une période de 24 heures.\nArrêtez l'antibiotique après 5 jours.",
+  "stop-am": "እነዚህን መድሃኒቶች መውሰድ ያቁሙ፦\n- ኢቡፕሮፌን 200 ሚግ\nየቲቢ መድኃኒት መውሰድዎን ያቁሙ።\nአስፕሪን አይውሰዱ።\nመድሃኒቱን በድንገት አያቁሙ።\nዶክተርዎ ያቁሙ እስከሚሉዎት ደረስ መውሰድ አለብዎት።\nሽፍታ ካለብዎት መውሰድ ያቁሙ።\nከቀዶ ጥገና በፊት አስፕሪን ያቁሙ።\nመድሃኒቱን ያቁሙ እና ከሐኪምዎ ጋር ይነጋገሩ።",
+  "stop-fr": "ARRÊTEZ de prendre ces médicaments :\n- ibuprofène 200 mg comprimé\nArrêtez l'aspirine.\nCessez de prendre le naproxène sans délai.\nN'arrêtez pas de prendre la metformine.\nNe pas arrêter brusquement la prednisone.\nArrêtez l'aspirine si vous saignez.\nArrêtez l'aspirine avant votre chirurgie.\nNe prenez pas plus de 3000 mg sur une période de 24 heures.\nArrêtez l'antibiotique après 5 jours.\nArrêtez ce médicament et communiquez avec votre médecin immédiatement.\nNe prenez pas d'ibuprofène avec de l'alcool.",
   "stop-inline": "Discontinue naproxen.\nDo not take aspirin.\nNo tome ibuprofeno.\nStop taking aspirin without delay.\nDo not stop taking metformin.\nNo deje de tomar metformina.\nStop taking metformin if you are vomiting.\nStop aspirin before your surgery.\nDo not take more than 4 tablets.\nDo not suddenly stop taking prednisone.\nDo not take prednisone on an empty stomach.\nDo not take ibuprofen with alcohol.\nStop it with no delay.\nSuspenda la aspirina sin demora.",
 };
 for (const p of papers) STEP_PAPERS[`eval:${p.id}`] = p.text;
@@ -190,6 +196,26 @@ it("writes the vectors", () => {
   expect(heading.filter((h) => h.heading).length).toBeGreaterThan(3);
   expect(step.filter((s) => s.expected.group === "today" && s.expected.words.length === 0 && s.expected.from === "paper").length, "stop-now cases").toBeGreaterThan(10);
   expect(new Set(step.map((s) => s.expected.from)).size).toBe(3);
+
+  // ---- The safety ratchet: compare with the committed floor before writing anything.
+  const rank = (g: string) => WHEN_GROUPS.indexOf(g as (typeof WHEN_GROUPS)[number]);
+  const stepKey = (s: (typeof step)[number]) => JSON.stringify([s.paper, s.quote, s.span, s.kind, s.check, s.when]);
+  const pinKey = (w: (typeof warning)[number]) => JSON.stringify([w.kind, w.quote]);
+  const now = {
+    pinned: warning.filter((w) => w.pinned).map(pinKey).sort(),
+    step: Object.fromEntries(step.map((s) => [stepKey(s), s.expected.group]).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) as Record<string, string>,
+  };
+  const floorPath = join(process.cwd(), "..", "mobile", "shared", "safety-floor.json");
+  const floor: typeof now = existsSync(floorPath) ? JSON.parse(readFileSync(floorPath, "utf8")) : { pinned: [], step: {} };
+  const pinnedNow = new Set(now.pinned);
+  const lost = floor.pinned.filter((k) => !pinnedNow.has(k));
+  const later = Object.entries(floor.step).filter(([k, g]) => !(k in now.step) || rank(now.step[k]) > rank(g));
+  expect(lost, "lines that lost their warning pin (or were dropped): never allowed without a reviewed edit of safety-floor.json").toEqual([]);
+  expect(later, "steps moved to a later group (or dropped): never allowed without a reviewed edit of safety-floor.json").toEqual([]);
+  const floorText = (f: typeof now) =>
+    `{\n"pinned":[\n${f.pinned.map((k) => JSON.stringify(k)).join(",\n")}\n],\n"step":{\n${Object.entries(f.step).map(([k, g]) => `${JSON.stringify(k)}:${JSON.stringify(g)}`).join(",\n")}\n}\n}\n`;
+  if (process.env.UPDATE_FLOOR === "1") writeFileSync(floorPath, floorText(now));
+  else expect(existsSync(floorPath) && readFileSync(floorPath, "utf8") === floorText(now), "safety-floor.json is out of date: this change only adds caution, so regenerate with UPDATE_FLOOR=1 and commit it").toBe(true);
 
   const out = process.env.VECTORS_OUT;
   if (!out) throw new Error("set VECTORS_OUT");

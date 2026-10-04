@@ -221,13 +221,15 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
           <span className="min-w-0" data-closed-row={closed.lead}>
             {closed.lead === "explanation"
               ? <span className={`block font-extrabold leading-snug ${done ? "line-through text-ink/70" : ""}`}>{closed.title}</span>
+              // Open, the panel shows the paper's whole line first; the row does not repeat it (no duplicate quote).
+              : open ? null
               : (
                 <span className={`block leading-snug ${done ? "line-through text-ink/70" : ""}`} data-paper-quote="">
-                  <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">Your paper says</span>
+                  <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">From your paper</span>
                   <span className="font-bold">&ldquo;{closed.quote}&rdquo;</span>
                 </span>
               )}
-            <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-ink/70">
+            <span className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-ink/70 ${closed.lead === "quote" && open ? "" : "mt-1"}`}>
               {kind && <span className={`chip ${kind.cls}`}>{kind.label}</span>}
               {closed.lead === "explanation" && closed.when && <span>{closed.when}</span>}
               {closed.lead === "quote" && closed.paperWhen.length > 0 && <span>{closed.paperWhen.map((w) => `“${w}”`).join(", ")}</span>}
@@ -254,15 +256,31 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
           </p>
         )}
         <PaperFirst v={careStepView(it, check)} />
-        <p className={`flex items-start gap-2 text-xs font-bold ${seal === "twice" ? "text-teal-deep" : seal === "recheck" ? "text-peach-deep" : "text-ink/70"}`} data-seal-text={seal}>
-          <SealMark seal={seal} />
-          <span>
-            {SEAL_TEXT[seal]}
-            {device === "match" && <span data-device-check="match"> This device found the same words in the same place.</span>}
-            {meaning.status === "loading" && " Double-checking this against your paper..."}
-            {m && !m.flagged && !m.certified && " Our second check couldn't confirm this one."}
-          </span>
-        </p>
+        {seal === "once" ? (
+          // Checked once: the long reason waits behind "Why?" so the card reads as a step, not a disclaimer.
+          <details className="text-xs font-bold text-ink/70" data-seal-text={seal}>
+            <summary className="inline-flex cursor-pointer items-center gap-2 rounded-full focus-visible:outline-2 focus-visible:outline-teal-deep">
+              <SealMark seal={seal} />
+              <span>{SEAL_SHORT[seal]}{meaning.status === "loading" ? " · double-checking now..." : ""}</span>
+              <span className="underline">Why?</span>
+            </summary>
+            <p className="mt-1 pl-8 font-semibold">
+              {SEAL_TEXT[seal]}
+              {device === "match" && <span data-device-check="match"> This device found the same words in the same place.</span>}
+              {m && !m.flagged && !m.certified && " Our second check couldn't confirm this one."}
+            </p>
+          </details>
+        ) : (
+          <p className={`flex items-start gap-2 text-xs font-bold ${seal === "twice" ? "text-teal-deep" : "text-peach-deep"}`} data-seal-text={seal}>
+            <SealMark seal={seal} />
+            <span>
+              {SEAL_TEXT[seal]}
+              {device === "match" && <span data-device-check="match"> This device found the same words in the same place.</span>}
+              {meaning.status === "loading" && " Double-checking this against your paper..."}
+              {m && !m.flagged && !m.certified && " Our second check couldn't confirm this one."}
+            </span>
+          </p>
+        )}
         {question && <p className="rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">On your questions list: {question}</p>}
         <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
           <ShowOnPaper care={care} item={it} photo={photo} check={check} />

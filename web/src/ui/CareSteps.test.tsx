@@ -140,12 +140,20 @@ describe("closed rows: certified leads with the AI's words, everything else with
     for (const it of ITEMS) {
       const btn = toggleOf(it.id);
       expect(btn.querySelector("[data-closed-row]")?.getAttribute("data-closed-row")).toBe("quote");
-      expect(btn.textContent).toContain("Your paper says");
       expect(btn.textContent).not.toContain(it.title);
       expect(btn.textContent).not.toContain("AI-WHEN");
-      // The row's quote is the start of the paper's own words.
-      const shown = btn.querySelector("[data-paper-quote] .font-bold")!.textContent!.replace(/[“”]/g, "").replace(/…$/, "");
-      expect(it.source_quote.replace(/\s+/g, " ").startsWith(shown)).toBe(true);
+      if (btn.getAttribute("aria-expanded") === "true") {
+        // Open (a flagged step opens itself): the row does not repeat the quote; the panel leads with all of it.
+        expect(btn.querySelector("[data-paper-quote]")).toBeNull();
+        const first = panelOf(it.id).querySelector("[data-lead]")!.firstElementChild!;
+        expect(first.hasAttribute("data-paper-quote")).toBe(true);
+        expect(first.textContent).toContain(it.source_quote);
+      } else {
+        expect(btn.textContent).toContain("From your paper");
+        // The row's quote is the start of the paper's own words.
+        const shown = btn.querySelector("[data-paper-quote] .font-bold")!.textContent!.replace(/[“”]/g, "").replace(/…$/, "");
+        expect(it.source_quote.replace(/\s+/g, " ").startsWith(shown)).toBe(true);
+      }
       assertNeverWithoutQuote(it);
     }
   });
@@ -266,6 +274,46 @@ describe("the expanded step", () => {
     expect(block.firstElementChild!.textContent).toContain(ITEMS[4].source_quote);
     expect(block.querySelector("[data-explanation]")!.textContent).toContain("Plain words (not double-checked yet)");
     expect(block.textContent).not.toContain("If it and your paper differ");
+  });
+
+  it.each([
+    ["never checked", {} as RenderOpts],
+    ["not confirmed", { meaning: done(ALL, { model_verdict: "unclear" }) }],
+    ["flagged", { meaning: done(ALL, { flagged: true, model_verdict: "different" }) }],
+  ])("%s, open: the paper's line shows once, in full, before any AI word", (_, o) => {
+    render(o);
+    for (const it of ITEMS) {
+      if (toggleOf(it.id).getAttribute("aria-expanded") !== "true") act(() => toggleOf(it.id).click());
+      // Visible text only (a closed sub-panel such as "Ask your pharmacist" is hidden until asked for).
+      const visible = (el: Element): string => [...el.childNodes].map((c) => c.nodeType === Node.TEXT_NODE ? c.textContent : c instanceof HTMLElement && c.hidden ? "" : visible(c as Element)).join("");
+      const text = visible(rowOf(it.id)).replace(/\s+/g, " ");
+      const quote = it.source_quote.replace(/\s+/g, " ");
+      expect(text.split(quote).length - 1, it.id).toBe(1);
+      expect(text.indexOf(quote)).toBeGreaterThanOrEqual(0);
+      for (const ai of [it.title, it.when, it.plain_language].filter(Boolean)) {
+        const at = text.indexOf(ai);
+        if (at >= 0) expect(at, `${ai} before the quote`).toBeGreaterThan(text.indexOf(quote));
+      }
+    }
+  });
+
+  it("checked once: the long reason waits behind a small 'Why?'", () => {
+    render({ meaning: done(ALL, { model_verdict: "unclear" }), deviceStatus: "done", device: { run: 1, ok: true, byId: { bmp: "match" } } });
+    act(() => toggleOf("bmp").click());
+    const why = panelOf("bmp").querySelector<HTMLDetailsElement>("details[data-seal-text='once']")!;
+    expect(why.open).toBe(false);
+    expect(why.querySelector("summary")!.textContent).toContain("Why?");
+    expect(why.textContent).toContain("Our second check couldn't confirm this one.");
+    expect(why.querySelector('[data-device-check="match"]')).not.toBeNull();
+    // Honest: never says the plain words were checked.
+    expect(why.textContent).toContain("not double-checked yet");
+  });
+
+  it("certified: unchanged, the seal text stays in view and no 'Why?' is needed", () => {
+    render({ meaning: certifiedAll() });
+    act(() => toggleOf("bmp").click());
+    expect(panelOf("bmp").querySelector("details")).toBeNull();
+    expect(panelOf("bmp").querySelector("[data-seal-text='twice']")!.textContent).toContain("Checked twice");
   });
 
   it("certified: the explanation, then the paper's words", () => {

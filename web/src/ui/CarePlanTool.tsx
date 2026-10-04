@@ -389,9 +389,10 @@ export function CarePlanTool() {
   const [readJump, setReadJump] = useState(0);
   const loadSample = () => { setText(SAMPLE_AVS); setPhoto(null); setTab(1); setReadJump((n) => n + 1); };
   const arriveWithSample = useEffectEvent(() => {
-    // Never replace a paper the person typed or photographed; just show them the button.
+    // Never replace a paper the person typed or photographed; just show them the button. On a phone a restored plan
+    // can be open on tab 2 or 3, where step 1 is hidden, so the button's tab is opened first either way (Codex review).
     if (mayFillSample(live.current.text, !!live.current.photo, SAMPLE_AVS)) loadSample();
-    else setReadJump((n) => n + 1);
+    else { setTab(1); setReadJump((n) => n + 1); }
   });
   useEffect(() => {
     const toTry = () => { try { window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#try`); } catch {} };

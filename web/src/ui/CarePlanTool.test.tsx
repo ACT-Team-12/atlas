@@ -1013,6 +1013,18 @@ describe("Try it with a sample lands with the sample in and Read my paper in vie
     expect(hero).toMatch(/<SquashButton href=\{TRY_SAMPLE_HASH\}[^\n]*>Try it with a sample<\/SquashButton>/);
   });
 
+  it("on a phone with their own paper on another tab: keeps the paper, opens tab 1, then jumps (Codex review)", async () => {
+    phone = true;
+    act(() => typeInto(paperBox(), "My dad's discharge paper: take one pill a day and call if dizzy."));
+    act(() => host.querySelector<HTMLButtonElement>("#tab-step-2")!.click());
+    expect(host.querySelector("#tab-step-2")?.getAttribute("aria-selected")).toBe("true");
+    act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+    await act(async () => { await frame(); });
+    expect(paperBox().value).toBe("My dad's discharge paper: take one pill a day and call if dizzy.");
+    expect(host.querySelector("#tab-step-1")?.getAttribute("aria-selected")).toBe("true");
+    expect(scrolls).toContain("read-my-paper");
+  });
+
   describe("while the first-visit intro holds the page", () => {
     afterEach(() => { document.documentElement.style.overflow = ""; });
 

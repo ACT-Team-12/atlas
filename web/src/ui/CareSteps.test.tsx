@@ -309,9 +309,33 @@ describe("the expanded step", () => {
     expect(why.textContent).toContain("not double-checked yet");
   });
 
-  it("certified: unchanged, the seal text stays in view and no 'Why?' is needed", () => {
+  it("an unconfirmed medicine step offers 'Ask your pharmacist' with a question in the paper's words only", () => {
+    render({ meaning: done(ALL, { model_verdict: "unclear" }) });
+    act(() => toggleOf("lis").click());
+    const btn = panelOf("lis").querySelector<HTMLButtonElement>("button[data-ask-person]")!;
+    expect(btn.textContent).toContain("Ask your pharmacist");
+    const panel = document.getElementById(btn.getAttribute("aria-controls")!)!;
+    expect(panel.hidden).toBe(true);
+    act(() => btn.click());
+    expect(panel.hidden).toBe(false);
+    const q = panel.querySelector("[data-ask-question]")!.textContent!;
+    expect(q).toBe(`My paper says: "${ITEMS[1].source_quote}" Can you confirm what I should take?`);
+    for (const w of ["AI-TITLE", "AI-WHEN", "PLAIN"]) expect(panel.textContent).not.toContain(w);
+  });
+
+  it("an unconfirmed lab or referral step offers 'Ask your clinic'; a warning sign offers neither", () => {
+    render();
+    act(() => toggleOf("eye").click());
+    expect(panelOf("eye").querySelector("button[data-ask-person]")!.textContent).toContain("Ask your clinic");
+    act(() => toggleOf("w911").click());
+    expect(panelOf("w911").querySelector("button[data-ask-person]")).toBeNull();
+  });
+
+  it("certified: unchanged, the seal text stays in view and no 'Why?' or 'Ask' is needed", () => {
     render({ meaning: certifiedAll() });
     act(() => toggleOf("bmp").click());
+    act(() => toggleOf("lis").click());
+    expect(panelOf("lis").querySelector("button[data-ask-person]")).toBeNull();
     expect(panelOf("bmp").querySelector("details")).toBeNull();
     expect(panelOf("bmp").querySelector("[data-seal-text='twice']")!.textContent).toContain("Checked twice");
   });

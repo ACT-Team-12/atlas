@@ -42,6 +42,7 @@ import {
 } from "@/lib/staleGuard";
 import { SPEECH_LANG } from "@/lib/speechLang";
 import { CareSteps, KIND } from "./CareSteps";
+import { isWarning } from "@/lib/warningPin";
 import { SessionSummary } from "./SessionSummary";
 import { helperSessionKey } from "@/lib/sessionSummary";
 import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun, type DeviceVerdict } from "@/lib/deviceRun";
@@ -106,8 +107,12 @@ async function streamExtract(body: Record<string, unknown>, onItem: (it: Verifie
   }
 }
 
-/** Steps shown while the paper is still being read. Not final: no checkboxes, nothing saved, nothing built on them. */
-function StreamingSteps({ items }: { items: VerifiedItem[] }) {
+/**
+ * Steps shown while the paper is still being read. Not final: no checkboxes, nothing saved, nothing built on them.
+ * A step is styled as a warning exactly when "Your steps" pins it as one (lib/warningPin.ts): the model's kind or the
+ * paper's own words, so a mislabeled "call 911" line is red here too.
+ */
+export function StreamingSteps({ items }: { items: VerifiedItem[] }) {
   return (
     <div className="mt-8" aria-busy="true">
       <p className="display text-2xl">Still reading your paper<span className="working-dots" aria-hidden="true" /></p>
@@ -116,7 +121,7 @@ function StreamingSteps({ items }: { items: VerifiedItem[] }) {
       </p>
       <ul className="mt-4 space-y-3">
         {items.map((it) => (
-          <li key={it.id} className={`step-in rounded-2xl border-2 p-4 ${it.kind === "warning_sign" ? "border-red bg-red-soft/50" : "border-ink/70 bg-paper"}`}>
+          <li key={it.id} data-warning={isWarning(it) ? "" : undefined} className={`step-in rounded-2xl border-2 p-4 ${isWarning(it) ? "border-red bg-red-soft/50" : "border-ink/70 bg-paper"}`}>
             <div className="flex flex-wrap items-center gap-2">
               <span className={`chip ${KIND[it.kind]?.cls}`}>{KIND[it.kind]?.label}</span>
             </div>

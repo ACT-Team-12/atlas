@@ -194,12 +194,6 @@ const prepare = (t: string) => t.normalize("NFC").replace(/\s+/g, " ").trim();
 const CHANGE_VERB = edged(
   String.raw`increase[sd]?|decrease[sd]?|reduce[sd]?|lower(?:ed)?|raise[sd]?|change[sd]?|switch(?:ed)?|adjust(?:ed)?|aumente|disminuya|reduzca|baje|cambie|ajuste|augmentez|diminuez|réduisez|baissez|changez|modifiez|ajustez|tăng|giảm|đổi|thay${S}đổi|điều${S}chỉnh`,
 );
-/** The sentence of `t` that holds position `at`. */
-const sentenceAt = (t: string, at: number) => {
-  const start = Math.max(...[".", ";", "!", "?", "。", "；"].map((c) => t.lastIndexOf(c, at - 1))) + 1;
-  const ends = [".", ";", "!", "?", "。", "；"].map((c) => t.indexOf(c, at)).filter((i) => i >= 0);
-  return t.slice(start, ends.length ? Math.min(...ends) : t.length);
-};
 /**
  * The verb must GOVERN the from-to: it opens the clause (an instruction, "Increase lisinopril from 10 mg to 20 mg",
  * "Lisinopril: increase from..."), with at most five words before "from", none of them range words. "Adverse events

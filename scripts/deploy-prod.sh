@@ -51,7 +51,9 @@ if ! grep -q '"projectName":"atlas-team12"' "$link"; then
 fi
 
 out=$(mktemp -d "${TMPDIR:-/tmp}/atlas-deploy.XXXXXX")
-trap 'rm -rf "$out"' EXIT
+# The CLI's stderr, kept outside the export so it is never uploaded.
+errlog=$(mktemp "${TMPDIR:-/tmp}/atlas-deploy-err.XXXXXX")
+trap 'rm -rf "$out" "$errlog"' EXIT
 git archive "$sha" web core | tar -x -C "$out"
 mkdir -p "$out/.vercel"
 cp "$link" "$out/.vercel/project.json"
@@ -60,7 +62,16 @@ echo "deploying $sha ($mode) from a clean export"
 args=(deploy --yes --env "ATLAS_COMMIT=$sha")
 [ "$mode" = prod ] && args+=(--prod)
 # Outside a terminal the CLI prints a JSON summary; keep the whole thing for the log and pull out the URL.
-summary=$(cd "$out" && vercel "${args[@]}")
+# Under `set -e` a failing command substitution ends the script with no message, so take the exit code by hand.
+code=0
+summary=$(cd "$out" && vercel "${args[@]}" 2>"$errlog") || code=$?
+if [ "$code" -ne 0 ]; then
+  cat "$errlog" >&2
+  [ -n "$summary" ] && printf '%s\n' "$summary" >&2
+  echo "FAIL: vercel deploy exited $code" >&2
+  exit "$code"
+fi
+cat "$errlog" >&2
 url=$(printf '%s' "$summary" | grep -o 'https://[a-z0-9-]*\.vercel\.app' | head -1 || true)
 if [ -z "$url" ]; then
   printf '%s\n' "$summary" >&2

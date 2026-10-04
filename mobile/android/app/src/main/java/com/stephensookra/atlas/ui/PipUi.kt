@@ -1,6 +1,9 @@
 package com.stephensookra.atlas.ui
 
 import android.content.Context
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -25,6 +28,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -223,8 +227,14 @@ class PipCalm(private val context: Context) {
     private val prefs = context.getSharedPreferences("atlas.pip", Context.MODE_PRIVATE)
     var saved by mutableStateOf(prefs.getBoolean(Pip.CALM_KEY, false))
         private set
-    val systemReduced: Boolean
-        get() = Pip.systemReduced(Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f))
+    /** Observed (see [rememberPipCalm]), so turning "Remove animations" on or off updates Pip on screen. */
+    var systemReduced by mutableStateOf(readSystem())
+        private set
+
+    fun refresh() { systemReduced = readSystem() }
+
+    private fun readSystem() =
+        Pip.systemReduced(Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f))
     val calm: Boolean get() = Pip.calm(systemReduced, saved)
 
     fun set(on: Boolean) {
@@ -236,7 +246,15 @@ class PipCalm(private val context: Context) {
 @Composable
 fun rememberPipCalm(): PipCalm {
     val context = LocalContext.current.applicationContext
-    return remember { PipCalm(context) }
+    val calm = remember { PipCalm(context) }
+    DisposableEffect(calm) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) = calm.refresh()
+        }
+        context.contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, observer)
+        onDispose { context.contentResolver.unregisterContentObserver(observer) }
+    }
+    return calm
 }
 
 /** The "Calm mode" switch: Pip fades instead of hopping, and stops blinking. Already on when the system removes animations. */

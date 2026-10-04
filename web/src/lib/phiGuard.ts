@@ -60,11 +60,14 @@ export async function guardText<R extends { text: string }, T>(req: R, call: (re
   return unshieldDeep(await call({ ...req, text: ctx.result.text }), session.tokens, dropUnknownFor(session));
 }
 
+/** The answer fields that hold step ids. */
+const ID_KEYS = new Set(["id", "item_id", "care_ids", "dropped_refs"]);
+
 /**
  * A step's `id` (and `kind`) is a free string the client picks, and the AI is sent it. No pattern can tell a bare name
  * there ("Maria Lopez", with no label) from an id, so the AI never gets the client's id at all: each distinct id becomes
  * an opaque one (`atlas-step-1`...), a kind outside the fixed list is sent blank, and the real ids are put back into the
- * answer wherever a value is exactly an opaque id.
+ * answer's id fields only.
  */
 export function opaqueSteps<T extends { id: string; kind?: string }>(items: readonly T[]): { items: T[]; restore: <R>(v: R) => R } {
   const toOpaque = new Map<string, string>();
@@ -75,10 +78,12 @@ export function opaqueSteps<T extends { id: string; kind?: string }>(items: read
     const kind = it.kind === undefined || (ITEM_KINDS as readonly string[]).includes(it.kind) ? it.kind : "";
     return { ...it, id: o, ...(it.kind === undefined ? {} : { kind }) };
   });
+  // Only id fields are put back (a step id, a question's item_id, a plan step's care_ids and dropped_refs). A quote or
+  // an option that happens to equal an opaque id is left as it is, so no identifier lands in text the answer checked.
+  const real = (x: unknown) => (typeof x === "string" ? toReal.get(x) ?? x : Array.isArray(x) ? x.map((s) => (typeof s === "string" ? toReal.get(s) ?? s : s)) : x);
   const walk = (v: unknown): unknown => {
-    if (typeof v === "string") return toReal.get(v) ?? v;
     if (Array.isArray(v)) return v.map(walk);
-    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, ID_KEYS.has(k) ? real(x) : walk(x)]));
     return v;
   };
   return { items: out, restore: <R>(v: R) => walk(v) as R };

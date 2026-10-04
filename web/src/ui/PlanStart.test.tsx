@@ -165,7 +165,7 @@ describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
     expect(t.getAttribute("aria-expanded")).toBe("true");
     expect(shut(body)).toBe(false);
     expect(body.textContent).toContain(PLAN.steps[0].action);
-    expect(body.textContent).toContain("Best option · Suggested by ATLAS");
+    expect(body.textContent).toContain("Best option");
     expect(body.querySelector("[data-by-atlas]")?.textContent).toBe("Suggested by ATLAS"); // over the plan's own action
     act(() => t.click());
     expect(t.getAttribute("aria-expanded")).toBe("false");
@@ -206,6 +206,11 @@ describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
     act(() => more.click());
     expect(more.getAttribute("aria-expanded")).toBe("true");
     expect(moreBody.textContent).toContain("Grady Health System Financial Assistance Program");
+    // Every place card in every row, best and other options alike, says who suggested it (Codex review, round 4).
+    const placeCards = rows(card).flatMap((r) => [...r.querySelectorAll(".chip")].filter((c) => c.textContent === "Program" || c.textContent === "Health center")
+      .map((c) => c.closest("div.rounded-2xl")!));
+    expect(placeCards.length).toBeGreaterThanOrEqual(3);
+    for (const c of placeCards) expect(c.querySelector("[data-by-atlas]")?.textContent).toBe("Suggested by ATLAS");
     const book = byText("Book it now", card);
     expect(book.closest("li")).toBe(rows(card).find((r) => r.contains(book)));
   });

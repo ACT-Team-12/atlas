@@ -54,6 +54,8 @@ export function Resource({ r, off, proof = true }: { r: ResourceCard; off?: stri
       <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="chip bg-mint text-teal-deep">Health center</span>
+          {/* On every place card, wherever it shows (best option, other options): who suggested it (Codex review). */}
+          <span className="chip border border-ink/40 bg-paper text-ink" data-by-atlas="">{BY_ATLAS}</span>
           {r.km != null && <span className="text-xs font-bold text-ink/70">{r.km} km away</span>}
           {open != null && <span className={`chip ${open ? "bg-teal text-paper" : "bg-paper border border-ink/30 text-ink/70"}`}>{open ? "Listed as open now" : "Listed as closed now"}</span>}
           {(opensEvenings(c) || opensWeekends(c)) && <span className="chip bg-sun text-ink">{[opensEvenings(c) && "Evenings", opensWeekends(c) && "Weekends"].filter(Boolean).join(" + ")}</span>}
@@ -87,7 +89,10 @@ export function Resource({ r, off, proof = true }: { r: ResourceCard; off?: stri
   const p = r.program;
   return (
     <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
-      <span className="chip bg-sky text-sky-deep">Program</span>
+      <span className="flex flex-wrap gap-1.5">
+        <span className="chip bg-sky text-sky-deep">Program</span>
+        <span className="chip border border-ink/40 bg-paper text-ink" data-by-atlas="">{BY_ATLAS}</span>
+      </span>
       <p className="font-extrabold mt-2">{p.name}</p>
       {/* The quote and the how-to text can hold a number to call or text: not offered while the plan is outdated. */}
       {proof && !off && <p className="text-sm italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{p.evidence_quote}&rdquo;</p>}
@@ -253,7 +258,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
         ))}
         {best && (
           <div className="mt-4">
-            <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-ink/70">Best option · {BY_ATLAS}</p>
+            <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-ink/70">Best option</p>
             <Resource r={best} off={off} proof={false} />
           </div>
         )}

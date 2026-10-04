@@ -42,11 +42,12 @@ describe("who suggested the places to call", () => {
   // doctor" within 200 characters of "ATLAS" in the file's text with whitespace and string joins collapsed.
   const CLAIM = /\bnot\s+(?:(?:from|on|in|by)\s+)?(?:the|your|my)\s+(?:paper|doctor)\b/gi;
   // True statements that use the same words: a check result about a number.
-  const ALLOWED = [/Number not in your paper/i];
+  const ALLOWED = [/Number not in your paper/gi];
   const claimsNearAtlas = (text: string): string[] => {
-    const flat = text.replace(/["'`]\s*\+\s*["'`]/g, "").replace(/\s+/g, " ");
+    // Allowed phrases are blanked out first, so each one excuses only itself, never a claim beside it (Codex review).
+    const flat = ALLOWED.reduce((t, a) => t.replace(a, (m) => " ".repeat(m.length)), text.replace(/["'`]\s*\+\s*["'`]/g, "").replace(/\s+/g, " "));
     return [...flat.matchAll(CLAIM)].map((m) => flat.slice(Math.max(0, m.index - 200), m.index + m[0].length + 200))
-      .filter((w) => /ATLAS/.test(w) && !ALLOWED.some((a) => a.test(w)));
+      .filter((w) => /ATLAS/.test(w));
   };
 
   it("the claim guard catches reversed, split and sentence-separated wordings", () => {
@@ -55,7 +56,9 @@ describe("who suggested the places to call", () => {
       "ATLAS suggested this. It is not from your paper.",
       'const s = "Suggested by ATLAS, " +\n  "not the paper";',
       "Suggestion from ATLAS, not the paper: Mercy Care",
+      "Number not in your paper: 3. Suggested by ATLAS, not from your paper.",
     ]) expect(claimsNearAtlas(bad)).not.toEqual([]);
+    expect(claimsNearAtlas("ATLAS checked it. (Number not in your paper: 3.)")).toEqual([]);
     expect(claimsNearAtlas("ATLAS explains your paper. It is not medical advice.")).toEqual([]);
   });
 

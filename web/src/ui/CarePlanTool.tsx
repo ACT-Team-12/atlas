@@ -137,11 +137,12 @@ export function StreamingSteps({ items }: { items: VerifiedItem[] }) {
   );
 }
 
-function StepHeader({ n, title, done, note }: { n: number; title: string; done?: boolean; note?: string }) {
+function StepHeader({ n, title, done, note, id }: { n: number; title: string; done?: boolean; note?: string; id?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <span className={`grid place-items-center w-10 h-10 rounded-full border-2 border-ink font-extrabold ${done ? "bg-teal text-paper" : "bg-paper"}`}>{done ? "✓" : n}</span>
-      <h3 className="display text-3xl">{title}</h3>
+      {/* With an id it is a landing spot (the ready cue moves focus here), so it takes focus without joining the tab order. */}
+      <h3 id={id} tabIndex={id ? -1 : undefined} className="display text-3xl outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{title}</h3>
       {note && <span className="hand text-2xl text-ink/70 -rotate-1">{note}</span>}
     </div>
   );
@@ -194,8 +195,9 @@ export function CarePlanTool() {
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const [planReadyNote, setPlanReadyNote] = useState<string | null>(null);
-  // A result landed while the person was elsewhere on the page (ReadyCue).
-  const [ready, setReady] = useState<Ready | null>(null);
+  // A result landed while the person was elsewhere on the page (ReadyCue). `ref` is that exact result: the cue
+  // shows only while it is still the one on screen and still current (Codex review).
+  const [ready, setReady] = useState<{ what: Ready; ref: object } | null>(null);
   const clearReady = useCallback(() => setReady(null), []);
   const [care, setCareState] = useState<CarePlanResponse | null>(null);
   const [barriers, setBarriersState] = useState<Barrier[]>([]);
@@ -333,7 +335,7 @@ export function CarePlanTool() {
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFence.cancel(); setMeaning(IDLE_MEANING);
-    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setLoc(null); locGen.current++; setLocating(false);
+    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setLoc(null); locGen.current++; setLocating(false); setReady(null);
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
     // A plan saved before ids were filtered out (lib/planText.ts) comes back without them. A plan with nothing to clean
@@ -455,6 +457,10 @@ export function CarePlanTool() {
     careIds: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id),
     barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc,
   }) !== planFp);
+  // The ready cue, only for the exact result that raised it and only while that result is current.
+  const cueFor: Ready | null = !ready ? null
+    : ready.what === "steps" ? (care === ready.ref && !careOutdated ? "steps" : null)
+    : (plan === ready.ref && !planOutdated ? "plan" : null);
   const resultsCurrent = !careOutdated && !planOutdated;
   const actionsOffReason = careOutdated ? "Read your paper again first" : "Update the plan first";
   // A plan made near the device's position, with no position or ZIP now: it needs a place before it can be updated.
@@ -591,7 +597,7 @@ export function CarePlanTool() {
       // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared),
       // and only if the person has not scrolled, tapped or typed since pressing the button.
       const target = scrollTargetAfter("read", isPhoneNow());
-      if (!autoScrollOk(sent.at)) setReady("steps"); // they moved on: offer the way back instead of moving them
+      if (!autoScrollOk(sent.at)) setReady({ what: "steps", ref: json }); // they moved on: offer the way back instead of moving them
       else if (target) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at };
     } catch (e) {
       if (readRun.current !== run) return; // stopped or replaced: nothing to show
@@ -906,7 +912,7 @@ export function CarePlanTool() {
     const phone = isPhoneNow();
     if (free || !phone) setTab(3);
     else setPlanReadyNote("Your plan is ready. Open 3 · Plan.");
-    if (!free) setReady("plan"); // they moved on: the floating "Your plan is ready" button takes them there
+    if (!free) setReady({ what: "plan", ref: nav.plan }); // they moved on: the floating "Your plan is ready" button takes them there
     const target = scrollTargetAfter("plan", phone);
     if (!target || !free) return;
     const next = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt };
@@ -960,18 +966,27 @@ export function CarePlanTool() {
 
   function pickTab(t: Tab, onlyIfHidden = true) {
     setTab(t);
-    if (t === 3) { setPlanReadyNote(null); setReady((r) => (r === "plan" ? null : r)); } // they opened the plan
+    if (t === 3) { setPlanReadyNote(null); setReady((r) => (r?.what === "plan" ? null : r)); } // they opened the plan
     scrollAfter.current = { t, onlyIfHidden };
   }
 
   // "Show me" on the ready cue: the plan opens step 3; the steps bring "Your steps" to the top of step 1.
+  // Focus then follows to the result's heading, so keyboard and screen-reader users land there too (Codex review).
   function goToReady(r: Ready) {
     setReady(null);
-    if (r === "plan") return pickTab(3, false);
+    const focusTarget = () => document.getElementById(READY_TARGET[r])?.focus({ preventScroll: true });
+    if (r === "plan") {
+      pickTab(3, false);
+      requestAnimationFrame(() => requestAnimationFrame(focusTarget)); // after step 3 has rendered and scrolled
+      return;
+    }
     setTab(1);
     requestAnimationFrame(() => {
       const el = document.getElementById(READY_TARGET.steps);
-      if (el) markOwnScroll(scrollElementToTop(el, "smooth"));
+      if (!el) return;
+      const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      markOwnScroll(scrollElementToTop(el, calm ? "auto" : "smooth"));
+      focusTarget();
     });
   }
 
@@ -1053,7 +1068,8 @@ export function CarePlanTool() {
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
 
         <PhoneTabBar shown={shown} state={flow} onPick={pickTab} notice={plan && shown !== 3 ? planReadyNote : null} />
-        <ReadyCue ready={ready} onGo={goToReady} onSeen={clearReady} />
+        {/* Only while that exact result is still on screen and current; the tab bar already announces the phone plan. */}
+        <ReadyCue ready={cueFor} announce={!(cueFor === "plan" && !!plan && shown !== 3 && !!planReadyNote)} onGo={goToReady} onSeen={clearReady} />
 
         {/* Step 1 */}
         <div {...panel(1)} className={`card mt-10 max-md:mt-4 p-5 sm:p-8 max-md:scroll-mt-44 ${onPhone(1)}`}>
@@ -1200,7 +1216,7 @@ export function CarePlanTool() {
           <div {...panel(3)} ref={planCard} data-outdated={planOutdated || undefined} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 max-md:pb-36 scroll-mt-24 max-md:scroll-mt-44 ${planOutdated ? "plan-outdated" : ""} ${onPhone(3)}`}>
             {/* Printing from the browser menu while the plan is outdated prints only this, never the outdated plan. */}
             {planOutdated && <p className="outdated-print-note">This plan is out of date, so it is not printed. {actionsOffReason}, then print again.</p>}
-            <StepHeader n={3} title="Your plan" done note={plan.located.label} />
+            <StepHeader n={3} id="plan-title" title="Your plan" done note={plan.located.label} />
             {planOutdated && (
               <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-sun/30 p-3 text-sm font-bold">
                 {careOutdated

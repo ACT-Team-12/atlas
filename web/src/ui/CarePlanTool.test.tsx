@@ -289,6 +289,22 @@ describe("automatic scroll after a reply", () => {
     expect(tabSelected(3)).toBe("true");
     expect(scrolls).toContain("step-3");
     expect(cue()).toBeNull();
+    // Focus follows to the plan's heading (Codex review), after step 3 has rendered.
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("plan-title");
+  });
+
+  it("phone: one announcement per plan (the tab bar's note speaks; the cue's live region stays quiet)", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    const speaking = [...host.querySelectorAll("[aria-live], [role=status]")].filter((n) => /Your plan is ready/.test(n.textContent ?? ""));
+    expect(speaking).toHaveLength(1);
+  });
+
+  it("the cue goes away when the plan it announced becomes outdated (Codex review)", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    expect(cue()).not.toBeNull();
+    act(() => byText("Paying for the visit").click()); // a changed answer: the plan on screen is now outdated
+    expect(cue()).toBeNull();
   });
 
   it("desktop, moved on during the read: a 'Your steps are ready' button appears instead of a jump", async () => {
@@ -302,6 +318,8 @@ describe("automatic scroll after a reply", () => {
     act(() => cue()!.querySelector("button")!.click());
     expect(cue()).toBeNull();
     expect(tabSelected(1)).toBe("true");
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("steps-title");
   });
 
   it("a new read clears a waiting cue", async () => {

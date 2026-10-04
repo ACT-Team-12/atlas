@@ -4,23 +4,33 @@ import { useEffect } from "react";
 
 export type Ready = "steps" | "plan";
 
-/** The element each cue takes the person to; the cue also hides itself once that element is on screen. */
-export const READY_TARGET: Record<Ready, string> = { steps: "steps-title", plan: "step-3" };
+/** The heading each cue takes the person to (focusable, tabIndex -1); the cue hides once it is plainly on screen. */
+export const READY_TARGET: Record<Ready, string> = { steps: "steps-title", plan: "plan-title" };
 
 const LABEL: Record<Ready, string> = { steps: "Your steps are ready", plan: "Your plan is ready" };
 
 /**
- * "Your plan is ready: Show me". Both watched tries (Oct 4) scrolled away from the tool during the 15 to 25 seconds
- * the AI takes; one never found her plan, because the only sign was a small note up in the tab bar. When a result lands
- * and the page has decided not to move the person (they tapped or scrolled since pressing the button), this button
- * floats at the bottom of the screen until they use it or the result comes into view on its own.
+ * Plainly on screen: the whole heading inside the middle band of the viewport (the observer's rootMargin keeps the
+ * sticky header and the bottom bar out). One edge entering the viewport is not enough (Codex review).
  */
-export function ReadyCue({ ready, onGo, onSeen }: { ready: Ready | null; onGo: (r: Ready) => void; onSeen: () => void }) {
+export function readableNow(e: { isIntersecting: boolean; intersectionRatio: number }): boolean {
+  return e.isIntersecting && e.intersectionRatio >= 0.99;
+}
+
+/**
+ * "Your plan is ready: show me". Both watched tries (Oct 4) scrolled away from the tool during the 15 to 25 seconds
+ * the AI takes; one never found her plan, because the only sign was a small note in the phone tab bar. When a result
+ * lands and the page has decided not to move the person (they tapped or scrolled since pressing the button), this
+ * button floats at the bottom of the screen until they use it or the result's heading comes plainly into view.
+ * `announce` is false when another live region already says the same thing (the phone tab bar's plan note).
+ */
+export function ReadyCue({ ready, announce, onGo, onSeen }: { ready: Ready | null; announce: boolean; onGo: (r: Ready) => void; onSeen: () => void }) {
   useEffect(() => {
     if (!ready || typeof IntersectionObserver === "undefined") return;
     const el = document.getElementById(READY_TARGET[ready]);
     if (!el) return;
-    const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) onSeen(); }, { threshold: 0.2 });
+    const io = new IntersectionObserver((entries) => { if (entries.some(readableNow)) onSeen(); },
+      { rootMargin: "-20% 0px -25% 0px", threshold: [1] });
     io.observe(el);
     return () => io.disconnect();
   }, [ready, onSeen]);
@@ -28,7 +38,7 @@ export function ReadyCue({ ready, onGo, onSeen }: { ready: Ready | null; onGo: (
   return (
     <>
       {/* Always mounted, so the arrival is announced once, politely. */}
-      <p className="sr-only" role="status" aria-live="polite">{ready ? LABEL[ready] : ""}</p>
+      <p className="sr-only" role="status" aria-live="polite">{ready && announce ? LABEL[ready] : ""}</p>
       {ready && (
         <div className="ready-cue fixed inset-x-0 bottom-24 z-40 flex justify-center px-4 print:hidden md:bottom-8" data-ready-cue={ready}>
           <button type="button" onClick={() => onGo(ready)}

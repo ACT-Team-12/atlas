@@ -182,6 +182,15 @@
     --wave-1: #cdeee3;
     --wave-2: #dbf3ea;
     --wave-3: #e6f6f0;
+    --pip-ink: #14283a;
+    --pip-pin: #ffa47e;
+    --pip-pin2: #f0606a;
+    --pip-deep: #d2543f;
+    --pip-leaf: #3f9a52;
+    --pip-go: #24895d;
+    --pip-sky: #2f6fc9;
+    --pip-face: #fffdf7;
+    --pip-cheek: #f58c7a;
   }
 }
 /* The quote rule (border-l-4 border-sun) and sun callout frames: a brighter amber line in dark. Decorative; the quote

@@ -51,7 +51,7 @@ describe("medicine-changes-vectors.json", () => {
       }
       expect(got).not.toBeNull();
       expect(got!.row).toBe(c.expect.row);
-      // The card's Stop row and the list's "Right away" stop rule never disagree.
+      // Every Stop on the card is also a stop the list's "Right away" rule accepts.
       if (got!.row === "stop") expect(stopNowFromPaper({ kind: c.kind, source_quote: c.quote, span: span(c) }, c.paper ?? "")).toBe(true);
       if (c.expect.reason) expect(got!.reason).toBe(c.expect.reason);
       if ("dose" in c.expect) expect(got!.dose).toEqual(c.expect.dose);

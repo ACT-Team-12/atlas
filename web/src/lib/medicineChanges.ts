@@ -6,8 +6,9 @@
  * ("STOP taking these medications:" above "- ibuprofen ..."). Never the AI's title, "when" or explanation: the AI's
  * kind only picks which steps are medicines, as it does for the "Right away" stop rule.
  *
- * - STOP only when stopNowFromPaper (stepsView.ts) says so, the same rule that puts the step under "Right away", so the
- *   card and the list can never disagree about a stop.
+ * - STOP only when stopNowFromPaper (stepsView.ts) also says so, the same rule that puts the step under "Right away",
+ *   so the card never shows a Stop the list does not. The reverse is not promised: a stop line the card is unsure of
+ *   (say "Stop aspirin, you may bleed") goes to "Ask your pharmacist", still on the card, in the paper's words.
  * - CHANGE, START, KEEP from the word lists below, in the seven app languages.
  * - Anything the words do not settle goes to "Ask your pharmacist", never to a guessed row: a negated action ("do not
  *   stop", "no need to stop"), a condition or a later moment ("if", "until", "when", "after starting"), a
@@ -104,7 +105,11 @@ const EN: Lists = {
   cond: edged(
     String.raw`if|unless|in${S}case|until|when|whenever|while|after(?!${S}(?:meals?|breakfast|lunch|dinner|supper|eating|food))|before(?!${S}(?:meals?|breakfast|lunch|dinner|supper|eating|food|bed|bedtime|sleep))`,
   ),
-  history: edged(String.raw`you(?:${S}have)?${S}(?:stopped|started|began|took|were|used)|last${S}(?:year|month|week)|ago|already|in${S}the${S}past|may|might|could`),
+  history: edged(
+    String.raw`you(?:${S}have)?${S}(?:stopped|started|began|took|were|used)|last${S}(?:year|month|week)|ago|already|in${S}the${S}past|may|might|could|yesterday` +
+      // Passive past ("Metformin was started in 2022") and a year that is not a dose ("2000 units" is a dose).
+      String.raw`|(?:was|were|has${S}been|have${S}been|had${S}been)${S}(?:\p{L}+${S})?(?:started|stopped|discontinued|increased|decreased|changed|reduced|lowered|raised|adjusted|begun|held)|(?:19|20)\d\d(?!${S}?(?:mg|mcg|units?|iu|ml|g)(?![\p{L}]))`,
+  ),
 };
 const ES: Lists = {
   start: edged(String.raw`empiece|empezar|comience|comenzar|inicie|iniciar|reanude|reanudar|reinicie|reiniciar|vuelva${S}a${S}(?:tomar|empezar)|nuevos?${S}medicamentos?|nuevas?${S}medicinas?`),
@@ -117,7 +122,7 @@ const ES: Lists = {
   cond: edged(
     String.raw`si|a${S}menos${S}que|en${S}caso${S}de|hasta${S}que|cuando|mientras|despu[eé]s${S}de(?!${S}(?:las${S})?(?:comidas?|desayun\p{L}*|cenar?|almorzar|comer))|antes${S}de(?!${S}(?:las${S})?(?:comidas?|desayun\p{L}*|cenar?|almorzar|comer|acostarse|dormir))`,
   ),
-  history: edged(String.raw`puede|pueden|podr[ií]a|el${S}año${S}pasado|usted${S}(?:dej[oó]|empez[oó]|tomaba)`),
+  history: edged(String.raw`puede|pueden|podr[ií]a|el${S}año${S}pasado|usted${S}(?:dej[oó]|empez[oó]|tomaba)|ayer|fue${S}(?:suspendid[oa]|iniciad[oa]|aumentad[oa]|cambiad[oa]|empezad[oa]|disminuid[oa])`),
 };
 const FR: Lists = {
   start: edged(String.raw`commencez|commencer|débutez|débuter|reprenez|reprendre|recommencez|recommencer|nouveaux?${S}médicaments?`),
@@ -131,7 +136,7 @@ const FR: Lists = {
   cond: edged(
     String.raw`si|s['’]ils?|sauf${S}si|en${S}cas|jusqu['’]à|quand|lorsque|lorsqu['’]\p{L}+|pendant${S}que|après(?!${S}(?:les${S})?(?:repas|manger))|avant(?!${S}(?:les${S})?(?:repas|manger|le${S}coucher|de${S}dormir))`,
   ),
-  history: edged(String.raw`peut|peuvent|pourrait|l['’]an${S}dernier|vous${S}avez${S}(?:arrêté|commencé|pris)`),
+  history: edged(String.raw`peut|peuvent|pourrait|l['’]an${S}dernier|vous${S}avez${S}(?:arrêté|commencé|pris)|hier|a${S}été${S}(?:arrêtée?|commencée?|augmentée?|modifiée?|diminuée?)`),
 };
 const VI: Lists = {
   start: edged(String.raw`bắt${S}đầu|thuốc${S}mới|dùng${S}lại|uống${S}lại`),
@@ -140,7 +145,7 @@ const VI: Lists = {
   hold: edged(String.raw`tạm${S}(?:ngưng|ngừng|dừng|thời)`),
   neg: edged(String.raw`(?:không|đừng|chớ)(?:${S}\p{L}+){0,3}${S}(?:ngưng|ngừng|dừng|bắt${S}đầu|tăng|giảm|đổi|tiếp${S}tục)|không${S}thay${S}đổi|không${S}cần`),
   cond: edged(String.raw`nếu|trừ${S}khi|trường${S}hợp|cho${S}đến${S}khi|(?:sau|trước)${S}khi(?!${S}(?:ăn|ngủ))|(?<!(?:sau|trước)${S})khi`),
-  history: edged(String.raw`có${S}thể|năm${S}ngoái|đã${S}(?:ngưng|ngừng|dừng|bắt${S}đầu|uống|dùng)`),
+  history: edged(String.raw`có${S}thể|năm${S}ngoái|hôm${S}qua|đã${S}được|đã${S}(?:ngưng|ngừng|dừng|bắt${S}đầu|uống|dùng)`),
 };
 const KO: Lists = {
   start: bare(String.raw`시작|새로\s*처방|새\s*약|새로운\s*약|재개`),
@@ -149,7 +154,7 @@ const KO: Lists = {
   hold: bare(String.raw`일시\s*중단|잠시\s*중단|일시적으로`),
   neg: bare(String.raw`(?:중단|중지|멈추|끊|시작|증량|감량|늘리|줄이|변경|계속)\p{L}*?지\s*(?:마|말|않)|변경\s*없|필요\s*(?:가|는)?\s*없|않아도`),
   cond: bare(String.raw`경우|만약|만일|때까지|(?<!식)후|(?<!식)전에|때(?!문)`),
-  history: bare(String.raw`수\s*있|작년`),
+  history: bare(String.raw`수\s*있|작년|어제`),
 };
 const ZH: Lists = {
   start: bare(String.raw`开始|開始|新药|新藥|新处方|新處方|加用|恢复服用|恢復服用|重新服用`),
@@ -158,7 +163,7 @@ const ZH: Lists = {
   hold: bare(String.raw`暂停|暫停|暂时|暫時`),
   neg: bare(String.raw`(?:不要|不可|不能|不得|请勿|請勿|勿|别|別|切勿)\p{L}{0,6}?(?:停|开始|開始|增加|减少|減少|加量|减量|減量|改|继续|繼續|恢复|恢復)|不变|不變|不需要|不必|无需|無需|不用`),
   cond: bare(String.raw`如果|如若|假如|一旦|如有|直到|(?<![\p{L}])若|(?<![饭飯餐])[后後]|之前|以前|(?<![小暂暫同按及准準])[时時]`),
-  history: bare(String.raw`可能|去年|曾经|曾經|已经|已經`),
+  history: bare(String.raw`可能|去年|昨天|曾经|曾經|已经|已經|已于|已於`),
 };
 const AM: Lists = {
   start: bare(String.raw`ይጀምሩ|ጀምሩ|አዲስ\s*መድ[ሀሃሐ]ኒት|አዲስ\s*መድኃኒት|እንደገና`),
@@ -167,7 +172,7 @@ const AM: Lists = {
   hold: bare(String.raw`ለጊዜው`),
   neg: bare(String.raw`አይጀምሩ|አይጨምሩ|አይቀንሱ|አይቀይሩ|አያቁሙ|አያቋርጡ|አይቀጥሉ|አያስፈልግም`),
   cond: bare(String.raw`ከሆነ|ካለብዎት|ካጋጠመዎት|ቢያጋጥምዎ|እስከ|በኋላ|በፊት`),
-  history: bare(String.raw`ይችላል`),
+  history: bare(String.raw`ይችላል|ትናንት`),
 };
 const LANG_LISTS: [string, Lists][] = [["en", EN], ["es", ES], ["fr", FR], ["vi", VI], ["ko", KO], ["zh", ZH], ["am", AM]];
 
@@ -195,7 +200,20 @@ const sentenceAt = (t: string, at: number) => {
   const ends = [".", ";", "!", "?", "。", "；"].map((c) => t.indexOf(c, at)).filter((i) => i >= 0);
   return t.slice(start, ends.length ? Math.min(...ends) : t.length);
 };
-const fromToWithVerb = (t: string) => [...t.matchAll(FROM_TO)].filter((m) => CHANGE_VERB.test(sentenceAt(t, m.index ?? 0)));
+/**
+ * The verb must GOVERN the from-to: it opens the clause (an instruction, "Increase lisinopril from 10 mg to 20 mg",
+ * "Lisinopril: increase from..."), with at most five words before "from", none of them range words. "Adverse events
+ * increase across tablet strengths from 10 mg to 20 mg" is a description of a range, not a change (Codex round 2).
+ */
+const GOVERNS = new RegExp(String.raw`^(?:[-*•‣–]\s*)?(?:${CHANGE_VERB.source})((?:\s+[\p{L}\p{M}()'’-]+){0,5})\s*$`, "iu");
+const RANGE_WORDS = edged(String.raw`ranges?|ranging|across|between|strengths?|available|rango|entre|disponibles?|gamme|khoảng`);
+const fromToWithVerb = (t: string) =>
+  [...t.matchAll(FROM_TO)].filter((m) => {
+    const before = t.slice(0, m.index ?? 0);
+    const clause = before.slice(Math.max(...[".", ";", ":", "!", "?", ",", "(", "\n", "。", "；", "："].map((c) => before.lastIndexOf(c))) + 1).trim();
+    const g = GOVERNS.exec(clause);
+    return !!g && !RANGE_WORDS.test(g[1] ?? "");
+  });
 
 /**
  * A negation earlier in the same clause than the first action word: "No need to stop", "No hay necesidad de dejar",
@@ -204,7 +222,8 @@ const fromToWithVerb = (t: string) => [...t.matchAll(FROM_TO)].filter((m) => CHA
  */
 const NEG_TOKEN = /(?<![\p{L}])(?:not|no|never|without|nunca|sin|ne|pas|jamais|sans|không|đừng|chớ|chưa)(?![\p{L}])|n['’]|[不别別勿无無未没沒]/giu;
 function negatedBeforeAction(t: string, actions: RegExp[]): boolean {
-  for (const clause of t.split(/[.;:!?。；：]/)) {
+  // Commas end a clause here too: "No taper needed, stop prednisone today" is a stop (Codex round 2).
+  for (const clause of t.split(/[.;:!?,。；：，]/)) {
     const at = Math.min(...actions.map((re) => { const m = once(re).exec(clause); return m ? m.index : Infinity; }));
     if (!Number.isFinite(at)) continue;
     for (const m of clause.matchAll(NEG_TOKEN)) if ((m.index ?? 0) < at) return true;
@@ -217,16 +236,21 @@ type Signals = { stop: boolean; change: boolean; start: boolean; keep: boolean; 
 function signalsOf(text: string): Signals {
   const t = prepare(text);
   const any = (pick: (l: Lists) => RegExp) => LANG_LISTS.some(([, l]) => pick(l).test(t));
-  const actions = [...STOP_WORDS, ...LANG_LISTS.flatMap(([, l]) => [l.start, l.change, l.keep]), CHANGE_VERB];
+  const actions = [...STOP_WORDS, ...LANG_LISTS.flatMap(([, l]) => [l.start, l.change, l.keep, l.hold]), CHANGE_VERB];
+  // A negation, condition, hold or history word changes an action only in the sentence that holds the action:
+  // "Stop taking aspirin now. You may feel dizzy." is a stop (Codex round 2). A sentence with no action word is
+  // context, read by no rule here.
+  const sentences = t.split(/[.;!?。；\n]/).filter((x) => actions.some((re) => once(re).test(x)) || fromToWithVerb(x).length > 0);
+  const inAction = (pick: (l: Lists) => RegExp) => sentences.some((x) => LANG_LISTS.some(([, l]) => pick(l).test(x)));
   return {
     stop: STOP_WORDS.some((re) => re.test(t)),
     change: any((l) => l.change) || fromToWithVerb(t).length > 0,
     start: any((l) => l.start),
     keep: any((l) => l.keep),
-    hold: any((l) => l.hold),
-    neg: any((l) => l.neg) || negatedBeforeAction(t, actions),
-    cond: any((l) => l.cond),
-    history: any((l) => l.history),
+    hold: inAction((l) => l.hold),
+    neg: inAction((l) => l.neg) || negatedBeforeAction(t, actions),
+    cond: inAction((l) => l.cond),
+    history: inAction((l) => l.history),
   };
 }
 
@@ -246,7 +270,7 @@ export function classifyMedicine(it: Item, paper = ""): { row: MedRow; reason: M
   if (both.some((s) => s.cond)) return ask("conditional");
   if (both.some((s) => s.hold)) return ask("hold");
   if (both.some((s) => s.history)) return ask("not_an_instruction");
-  // A stop word counts only where the "Right away" rule accepts it, so the card and the list agree about every stop.
+  // A stop word counts only where the "Right away" rule accepts it: every Stop on the card is under "Right away" too.
   if (both.some((s) => s.stop) && !stopNowFromPaper(it, paper)) return ask("stop_not_now");
   const qr = rowsOf(q);
   const hr = h ? rowsOf(h) : [];
@@ -274,11 +298,9 @@ const AFTER_DOSE_SKIP = new Set(["of", "de", "du", "des", "d", "của"]);
 function nothingNamedAfter(text: string, end: number): boolean {
   const rest = text.slice(end).split(/[.;!?\n]/)[0];
   const words = [...rest.matchAll(/[\p{L}\p{M}]+/gu)].map((m) => m[0].toLowerCase());
-  for (const w of words) {
-    if (AFTER_DOSE_SKIP.has(w)) continue;
-    return AFTER_DOSE_OK.has(w);
-  }
-  return true;
+  // Every word to the end of the sentence, not just the first: "20 mg tablet of amlodipine daily" names amlodipine
+  // after allowed words (Codex round 2).
+  return words.every((w) => AFTER_DOSE_SKIP.has(w) || AFTER_DOSE_OK.has(w));
 }
 
 const valueOf = (amount: string) => (amount.match(/\d+(?:[.,]\d+)?/)?.[0] ?? "").replace(",", ".");

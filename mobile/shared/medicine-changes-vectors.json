@@ -837,6 +837,121 @@
     "row": "ask",
     "reason": "negated"
    }
+  },
+  {
+   "name": "codex r2: a name after allowed words still blocks the dose",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Lisinopril previously 10 mg. Take one 20 mg tablet of amlodipine daily.",
+   "expect": {
+    "row": "change",
+    "dose": null
+   }
+  },
+  {
+   "name": "codex r2: a name after daily blocks the dose",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Lisinopril previously 10 mg. Take 20 mg daily amlodipine.",
+   "expect": {
+    "row": "change",
+    "dose": null
+   }
+  },
+  {
+   "name": "codex r2: a verb elsewhere in a range sentence is not a change",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Adverse events increase across tablet strengths from 10 mg to 20 mg.",
+   "expect": {
+    "row": "ask",
+    "dose": null
+   }
+  },
+  {
+   "name": "codex r2: a stop with a separate may sentence stays a stop",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Stop taking aspirin now. You may feel dizzy.",
+   "expect": {
+    "row": "stop"
+   }
+  },
+  {
+   "name": "codex r2: no taper needed, then a stop, stays a stop",
+   "language": "English",
+   "kind": "medication",
+   "quote": "No taper needed, stop prednisone today.",
+   "expect": {
+    "row": "stop"
+   }
+  },
+  {
+   "name": "codex r2: passive start is history",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Metformin was started in 2022.",
+   "expect": {
+    "row": "ask",
+    "reason": "not_an_instruction"
+   }
+  },
+  {
+   "name": "codex r2: passive stop is history",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Aspirin was discontinued in 2022.",
+   "expect": {
+    "row": "ask",
+    "reason": "not_an_instruction"
+   }
+  },
+  {
+   "name": "codex r2: passive increase yesterday is history",
+   "language": "English",
+   "kind": "medication",
+   "quote": "The dose was increased to 20 mg yesterday.",
+   "expect": {
+    "row": "ask",
+    "reason": "not_an_instruction"
+   }
+  },
+  {
+   "name": "codex r2: es passive stop is history",
+   "language": "Spanish",
+   "kind": "medication",
+   "quote": "La aspirina fue suspendida ayer.",
+   "expect": {
+    "row": "ask"
+   }
+  },
+  {
+   "name": "codex r2: fr passive start is history",
+   "language": "French",
+   "kind": "medication",
+   "quote": "La metformine a été commencée hier.",
+   "expect": {
+    "row": "ask"
+   }
+  },
+  {
+   "name": "codex r2: a 2000 units dose is not a year",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Start vitamin D 2000 units daily.",
+   "expect": {
+    "row": "start"
+   }
+  },
+  {
+   "name": "codex r2: passive start with no date is history",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Metformin was started by your previous doctor.",
+   "expect": {
+    "row": "ask",
+    "reason": "not_an_instruction"
+   }
   }
  ]
 }

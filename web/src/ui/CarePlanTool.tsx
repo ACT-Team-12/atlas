@@ -148,7 +148,8 @@ function StepHeader({ n, title, done, note, id }: { n: number; title: string; do
   );
 }
 
-type ScrollRequest = { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number };
+/** `ready`: the cue to raise instead when an automatic scroll is cancelled at the last check (Codex review, round 4). */
+type ScrollRequest = { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number; ready?: { what: Ready; ref: object } };
 
 /** The fingerprint of a save from before results were checked against answers: no inputs ever match it. */
 const UNMATCHED_SAVE = "saved-before-results-were-checked";
@@ -271,7 +272,7 @@ export function CarePlanTool() {
   // A scroll to run after the next render, once the newly shown card is on the page.
   // `submittedAt` marks an automatic scroll: it is checked again right before scrolling, and skipped if the
   // person has used the page since they pressed the button. A tab they picked themselves has none.
-  const scrollAfter = useRef<{ t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number } | null>(null);
+  const scrollAfter = useRef<ScrollRequest | null>(null);
   // A plan that just arrived: once it is on the page, decide (then, not when the reply landed) whether to open and scroll to it.
   const planNav = useRef<{ plan: PlanResponse; submittedAt: number } | null>(null);
   // The card an automatic scroll brought up, kept in place briefly while late content above it loads.
@@ -335,7 +336,7 @@ export function CarePlanTool() {
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFence.cancel(); setMeaning(IDLE_MEANING);
-    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setLoc(null); locGen.current++; setLocating(false); setReady(null);
+    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setLoc(null); locGen.current++; setLocating(false); setReady(null); setPlanReadyNote(null);
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
     // A plan saved before ids were filtered out (lib/planText.ts) comes back without them. A plan with nothing to clean
@@ -598,7 +599,7 @@ export function CarePlanTool() {
       // and only if the person has not scrolled, tapped or typed since pressing the button.
       const target = scrollTargetAfter("read", isPhoneNow());
       if (!autoScrollOk(sent.at)) setReady({ what: "steps", ref: json }); // they moved on: offer the way back instead of moving them
-      else if (target) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at };
+      else if (target) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at, ready: { what: "steps", ref: json } };
     } catch (e) {
       if (readRun.current !== run) return; // stopped or replaced: nothing to show
       if (pendingRead.current?.run === run && pendingRead.current.fp !== liveReadFp()) return stopStaleRead();
@@ -868,7 +869,8 @@ export function CarePlanTool() {
 
   function runScroll(req: ScrollRequest) {
     // An automatic scroll is checked again here: a tap or scroll since the button press cancels it.
-    if (req.submittedAt !== undefined && !autoScrollOk(req.submittedAt)) { scrollAnchor.current = null; return; }
+    // Cancelled: offer the way back instead, so the result is never left off screen with no sign of it.
+    if (req.submittedAt !== undefined && !autoScrollOk(req.submittedAt)) { scrollAnchor.current = null; if (req.ready) setReady(req.ready); return; }
     const own = ownScroll.current;
     if (req.submittedAt !== undefined && own && performance.now() <= own.until) return waitForOwnScroll(req, own);
     markOwnScroll(scrollToPanel(req.t, req.onlyIfHidden));
@@ -915,7 +917,7 @@ export function CarePlanTool() {
     if (!free) setReady({ what: "plan", ref: nav.plan }); // they moved on: the floating "Your plan is ready" button takes them there
     const target = scrollTargetAfter("plan", phone);
     if (!target || !free) return;
-    const next = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt };
+    const next: ScrollRequest = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt, ready: { what: "plan", ref: nav.plan } };
     // On a phone the card shows only after the tab switch renders; if step 3 is already open, nothing re-renders.
     if (phone && tab !== 3) scrollAfter.current = next;
     else runScroll(next);
@@ -1038,6 +1040,8 @@ export function CarePlanTool() {
   const transcriptEdited = !!care && isTranscriptEdited(transcript, care.source_text);
   const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0, transcriptEdited, hasPlan: !!plan, planning });
   const shown = shownTab(tab, flow);
+  // The phone tab bar's "Your plan is ready" holds to the same rule as the cue: never for an outdated plan (Codex review, round 4).
+  const phonePlanNote = plan && shown !== 3 && !planOutdated ? planReadyNote : null;
   // Phones: one step card at a time. Hidden cards stay mounted (state, timers and requests carry on).
   const panel = (t: Tab) => ({
     id: panelId(t),
@@ -1067,9 +1071,9 @@ export function CarePlanTool() {
 
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
 
-        <PhoneTabBar shown={shown} state={flow} onPick={pickTab} notice={plan && shown !== 3 ? planReadyNote : null} />
+        <PhoneTabBar shown={shown} state={flow} onPick={pickTab} notice={phonePlanNote} />
         {/* Only while that exact result is still on screen and current; the tab bar already announces the phone plan. */}
-        <ReadyCue ready={cueFor} announce={!(cueFor === "plan" && !!plan && shown !== 3 && !!planReadyNote)} onGo={goToReady} onSeen={clearReady} />
+        <ReadyCue ready={cueFor} announce={!(cueFor === "plan" && !!phonePlanNote)} onGo={goToReady} onSeen={clearReady} />
 
         {/* Step 1 */}
         <div {...panel(1)} className={`card mt-10 max-md:mt-4 p-5 sm:p-8 max-md:scroll-mt-44 ${onPhone(1)}`}>

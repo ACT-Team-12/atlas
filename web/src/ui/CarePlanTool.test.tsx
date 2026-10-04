@@ -303,8 +303,24 @@ describe("automatic scroll after a reply", () => {
   it("the cue goes away when the plan it announced becomes outdated (Codex review)", async () => {
     await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
     expect(cue()).not.toBeNull();
+    expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
     act(() => byText("Paying for the visit").click()); // a changed answer: the plan on screen is now outdated
     expect(cue()).toBeNull();
+    // The tab bar's note holds to the same rule: it never sends them to an outdated plan (Codex review, round 4).
+    expect(screenText()).not.toContain("Your plan is ready");
+  });
+
+  it("desktop: a tap after the reading lands but before its scroll runs raises the cue instead (Codex review, round 4)", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await outsideReact(async () => {
+      read.resolve(ready(careFor(PAPER)));
+      await microtasks(); // the reply is handled and its scroll queued; the render that runs it has not happened yet
+      window.dispatchEvent(new Event("pointerdown"));
+    });
+    expect(scrolls).not.toContain("step-2");
+    expect(cue()?.dataset.readyCue).toBe("steps");
   });
 
   it("desktop, moved on during the read: a 'Your steps are ready' button appears instead of a jump", async () => {

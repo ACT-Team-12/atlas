@@ -128,7 +128,7 @@ export function occursOnce(paper: MappedSource, span: { start: number; end: numb
  * The lead-in is a FIXED sentence per language ("Your paper says this about \"...\":", askText.ts) around one short
  * topic that must itself be words from a shown quote. So the AI can't write advice into it (Codex review, round 2):
  * the most it chooses is which few words of the paper name the topic. Any number in the topic, or any "do not" /
- * "stop" / "only" cue in the topic OR the quote it came from (cuesForbid, which also always refuses Amharic script),
+ * "stop" / "only" cue in the topic OR any shown quote (cuesForbid, which also always refuses Amharic script),
  * and it is left out. Shown under "not
  * double-checked yet", since choosing the topic is still the AI's call.
  */
@@ -143,8 +143,10 @@ function checkTopic(topic: string, quotes: AskQuote[]): { topic: string | null; 
   // Shown in the paper's own spelling, cut from the quote, never the model's copy (security review finding).
   const words = from.text.slice(at.start, at.end);
   if (/\p{N}/u.test(words) || numbersIn(words).length > 0) return { topic: null, topic_dropped: "has_number" };
-  // The quote it came from counts too: "take ibuprofen" out of "Do not take ibuprofen." (Codex review, round 3).
-  if (cuesForbid(from.text, words)) return { topic: null, topic_dropped: "has_cue" };
+  // Every shown quote counts, not only the one it came from: "take ibuprofen" out of "Do not take ibuprofen." (Codex
+  // round 3), or out of "Take aspirin with food." shown beside "Do not take aspirin with food before surgery." in either
+  // order (round 4). Whichever quote the model put first can't decide it.
+  if (cuesForbid(quotes.map((q) => q.text).join(" "), words)) return { topic: null, topic_dropped: "has_cue" };
   return { topic: words, topic_dropped: null };
 }
 

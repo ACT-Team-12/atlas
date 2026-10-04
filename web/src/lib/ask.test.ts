@@ -183,6 +183,16 @@ describe("ask checker: the lead-in topic (fixed words around a few words of a sh
     expect(r.topic_dropped).toBe("has_cue");
   });
 
+  it("leaves out a topic when ANY shown quote has a cue, in either order (Codex review, round 4)", () => {
+    const p = "MEDICINES\nTake aspirin with food.\nBEFORE SURGERY\nDo not take aspirin with food before surgery.";
+    for (const order of [["Take aspirin with food.", "Do not take aspirin with food before surgery."], ["Do not take aspirin with food before surgery.", "Take aspirin with food."]]) {
+      const r = checkAnswer(p, draft(order, "take aspirin with food"));
+      expect(r.quotes, order[0]).toHaveLength(2);
+      expect(r.topic, order[0]).toBeNull();
+      expect(r.topic_dropped, order[0]).toBe("has_cue");
+    }
+  });
+
   it("leaves out a long topic, and never shows one without a surviving quote", () => {
     expect(checkAnswer(paper, draft(q, "x".repeat(61))).topic_dropped).toBe("too_long");
     const none = checkAnswer(paper, draft(["You may drive after 24 hours."], "drive"));

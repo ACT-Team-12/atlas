@@ -194,6 +194,13 @@ describe("time groups come from the paper's words", () => {
     expect(groupIds("unclear")).toEqual(["eye"]);
   });
 
+  it("a quote with warning words is pinned even when the model called it something else (the kind only adds caution)", () => {
+    const mislabeled = ITEMS.map((i) => (i.id === "w911" ? { ...i, kind: "self_care" as const } : i));
+    render({ items: mislabeled, care: careWith(mislabeled, { has_warning_signs: false }) });
+    expect([...host.querySelectorAll("[data-warnings] li[data-step]")].map((li) => li.getAttribute("data-step"))).toEqual(["w911"]);
+    expect(host.querySelector('[data-when-group] li[data-step="w911"]')).toBeNull();
+  });
+
   it("warning signs are pinned above everything, in red, and in no time group", () => {
     render();
     const warn = host.querySelector("[data-warnings]")!;

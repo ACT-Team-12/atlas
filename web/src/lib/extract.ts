@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ExtractionSchema, ITEM_KINDS, type CarePlanResponse, type ExtractRequest } from "./schema";
 import { verifyItems } from "./verify";
 import { missedLinesPayload } from "./missedLines";
+import { isWarning } from "./warningPin";
 
 export const MODEL = process.env.ATLAS_MODEL ?? "claude-opus-5-5";
 
@@ -114,7 +115,8 @@ export function finishCarePlan(req: ExtractRequest, raw: unknown, stopReason: st
     // question (grounded or not) is dropped, so an unchecked one cannot reach the list this way.
     questions_for_doctor: dedupe(parsed.data.questions_for_doctor).filter((q) => !stepQuestions.has(questionKey(q))),
     not_in_document: parsed.data.not_in_document,
-    has_warning_signs: kept.some((i) => i.kind === "warning_sign"),
+    // The model's kind may only add caution: a quote with warning language counts too (warningPin.ts).
+    has_warning_signs: kept.some(isWarning),
     language: req.language,
     model: MODEL,
     stats: { extracted: parsed.data.items.length, grounded: kept.length, refused: refused.length, ms: Date.now() - t0 },

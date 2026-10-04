@@ -8,6 +8,7 @@ import { careStepView, checkOf, paperFirstLines } from "@/lib/paperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
 import type { ShareMeaning } from "@/lib/shareText";
 import { visitQuestions } from "@/lib/visitQuestions";
+import { MED_ROW_LABEL, medicineChanges } from "@/lib/medicineChanges";
 
 const noop = () => () => {};
 
@@ -24,6 +25,8 @@ type SheetProps = {
   items: VerifiedItem[]; plan: PlanResponse | null; questions: string[]; language: string; meaning?: ShareMeaning; planItems?: VerifiedItem[];
   /** Instruction-like lines no step quotes (lib/missedLines). Empty when there are none or the check can't read the paper. */
   alsoOnPaper?: string[];
+  /** The paper's text, so medicine lines can be read with the list heading above them (lib/medicineChanges). */
+  paper?: string;
 };
 
 export function HandoffSheet(props: SheetProps) {
@@ -37,7 +40,8 @@ export function HandoffSheet(props: SheetProps) {
  * The sheet itself. Paper first (lib/paperFirst.ts): a step's plain-words explanation is printed only when the second
  * check certified it; otherwise the sheet prints the paper's own words and says the explanation was left out.
  */
-export function HandoffSheetBody({ items, plan, questions, language, meaning, planItems, alsoOnPaper = [] }: SheetProps) {
+export function HandoffSheetBody({ items, plan, questions, language, meaning, planItems, alsoOnPaper = [], paper = "" }: SheetProps) {
+  const meds = medicineChanges(items, paper);
   const resources = plan ? Object.values(plan.resources) : [];
   const used = new Set(plan?.steps.flatMap((s) => s.resource_ids) ?? []);
   // Each step's own question only when certified; otherwise the paper's words (lib/visitQuestions.ts).
@@ -48,6 +52,27 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
     <div id="atlas-sheet" className="atlas-sheet" aria-hidden="true">
       <h1>My plan after my visit</h1>
       <p className="meta">Printed {today} · Written in {language} · Every step below quotes my paper.</p>
+
+      {meds.length > 0 && (
+        <>
+          <h2>My medicine changes</h2>
+          <p className="meta">Sorted by my paper&apos;s own words. Stop comes first.</p>
+          <ul className="meds" data-sheet-meds="">
+            {meds.map(({ row, list }) => (
+              <li key={row} data-med-row={row}>
+                <b>{MED_ROW_LABEL[row]}</b>
+                {list.map((c) => (
+                  <div key={c.id}>
+                    {c.name && <p><b>{c.name}</b></p>}
+                    {c.dose && <p>Dose on my paper: was <del>{c.dose.was}</del>, now <b>{c.dose.now}</b></p>}
+                    <p className="quote" data-paper-quote="">Your paper says: &ldquo;{c.quote}&rdquo;</p>
+                  </div>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       <h2>What my paper says to do</h2>
       <ol className="steps">

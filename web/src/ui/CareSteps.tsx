@@ -86,11 +86,15 @@ export function CareSteps(p: Props) {
   const spot = pipSpot(stepOrder, p.done, checkFor, cheering);
   const { calm } = usePipCalm();
   const pipText = spot.at !== "none" && spot.line ? pipLine(p.language, spot.line) : "";
+  // Keyed on where Pip is too, not only on the words: two steps cheered one after the other both say "Nice, that's
+  // done", and the second must still be read. Clearing first makes the repeated words a fresh change (Codex review).
+  const pipKey = spot.at === "step" ? `${spot.id}:${spot.mood}` : spot.at;
   const [pipSaid, setPipSaid] = useState("");
   useEffect(() => {
+    const clear = setTimeout(() => setPipSaid(""), 0);
     const t = setTimeout(() => setPipSaid(pipText), 300);
-    return () => clearTimeout(t);
-  }, [pipText]);
+    return () => { clearTimeout(clear); clearTimeout(t); };
+  }, [pipText, pipKey]);
 
   const seals = items.map((i) => sealOf(checkFor(i.id)));
   const twice = seals.filter((s) => s === "twice").length;

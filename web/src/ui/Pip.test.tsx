@@ -123,6 +123,19 @@ describe("Pip on the steps", () => {
     expect(live()).toBe("All done for now");
   });
 
+  it("reads the second of two quick cheers too, though the words are the same (Codex review)", () => {
+    render({ items: [WALK, SODA] });
+    tick("walk");
+    act(() => { vi.advanceTimersByTime(400); });
+    expect(live()).toBe("Nice, that's done");
+    tick("soda"); // inside the first cheer's window: same words, new spot
+    expect(pipRows()).toEqual([["soda", "cheer"]]);
+    act(() => { vi.advanceTimersByTime(50); });
+    expect(live()).toBe(""); // cleared, so the same words land as a fresh change
+    act(() => { vi.advanceTimersByTime(400); });
+    expect(live()).toBe("Nice, that's done");
+  });
+
   it("is quiet on a medicine step: neutral face, no motion, no blink, no bubble, and no cheer when it is done", () => {
     render({ items: [MET, WALK] });
     // Both are daily; metformin comes first.

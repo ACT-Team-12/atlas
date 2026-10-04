@@ -41,6 +41,7 @@ object StepsWhen {
     private val STOP = SafetyPatterns.STOP.regex()
     private val NOT_NOW = SafetyPatterns.NOT_NOW.regex()
     private val BULLET = SafetyPatterns.BULLET.regex()
+    private val BULLET_ANY = SafetyPatterns.BULLET_ANY.regex()
     private val JS_SPACES = Regex(SafetyPattern.JS_SPACE_CLASS + "+")
     private val JS_TRIM = Regex("^${SafetyPattern.JS_SPACE_CLASS}+|${SafetyPattern.JS_SPACE_CLASS}+$")
     private val CLAUSE_END = Regex("[.;:!?]")
@@ -112,16 +113,24 @@ object StepsWhen {
      * The paper's heading above a listed line (listHeading): walking up from the line the span starts on, past the
      * other lines of the same list, to the first line that is not a list line, if it ends with ":". Else "".
      */
-    fun listHeading(paper: String, span: TextSpan?): String {
+    fun listHeading(paper: String, span: TextSpan?): String = headingAbove(paper, span, BULLET, listOf(":"))
+
+    /**
+     * listHeadingAny: the heading reader the other languages' stop rule uses ("・" and "1、" list lines; a heading
+     * ending with ":", "：" or "፦"). The English/Spanish rule keeps listHeading, so its answer never changes.
+     */
+    fun listHeadingAny(paper: String, span: TextSpan?): String = headingAbove(paper, span, BULLET_ANY, SafetyWords.HEADING_ENDS)
+
+    private fun headingAbove(paper: String, span: TextSpan?, bullet: Regex, ends: List<String>): String {
         if (span == null || span.start < 0 || span.start > paper.length) return ""
         val lines = paper.substring(0, span.start).split("\n").toMutableList()
         val own = lines.removeAt(lines.size - 1) + paper.substring(span.start).split("\n")[0]
-        if (!BULLET.containsMatchIn(own)) return ""
+        if (!bullet.containsMatchIn(own)) return ""
         for (line in lines.asReversed()) {
             val trimmed = trim(line)
             if (trimmed.isEmpty()) return ""
-            if (BULLET.containsMatchIn(line)) continue
-            return if (trimmed.endsWith(":")) trimmed else ""
+            if (bullet.containsMatchIn(line)) continue
+            return if (ends.any { trimmed.endsWith(it) }) trimmed else ""
         }
         return ""
     }
@@ -132,6 +141,12 @@ object StepsWhen {
      */
     fun stopNowFromPaper(kind: String, quote: String, span: TextSpan?, paper: String): Boolean {
         if (kind != "medication") return false
+        // The other app languages (SafetyWords) can only add: their answer is OR'ed with the English/Spanish one.
+        return stopNowEnEs(quote, span, paper) || SafetyWords.stopNowMore(quote, listHeadingAny(paper, span))
+    }
+
+    /** The English and Spanish rule, exactly as before the other languages were added. */
+    private fun stopNowEnEs(quote: String, span: TextSpan?, paper: String): Boolean {
         val texts = listOf(quote, listHeading(paper, span)).map { trim(spaces(it)) }.filter { it.isNotEmpty() }
         if (OTHER_LATIN.containsMatchIn(texts.joinToString(" "))) return false
         if (texts.any { NOT_NOW.containsMatchIn(it) }) return false

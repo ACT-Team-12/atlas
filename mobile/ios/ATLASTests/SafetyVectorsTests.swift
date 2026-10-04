@@ -11,6 +11,8 @@ struct SafetyVectorsTests {
         let warning: [Warning]
         let when_rule_groups: [String]
         let num_words: [String: Int]
+        let heading_ends: [String]
+        let stop_langs: [String]
         let group_labels: [[String]]
         let when: [When]
         let papers: [String: String]
@@ -19,7 +21,7 @@ struct SafetyVectorsTests {
         struct Pattern: Decodable { let source: String; let flags: String }
         struct Warning: Decodable { let quote: String; let kind: String; let paper: Bool; let pinned: Bool }
         struct When: Decodable { let text: String; let group: String; let words: [String] }
-        struct Heading: Decodable { let paper: String; let span: TextSpan?; let heading: String }
+        struct Heading: Decodable { let paper: String; let span: TextSpan?; let heading: String; let heading_any: String }
         struct Expected: Decodable { let group: String; let words: [String]; let from: String }
         struct Step: Decodable {
             let paper: String; let quote: String; let span: TextSpan?; let kind: String; let check: String; let when: String
@@ -65,6 +67,8 @@ struct SafetyVectorsTests {
         let v = try Self.load()
         #expect(StepsWhen.ruleGroups == v.when_rule_groups)
         #expect(StepsWhen.numWords == v.num_words)
+        #expect(SafetyWords.headingEnds == v.heading_ends)
+        #expect(SafetyWords.stopLangs == v.stop_langs)
         #expect(v.group_labels.map { $0[0] } == WhenGroup.allCases.map(\.rawValue))
         for pair in v.group_labels { #expect(WhenGroup(rawValue: pair[0])?.label == pair[1], "label of \(pair[0])") }
     }
@@ -79,9 +83,11 @@ struct SafetyVectorsTests {
             total += 1
         }
         for h in v.heading {
-            let got = StepsWhen.listHeading(try #require(v.papers[h.paper]), span: h.span)
+            let paper = try #require(v.papers[h.paper])
+            let got = StepsWhen.listHeading(paper, span: h.span), any = StepsWhen.listHeadingAny(paper, span: h.span)
             #expect(got == h.heading, "listHeading(\(h.paper), \(String(describing: h.span)))")
-            if got == h.heading { passed += 1 }
+            #expect(any == h.heading_any, "listHeadingAny(\(h.paper), \(String(describing: h.span)))")
+            if got == h.heading && any == h.heading_any { passed += 1 }
             total += 1
         }
         var stopNow = 0
@@ -94,7 +100,11 @@ struct SafetyVectorsTests {
             if s.expected.group == "today" && s.expected.words.isEmpty && s.expected.from == "paper" { stopNow += 1 }
             total += 1
         }
-        #expect(v.step.count > 1000 && stopNow > 10)
+        #expect(v.step.count > 1500 && stopNow > 10)
+        // Every added language has a stop under its own heading in the table.
+        for lang in ["vi", "ko", "zh", "am", "fr"] {
+            #expect(v.step.contains { $0.paper == "stop-\(lang)" && $0.expected.group == "today" }, "\(lang) stop-now")
+        }
         print("safety vectors: when \(passed) of \(total) equal to the web reference")
     }
 

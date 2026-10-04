@@ -3,6 +3,7 @@ package com.stephensookra.atlas
 import com.stephensookra.atlas.data.AtlasJson
 import com.stephensookra.atlas.data.Check
 import com.stephensookra.atlas.data.SafetyPatterns
+import com.stephensookra.atlas.data.SafetyWords
 import com.stephensookra.atlas.data.StepWhen
 import com.stephensookra.atlas.data.StepsWhen
 import com.stephensookra.atlas.data.TextSpan
@@ -63,6 +64,8 @@ class SafetyVectorsTest {
     @Test fun timeTablesAreTheWebsites() {
         assertEquals(vectors.getValue("when_rule_groups").jsonArray.map { it.jsonPrimitive.content }, StepsWhen.RULE_GROUPS)
         assertEquals(vectors.getValue("num_words").jsonObject.mapValues { it.value.jsonPrimitive.int }, StepsWhen.NUM_WORDS)
+        assertEquals(vectors.getValue("heading_ends").jsonArray.map { it.jsonPrimitive.content }, SafetyWords.HEADING_ENDS)
+        assertEquals(vectors.getValue("stop_langs").jsonArray.map { it.jsonPrimitive.content }, SafetyWords.STOP_LANGS)
         val labels = vectors.getValue("group_labels").jsonArray.map { p -> p.jsonArray.map { it.jsonPrimitive.content } }
         assertEquals(labels.map { it[0] }, WhenGroup.entries.map { it.name })
         for ((g, label) in labels) assertEquals("label of $g", label, WhenGroup.valueOf(g).label)
@@ -86,6 +89,7 @@ class SafetyVectorsTest {
             val o = h.jsonObject
             val paper = papers.getValue(o.getValue("paper").jsonPrimitive.content)
             assertEquals("listHeading($o)", o.getValue("heading").jsonPrimitive.content, StepsWhen.listHeading(paper, span(o)))
+            assertEquals("listHeadingAny($o)", o.getValue("heading_any").jsonPrimitive.content, StepsWhen.listHeadingAny(paper, span(o)))
             total++
         }
         var stopNow = 0
@@ -103,7 +107,11 @@ class SafetyVectorsTest {
             if (want.group == WhenGroup.today && want.words.isEmpty() && want.from == "paper") stopNow++
             total++
         }
-        assertTrue(steps.size > 1000 && stopNow > 10)
+        assertTrue(steps.size > 1500 && stopNow > 10)
+        for (lang in listOf("vi", "ko", "zh", "am", "fr")) {
+            assertTrue("$lang stop-now", steps.any { it.jsonObject.getValue("paper").jsonPrimitive.content == "stop-$lang" &&
+                it.jsonObject.getValue("expected").jsonObject.getValue("group").jsonPrimitive.content == "today" })
+        }
         println("safety vectors: when $total of $total equal to the web reference")
     }
 

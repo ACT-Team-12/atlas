@@ -22,8 +22,18 @@ patterns = json.loads((root / "mobile/shared/safety-vectors.json").read_text(enc
 for name, p in patterns.items():
     src = p["source"]
     # Raw-string safety: Swift #"..."# and Kotlin """...""" (where $ would start a template).
-    # \s and \d are rewritten when compiled; neither may appear escaped (\\s) or inside a character class.
-    assert "\\\\" not in src and not any(c in src for c in ("[\\s", "[\\d")), f"{name} uses \\s or \\d in a way the rewrite would break"
+    # \s and \d are rewritten when compiled, so neither may appear escaped (\\s) or inside a character class.
+    assert "\\\\" not in src, f"{name} has an escaped backslash"
+    depth, i = 0, 0
+    while i < len(src):
+        c = src[i]
+        if c == "\\":
+            assert not (depth and src[i + 1] in "sd"), f"{name} uses \\{src[i + 1]} inside a character class"
+            i += 2
+            continue
+        depth += c == "["
+        depth -= c == "]" and depth > 0
+        i += 1
     assert '"#' not in src and '"""' not in src and "$" not in src, f"{name} cannot be written as a raw string"
     assert name.isidentifier(), name
 

@@ -63,6 +63,7 @@ enum StepsWhen {
     private static let stop = SafetyPatterns.STOP.regex()
     private static let notNow = SafetyPatterns.NOT_NOW.regex()
     private static let bullet = SafetyPatterns.BULLET.regex()
+    private static let bulletAny = SafetyPatterns.BULLET_ANY.regex()
     private static let jsSpaces = try! NSRegularExpression(pattern: SafetyPattern.jsSpaceClass + "+")
     private static let jsTrim = try! NSRegularExpression(pattern: "^\(SafetyPattern.jsSpaceClass)+|\(SafetyPattern.jsSpaceClass)+$")
     private static let clauseEnd = try! NSRegularExpression(pattern: "[.;:!?]")
@@ -142,6 +143,16 @@ enum StepsWhen {
     /// The paper's heading above a listed line (listHeading): walking up from the line the span starts on, past the
     /// other lines of the same list, to the first line that is not a list line, if it ends with ":". Else "".
     static func listHeading(_ paper: String, span: TextSpan?) -> String {
+        headingAbove(paper, span: span, bullet: bullet, ends: [":"])
+    }
+
+    /// listHeadingAny: the heading reader the other languages' stop rule uses ("・" and "1、" list lines; a heading
+    /// ending with ":", "：" or "፦"). The English/Spanish rule keeps listHeading, so its answer never changes.
+    static func listHeadingAny(_ paper: String, span: TextSpan?) -> String {
+        headingAbove(paper, span: span, bullet: bulletAny, ends: SafetyWords.headingEnds)
+    }
+
+    private static func headingAbove(_ paper: String, span: TextSpan?, bullet: NSRegularExpression, ends: [String]) -> String {
         let ns = paper as NSString
         guard let span, span.start >= 0, span.start <= ns.length else { return "" }
         var lines = (ns.substring(to: span.start) as NSString).components(separatedBy: "\n")
@@ -152,7 +163,7 @@ enum StepsWhen {
             let trimmed = trim(line)
             if trimmed.isEmpty { return "" }
             if Regexes.test(bullet, line) { continue }
-            return trimmed.hasSuffix(":") ? trimmed : ""
+            return ends.contains { trimmed.hasSuffix($0) } ? trimmed : ""
         }
         return ""
     }
@@ -161,6 +172,13 @@ enum StepsWhen {
     /// under, has a stop word and nothing that makes the stop not start now. Medicines only, from the paper's words only.
     static func stopNowFromPaper(kind: String, quote: String, span: TextSpan?, paper: String) -> Bool {
         if kind != "medication" { return false }
+        // The other app languages (SafetyWords) can only add: their answer is OR'ed with the English/Spanish one.
+        return stopNowEnEs(quote: quote, span: span, paper: paper)
+            || SafetyWords.stopNowMore(quote: quote, heading: listHeadingAny(paper, span: span))
+    }
+
+    /// The English and Spanish rule, exactly as before the other languages were added.
+    private static func stopNowEnEs(quote: String, span: TextSpan?, paper: String) -> Bool {
         let texts = [quote, listHeading(paper, span: span)].map { trim(spaces($0)) }.filter { !$0.isEmpty }
         if Regexes.test(otherLatin, texts.joined(separator: " ")) { return false }
         if texts.contains(where: { Regexes.test(notNow, $0) }) { return false }

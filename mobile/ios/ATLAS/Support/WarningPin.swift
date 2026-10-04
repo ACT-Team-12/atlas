@@ -16,7 +16,8 @@ enum WarningPin {
     static func fromPaper(_ quote: String) -> Bool {
         // "This is not an emergency" is not warning language; any other warning words in the quote still count.
         let t = Regexes.replaceAll(notEmergency, in: Regexes.replaceAll(jsSpaces, in: quote, with: " "), with: " ")
-        return Regexes.test(warningWords, t) || Regexes.test(er, t)
+        // Vietnamese, Korean, Chinese, Amharic and French (SafetyWords) can only add a pin, never remove one.
+        return Regexes.test(warningWords, t) || Regexes.test(er, t) || SafetyWords.warningFromPaperMore(quote)
     }
 
     /// Pinned as a warning sign: the model said so, or the paper's quote does. Never removed by the model's kind.

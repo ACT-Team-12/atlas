@@ -18,7 +18,8 @@ object WarningPin {
     fun fromPaper(quote: String): Boolean {
         // "This is not an emergency" is not warning language; any other warning words in the quote still count.
         val t = quote.replace(JS_SPACES, " ").replace(NOT_EMERGENCY, " ")
-        return WARNING_WORDS.containsMatchIn(t) || ER.containsMatchIn(t)
+        // Vietnamese, Korean, Chinese, Amharic and French (SafetyWords) can only add a pin, never remove one.
+        return WARNING_WORDS.containsMatchIn(t) || ER.containsMatchIn(t) || SafetyWords.warningFromPaperMore(quote)
     }
 
     /** Pinned as a warning sign: the model said so, or the paper's quote does. Never removed by the model's kind. */

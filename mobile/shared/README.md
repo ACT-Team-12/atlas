@@ -5,7 +5,8 @@
 `safety-vectors.json` is the website's own answer for the safety rules the phone apps port by hand: which steps are
 pinned as warning signs (`web/src/lib/warningPin.ts`) and which by-when group each step goes in, including a medicine
 the paper says to stop going under "Right away" (`web/src/lib/stepsView.ts`: `whenFromText`, `listHeading`,
-`stepWhen`). It also carries the exact source and flags of every pattern
+`stepWhen`), in all seven app languages: English and Spanish in those files, Vietnamese, Korean, Chinese,
+Amharic and French in `web/src/lib/safetyWords.ts` (which can only add a pin or move a step earlier). It also carries the exact source and flags of every pattern
 those rules use. `gen-native-patterns.py` copies that pattern table into `mobile/ios/ATLAS/Support/SafetyPatterns.swift`
 and `mobile/android/app/src/main/java/com/stephensookra/atlas/data/SafetyPatterns.kt`, so all three apps run the same
 pattern text; `SafetyVectorsTests.swift` and `SafetyVectorsTest.kt` fail if a phone's table differs from the file or

@@ -8,7 +8,8 @@
  * - "when", "heading", "step": the "Your steps" by-when groups (web/src/lib/stepsView.ts whenFromText, listHeading and
  *   stepWhen, which also puts a medicine the paper says to stop under "Right away"). "step" cases name a paper in
  *   "papers" and carry the step's span on it, as the server sends it.
- * - "when_rule_groups" and "num_words": the tables whenFromText reads beside its patterns.
+ * - "heading_any": listHeadingAny, the heading reader the other languages' stop rule uses (web/src/lib/safetyWords.ts).
+ * - "when_rule_groups", "num_words", "heading_ends", "stop_langs": the tables the rules read beside their patterns.
  *
  * Not part of the web suite. CI regenerates it with mobile/shared/check-vectors.sh (web-ci) and fails when the
  * committed file differs. To regenerate by hand:
@@ -19,7 +20,8 @@
 import { writeFileSync } from "node:fs";
 import { expect, it } from "vitest";
 import { isWarning, warningFromPaper, WARNING_PATTERNS } from "./warningPin";
-import { listHeading, NUM_WORDS, stepWhen, STEPS_PATTERNS, whenFromText, WHEN_GROUP_LABEL, WHEN_GROUPS, WHEN_RULE_GROUPS } from "./stepsView";
+import { HEADING_ENDS, listHeading, listHeadingAny, NUM_WORDS, stepWhen, STEPS_PATTERNS, whenFromText, WHEN_GROUP_LABEL, WHEN_GROUPS, WHEN_RULE_GROUPS } from "./stepsView";
+import { STOP_LANG_ORDER } from "./safetyWords";
 import type { Check } from "./paperFirst";
 import { SAMPLE_AVS } from "./sample";
 import papersFile from "../data/eval/papers.json";
@@ -71,6 +73,19 @@ const WARNING_LINES = [
   "If you have thoughts of suicide, call 988.",
   "Do not drive for 24 hours after the procedure.",
   "",
+  // Vietnamese, Korean, Chinese, Amharic, French (safetyWords.ts): warnings, negated emergencies, plain lines.
+  "Hãy gọi ngay 9-1-1 nếu quý vị bị đau ngực hoặc khó thở.", "Đến phòng cấp cứu nếu quý vị bị ngất xỉu.", "ĐÂY LÀ TRƯỜNG HỢP CẤP CỨU!",
+  "Gọi cho bác sĩ ngay nếu vết thương chảy máu nhiều.", "Uống 1 viên mỗi sáng sau khi ăn.", "Đây không phải là trường hợp cấp cứu. Gọi phòng khám trong giờ làm việc.",
+  "Đến phòng cấp cứu nếu quý vị bị ngất xỉu.".normalize("NFD"),
+  "다음과 같은 경우 911에 전화하여 즉시 도움을 받으십시오: 호흡 곤란.", "가슴 통증이 있으면 응급실로 가십시오.", "숨이 차서 말을 하기 어렵다면 9-1-1 로 전화하십시오.",
+  "의식을 잃거나 경련이 있으면 구급차를 부르십시오.", "하루에 두 번 식사와 함께 1정을 복용하십시오.", "응급 상황이 아닙니다. 진료 시간에 병원에 전화하십시오.", "비응급 상담 전화입니다.",
+  "如果您出现胸痛或呼吸困难，请立即致电911。", "如有严重出血，请前往最近的急救室。", "如果出現嚴重症狀，請致電911或前往急診室就診。", "感到头晕或即将晕厥",
+  "每天早上服用1片。", "这不是紧急情况，请在工作时间致电诊所。", "這不是緊急情況。",
+  "ከታች የተዘረዘሩት ካለዎት ወደ 911 ይደውሉ፦ የደረት ህመም", "የመተንፈስ ችግር ካለብዎት ወደ ድንገተኛ ክፍል ይሂዱ።", "ወዲያውኑ ወደ ሐኪምዎ ይደውሉ ወይም ይሂዱ።",
+  "በቀን አንድ ጊዜ አንድ ክኒን ይውሰዱ።", "ይህ ድንገተኛ አይደለም።",
+  "Rendez-vous aux urgences si vous avez des difficultés à respirer.", "Appelez le 9-1-1 si vous vous évanouissez.", "Douleur thoracique qui s'aggrave",
+  "Composez immédiatement le 911 si vous avez un AVC.", "Prenez 1 comprimé deux fois par jour avec les repas.", "Ce n'est pas une urgence. Appelez votre médecin pendant les heures d'ouverture.",
+  "Ligne non urgente.", "Order 19-1-1", "拨打911",
 ];
 
 /** Time words: the stepsView tests' own lines plus edges (Spanish letters, negation, number words, clashes). */
@@ -100,10 +115,16 @@ const STEP_PAPERS: Record<string, string> = {
   "stop-gap": "STOP taking these medications:\n\nibuprofen 200 mg tablet.",
   "stop-numbered": "Stop these medicines:\n1. aspirin 81 mg tablet\n2) warfarin 5 mg tablet",
   "stop-es": "DEJE de tomar estos medicamentos:\n- ibuprofeno 200 mg tableta.\nSIGA tomando estos medicamentos:\n- metformina 500 mg tableta, dos veces al día.",
+  "stop-vi": "NGƯNG dùng các thuốc sau:\n- ibuprofen 200 mg viên.\nNgừng uống aspirin.\nKhông được tự ý ngưng thuốc metformin.\nĐừng ngưng thuốc prednisone đột ngột.\nNgưng dùng aspirin nếu quý vị bị chảy máu.\nNgưng dùng thuốc sau 5 ngày.\nKhông uống quá 4 viên mỗi ngày.\nNgưng aspirin trước khi phẫu thuật.\nNgưng dùng naproxen ngay.",
+  "stop-ko": "다음 약의 복용을 중단하십시오:\n- 이부프로펜 200mg 정제\n아스피린 복용을 중단하십시오.\n나프록센을 끊으십시오.\n메트포르민을 임의로 중단하지 마십시오.\n구토하면 메트포르민 복용을 중단하십시오.\n5일 후에 복용을 중단하십시오.\n하루에 4정 이상 복용하지 마십시오.\n수술 전에 아스피린을 중단하십시오.",
+  "stop-zh": "停止服用以下药物：\n1、布洛芬 200毫克\n2、萘普生 220毫克\n停用阿司匹林。\n請停用布洛芬。\n请勿在未告知您医生的情况下突然停止服用利伐沙班。\n如果出现皮疹，请停用此药。\n在手术前暂时停止服用阿哌沙班。\n不要服用超过4片。\n服药7天后停用。",
+  "stop-zh-dots": "停用這些藥物：\n・布洛芬 200毫克",
+  "stop-am": "እነዚህን መድሃኒቶች መውሰድ ያቁሙ፦\n- ኢቡፕሮፌን 200 ሚግ\nየቲቢ መድኃኒት መውሰድዎን ያቁሙ።\nአስፕሪን አይውሰዱ።\nመድሃኒቱን በድንገት አያቁሙ።\nዶክተርዎ ያቁሙ እስከሚሉዎት ደረስ መውሰድ አለብዎት።\nሽፍታ ካለብዎት መውሰድ ያቁሙ።\nከቀዶ ጥገና በፊት አስፕሪን ያቁሙ።",
+  "stop-fr": "ARRÊTEZ de prendre ces médicaments :\n- ibuprofène 200 mg comprimé\nArrêtez l'aspirine.\nCessez de prendre le naproxène sans délai.\nN'arrêtez pas de prendre la metformine.\nNe pas arrêter brusquement la prednisone.\nArrêtez l'aspirine si vous saignez.\nArrêtez l'aspirine avant votre chirurgie.\nNe prenez pas plus de 3000 mg sur une période de 24 heures.\nArrêtez l'antibiotique après 5 jours.",
   "stop-inline": "Discontinue naproxen.\nDo not take aspirin.\nNo tome ibuprofeno.\nStop taking aspirin without delay.\nDo not stop taking metformin.\nNo deje de tomar metformina.\nStop taking metformin if you are vomiting.\nStop aspirin before your surgery.\nDo not take more than 4 tablets.\nDo not suddenly stop taking prednisone.\nDo not take prednisone on an empty stomach.\nDo not take ibuprofen with alcohol.\nStop it with no delay.\nSuspenda la aspirina sin demora.",
 };
 for (const p of papers) STEP_PAPERS[`eval:${p.id}`] = p.text;
-const BULLET_PREFIX = /^\s*(?:[-*•‣–]|\d{1,2}[.)])\s+/u;
+const BULLET_PREFIX = /^\s*(?:(?:[-*•‣–]|\d{1,2}[.)])\s+|・|\d{1,2}[、．])/u;
 
 /** Each line of a paper as a step: the quote without its bullet, and its span on the paper. */
 function paperSteps(text: string): { quote: string; span: { start: number; end: number } }[] {
@@ -144,11 +165,11 @@ it("writes the vectors", () => {
   const when = [...new Set([...WHEN_LINES, ...lines(SAMPLE_AVS), ...papers.flatMap((p) => lines(p.text))])].map((text) => ({ text, ...whenFromText(text) }));
   expect(new Set(when.map((w) => w.group)).size).toBe(WHEN_GROUPS.length);
 
-  const heading: { paper: string; span: { start: number; end: number } | null; heading: string }[] = [];
+  const heading: { paper: string; span: { start: number; end: number } | null; heading: string; heading_any: string }[] = [];
   const step: { paper: string; quote: string; span: { start: number; end: number } | null; kind: string; check: Check; when: string; expected: ReturnType<typeof stepWhen> }[] = [];
   for (const [name, text] of Object.entries(STEP_PAPERS)) {
     for (const st of paperSteps(text)) {
-      heading.push({ paper: name, span: st.span, heading: listHeading(text, st.span) });
+      heading.push({ paper: name, span: st.span, heading: listHeading(text, st.span), heading_any: listHeadingAny(text, st.span) });
       for (const kind of ["medication", "self_care"]) {
         for (const [check, w] of STEP_VARIANTS) {
           // Without a span only the quote can say "stop" (no heading is found): tried once per kind.
@@ -161,8 +182,11 @@ it("writes the vectors", () => {
     }
   }
   // Spans a client can send that point nowhere useful.
-  for (const span of [{ start: -1, end: 3 }, { start: 100000, end: 100001 }, { start: 0, end: 0 }]) heading.push({ paper: "stop-list", span, heading: listHeading(STEP_PAPERS["stop-list"], span) });
-  heading.push({ paper: "stop-list", span: null, heading: listHeading(STEP_PAPERS["stop-list"], null) });
+  const odd = (span: { start: number; end: number } | null) =>
+    heading.push({ paper: "stop-list", span, heading: listHeading(STEP_PAPERS["stop-list"], span), heading_any: listHeadingAny(STEP_PAPERS["stop-list"], span) });
+  for (const span of [{ start: -1, end: 3 }, { start: 100000, end: 100001 }, { start: 0, end: 0 }, null]) odd(span);
+  // Every added language's STOP heading is found by the reader that knows its punctuation.
+  for (const lang of ["vi", "ko", "zh", "zh-dots", "am", "fr"]) expect(heading.some((h) => h.paper === `stop-${lang}` && h.heading_any), lang).toBe(true);
   expect(heading.filter((h) => h.heading).length).toBeGreaterThan(3);
   expect(step.filter((s) => s.expected.group === "today" && s.expected.words.length === 0 && s.expected.from === "paper").length, "stop-now cases").toBeGreaterThan(10);
   expect(new Set(step.map((s) => s.expected.from)).size).toBe(3);
@@ -174,6 +198,8 @@ it("writes the vectors", () => {
     patterns: Object.fromEntries(Object.entries({ ...WARNING_PATTERNS, ...STEPS_PATTERNS }).map(([k, re]) => [k, pattern(re)])),
     when_rule_groups: WHEN_RULE_GROUPS,
     num_words: NUM_WORDS,
+    heading_ends: HEADING_ENDS,
+    stop_langs: STOP_LANG_ORDER,
     group_labels: WHEN_GROUPS.map((g) => [g, WHEN_GROUP_LABEL[g]]),
     warning,
     when,

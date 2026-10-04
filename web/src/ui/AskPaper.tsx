@@ -17,8 +17,8 @@ type State =
 
 /**
  * "Ask my paper": a question answered only with the paper's own words (lib/ask.ts checks every quote server-side).
- * Paper first: the quotes lead, labelled "Copied word for word from your paper"; the AI's one-line lead-in comes
- * after, smaller, under "not double-checked yet". Nothing survives: the fixed refusal and a ready question built
+ * Paper first: the quotes lead, labelled "Copied word for word from your paper"; the one-line lead-in (fixed words
+ * around a topic taken from a quote) comes after, smaller, under "not double-checked yet". Nothing survives: the fixed refusal and a ready question built
  * from the person's own words. An urgent question gets 911 / 211 guidance and the paper's own warning lines, never
  * an AI answer, and is caught here before anything is sent. The parent remounts this on any new paper or language.
  */
@@ -47,7 +47,11 @@ export function AskPaper({ care, items, language }: Props) {
         signal: c.signal,
       });
       // The server's own error words are English; the person sees fixed words in their language instead.
-      if (!res.ok) { setState({ kind: "error", message: res.status === 429 ? t.busy : res.status === 503 ? t.unavailable : t.error }); return; }
+      if (!res.ok) {
+        const daily = res.headers.get("x-atlas-limit") === "shared-daily";
+        setState({ kind: "error", message: res.status === 429 ? (daily ? t.today : t.busy) : res.status === 503 ? t.unavailable : t.error });
+        return;
+      }
       const json = await res.json();
       if (c.signal.aborted) return;
       if (json?.kind !== "answer" && json?.kind !== "not_in_paper" && json?.kind !== "urgent") throw new Error("bad answer");
@@ -111,10 +115,10 @@ export function AskPaper({ care, items, language }: Props) {
                 ))}
               </ul>
             </div>
-            {res.lead_in && (
+            {res.topic && (
               <div data-explanation="" data-secondary="" className="mt-3 text-sm text-ink/70">
                 <p className="text-xs font-bold">{t.leadNote}</p>
-                <p>{res.lead_in}</p>
+                <p>{t.about(res.topic)}</p>
               </div>
             )}
           </div>

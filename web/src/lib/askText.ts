@@ -35,12 +35,16 @@ export type AskStrings = {
   paperLabel: string;
   /** Over the AI's one-line lead-in, which is never certified (same wording as paperFirst.ts in English). */
   leadNote: string;
+  /** The fixed lead-in around a topic of a few words taken from a shown quote (lib/ask.ts, checkTopic). */
+  about: (topic: string) => string;
   held: (n: number) => string;
   error: string;
   /** Too many requests (the per-IP window or the shared daily cap). */
   busy: string;
   /** The server could not answer at all (no AI key, the daily count can't be checked). */
   unavailable: string;
+  /** The shared daily cap is used up (429 with x-atlas-limit: shared-daily). */
+  today: string;
 };
 
 export const ASK_TEXT: Record<Lang, AskStrings> = {
@@ -62,10 +66,12 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     urgentPaper: "What your paper says about warning signs:",
     paperLabel: "Copied word for word from your paper",
     leadNote: "Plain words (not double-checked yet)",
+    about: (x) => `Your paper says this about "${x}":`,
     held: (n) => `${n} ${n === 1 ? "quote" : "quotes"} from the AI held back because the words were not found on your paper.`,
     error: "Something went wrong. Try again.",
     busy: "Too many questions right now. Wait a few minutes and try again, or ask your clinic or pharmacist.",
     unavailable: "Ask my paper is not available right now. Ask your clinic or pharmacist.",
+    today: "Ask my paper has answered as many questions as it can today. Try again tomorrow, or ask your clinic or pharmacist.",
   },
   // NATIVE REVIEW NEEDED (Spanish).
   Spanish: {
@@ -86,10 +92,12 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     urgentPaper: "Lo que dice su papel sobre señales de alarma:",
     paperLabel: "Copiado palabra por palabra de su papel",
     leadNote: "En palabras sencillas (todavía sin doble revisión)",
+    about: (x) => `Su papel dice esto sobre "${x}":`,
     held: (n) => `${n} ${n === 1 ? "cita" : "citas"} de la IA no se mostraron porque esas palabras no están en su papel.`,
     error: "Algo salió mal. Inténtelo de nuevo.",
     busy: "Demasiadas preguntas por ahora. Espere unos minutos e inténtelo de nuevo, o pregunte en su clínica o a su farmacéutico.",
     unavailable: "Preguntarle a su papel no está disponible ahora. Pregunte en su clínica o a su farmacéutico.",
+    today: "Hoy ya se respondieron todas las preguntas que se pueden. Inténtelo mañana, o pregunte en su clínica o a su farmacéutico.",
   },
   // NATIVE REVIEW NEEDED (Vietnamese).
   Vietnamese: {
@@ -110,10 +118,12 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     urgentPaper: "Giấy của bạn nói gì về các dấu hiệu nguy hiểm:",
     paperLabel: "Chép nguyên văn từ giấy của bạn",
     leadNote: "Lời giải thích đơn giản (chưa được kiểm tra lại)",
+    about: (x) => `Giấy của bạn nói điều này về "${x}":`,
     held: (n) => `${n} trích dẫn của AI đã bị giữ lại vì không tìm thấy những chữ đó trong giấy của bạn.`,
     error: "Đã có lỗi. Hãy thử lại.",
     busy: "Hiện có quá nhiều câu hỏi. Hãy đợi vài phút rồi thử lại, hoặc hỏi phòng khám hay dược sĩ của bạn.",
     unavailable: "Hiện chưa thể hỏi giấy của bạn. Hãy hỏi phòng khám hoặc dược sĩ của bạn.",
+    today: "Hôm nay đã trả lời hết số câu hỏi có thể. Hãy thử lại vào ngày mai, hoặc hỏi phòng khám hay dược sĩ của bạn.",
   },
   // NATIVE REVIEW NEEDED (Korean).
   Korean: {
@@ -134,10 +144,12 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     urgentPaper: "위험 신호에 대해 서류에 적힌 내용:",
     paperLabel: "서류에서 그대로 옮긴 말",
     leadNote: "쉬운 설명 (아직 다시 확인되지 않음)",
+    about: (x) => `서류에 "${x}"에 대해 이렇게 적혀 있습니다:`,
     held: (n) => `서류에서 찾을 수 없는 AI 인용 ${n}개는 보여 드리지 않았습니다.`,
     error: "문제가 생겼습니다. 다시 시도하세요.",
     busy: "지금은 질문이 너무 많습니다. 몇 분 뒤에 다시 시도하거나 병원이나 약사에게 문의하세요.",
     unavailable: "지금은 서류에 물어볼 수 없습니다. 병원이나 약사에게 문의하세요.",
+    today: "오늘 답할 수 있는 질문 수를 모두 채웠습니다. 내일 다시 시도하거나 병원이나 약사에게 문의하세요.",
   },
   // NATIVE REVIEW NEEDED (Chinese, Simplified).
   Chinese: {
@@ -158,10 +170,12 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     urgentPaper: "您的文件中关于危险信号的内容：",
     paperLabel: "逐字摘自您的文件",
     leadNote: "简单说明（尚未二次核对）",
+    about: (x) => `您的文件关于"${x}"是这样写的：`,
     held: (n) => `有 ${n} 条 AI 引文因为在您的文件中找不到而未显示。`,
     error: "出了点问题。请再试一次。",
     busy: "现在问题太多。请过几分钟再试，或询问您的诊所或药剂师。",
     unavailable: "现在无法询问您的文件。请询问您的诊所或药剂师。",
+    today: "今天能回答的问题已经用完了。请明天再试，或询问您的诊所或药剂师。",
   },
   // NATIVE REVIEW NEEDED (Amharic): highest priority for review.
   Amharic: {
@@ -182,10 +196,12 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     urgentPaper: "ወረቀትዎ ስለ አደገኛ ምልክቶች የሚለው፦",
     paperLabel: "ከወረቀትዎ ቃል በቃል የተገለበጠ",
     leadNote: "ቀላል ማብራሪያ (ገና ድጋሚ አልተረጋገጠም)",
+    about: (x) => `ወረቀትዎ ስለ "${x}" ይህን ይላል፦`,
     held: (n) => `በወረቀትዎ ላይ ስላልተገኙ ${n} የAI ጥቅሶች አልታዩም።`,
     error: "ችግር ተፈጥሯል። እንደገና ይሞክሩ።",
     busy: "አሁን በጣም ብዙ ጥያቄዎች አሉ። ጥቂት ደቂቃዎች ጠብቀው እንደገና ይሞክሩ፣ ወይም ክሊኒክዎን ወይም ፋርማሲስትዎን ይጠይቁ።",
     unavailable: "አሁን ወረቀትዎን መጠየቅ አይቻልም። ክሊኒክዎን ወይም ፋርማሲስትዎን ይጠይቁ።",
+    today: "ዛሬ ሊመለሱ የሚችሉት ጥያቄዎች በሙሉ ተመልሰዋል። ነገ እንደገና ይሞክሩ፣ ወይም ክሊኒክዎን ወይም ፋርማሲስትዎን ይጠይቁ።",
   },
   // NATIVE REVIEW NEEDED (French).
   French: {
@@ -206,10 +222,12 @@ export const ASK_TEXT: Record<Lang, AskStrings> = {
     urgentPaper: "Ce que dit votre document sur les signes d'alerte :",
     paperLabel: "Copié mot pour mot de votre document",
     leadNote: "En mots simples (pas encore vérifié une seconde fois)",
+    about: (x) => `Votre document dit ceci sur "${x}" :`,
     held: (n) => `${n} ${n === 1 ? "citation" : "citations"} de l'IA retenue${n === 1 ? "" : "s"} car ces mots ne sont pas dans votre document.`,
     error: "Un problème est survenu. Réessayez.",
     busy: "Trop de questions en ce moment. Attendez quelques minutes et réessayez, ou demandez à votre clinique ou à votre pharmacien.",
     unavailable: "Interroger votre document n'est pas disponible pour le moment. Demandez à votre clinique ou à votre pharmacien.",
+    today: "Le nombre de questions possibles pour aujourd'hui est atteint. Réessayez demain, ou demandez à votre clinique ou à votre pharmacien.",
   },
 };
 

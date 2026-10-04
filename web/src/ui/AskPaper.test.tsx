@@ -37,7 +37,7 @@ async function askIt(q: string, language = "English") {
 
 describe("Ask my paper on screen", () => {
   it("shows the checked quote first, labelled as the paper's words, and the AI lead-in only under 'not double-checked yet'", async () => {
-    reply = { status: 200, body: { kind: "answer", quotes: [{ text: "Return to clinic in 3 months.", span: { start: 0, end: 29 } }], lead_in: "Your paper says when to come back:", lead_in_dropped: null, dropped: ["not_in_paper"], model: "m", ms: 1 } };
+    reply = { status: 200, body: { kind: "answer", quotes: [{ text: "Return to clinic in 3 months.", span: { start: 0, end: 29 } }], topic: "Return to clinic", topic_dropped: null, dropped: ["not_in_paper"], model: "m", ms: 1 } };
     await askIt("when do I come back?");
     const result = host.querySelector("[data-ask-result=answer]")!;
     const quote = result.querySelector("[data-paper-quote]")!;
@@ -45,7 +45,7 @@ describe("Ask my paper on screen", () => {
     expect(quote.textContent).toContain("Copied word for word from your paper");
     expect(quote.textContent).toContain("Return to clinic in 3 months.");
     expect(lead.textContent).toContain("Plain words (not double-checked yet)");
-    expect(lead.textContent).toContain("Your paper says when to come back:");
+    expect(lead.textContent).toContain('Your paper says this about "Return to clinic":');
     // Paper first: the quote comes before the AI's words in the page.
     expect(quote.compareDocumentPosition(lead) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(host.querySelector("[data-ask-held]")?.textContent).toContain("1 quote from the AI held back");
@@ -78,6 +78,12 @@ describe("Ask my paper on screen", () => {
     await askIt("¿puedo manejar?", "Spanish");
     expect(host.querySelector("[role=alert]")?.textContent).toBe("Demasiadas preguntas por ahora. Espere unos minutos e inténtelo de nuevo, o pregunte en su clínica o a su farmacéutico.");
     expect(host.querySelector("[data-ask-result]")).toBeNull();
+  });
+
+  it("the shared daily cap says try tomorrow, not wait a few minutes", async () => {
+    fetchMock.mockImplementationOnce(async () => new Response(JSON.stringify({ error: "x" }), { status: 429, headers: { "x-atlas-limit": "shared-daily" } }));
+    await askIt("can I drive?");
+    expect(host.querySelector("[role=alert]")?.textContent).toContain("Try again tomorrow");
   });
 
   it("speaks the person's language for every fixed line", async () => {

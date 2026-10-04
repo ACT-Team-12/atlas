@@ -71,9 +71,11 @@ object ShareText {
 
         if (plan.ask_a_person) out += listOf("", "This needs a person too: ${plan.ask_a_person_reason} Call 211 or a community health worker.")
 
-        if (questions.isNotEmpty()) {
+        // `questions` is the reading's general list; each step's own question joins it paper first (visitQuestions).
+        val nextVisit = PaperFirst.visitQuestions(grounded, questions, planItems.orEmpty()) { meaning.checkFor(it) }
+        if (nextVisit.isNotEmpty()) {
             out += listOf("", "QUESTIONS FOR THE NEXT VISIT")
-            out += questions.map { "- $it" }
+            out += nextVisit.map { "- $it" }
         }
 
         out += listOf("", "This explains the paper from the visit. It is not medical advice. If something feels urgent, call the clinic or 911.")

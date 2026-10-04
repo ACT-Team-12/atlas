@@ -80,7 +80,7 @@ fun PlanScreen(model: AppModel) {
         if (!outdated) ReadAloudBar(speaker, model.language, PaperFirst.planSpeechLines(plan, planItems))
         val context = LocalContext.current
         if (!outdated) OutlinePill("Send to family", onClick = {
-            val text = ShareText.plan(model.items, plan, model.care?.questions_for_doctor.orEmpty(), model.meaning, planItems)
+            val text = ShareText.plan(model.items, plan, model.care?.let(PaperFirst::readingGeneralQuestions).orEmpty(), model.meaning, planItems)
             val send = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_SUBJECT, ShareText.TITLE)
@@ -112,7 +112,8 @@ fun PlanScreen(model: AppModel) {
             }
         }
 
-        val questions = model.care?.questions_for_doctor.orEmpty()
+        // Paper first (PaperFirst.visitQuestions): a step's own question only when certified.
+        val questions = PaperFirst.visitQuestions(model.items.filter { it.grounded }, model.care?.let(PaperFirst::readingGeneralQuestions).orEmpty(), model.removedItems) { model.checkFor(it) }
         if (questions.isNotEmpty()) {
             AtlasCard {
                 Text("Questions for your next visit", style = Type.title3)

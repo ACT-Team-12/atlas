@@ -43,7 +43,8 @@ struct CareStepsView: View {
                     ForEach(model.items) { item in
                         let check = model.check(for: item.id)
                         CareItemCard(item: item, check: check, result: model.meaning.result(for: item.id),
-                                     checking: model.meaning.status == .loading, done: doneBinding(item.id)) {
+                                     checking: model.meaning.status == .loading, errored: model.meaning.status == .error,
+                                     done: doneBinding(item.id)) {
                             // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
                             reminder = ReminderTarget(title: PaperFirst.bookTitle(kind: item.kind), quote: item.source_quote,
                                                       detail: PaperFirst.bookWhen(item, check: check))
@@ -132,6 +133,8 @@ struct CareItemCard: View {
     let check: Check
     let result: MeaningResult?
     let checking: Bool
+    /// The second check failed: the step still says "Checked once", as on the website.
+    var errored = false
     @Binding var done: Bool
     let onRemind: () -> Void
     let onRemove: () -> Void
@@ -164,13 +167,14 @@ struct CareItemCard: View {
                             .strikethrough(done, color: Palette.ink.opacity(0.4)).wraps()
                     }
                     PaperFirstBlock(view: PaperFirst.careStep(item, check: check), done: done && !certified)
-                    if item.needs_clarification && !item.question_for_clinic.isEmpty {
+                    // Not certified: the AI's question stays off the card; AskPersonBox below offers the paper's words instead.
+                    if certified && item.needs_clarification && !item.question_for_clinic.isEmpty {
                         Text("Ask your clinic: \(item.question_for_clinic)")
                             .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.peachDeep).wraps()
                             .padding(8).frame(maxWidth: .infinity, alignment: .leading)
                             .background(Palette.peach, in: RoundedRectangle(cornerRadius: 12))
                     }
-                    CheckStatus(result: result, checking: checking)
+                    CheckStatus(result: result, checking: checking, errored: errored)
                     if let ask = PaperFirst.askPerson(kind: item.kind, quote: item.source_quote, check: check) {
                         AskPersonBox(ask: ask)
                     }
@@ -224,6 +228,7 @@ struct AskPersonBox: View {
 struct CheckStatus: View {
     let result: MeaningResult?
     let checking: Bool
+    var errored = false
 
     var body: some View {
         if checking {
@@ -246,6 +251,15 @@ struct CheckStatus: View {
                 }
                 .tint(Palette.inkSoft)
             }
+        } else if errored {
+            // The check failed (SEAL_TEXT.once on the website, with no result to add to it).
+            DisclosureGroup {
+                Text(PaperFirst.checkedOnce)
+                    .font(.caption.weight(.semibold)).foregroundStyle(Palette.inkSoft).wraps()
+            } label: {
+                Text("Checked once · Why?").font(.caption.weight(.bold)).foregroundStyle(Palette.inkSoft)
+            }
+            .tint(Palette.inkSoft)
         }
     }
 

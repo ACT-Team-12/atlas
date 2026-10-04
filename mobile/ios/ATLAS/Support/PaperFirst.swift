@@ -90,6 +90,59 @@ enum PaperFirst {
                          question: "My paper says: \"\(quote)\" Can you help me understand what I should do?")
     }
 
+    /// visitQuestions in web/src/lib/visitQuestions.ts: "Questions for the next visit", paper first. A step's own
+    /// clinic question is AI-written, so it goes only when certified; otherwise the askPerson question (the paper's own
+    /// words) goes in its place, and a warning sign adds none. A general question equal to any step's own question is
+    /// dropped, so an unchecked one cannot leak through questions_for_doctor and a certified one is not listed twice.
+    static func questionKey(_ q: String) -> String {
+        var out = ""
+        var gap = false
+        for ch in q.lowercased() {
+            if ch.isLetter || ch.isNumber {
+                if gap && !out.isEmpty { out.append(" ") }
+                gap = false
+                out.append(ch)
+            } else {
+                gap = true
+            }
+        }
+        return out
+    }
+
+    static func stepVisitQuestion(_ it: VerifiedItem, check: Check) -> String? {
+        let own = it.question_for_clinic.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard it.needs_clarification, !own.isEmpty else { return nil }
+        if check == .certified { return own }
+        return askPerson(kind: it.kind, quote: it.source_quote, check: check)?.question
+    }
+
+    static func generalVisitQuestions(_ general: [String], steps: [VerifiedItem]) -> [String] {
+        let own = Set(steps.map { questionKey($0.question_for_clinic) }.filter { !$0.isEmpty })
+        return general.filter { let k = questionKey($0); return !k.isEmpty && !own.contains(k) }
+    }
+
+    /// readingGeneralQuestions in visitQuestions.ts: the reading's general list with every step's own question taken
+    /// out, held-back (refused) steps included, since a saved reading's list can repeat any of them.
+    static func readingGeneralQuestions(_ care: CarePlanResponse) -> [String] {
+        generalVisitQuestions(care.questions_for_doctor, steps: care.items + care.refused)
+    }
+
+    /// `also`: steps not listed (removed ones) whose own questions must still stay out of the general list.
+    static func visitQuestions(items: [VerifiedItem], general: [String], also: [VerifiedItem] = [],
+                               check: (String) -> Check) -> [String] {
+        var out: [String] = []
+        var seen = Set<String>()
+        func add(_ q: String) {
+            let k = questionKey(q)
+            if k.isEmpty || seen.contains(k) { return }
+            seen.insert(k)
+            out.append(q.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        for it in items { if let q = stepVisitQuestion(it, check: check(it.id)) { add(q) } }
+        for q in generalVisitQuestions(general, steps: items + also) { add(q) }
+        return out
+    }
+
     /// One lab row: the report's own line leads; the AI's plain name for the test is never checked.
     static func labRow(_ r: ResultRow) -> StepView {
         view(quote: r.quote, explanation: [r.plain_name], check: .unchecked, source: "report")

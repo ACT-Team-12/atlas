@@ -66,6 +66,59 @@ object PaperFirst {
         return AskPerson("clinic", "Ask your clinic", "My paper says: \"$q\" Can you help me understand what I should do?")
     }
 
+    /**
+     * visitQuestions in web/src/lib/visitQuestions.ts: "Questions for the next visit", paper first. A step's own clinic
+     * question is AI-written, so it goes only when certified; otherwise the askPerson question (the paper's own words)
+     * goes in its place, and a warning sign adds none. A general question equal to any step's own question is dropped,
+     * so an unchecked one cannot leak through questions_for_doctor and a certified one is not listed twice.
+     */
+    fun questionKey(q: String): String {
+        val out = StringBuilder()
+        var gap = false
+        for (ch in q.lowercase()) {
+            if (ch.isLetterOrDigit() || Character.getType(ch) == Character.LETTER_NUMBER.toInt() || Character.getType(ch) == Character.OTHER_NUMBER.toInt()) {
+                if (gap && out.isNotEmpty()) out.append(' ')
+                gap = false
+                out.append(ch)
+            } else {
+                gap = true
+            }
+        }
+        return out.toString()
+    }
+
+    fun stepVisitQuestion(step: VerifiedItem, check: Check): String? {
+        val own = step.question_for_clinic.trim()
+        if (!step.needs_clarification || own.isEmpty()) return null
+        if (check == Check.certified) return own
+        return askPerson(step.kind, step.source_quote, check)?.question
+    }
+
+    fun generalVisitQuestions(general: List<String>, steps: List<VerifiedItem>): List<String> {
+        val own = steps.map { questionKey(it.question_for_clinic) }.filter { it.isNotEmpty() }.toSet()
+        return general.filter { val k = questionKey(it); k.isNotEmpty() && k !in own }
+    }
+
+    /**
+     * readingGeneralQuestions in visitQuestions.ts: the reading's general list with every step's own question taken
+     * out, held-back (refused) steps included, since a saved reading's list can repeat any of them.
+     */
+    fun readingGeneralQuestions(care: CarePlanResponse): List<String> = generalVisitQuestions(care.questions_for_doctor, care.items + care.refused)
+
+    /** `also`: steps not listed (removed ones) whose own questions must still stay out of the general list. */
+    fun visitQuestions(items: List<VerifiedItem>, general: List<String>, also: List<VerifiedItem> = emptyList(), check: (String) -> Check): List<String> {
+        val out = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+        fun add(q: String) {
+            val k = questionKey(q)
+            if (k.isEmpty() || !seen.add(k)) return
+            out += q.trim()
+        }
+        for (step in items) stepVisitQuestion(step, check(step.id))?.let { q -> add(q) }
+        for (q in generalVisitQuestions(general, items + also)) add(q)
+        return out
+    }
+
     /** The lines a surface may read aloud, share or print for one step: the explanation only when certified. */
     fun lines(v: View): List<String> {
         if (v.quote.isEmpty()) return emptyList()

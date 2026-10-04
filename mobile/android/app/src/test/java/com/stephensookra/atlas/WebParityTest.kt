@@ -207,6 +207,31 @@ class WebParityTest {
         assertFalse(ShareText.plan(items, plan, emptyList()).contains("one pill"))
     }
 
+    @Test fun nextVisitQuestionsCarryTheAIQuestionOnlyWhenCertified() {
+        val aiQ = "QUESTION-WHICH-METFORMIN-DOSE"
+        val asks = item("a").copy(needs_clarification = true, question_for_clinic = aiQ)
+        val plan = Fixture.plan.copy(steps = emptyList())
+        // Older readings also repeat the step's question in the general list: it must not leak through there either.
+        val general = listOf(aiQ, "Do I need a ride?")
+        for (meaning in listOf(MeaningState.IDLE, MeaningState(MeaningStatus.error), MeaningState(MeaningStatus.done, mapOf("a" to flagged("a"))))) {
+            val text = ShareText.plan(listOf(asks), plan, general, meaning, listOf(asks))
+            assertFalse(text.contains(aiQ))
+            assertTrue(text.contains("- My paper says: \"Take metformin 500 mg twice a day.\" Can you confirm what I should take?"))
+            assertTrue(text.contains("- Do I need a ride?"))
+        }
+        val ok = ShareText.plan(listOf(asks), plan, general, MeaningState(MeaningStatus.done, mapOf("a" to certified("a"))), listOf(asks))
+        assertEquals(1, ok.split(aiQ).size - 1)
+        // A removed step's question stays out of the general list as well.
+        assertEquals(listOf("Do I need a ride?"), PaperFirst.visitQuestions(emptyList(), general, listOf(asks)) { Check.certified })
+        assertEquals("which pain medicines are safe", PaperFirst.questionKey("  Which pain-medicines, are SAFE?? "))
+        // A held-back (refused) step's question, repeated in a saved reading's general list, stays out too.
+        val refused = item("r1", grounded = false).copy(needs_clarification = true, question_for_clinic = "Should I double my insulin?")
+        val saved = CarePlanResponse(items = emptyList(), refused = listOf(refused), questions_for_doctor = listOf("Should I double my insulin?", "Do I need a ride?"),
+            stats = com.stephensookra.atlas.data.CareStats(1, 0, 1, 1))
+        assertEquals(listOf("Do I need a ride?"), PaperFirst.readingGeneralQuestions(saved))
+        assertTrue("visitQuestions.ts moved", File("../../../web/src/lib/visitQuestions.ts").readText().contains("export function visitQuestions"))
+    }
+
     @Test fun extractResponseCarriesItsLanguageAndOldFilesStillLoad() {
         val care = AtlasJson.decodeFromString(CarePlanResponse.serializer(),
             """{"items":[],"stats":{"extracted":0,"grounded":0,"refused":0,"ms":1},"language":"Korean"}""")

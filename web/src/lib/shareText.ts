@@ -3,6 +3,7 @@ import type { PlanResponse } from "./plan";
 import type { MeaningResult } from "./meaning";
 import { careStepView, checkOf, paperFirstLines } from "./paperFirst";
 import { planStepQuotes } from "./planQuotes";
+import { visitQuestions } from "./visitQuestions";
 
 /** The second-model double-check, as the screen has it. "done" carries one result per item id. */
 export type ShareMeaning = { status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult> };
@@ -18,6 +19,8 @@ const KIND_LABEL: Record<string, string> = {
  * Built on the device and handed to the phone's own share sheet; ATLAS never sees or stores it.
  * The double-check travels with it: an explanation is sent only when the second check certified it; otherwise the
  * paper's own words are sent in its place (paperFirst.ts), so a text message never carries an unchecked paraphrase.
+ * `questions` is the reading's general questions_for_doctor; each step's own question is added here, paper first
+ * (visitQuestions.ts), so an unchecked step's AI-written question is never sent.
  */
 export function planShareText({ items, plan, questions, meaning, planItems }: { items: VerifiedItem[]; plan: PlanResponse; questions: string[]; meaning?: ShareMeaning; planItems?: VerifiedItem[] }): string {
   const out: string[] = ["Plan after the visit (from ATLAS)", "", `Suggestion from ATLAS, not the paper: ${plan.summary}`];
@@ -58,9 +61,10 @@ export function planShareText({ items, plan, questions, meaning, planItems }: { 
 
   if (plan.ask_a_person) out.push("", `This needs a person too: ${plan.ask_a_person_reason} Call 211 or a community health worker.`);
 
-  if (questions.length) {
+  const nextVisit = visitQuestions({ items: grounded, general: questions, also: planItems, checkFor: (id) => checkOf(meaning?.status === "done" ? meaning.byId[id] : undefined) });
+  if (nextVisit.length) {
     out.push("", "QUESTIONS FOR THE NEXT VISIT");
-    questions.forEach((q) => out.push(`- ${q}`));
+    nextVisit.forEach((q) => out.push(`- ${q}`));
   }
 
   out.push("", "This explains the paper from the visit. It is not medical advice. If something feels urgent, call the clinic or 911.");

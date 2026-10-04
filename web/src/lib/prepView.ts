@@ -55,7 +55,8 @@ export function shownExplanation(step: PrepStep, m: MeaningState): string | null
  * A step that must never be folded away: its paper sentence has a "do not" / "stop" word or an "only" / "until" /
  * "unless" limit (prepCues.ts, the same lists that hide explanations: "Stop drinking", "Do not eat", "drink only clear
  * liquids", "fasting"), it can't be read for those words (Ethiopic script), it says to call, contact or tell someone or
- * prints a phone number, or it names 911 or the emergency room. All read from the paper's own sentence by our code; the
+ * prints a phone number, or it names 911, the emergency room or going for care ("seek medical attention", "go to the
+ * hospital", Codex review round 3). All read from the paper's own sentence by our code; the
  * AI's "call" kind can add a step but is never needed (Codex review). Its row stays visible and whole.
  */
 export function prepMustSee(s: Pick<PrepStep, "kind" | "source_quote">): boolean {
@@ -69,6 +70,9 @@ const CALL_WORDS = new RegExp(String.raw`(?<![\p{L}\p{N}])(?:${[
   "llame", "llamar", "llámenos", "llamenos", "comuníquese", "comuniquese", "contacte", "avise", "avísenos", "emergencia", "urgencias",
   "appelez", "appeler", "contactez", "prévenez", "urgence", "urgences",
   "gọi", "liên\\s+lạc", "báo", "cấp\\s+cứu",
+  // Going for care, whatever kind the model gave the step ("seek immediate medical attention", "go to the hospital").
+  "seek", "hospital", "ambulance", "urgent", "urgently", "immediate", "immediately", "right\\s+away", "medical\\s+(?:attention|care|help)",
+  "inmediatamente", "atención\\s+médica", "atencion\\s+medica", "hôpital", "immédiatement", "bệnh\\s+viện", "ngay\\s+lập\\s+tức",
 ].join("|")})(?![\p{L}\p{N}])`, "iu");
 /** A phone number: at least 7 digits with the usual separators ("404-555-0199", "(404) 555 0199", "555.0199" is too short). */
 const PHONE = /(?:\+?\d[\s().-]*){7,}/;

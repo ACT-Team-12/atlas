@@ -177,6 +177,17 @@ describe("must-see steps are never folded", () => {
     expect(prepMustSee({ kind: "other", source_quote: "Questions? 404-555-0199." })).toBe(true);
     expect(prepMustSee({ kind: "other", source_quote: "Llame a la clínica si tiene fiebre." })).toBe(true);
   });
+
+  it("going for care is must-see whatever the model's kind (Codex review, round 3)", () => {
+    for (const q of [
+      "After your procedure, seek immediate medical attention if you have chest pain.",
+      "If you are bleeding a lot, go to the hospital.",
+      "Get medical help right away if you feel faint.",
+      "Busque atención médica inmediatamente si tiene dolor.",
+      "Allez à l'hôpital si vous saignez.",
+    ]) expect(prepMustSee({ kind: "other", source_quote: q }), q).toBe(true);
+    expect(prepMustSee({ kind: "other", source_quote: "Bring your photo ID and insurance card." })).toBe(false);
+  });
 });
 
 describe("Ask your clinic when: one list", () => {

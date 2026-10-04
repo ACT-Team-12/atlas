@@ -59,8 +59,11 @@ object PaperFirst {
      */
     data class AskPerson(val who: String, val label: String, val question: String)
 
+    private val ASK_SPACES = Regex(SafetyPattern.JS_SPACE_CLASS + "+")
+
     fun askPerson(kind: String, quote: String, check: Check): AskPerson? {
-        val q = quote.split(Regex("(?U)\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
+        // JS \s as an explicit class: Android's ICU regex rejects the inline Unicode-class flag (a crash on the steps screen).
+        val q = quote.split(ASK_SPACES).filter { it.isNotEmpty() }.joinToString(" ")
         if (check == Check.certified || q.isEmpty() || kind == "warning_sign") return null
         if (kind == "medication") return AskPerson("pharmacist", "Ask your pharmacist", "My paper says: \"$q\" Can you confirm what I should take?")
         return AskPerson("clinic", "Ask your clinic", "My paper says: \"$q\" Can you help me understand what I should do?")

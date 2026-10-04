@@ -87,7 +87,9 @@ const topList = (card: Element) => card.querySelector('[aria-labelledby="plan-to
 const rows = (card: Element) => [...card.querySelectorAll<HTMLLIElement>('[aria-labelledby="plan-rows-title"] ol > li')];
 const rowToggle = (row: Element) => row.querySelector<HTMLButtonElement>("h5 > button")!;
 
-describe("plan screen: start with 3 calls", () => {
+// Each test renders the whole plan screen from a recorded live plan in jsdom (1 to 4 s alone). Under the full parallel
+// suite on a small machine some crossed vitest's 5 s default, so this block gets an explicit, generous timeout.
+describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
   it("opens with the summary, the suggestions label, the top 3 and the needs-a-person note, none of them folded", async () => {
     const card = await planReady();
     const label = [...card.querySelectorAll("p")].find((p) => p.textContent?.startsWith("Suggestions from ATLAS, not your paper"))!;

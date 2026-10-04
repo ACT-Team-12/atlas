@@ -166,3 +166,11 @@ describe("rule 2: the last nets before ElevenLabs and Vonage", () => {
     expect(said).toContain("Book the lab.");
   });
 });
+
+describe("fails closed on the answer side", () => {
+  it("a placeholder the request did not carry and the server did not make (a model made it up) never reaches the answer", async () => {
+    answer = (params) => ({ ...readPaper(params), questions_for_doctor: ["Ask about ⟦NAME_Q⟧ and the dose."] });
+    const body = await (await extract.POST(post("/api/extract", { text: NAMED_PAPER, language: "English", reading_level: "simple" }))).json();
+    expect(body.questions_for_doctor).toEqual(["Ask about and the dose."]);
+  });
+});

@@ -1,4 +1,4 @@
-import { PhiShield, rangeToOriginal, unshieldDeep, unshieldString, type ShieldResult } from "./phiShield";
+import { PhiShield, rangeToOriginal, unshieldDeep, unshieldString, type DropUnknown, type ShieldResult } from "./phiShield";
 import { missedLinesPayload } from "./missedLines";
 import type { CarePlanResponse, VerifiedItem } from "./schema";
 import type { ExtractEvent } from "./extractEvents";
@@ -35,8 +35,8 @@ export function shieldFields<T extends Record<string, unknown>>(session: PhiShie
 }
 
 /** One care step, back on the original paper: real words in every string, the span moved, the quote re-read from the paper. */
-export function unshieldItem(it: VerifiedItem, ctx: ShieldContext | null, tokens: ReadonlyMap<string, string>): VerifiedItem {
-  const out = unshieldDeep(it, tokens);
+export function unshieldItem(it: VerifiedItem, ctx: ShieldContext | null, tokens: ReadonlyMap<string, string>, drop?: DropUnknown): VerifiedItem {
+  const out = unshieldDeep(it, tokens, drop);
   if (!ctx || !it.span) return out;
   const span = rangeToOriginal(ctx.result.offsetMap, it.span);
   out.span = span;
@@ -50,37 +50,37 @@ export function unshieldItem(it: VerifiedItem, ctx: ShieldContext | null, tokens
  * The whole read, back on the original paper. `ctx` is null for a photo read (nothing was shielded: the photo's
  * pixels went as they are); strings are still passed through unshieldString in case a field carries a placeholder.
  */
-export function unshieldCarePlan(plan: CarePlanResponse, ctx: ShieldContext | null, tokens: ReadonlyMap<string, string>): CarePlanResponse {
-  const items = plan.items.map((it) => unshieldItem(it, ctx, tokens));
-  const refused = plan.refused.map((it) => unshieldItem(it, ctx, tokens));
+export function unshieldCarePlan(plan: CarePlanResponse, ctx: ShieldContext | null, tokens: ReadonlyMap<string, string>, drop?: DropUnknown): CarePlanResponse {
+  const items = plan.items.map((it) => unshieldItem(it, ctx, tokens, drop));
+  const refused = plan.refused.map((it) => unshieldItem(it, ctx, tokens, drop));
   const textRead = ctx !== null && plan.source_kind === "text";
-  const source_text = textRead && plan.source_text === ctx.result.text ? ctx.original : unshieldString(plan.source_text, tokens);
+  const source_text = textRead && plan.source_text === ctx.result.text ? ctx.original : unshieldString(plan.source_text, tokens, drop);
   const out: CarePlanResponse = {
     ...plan,
     source_text,
     items,
     refused,
-    questions_for_doctor: plan.questions_for_doctor.map((q) => unshieldString(q, tokens)),
-    not_in_document: plan.not_in_document.map((q) => unshieldString(q, tokens)),
+    questions_for_doctor: plan.questions_for_doctor.map((q) => unshieldString(q, tokens, drop)),
+    not_in_document: plan.not_in_document.map((q) => unshieldString(q, tokens, drop)),
   };
   if (plan.missed_lines) {
     // Rebuilt on the original paper from the moved spans: the same function the server runs, so the section reads
     // exactly as it would have with no shield (a placeholder never shifts a sentence or adds a "number" to cover).
-    out.missed_lines = textRead && source_text === ctx.original ? missedLinesPayload(ctx.original, items) : unshieldDeep(plan.missed_lines, tokens);
+    out.missed_lines = textRead && source_text === ctx.original ? missedLinesPayload(ctx.original, items) : unshieldDeep(plan.missed_lines, tokens, drop);
   }
   return out;
 }
 
 /** One line of the /api/extract/stream answer, back on the original paper. */
-export function unshieldExtractEvent(e: ExtractEvent, ctx: ShieldContext | null, tokens: ReadonlyMap<string, string>): ExtractEvent {
-  if (e.type === "item") return { type: "item", item: unshieldItem(e.item, ctx, tokens) };
-  if (e.type === "done") return { type: "done", plan: unshieldCarePlan(e.plan, ctx, tokens) };
+export function unshieldExtractEvent(e: ExtractEvent, ctx: ShieldContext | null, tokens: ReadonlyMap<string, string>, drop?: DropUnknown): ExtractEvent {
+  if (e.type === "item") return { type: "item", item: unshieldItem(e.item, ctx, tokens, drop) };
+  if (e.type === "done") return { type: "done", plan: unshieldCarePlan(e.plan, ctx, tokens, drop) };
   return e;
 }
 
 /** The teach-back quiz: real words in every string, each proof span moved onto the original paper. */
-export function unshieldUnderstand(resp: UnderstandResponse, ctx: ShieldContext, tokens: ReadonlyMap<string, string>): UnderstandResponse {
-  const out = unshieldDeep(resp, tokens);
+export function unshieldUnderstand(resp: UnderstandResponse, ctx: ShieldContext, tokens: ReadonlyMap<string, string>, drop?: DropUnknown): UnderstandResponse {
+  const out = unshieldDeep(resp, tokens, drop);
   out.questions = resp.questions.map((q, i) => ({ ...out.questions[i], span: rangeToOriginal(ctx.result.offsetMap, q.span) }));
   return out;
 }

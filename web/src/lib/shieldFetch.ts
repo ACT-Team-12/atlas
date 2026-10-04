@@ -1,4 +1,4 @@
-import { PhiShield, unshieldDeep } from "./phiShield";
+import { PhiShield, PhiShieldRefused, dropUnknownFor, unshieldDeep, type DropUnknown } from "./phiShield";
 import { SHIELD_HEADER, shieldFields, shieldText, unshieldCarePlan, unshieldExtractEvent, unshieldUnderstand, type ShieldContext } from "./phiResponses";
 import type { CarePlanResponse } from "./schema";
 import type { ExtractEvent } from "./extractEvents";
@@ -16,7 +16,11 @@ import { OLD_KEY, STORE_KEY } from "./savedPlans";
  * learn a name from.
  *
  * Requests it does not recognize, or cannot parse, go out unchanged; the server's own pass (phiGuard.ts) still
- * shields them before any AI call.
+ * shields them before any AI call (and never trusts this page's SHIELD_HEADER to skip it).
+ *
+ * Fails closed: a request it recognizes but cannot shield in full is not sent at all; the page gets an error answer
+ * instead. An answer it cannot map back still gets every known placeholder replaced, and unknown ones removed, so no
+ * placeholder reaches a component.
  */
 
 type Restore = (res: Response) => Promise<Response>;
@@ -33,7 +37,10 @@ function jsonResponse(res: Response, value: unknown): Response {
   return new Response(JSON.stringify(value), { status: res.status, statusText: res.statusText, headers });
 }
 
-const mapJson = (fn: (v: unknown) => unknown): Restore => async (res) => {
+/** Real words back into every string of an answer; placeholders nobody can put back are removed. */
+type Clean = (v: unknown) => unknown;
+
+const mapJson = (fn: (v: unknown) => unknown, clean: Clean): Restore => async (res) => {
   const type = res.headers.get("content-type") ?? "";
   if (!type.includes("json")) return res;
   let value: unknown;
@@ -42,30 +49,37 @@ const mapJson = (fn: (v: unknown) => unknown): Restore => async (res) => {
   } catch {
     return res;
   }
-  if (!res.ok) return jsonResponse(res, value);
+  if (!res.ok) return jsonResponse(res, clean(value));
   try {
     return jsonResponse(res, fn(value));
   } catch {
-    // An answer of an unexpected shape: hand it over as it came. At worst the page shows a placeholder, never a leak.
-    return jsonResponse(res, value);
+    // An answer of an unexpected shape: its offsets cannot be mapped, but every string still gets the real words back.
+    return jsonResponse(res, clean(value));
   }
 };
 
 /** The NDJSON read, line by line: each event gets the real words back as it arrives. */
-function mapStream(ctx: ShieldContext | null, tokens: ReadonlyMap<string, string>, onPlan: (plan: CarePlanResponse) => void): Restore {
+function mapStream(ctx: ShieldContext | null, tokens: ReadonlyMap<string, string>, drop: DropUnknown, onPlan: (plan: CarePlanResponse) => void): Restore {
+  const clean: Clean = (v) => unshieldDeep(v, tokens, drop);
   return async (res) => {
-    if (!res.ok || !res.body || !(res.headers.get("content-type") ?? "").includes("ndjson")) return mapJson((v) => v)(res);
+    if (!res.ok || !res.body || !(res.headers.get("content-type") ?? "").includes("ndjson")) return mapJson(clean, clean)(res);
     const decoder = new TextDecoder();
     const encoder = new TextEncoder();
     let pending = "";
     const line = (l: string) => {
       if (!l.trim()) return l;
+      let parsed: unknown;
       try {
-        const e = unshieldExtractEvent(JSON.parse(l) as ExtractEvent, ctx, tokens);
+        parsed = JSON.parse(l);
+      } catch {
+        return l; // a garbled line stays garbled: the page's reader reports it as a broken stream, as before
+      }
+      try {
+        const e = unshieldExtractEvent(parsed as ExtractEvent, ctx, tokens, drop);
         if (e.type === "done") onPlan(e.plan);
         return JSON.stringify(e);
       } catch {
-        return l; // a garbled line stays garbled: the page's reader reports it as a broken stream, as before
+        return JSON.stringify(clean(parsed)); // an event of an unexpected shape: still no placeholder reaches the page
       }
     };
     const body = res.body.pipeThrough(
@@ -94,30 +108,32 @@ function mapStream(ctx: ShieldContext | null, tokens: ReadonlyMap<string, string
 /** Shields one request body for its route, or returns null to send it unchanged. */
 export function shieldRequest(path: string, body: Record<string, unknown>, session: PhiShield): Shielded | null {
   const tokens = session.tokens;
+  const drop = dropUnknownFor(session);
+  const clean: Clean = (v) => unshieldDeep(v, tokens, drop);
   if (path === "/api/extract" || path === STREAM_ROUTE) {
     const ctx = typeof body.text === "string" && body.text ? shieldText(session, body.text) : null;
     const next = ctx ? { ...body, text: ctx.result.text } : body;
     // A photo read sends pixels (nothing to shield here), but the AI's transcription comes back: learn the names in it,
     // so the plan and the meaning check built from that read are shielded too.
     const learn = (plan: CarePlanResponse) => { if (!ctx && typeof plan.source_text === "string") session.learn(plan.source_text); };
-    if (path === STREAM_ROUTE) return { body: next, restore: mapStream(ctx, tokens, learn) };
-    return { body: next, restore: mapJson((v) => { const plan = unshieldCarePlan(v as CarePlanResponse, ctx, tokens); learn(plan); return plan; }) };
+    if (path === STREAM_ROUTE) return { body: next, restore: mapStream(ctx, tokens, drop, learn) };
+    return { body: next, restore: mapJson((v) => { const plan = unshieldCarePlan(v as CarePlanResponse, ctx, tokens, drop); learn(plan); return plan; }, clean) };
   }
   if (path === "/api/prep" || path === "/api/results") {
     if (typeof body.text !== "string") return null;
     const ctx = shieldText(session, body.text);
-    return { body: { ...body, text: ctx.result.text }, restore: mapJson((v) => unshieldDeep(v, tokens)) };
+    return { body: { ...body, text: ctx.result.text }, restore: mapJson(clean, clean) };
   }
   if (path === "/api/understand") {
     if (typeof body.source_text !== "string" || !Array.isArray(body.items)) return null;
     const ctx = shieldText(session, body.source_text);
     const items = (body.items as Record<string, unknown>[]).map((it) => shieldFields(session, it, ["title", "source_quote"]));
-    return { body: { ...body, source_text: ctx.result.text, items }, restore: mapJson((v) => unshieldUnderstand(v as UnderstandResponse, ctx, tokens)) };
+    return { body: { ...body, source_text: ctx.result.text, items }, restore: mapJson((v) => unshieldUnderstand(v as UnderstandResponse, ctx, tokens, drop), clean) };
   }
   if (path === "/api/meaning") {
     if (!Array.isArray(body.items)) return null;
     const items = (body.items as Record<string, unknown>[]).map((it) => shieldFields(session, it, ["source_quote", "plain_language", "when"]));
-    return { body: { ...body, items }, restore: mapJson((v) => unshieldDeep(v, tokens)) };
+    return { body: { ...body, items }, restore: mapJson(clean, clean) };
   }
   if (path === "/api/plan") {
     const care = Array.isArray(body.care) ? (body.care as Record<string, unknown>[]).map((c) => shieldFields(session, c, ["title", "plain_language", "when", "source_quote"])) : body.care;
@@ -188,11 +204,18 @@ export function createShieldedFetch(base: typeof fetch, origin: string, seed: ()
       return base(input, init);
     }
     if (!body || typeof body !== "object" || Array.isArray(body)) return base(input, init);
-    for (const paper of seed()) {
-      const h = hash(paper);
-      if (!learned.has(h)) { learned.add(h); session.learn(paper); }
+    let shielded: Shielded | null;
+    try {
+      for (const paper of seed()) {
+        const h = hash(paper);
+        if (!learned.has(h)) { learned.add(h); session.learn(paper); }
+      }
+      shielded = shieldRequest(path, body as Record<string, unknown>, session);
+    } catch (e) {
+      // Fails closed: a request that cannot be shielded in full is never sent.
+      const error = e instanceof PhiShieldRefused ? e.message : "This page could not hide the patient's details in this request, so it was not sent.";
+      return new Response(JSON.stringify({ error }), { status: 413, headers: { "content-type": "application/json" } });
     }
-    const shielded = shieldRequest(path, body as Record<string, unknown>, session);
     if (!shielded) return base(input, init);
     const headers = new Headers(init.headers);
     headers.set(SHIELD_HEADER, "1");

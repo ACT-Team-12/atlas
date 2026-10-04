@@ -1,4 +1,5 @@
-import { PhiShield, unshieldDeep } from "./phiShield";
+import { ExtractError } from "./extract";
+import { PhiShield, PhiShieldRefused, dropUnknownFor, unshieldDeep } from "./phiShield";
 import { shieldFields, shieldText, unshieldCarePlan, unshieldExtractEvent, unshieldUnderstand } from "./phiResponses";
 import type { CarePlanResponse, ExtractRequest } from "./schema";
 import type { ExtractEvent } from "./extractEvents";
@@ -12,49 +13,71 @@ import type { PlanRequest } from "./plan";
  * its requests (SHIELD_HEADER); this pass then finds nothing new. The phone apps and older pages send raw text, and
  * this pass is what keeps the patient's identifiers away from the AI for them, with no app update.
  *
+ * The page's SHIELD_HEADER is never trusted: this pass always runs over every field that reaches the AI, finds raw
+ * identifiers whatever the header says, and keeps placeholders a page already made as they are.
+ *
+ * Fails closed: a text the shield cannot finish (PhiShieldRefused) refuses the request with a clear error (413) before
+ * any AI call. A placeholder in the answer that this request neither made nor was sent (a model made it up) is
+ * removed, never shown.
+ *
  * The placeholder map lives in this request's memory only. Nothing here logs, stores or returns it.
  */
+
+/** Runs the shielding step; a text that cannot be shielded in full refuses the request instead. */
+function shieldOrRefuse<T>(f: () => T): T {
+  try {
+    return f();
+  } catch (e) {
+    if (e instanceof PhiShieldRefused) throw new ExtractError(e.message, 413);
+    throw e;
+  }
+}
 
 /** /api/extract: the paper is shielded, the read comes back on the original paper. */
 export async function guardExtract(req: ExtractRequest, call: (req: ExtractRequest) => Promise<CarePlanResponse>): Promise<CarePlanResponse> {
   const session = new PhiShield();
-  const ctx = req.text ? shieldText(session, req.text) : null;
+  const ctx = shieldOrRefuse(() => (req.text ? shieldText(session, req.text) : null));
   const plan = await call(ctx ? { ...req, text: ctx.result.text } : req);
-  return unshieldCarePlan(plan, ctx, session.tokens);
+  return unshieldCarePlan(plan, ctx, session.tokens, dropUnknownFor(session));
 }
 
 /** /api/extract/stream: the shielded request, and an emit that puts the real words back into each event. */
 export function guardExtractStream(req: ExtractRequest, emit: (e: ExtractEvent) => void): { req: ExtractRequest; emit: (e: ExtractEvent) => void; restore: (plan: CarePlanResponse) => CarePlanResponse } {
   const session = new PhiShield();
-  const ctx = req.text ? shieldText(session, req.text) : null;
+  const ctx = shieldOrRefuse(() => (req.text ? shieldText(session, req.text) : null));
+  const drop = dropUnknownFor(session);
   return {
     req: ctx ? { ...req, text: ctx.result.text } : req,
-    emit: (e) => emit(unshieldExtractEvent(e, ctx, session.tokens)),
-    restore: (plan) => unshieldCarePlan(plan, ctx, session.tokens),
+    emit: (e) => emit(unshieldExtractEvent(e, ctx, session.tokens, drop)),
+    restore: (plan) => unshieldCarePlan(plan, ctx, session.tokens, drop),
   };
 }
 
 /** /api/prep and /api/results: one paper in `text`; the answer only has strings to put back. */
 export async function guardText<R extends { text: string }, T>(req: R, call: (req: R) => Promise<T>): Promise<T> {
   const session = new PhiShield();
-  const ctx = shieldText(session, req.text);
-  return unshieldDeep(await call({ ...req, text: ctx.result.text }), session.tokens);
+  const ctx = shieldOrRefuse(() => shieldText(session, req.text));
+  return unshieldDeep(await call({ ...req, text: ctx.result.text }), session.tokens, dropUnknownFor(session));
 }
 
 /** /api/understand: the paper plus the steps; each proof span goes back onto the original paper. */
 export async function guardUnderstand(req: UnderstandRequest, call: (req: UnderstandRequest) => Promise<UnderstandResponse>): Promise<UnderstandResponse> {
   const session = new PhiShield();
-  const ctx = shieldText(session, req.source_text);
-  const items = req.items.map((it) => shieldFields(session, it, ["title", "source_quote"]));
-  return unshieldUnderstand(await call({ ...req, source_text: ctx.result.text, items }), ctx, session.tokens);
+  const { ctx, items } = shieldOrRefuse(() => ({
+    ctx: shieldText(session, req.source_text),
+    items: req.items.map((it) => shieldFields(session, it, ["title", "source_quote"])),
+  }));
+  return unshieldUnderstand(await call({ ...req, source_text: ctx.result.text, items }), ctx, session.tokens, dropUnknownFor(session));
 }
 
 /** /api/meaning: the steps' quotes and explanations. */
 export async function guardMeaning<T>(req: MeaningRequest, call: (req: MeaningRequest) => Promise<T>): Promise<T> {
   const session = new PhiShield();
-  for (const it of req.items) for (const s of [it.source_quote, it.plain_language, it.when]) session.learn(s);
-  const items = req.items.map((it) => shieldFields(session, it, ["source_quote", "plain_language", "when"]));
-  return unshieldDeep(await call({ ...req, items }), session.tokens);
+  const items = shieldOrRefuse(() => {
+    for (const it of req.items) for (const s of [it.source_quote, it.plain_language, it.when]) session.learn(s);
+    return req.items.map((it) => shieldFields(session, it, ["source_quote", "plain_language", "when"]));
+  });
+  return unshieldDeep(await call({ ...req, items }), session.tokens, dropUnknownFor(session));
 }
 
 /**
@@ -64,9 +87,13 @@ export async function guardMeaning<T>(req: MeaningRequest, call: (req: MeaningRe
  */
 export async function guardPlan<T>(req: PlanRequest, call: (req: PlanRequest) => Promise<T>): Promise<T> {
   const session = new PhiShield();
-  for (const c of req.care) for (const s of [c.title, c.plain_language, c.when, c.source_quote]) session.learn(s);
-  session.learn(req.note);
-  const care = req.care.map((c) => shieldFields(session, c, ["title", "plain_language", "when", "source_quote"]));
-  const note = session.shield(req.note).text;
+  const { care, note } = shieldOrRefuse(() => {
+    for (const c of req.care) for (const s of [c.title, c.plain_language, c.when, c.source_quote]) session.learn(s);
+    session.learn(req.note);
+    return {
+      care: req.care.map((c) => shieldFields(session, c, ["title", "plain_language", "when", "source_quote"])),
+      note: session.shield(req.note).text,
+    };
+  });
   return call({ ...req, care, note });
 }

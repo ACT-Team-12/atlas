@@ -14,7 +14,7 @@ const req = (body: unknown, realIp = `10.1.0.${++ip}`) => new Request("http://lo
   method: "POST", headers: { "content-type": "application/json", "x-real-ip": realIp }, body: JSON.stringify(body),
 });
 const ask = (question: string) => ({ source_text: SAMPLE_AVS, language: "English", question });
-const ok = { kind: "answer", quotes: [], lead_in: null, lead_in_dropped: null, dropped: [], model: "m", ms: 1 };
+const ok = { kind: "answer", quotes: [], topic: null, topic_dropped: null, dropped: [], model: "m", ms: 1 };
 
 afterEach(() => { takeDailySlot.mockReset(); answerFromPaper.mockReset(); });
 

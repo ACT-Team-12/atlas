@@ -18,7 +18,7 @@ vi.mock("@anthropic-ai/sdk", () => ({
 const { checkAnswer, finishAnswer, answerFromPaper, MAX_QUOTES, AskRequestSchema } = await import("./ask");
 
 const paper = SAMPLE_AVS;
-const draft = (quotes: string[], lead_in = "", answered = true, urgent = false) => ({ answered, urgent, lead_in, quotes });
+const draft = (quotes: string[], topic = "", answered = true, urgent = false) => ({ answered, urgent, topic, quotes });
 const slice = (s: { start: number; end: number }) => paper.slice(s.start, s.end);
 
 beforeEach(() => { sent.length = 0; reply = null; vi.stubEnv("ANTHROPIC_API_KEY", "test-key"); });
@@ -86,6 +86,14 @@ describe("ask checker: quotes", () => {
     expect(r.dropped).toEqual(["ambiguous"]);
   });
 
+  it("holds back the model's words when they occur twice, even if their whole sentences differ (Codex review, round 2)", () => {
+    const meds = "MEDICINES\nLisinopril: Take one tablet in the morning.\nWarfarin: Take one tablet at night.";
+    const r = checkAnswer(meds, draft(["Take one tablet"]));
+    expect(r.quotes).toEqual([]);
+    expect(r.dropped).toEqual(["ambiguous"]);
+    expect(checkAnswer(meds, draft(["Take one tablet at night"])).quotes.map((x) => x.text)).toEqual(["Warfarin: Take one tablet at night."]);
+  });
+
   it("shows a sentence once, and at most MAX_QUOTES sentences", () => {
     const dup = checkAnswer(paper, draft(["Take 1 tablet by mouth", "2 times a day with meals"]));
     expect(dup.quotes).toHaveLength(1);
@@ -101,43 +109,45 @@ describe("ask checker: quotes", () => {
   });
 });
 
-describe("ask checker: the AI's lead-in", () => {
+describe("ask checker: the lead-in topic (fixed words around a few words of a shown quote)", () => {
   const q = ["Take 1 tablet by mouth 2 times a day with meals."];
+  const ibu = ["ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function."];
 
-  it("keeps a lead-in that adds no number and keeps the cues", () => {
-    const r = checkAnswer(paper, draft(q, "Your paper says this about metformin:"));
-    expect(r.lead_in).toBe("Your paper says this about metformin:");
-    expect(r.lead_in_dropped).toBeNull();
+  it("keeps a topic copied from a shown quote", () => {
+    const r = checkAnswer(paper, draft(ibu, "ibuprofen"));
+    expect(r.topic).toBe("ibuprofen");
+    expect(r.topic_dropped).toBeNull();
   });
 
-  it("leaves out a lead-in with any number, in digits or words, even one the quotes have", () => {
-    for (const lead of ["Take it 3 times a day.", "Take it 2 times a day.", "Take three tablets.", "Take it twice a day."]) {
-      const r = checkAnswer(paper, draft(q, lead));
-      expect(r.lead_in, lead).toBeNull();
-      expect(r.lead_in_dropped, lead).toBe("has_number");
+  it("leaves out advice the AI wrote, since it is not words from the quote (Codex review, round 2)", () => {
+    for (const t of ["Ibuprofen is safe for your kidneys", "Take ibuprofen with food", "Yes, you can drive"]) {
+      const r = checkAnswer(paper, draft(ibu, t));
+      expect(r.topic, t).toBeNull();
+      expect(r.topic_dropped, t).toBe("not_in_quotes");
       expect(r.quotes).toHaveLength(1);
     }
   });
 
-  it("leaves out a lead-in that reverses a stop even when both sides carry a cue (Codex review)", () => {
-    const r = checkAnswer(paper, draft(["STOP taking these medications:"], "Do not stop ibuprofen."));
-    expect(r.quotes).toHaveLength(1);
-    expect(r.lead_in).toBeNull();
-    expect(r.lead_in_dropped).toBe("has_cue");
+  it("leaves out a topic with a number, even one copied from the quote", () => {
+    for (const t of ["2 times a day", "200 mg tablet"]) {
+      const r = checkAnswer(paper, draft(t.startsWith("2 ") ? q : ibu, t));
+      expect(r.topic, t).toBeNull();
+      expect(r.topic_dropped, t).toBe("has_number");
+    }
   });
 
-  it("leaves out a lead-in that drops the paper's 'avoid' (it could turn a stop into a go)", () => {
-    const r = checkAnswer(paper, draft(["ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function."], "Yes, you can keep taking ibuprofen."));
-    expect(r.quotes).toHaveLength(1);
-    expect(r.lead_in).toBeNull();
-    expect(r.lead_in_dropped).toBe("has_cue");
+  it("leaves out a topic with a stop or limit word, even one copied from the quote", () => {
+    const r = checkAnswer(paper, draft(ibu, "Avoid NSAIDs"));
+    expect(r.topic).toBeNull();
+    expect(r.topic_dropped).toBe("has_cue");
+    expect(checkAnswer(paper, draft(["STOP taking these medications:"], "STOP taking")).topic_dropped).toBe("has_cue");
   });
 
-  it("leaves out a long lead-in, and never shows a lead-in without a surviving quote", () => {
-    expect(checkAnswer(paper, draft(q, "x".repeat(201))).lead_in_dropped).toBe("too_long");
-    const none = checkAnswer(paper, draft(["You may drive after 24 hours."], "Yes, you can drive."));
+  it("leaves out a long topic, and never shows one without a surviving quote", () => {
+    expect(checkAnswer(paper, draft(q, "x".repeat(61))).topic_dropped).toBe("too_long");
+    const none = checkAnswer(paper, draft(["You may drive after 24 hours."], "drive"));
     expect(none.quotes).toEqual([]);
-    expect(none.lead_in).toBeNull();
+    expect(none.topic).toBeNull();
   });
 });
 
@@ -145,7 +155,7 @@ describe("ask: refusal", () => {
   it("is the fixed refusal when nothing survives, with every dropped quote counted", () => {
     const r = finishAnswer(paper, draft(["You can drink alcohol in moderation.", "Driving is fine."], "Yes."), Date.now());
     expect(r).toMatchObject({ kind: "not_in_paper", dropped: ["not_in_paper", "not_in_paper"] });
-    expect(r).not.toHaveProperty("lead_in");
+    expect(r).not.toHaveProperty("topic");
     expect(r).not.toHaveProperty("quotes");
   });
 
@@ -154,15 +164,15 @@ describe("ask: refusal", () => {
     expect(r.kind).toBe("not_in_paper");
   });
 
-  it("an answer carries only checked quotes and the gated lead-in", () => {
-    const r = finishAnswer(paper, draft(["Return to clinic in 3 months"], "Your paper says when to come back:"), Date.now());
-    expect(r).toMatchObject({ kind: "answer", lead_in: "Your paper says when to come back:", dropped: [] });
+  it("an answer carries only checked quotes and the gated topic", () => {
+    const r = finishAnswer(paper, draft(["Return to clinic in 3 months"], "Return to clinic"), Date.now());
+    expect(r).toMatchObject({ kind: "answer", topic: "Return to clinic", dropped: [] });
   });
 });
 
 describe("ask: the model call (mocked)", () => {
   it("sends the paper and question as tagged data, then checks the reply against the paper", async () => {
-    reply = draft(["STOP taking these medications:", "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function", "Stop ibuprofen today."], "Your paper says to stop ibuprofen:");
+    reply = draft(["STOP taking these medications:", "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function", "Stop ibuprofen today."], "ibuprofen");
     const ac = new AbortController();
     const r = await answerFromPaper({ source_text: paper, language: "English", question: "when do I stop ibuprofen?" }, ac.signal);
     expect(sent).toHaveLength(1);
@@ -175,9 +185,7 @@ describe("ask: the model call (mocked)", () => {
     if (r.kind !== "answer") return;
     expect(r.quotes.map((q) => q.text)).toEqual(["STOP taking these medications:", "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function."]);
     expect(r.dropped).toEqual(["not_in_paper"]);
-    // "stop" is a cue word, so the lead-in is left out and only the paper's words show.
-    expect(r.lead_in).toBeNull();
-    expect(r.lead_in_dropped).toBe("has_cue");
+    expect(r.topic).toBe("ibuprofen");
   });
 
   it("closes no prompt tags early: <paper> and <question> inside the person's text are neutralized", async () => {

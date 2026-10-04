@@ -80,5 +80,6 @@ export function labQuestions(rows: ResultRow[]): LabQuestion[] {
 
 /** What Copy puts on the clipboard: each question with its report line, so the question never travels without it. */
 export function labQuestionsText(qs: LabQuestion[]): string {
-  return qs.map((q, i) => `${i + 1}. ${q.ask}\n   Your report says: "${q.line}"`).join("\n");
+  // The report's line first, then the question, as on the screen (Codex review).
+  return qs.map((q, i) => `${i + 1}. Your report says: "${q.line}"\n   ${q.ask}`).join("\n");
 }

@@ -238,11 +238,13 @@ describe("Ask your clinic: one list with Copy", () => {
     render();
     await act(async () => { [...host.querySelectorAll("button")].find((b) => b.textContent === "Copy questions")!.click(); });
     const text = (writeText.mock.calls[0] as unknown as [string])[0];
-    expect(text).toContain("1. AI-ASK about [glucose fasting]?");
-    expect(text).toContain(`Your report says: "${ROWS[0].quote}"`);
-    for (const line of text.split("\n").filter((l) => l.includes("AI-ASK"))) {
-      const next = text.split("\n")[text.split("\n").indexOf(line) + 1];
-      expect(next).toMatch(/^ {3}Your report says: "/);
+    expect(text).toContain(`1. Your report says: "${ROWS[0].quote}"\n   AI-ASK about [glucose fasting]?`);
+    // Report line first, then the question, for every one (Codex review).
+    const lines = text.split("\n");
+    for (const [i, line] of lines.entries()) {
+      if (!line.includes("AI-ASK")) continue;
+      expect(line).toMatch(/^ {3}AI-ASK/);
+      expect(lines[i - 1]).toMatch(/^\d+\. Your report says: "/);
     }
     expect(labQuestionsText([])).toBe("");
   });
@@ -297,6 +299,27 @@ describe("security review checklist", () => {
     // And an H printed on the line wins over an AI range that says otherwise.
     const flagged = "Potassium   4.0   mmol/L   3.5-5.1   H";
     expect(checkRows(`${flagged}\n`, [{ test: "Potassium", value: "4.0", unit: "mmol/L", range_text: "3.5-5.1", quote: flagged, plain_name: "a", ask: "b" }]).rows[0]).toMatchObject({ status: "outside", direction: "high" });
+  });
+
+  it("(3b) the AI's test name or unit can't absorb a mark, and the AI can't pick between two ranges (Codex review)", () => {
+    const one = (line: string, test: string, value: string, unit: string, range_text: string) =>
+      checkRows(`${line}\n`, [{ test, value, unit, range_text, quote: line, plain_name: "a", ask: "b" }]).rows[0];
+    // The mark sits in what the AI calls the name: never in range.
+    expect(one("Potassium H 4.0 mmol/L 3.5-5.1", "Potassium H", "4.0", "mmol/L", "3.5-5.1").status).not.toBe("inside");
+    // The AI calls the mark a unit: never in range.
+    expect(one("Potassium 4.0 H 3.5-5.1", "Potassium", "4.0", "H", "3.5-5.1").status).not.toBe("inside");
+    // Two printed ranges that disagree: the AI's choice doesn't make it in range.
+    const two = one("Glucose 110 mg/dL 70-99 100-125", "Glucose", "110", "mg/dL", "100-125");
+    expect(two.status).toBe("unknown");
+    // A panic mark is a flag; a marked line with no number still counts toward coverage.
+    expect(one("Troponin 2.1 ng/mL 0-0.04 PANIC", "Troponin", "2.1", "ng/mL", "0-0.04").status).toBe("outside");
+    const cov = checkRows("Sodium 139 mmol/L 136-145\nTroponin unable to calculate CRITICAL\n", [
+      { test: "Sodium", value: "139", unit: "mmol/L", range_text: "136-145", quote: "Sodium 139 mmol/L 136-145", plain_name: "a", ask: "b" },
+    ]).coverage;
+    expect(cov).toMatchObject({ candidates: 2, checked: 1, unchecked: ["Troponin unable to calculate CRITICAL"] });
+    // Ordinary in-range lines stay in range.
+    expect(one("Sodium   139   mmol/L   136-145", "Sodium", "139", "mmol/L", "136-145").status).toBe("inside");
+    expect(one("HDL Cholesterol   44   mg/dL   >40", "HDL Cholesterol", "44", "mg/dL", ">40").status).toBe("inside");
   });
 
   it("(4) critical rows stay pinned in the flagged group and open, with the in-range fold closed", () => {

@@ -173,7 +173,7 @@ export function sealOf(check: Check): Seal {
 
 export const SEAL_TEXT: Record<Seal, string> = {
   twice: "Checked twice: the words are on your paper, and a second check agrees with the explanation.",
-  once: "Checked once: the words are on your paper. The explanation was not double-checked, so trust your paper's words.",
+  once: "Checked once: the words in quotes were found on your paper, word for word. The plain words under them were not double-checked yet, so your paper's words come first.",
   recheck: "Double-check this one: the words are on your paper, but a check disagreed. Follow your paper.",
 };
 

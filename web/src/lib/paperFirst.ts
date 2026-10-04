@@ -7,7 +7,8 @@
  * - Certified (the meaning check said "same" and every number checks out): the explanation may lead, and the paper's
  *   verbatim quote is shown right with it.
  * - Anything else (still checking, check failed, unclear, flagged, never checked): the paper's verbatim quote leads,
- *   labelled "Your paper says:", and the explanation is visibly secondary with a note saying it was not checked.
+ *   labelled "Copied word for word from your paper" on screen, and the explanation is visibly secondary under a label
+ *   saying it was not double-checked yet.
  * - Text that leaves the screen (read aloud, share, print) carries the explanation ONLY when certified. Otherwise it
  *   carries the quote alone, plus the note.
  * - No quote, no explanation: an explanation with nothing from the paper to stand next to is never shown.
@@ -27,8 +28,10 @@ export function checkOf(m: { certified?: boolean; flagged?: boolean } | null | u
 export type PaperFirstView = {
   /** What the person sees first. "explanation" only when certified. */
   lead: "explanation" | "quote";
-  /** The label for the quote, e.g. "Your paper says:". */
+  /** The label for the quote in text that leaves the screen (read aloud, share, print), e.g. "Your paper says:". */
   quoteLabel: string;
+  /** The label for the quote on screen when it leads: a reassurance, e.g. "Copied word for word from your paper". */
+  screenLabel: string;
   /** The verbatim words from the paper. Always present when anything is shown. */
   quote: string;
   /** The AI's words (title, when, explanation joined), or null when there is nothing to show. */
@@ -38,7 +41,9 @@ export type PaperFirstView = {
 };
 
 const NOTE: Record<Exclude<Check, "certified">, string> = {
-  unchecked: "Explanation, not double-checked. If it and your paper differ, follow your paper.",
+  // A label, not an instruction: the paper's words are already right above it, and "Ask your pharmacist" (askPerson.ts)
+  // is the help offered instead of "go read your paper".
+  unchecked: "Plain words (not double-checked yet)",
   flagged: "Explanation that our second check says may not match your paper. Follow your paper, and ask your clinic.",
 };
 
@@ -50,9 +55,10 @@ export function paperFirstView(input: { quote: string; explanation: (string | nu
   const quote = input.quote.trim();
   const words = input.explanation.map((s) => (s ?? "").trim()).filter(Boolean).join(" · ");
   const quoteLabel = `Your ${input.source ?? "paper"} says:`;
-  if (!quote) return { lead: "quote", quoteLabel, quote: "", explanation: null, note: null };
-  if (input.check === "certified" && words) return { lead: "explanation", quoteLabel, quote, explanation: words, note: null };
-  return { lead: "quote", quoteLabel, quote, explanation: words || null, note: words ? NOTE[input.check === "certified" ? "unchecked" : input.check] : null };
+  const screenLabel = `Copied word for word from your ${input.source ?? "paper"}`;
+  if (!quote) return { lead: "quote", quoteLabel, screenLabel, quote: "", explanation: null, note: null };
+  if (input.check === "certified" && words) return { lead: "explanation", quoteLabel, screenLabel, quote, explanation: words, note: null };
+  return { lead: "quote", quoteLabel, screenLabel, quote, explanation: words || null, note: words ? NOTE[input.check === "certified" ? "unchecked" : input.check] : null };
 }
 
 /** The lines a surface may read aloud, share or print for one step: the explanation only when certified. */
@@ -65,7 +71,7 @@ export function paperFirstLines(v: PaperFirstView): string[] {
 }
 
 const LEFT_OUT = {
-  unchecked: "(The plain-words explanation is left out here because it was not double-checked.)",
+  unchecked: "(The plain-words explanation is left out here because it was not double-checked yet.)",
   flagged: "(The plain-words explanation is left out here because a second check says it may not match.)",
 };
 

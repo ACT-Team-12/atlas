@@ -91,6 +91,16 @@ describe("paper first: every surface", () => {
     expect(html).toContain('data-lead="quote"');
     quoteLeads(html);
   });
+  it.each(NOT_CERTIFIED)("care plan step on screen ($name): the paper's line once, calmly labelled, the explanation under it", ({ meaning }) => {
+    const check = checkOf(meaning?.status === "done" ? meaning.byId.c1 : undefined);
+    const html = renderToStaticMarkup(createElement(PaperFirst, { v: careStepView(item(), check) }));
+    expect(html.split(QUOTE.replace(/'/g, "&#x27;")).length - 1).toBe(1);
+    expect(html.indexOf("Copied word for word from your paper")).toBeLessThan(html.indexOf(QUOTE));
+    expect(html).not.toContain("If it and your paper differ");
+    if (check === "unchecked") expect(html.indexOf("Plain words (not double-checked yet)")).toBeGreaterThan(html.indexOf(QUOTE));
+    // Never a word that says the explanation was checked.
+    expect(html).not.toMatch(/(?<!not )double-checked(?! yet)/);
+  });
   it("care plan step on screen, certified: explanation first, the paper's words with it", () => {
     const html = renderToStaticMarkup(createElement(PaperFirst, { v: careStepView(item(), "certified") }));
     expect(html).toContain('data-lead="explanation"');
@@ -120,7 +130,7 @@ describe("paper first: every surface", () => {
   it("lab row: the report's line leads, the AI's plain name is secondary", () => {
     const html = renderToStaticMarkup(createElement(PaperFirst, { v: labRowView({ quote: QUOTE, plain_name: PARA }) }));
     expect(html).toContain('data-lead="quote"');
-    expect(html).toContain("Your report says:");
+    expect(html).toContain("Copied word for word from your report");
     expect(html.indexOf(QUOTE.replace(/'/g, "&#x27;"))).toBeLessThan(html.indexOf(PARA));
   });
   it("prep timeline: an explanation is shown only when certified", () => {

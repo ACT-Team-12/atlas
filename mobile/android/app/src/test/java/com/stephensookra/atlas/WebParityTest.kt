@@ -57,6 +57,34 @@ class WebParityTest {
         assertEquals(PaperFirst.NOTE_UNCHECKED, v.note)
     }
 
+    @Test fun unconfirmedCardIsLabelledCalmly() {
+        val v = PaperFirst.careStep(item("a"), Check.unchecked)
+        assertEquals("Copied word for word from your paper", v.screenLabel)
+        assertEquals("Plain words (not double-checked yet)", v.note)
+        assertFalse(v.note!!.contains("follow your paper"))
+        val web = File("../../../web/src/lib/stepsView.ts").readText()
+        assertTrue("stepsView.ts SEAL_TEXT.once differs", web.contains("\"${PaperFirst.CHECKED_ONCE}\""))
+    }
+
+    @Test fun askPersonUsesOnlyThePapersWords() {
+        val quote = "lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily. Previously 10 mg once daily."
+        for (check in listOf(Check.unchecked, Check.flagged)) {
+            val a = PaperFirst.askPerson("medication", quote, check)!!
+            assertEquals("Ask your pharmacist", a.label)
+            assertEquals("My paper says: \"$quote\" Can you confirm what I should take?", a.question)
+        }
+        val lab = PaperFirst.askPerson("lab_test", "Hemoglobin A1c - due in 3 months", Check.unchecked)!!
+        assertEquals("Ask your clinic", lab.label)
+        assertEquals("My paper says: \"Hemoglobin A1c - due in 3 months\" Can you help me understand what I should do?", lab.question)
+        assertNull(PaperFirst.askPerson("medication", quote, Check.certified))
+        assertNull(PaperFirst.askPerson("warning_sign", "Call 911 if you have chest pain.", Check.unchecked))
+        assertNull(PaperFirst.askPerson("medication", "  ", Check.unchecked))
+        val web = File("../../../web/src/lib/askPerson.ts").readText()
+        for (s in listOf("Can you confirm what I should take?", "Can you help me understand what I should do?", "Ask your pharmacist", "Ask your clinic", "My paper says: \"\${quote}\" Can")) {
+            assertTrue("askPerson.ts lacks: $s", web.contains(s))
+        }
+    }
+
     @Test fun certifiedExplanationLeadsWithItsQuote() {
         val v = PaperFirst.careStep(item("a"), Check.certified)
         assertTrue(v.explanationLeads)

@@ -64,7 +64,7 @@ describe("send to family text", () => {
     expect(flagged).toContain('Your paper says: "Return for basic metabolic panel within 2 weeks."');
     const failed = planShareText({ items: [item({})], plan: plan(), questions: [], meaning: { status: "error", byId: {} } });
     expect(failed).not.toContain("Get your blood drawn.");
-    expect(failed).toContain("(The plain-words explanation is left out here because it was not double-checked.)");
+    expect(failed).toContain("(The plain-words explanation is left out here because it was not double-checked yet.)");
   });
 
   it("says when the plan needs a person", () => {

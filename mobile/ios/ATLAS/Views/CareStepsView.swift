@@ -171,6 +171,9 @@ struct CareItemCard: View {
                             .background(Palette.peach, in: RoundedRectangle(cornerRadius: 12))
                     }
                     CheckStatus(result: result, checking: checking)
+                    if let ask = PaperFirst.askPerson(kind: item.kind, quote: item.source_quote, check: check) {
+                        AskPersonBox(ask: ask)
+                    }
                     HStack {
                         Button { onRemind() } label: { Label("Remind me", systemImage: "bell.badge") }
                             .buttonStyle(OutlinePillStyle(fill: Palette.mint))
@@ -181,6 +184,37 @@ struct CareItemCard: View {
                             .accessibilityLabel("Remove \(name)")
                     }
                 }
+            }
+        }
+    }
+}
+
+/// "Ask your pharmacist" / "Ask your clinic" (askPerson in web/src/lib/askPerson.ts): a question in the paper's own
+/// words, opened on tap, to show, read out or copy.
+struct AskPersonBox: View {
+    let ask: PaperFirst.AskPerson
+    @State private var open = false
+    @State private var copied = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button { open.toggle() } label: { Label(ask.label, systemImage: "person.bubble") }
+                .buttonStyle(OutlinePillStyle(fill: Palette.sun))
+                .accessibilityAddTraits(open ? .isSelected : [])
+            if open {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(ask.who == "pharmacist" ? "Show or read this to your pharmacist. It uses only your paper's words."
+                                                 : "Show or read this to your clinic. It uses only your paper's words.")
+                        .font(.caption.weight(.bold)).foregroundStyle(Palette.inkSoft).wraps()
+                    Text(ask.question).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.ink).wraps()
+                    Button(copied ? "Copied" : "Copy question") {
+                        UIPasteboard.general.string = ask.question
+                        copied = true
+                    }
+                    .font(.caption.weight(.bold))
+                }
+                .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Palette.ink.opacity(0.4), style: StrokeStyle(lineWidth: 2, dash: [5])))
             }
         }
     }
@@ -201,13 +235,22 @@ struct CheckStatus: View {
                     .padding(8).frame(maxWidth: .infinity, alignment: .leading)
                     .background(Palette.peach, in: RoundedRectangle(cornerRadius: 12))
             } else if result.certified {
-                Text("\u{2713} Double-checked: the explanation matches this line").font(.caption.weight(.bold)).foregroundStyle(Palette.tealDeep)
+                Text("\u{2713} \(Self.checkedTwice)").font(.caption.weight(.bold)).foregroundStyle(Palette.tealDeep).wraps()
             } else {
-                Text("Not double-checked: our second check couldn't confirm this one. Read the line from your paper above.")
-                    .font(.caption.weight(.semibold)).foregroundStyle(Palette.inkSoft).wraps()
+                // Checked once: the long reason waits behind "Why?" (the website's details element).
+                DisclosureGroup {
+                    Text("\(PaperFirst.checkedOnce) Our second check couldn't confirm this one.")
+                        .font(.caption.weight(.semibold)).foregroundStyle(Palette.inkSoft).wraps()
+                } label: {
+                    Text("Checked once · Why?").font(.caption.weight(.bold)).foregroundStyle(Palette.inkSoft)
+                }
+                .tint(Palette.inkSoft)
             }
         }
     }
+
+    /// SEAL_TEXT.twice in web/src/lib/stepsView.ts.
+    nonisolated static let checkedTwice = "Checked twice: the words are on your paper, and a second check agrees with the explanation."
 
     nonisolated static func flaggedText(_ r: MeaningResult) -> String {
         var text = "Double-check this one with your clinic: our second check says the explanation may not match your paper."
@@ -231,14 +274,22 @@ struct PaperFirstBlock: View {
             if let e = view.explanation { Text(e).font(.body).foregroundStyle(Palette.ink).wraps() }
             PaperQuote(quote: view.quote)
         } else {
-            Text("\(view.quoteLabel) \u{201C}\(view.quote)\u{201D}")
-                .font(.body.weight(.semibold)).foregroundStyle(Palette.ink)
-                .strikethrough(done, color: Palette.ink.opacity(0.4))
-                .wraps().sunRule()
-                .accessibilityLabel("\(view.quoteLabel) \(view.quote)")
+            VStack(alignment: .leading, spacing: 2) {
+                Text(view.screenLabel.uppercased())
+                    .font(.caption2.weight(.heavy)).foregroundStyle(Palette.tealDeep)
+                Text("\u{201C}\(view.quote)\u{201D}")
+                    .font(.body.weight(.semibold)).foregroundStyle(Palette.ink)
+                    .strikethrough(done, color: Palette.ink.opacity(0.4))
+                    .wraps()
+            }
+            .sunRule()
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(view.screenLabel): \(view.quote)")
             if let e = view.explanation {
-                Text("\(view.note ?? "") \(e)".trimmingCharacters(in: .whitespaces))
-                    .font(.subheadline).foregroundStyle(Palette.inkSoft).wraps()
+                VStack(alignment: .leading, spacing: 2) {
+                    if let note = view.note { Text(note).font(.caption.weight(.bold)).foregroundStyle(Palette.inkSoft).wraps() }
+                    Text(e).font(.subheadline).foregroundStyle(Palette.inkSoft).wraps()
+                }
             }
         }
     }

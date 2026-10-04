@@ -38,5 +38,9 @@ describe("labsView", () => {
     expect(at("Vitamin B12   450   pg/mL   200-900", "Vitamin B12", "450")).toBe("Vitamin B12");
     // Digits in the name that equal the result are not the result (round 2).
     expect(at("Vitamin B12 12 pg/mL 5-20", "Vitamin", "12")).toBe("Vitamin B12");
+    expect(at("CA-125 125 U/mL 0-35", "CA", "125")).toBe("CA-125");
+    expect(at("Vitamin D (25-Hydroxy) 25 ng/mL 30-100", "Vitamin D", "25")).toBe("Vitamin D (25-Hydroxy)");
+    expect(at("Bilirubin, Direct   <0.2   mg/dL   0.1-0.3", "Bilirubin, Direct", "<0.2")).toBe("Bilirubin, Direct");
+    expect(at("Base Excess   -1   mmol/L   -2 to 3", "Base Excess", "-1")).toBe("Base Excess");
   });
 });

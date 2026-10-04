@@ -66,8 +66,9 @@ export function labClosedRow(r: Pick<ResultRow, "quote" | "test" | "value" | "un
 function printedName(line: string, test: string, value: string): string {
   const found = findTestName(line, test);
   if (!found) return line.split(/\s{2,}|\t/)[0].trim();
-  // The value as its own token, so digits inside the name ("B12" before "12") are not taken for it (Codex review, round 2).
-  const tok = value ? new RegExp(`(?<![\\p{L}\\p{N}.,])${escapeRe(value)}(?![\\p{N}])`, "u").exec(line.slice(found.end)) : null;
+  // The value as its own whitespace-separated token, so digits still part of the name ("B12" before "12", "CA-125"
+  // before "125", "(25-Hydroxy)") are not taken for it (Codex review, rounds 2 and 3).
+  const tok = value ? new RegExp(`(?<!\\S)${escapeRe(value)}(?![\\p{N}])`, "u").exec(line.slice(found.end)) : null;
   const at = tok ? found.end + tok.index : -1;
   const name = line.slice(0, at < 0 ? found.end : at).replace(/[\s:=]+$/, "").trim();
   return name || found.text;

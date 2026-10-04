@@ -24,6 +24,19 @@ export const ADVERSARIAL: Record<string, string> = {
   "email-like run": `Patient: Ana Ruiz\nEmail: a@${fill("a.")}`.slice(0, N),
   "id-like run": `MRN: ${fill("A1")}`.slice(0, N),
   "honorifics with distinct surnames": W.map((w) => `Ms. Q${w} `).join("").slice(0, N),
+  // The shared reading and the new readers (value on the next line, a label across two lines, quoted values).
+  "invisible characters everywhere": fill("Pa​t⁠ient: M­aria﻿ "),
+  "one letter then thousands of combining marks": `Patient: M${"́".repeat(N - 20)}`,
+  "compatibility characters that expand": fill("ﷺﬁ⑴Ｍ"),
+  "lookalikes and fullwidth digits": fill("MRN： ８８４ Маria "),
+  "stray brackets and fake placeholders": fill("⟦⟧⟦NAME_A 1⟧ ⟦ID_A⟧"),
+  "a run of invisible characters before each bracket": fill(`${"​".repeat(40)} ⟦NAME_A⟧ `),
+  "labels ending every line, values below": fill("DOB:\nPatient:\nMRN\n"),
+  "a label broken across every pair of lines": fill("Medical Record\nNumber: A1209938 Date of\nBirth: 01/01/1970 "),
+  "quoted values after every label": fill('MRN: "(((88412907 Patient: "Maria '),
+  "id fields with junk words before the id": fill("MRN: a b c d e f g h 1234567 "),
+  "header tables of placeholders": fill("Name   DOB   MRN ⟦ID_A⟧\nMaria Lopez   01/01/1970   88412907\n"),
+  "one huge word": fill("a"),
 };
 
 // Letter-only names (a digit ends a name word, so "Zed12" is not a name).

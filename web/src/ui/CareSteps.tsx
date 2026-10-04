@@ -84,14 +84,18 @@ export function CareSteps(p: Props) {
     return () => clearTimeout(t);
   }, [cheering]);
   // When the first current step is a quiet card (medicine, lab, warning-kind or flagged), Pip greets once at the
-  // "Your steps" heading instead, so a first-time person still hears it. Gone for good once any step is marked done.
+  // "Your steps" heading instead, so a first-time person still hears it. Gone for good once any step is marked done,
+  // warning signs included (they are never Pip's spot, but a done one still means this is not a first view).
   const [greetOver, setGreetOver] = useState(false);
-  const spot = pipSpot(stepOrder, p.done, checkFor, cheering, !greetOver);
+  const anyDoneAtAll = items.some((i) => p.done[i.id]);
+  const spot = pipSpot(stepOrder, p.done, checkFor, cheering, !greetOver && !anyDoneAtAll);
   const { calm } = usePipCalm();
   const pipText = spot.at !== "none" && spot.line ? pipLine(p.language, spot.line) : "";
   // Keyed on where Pip is too, not only on the words: two steps cheered one after the other both say "Nice, that's
   // done", and the second must still be read. Clearing first makes the repeated words a fresh change (Codex review).
-  const pipKey = spot.at === "step" ? `${spot.id}:${spot.mood}` : spot.at;
+  // The greeting shares the key of the same step's own "Start here", so a late check that turns that step quiet (or
+  // back) moves the words between card and heading without reading them a second time (Codex review).
+  const pipKey = spot.at === "step" ? `${spot.id}:${spot.mood}` : spot.at === "greet" ? `${spot.id}:arrive` : spot.at;
   // On the card the greeting's step keeps a quiet Pip: neutral face, no bubble, no motion.
   const cardPip: Extract<PipSpot, { at: "step" }> | null =
     spot.at === "step" ? spot : spot.at === "greet" ? { at: "step", id: spot.id, mood: "quiet", line: null } : null;

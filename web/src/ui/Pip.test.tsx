@@ -66,8 +66,8 @@ afterEach(() => {
 });
 
 /** The steps view with its own "done" state, as CarePlanTool holds it. */
-function Steps({ items, meaning, language = "English" }: { items: VerifiedItem[]; meaning?: MeaningState; language?: string }) {
-  const [done, setDone] = useState<Record<string, boolean>>({});
+function Steps({ items, meaning, language = "English", initialDone = {} }: { items: VerifiedItem[]; meaning?: MeaningState; language?: string; initialDone?: Record<string, boolean> }) {
+  const [done, setDone] = useState<Record<string, boolean>>(initialDone);
   const m = meaning ?? { status: "idle", byId: {} };
   const checkFor = (id: string): Check => (m.status === "done" ? checkOf(m.byId[id]) : "unchecked");
   return (
@@ -247,6 +247,23 @@ describe("the heading greeting (first current step is quiet)", () => {
     } finally {
       act(() => setCalmMode(false));
     }
+  });
+
+  it("does not greet when a warning sign was already marked done (a saved plan is not a first view)", () => {
+    render({ items: [W911, MET, WALK], initialDone: { w911: true } });
+    expect(greet()).toBeNull();
+    expect(pipRows()).toEqual([["met", "quiet"]]);
+  });
+
+  it("a late check that turns the first step quiet moves Start here to the heading without reading it twice (Codex review)", () => {
+    render({ items: [WALK, SODA] });
+    settle();
+    expect(live()).toBe("Start here");
+    const meaning: MeaningState = { status: "done", byId: { walk: { id: "walk", flagged: true, numbers_ok: true, unexpected_numbers: [], model_verdict: "different", what_differs: "", certified: false } } };
+    render({ items: [WALK, SODA], meaning });
+    expect(greetBubble()).toBe("Start here");
+    expect(pipRows()).toEqual([["walk", "quiet"]]);
+    for (let i = 0; i < 6; i++) { act(() => { vi.advanceTimersByTime(100); }); expect(live()).toBe("Start here"); }
   });
 
   it("is never on or beside the warning signs", () => {

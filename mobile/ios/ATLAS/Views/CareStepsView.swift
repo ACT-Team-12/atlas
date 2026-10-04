@@ -17,7 +17,9 @@ struct CareStepsView: View {
                             ? "These steps were saved by an older version of ATLAS, so we can't tell which text, language or reading level they were read with. Read your paper again to update them."
                             : "You changed the text, language or reading level since this was read. Read your paper again to update these steps.")
                     }
-                    if model.hasWarnings { WarningBanner() }
+                    // One warning section, as on the website: the pinned steps' own heading below when there are any; this banner only
+                    // when the reading flags warnings but no shown step is pinned.
+                    if model.hasWarnings && model.warningItems.isEmpty { WarningBanner() }
 
                     Text("\(care.stats.grounded) steps found in your paper · \(care.stats.refused) held back because we couldn't show their words from your paper · \(String(format: "%.1f", Double(care.stats.ms) / 1000))s")
                         .font(.footnote.weight(.bold)).foregroundStyle(Palette.inkSoft)

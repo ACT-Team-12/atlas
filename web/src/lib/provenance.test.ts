@@ -18,10 +18,23 @@ const read = (f: string) => readFileSync(join(repo, f), "utf8");
 describe("who suggested the places to call", () => {
   const labels = [P.BY_ATLAS, P.BY_ATLAS_CHECK_PAPER, P.PLACES_NOTE, P.HELP_HEADING_SHEET, P.HELP_HEADING_SHARE, SESSION_HEADINGS[2]];
 
-  it("every label names ATLAS and none claims the place is not from the paper or the doctor", () => {
+  // Any "not ... paper" or "not ... doctor" contrast: the claim ATLAS cannot back, whatever the exact words.
+  const CONTRAST = /\bnot\b[^.]*\b(?:paper|doctor)\b|\b(?:paper|doctor)\b[^.]*\bdid not\b/i;
+
+  it("the guard catches every wording an earlier review removed", () => {
+    for (const removed of [
+      "Your doctor did not send you to them.",
+      "They are suggestions, not instructions from your paper.",
+      "Suggested by ATLAS, not from your paper",
+      "Who can help (picked by ATLAS, not by my doctor; checked numbers)",
+      "Suggestions from ATLAS, not your paper",
+    ]) expect(removed).toMatch(CONTRAST);
+  });
+
+  it("every label names ATLAS and none contrasts the place with the paper or the doctor", () => {
     for (const l of labels) {
       expect(l).toMatch(/ATLAS/);
-      expect(l).not.toMatch(/not (?:from|on|in) (?:your|my|the) paper|doctor did not|not (?:from|by) (?:your|my|the) doctor/i);
+      expect(l).not.toMatch(CONTRAST);
     }
   });
 
@@ -30,6 +43,12 @@ describe("who suggested the places to call", () => {
     expect(read(native.androidShare)).toContain(`"${P.HELP_HEADING_SHARE}"`);
     expect(read(native.iosPlan)).toContain(`"${P.BY_ATLAS_CHECK_PAPER}"`);
     expect(read(native.androidPlan)).toContain(`"${P.BY_ATLAS_CHECK_PAPER}"`);
-    for (const f of Object.values(native)) expect(read(f)).not.toMatch(/not from (?:your|my|the) paper|checked numbers\)/i);
+    // The lines around the native labels, not whole files (other app text can say "not" and "paper" in one sentence).
+    for (const f of Object.values(native)) {
+      const near = read(f).split("\n").filter((line) => /Suggested by ATLAS|WHO CAN HELP/.test(line));
+      expect(near.length).toBeGreaterThan(0);
+      for (const line of near) expect(line).not.toMatch(CONTRAST);
+      expect(read(f)).not.toMatch(/checked numbers\)/);
+    }
   });
 });

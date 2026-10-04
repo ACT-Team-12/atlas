@@ -132,6 +132,28 @@ describe("flagged results: one row each, the report's own words, our code's chip
     }
   });
 
+  it("no row header, in any group or state, carries an AI field: only the report's words and our code's chip", () => {
+    render();
+    act(() => host.querySelector<HTMLButtonElement>('[data-lab-group="inside"] > button')!.click());
+    const check = () => {
+      const all = [...host.querySelectorAll<HTMLLIElement>("li[data-lab-row]")];
+      expect(all.length).toBe(ROWS.length);
+      for (const li of all) {
+        const head = toggleOf(li);
+        const r = ROWS.find((x) => labClosedRow(x).name === li.querySelector("[data-report-name]")!.textContent)!;
+        const words = [head.textContent!, ...[...head.querySelectorAll("*"), head].flatMap((e) => e.getAttributeNames().map((a) => e.getAttribute(a) ?? ""))].join(" ");
+        for (const ai of [r.plain_name, r.ask]) expect(words, `AI text on the ${r.test} row header`).not.toContain(ai);
+        expect(words).not.toMatch(/AI-/);
+        // Every printed part of the header comes from the report's own line.
+        const c = labClosedRow(r);
+        for (const part of [c.name, c.value, c.range].filter(Boolean)) expect(r.quote).toContain(part);
+      }
+    };
+    check();
+    for (const li of host.querySelectorAll<HTMLLIElement>("li[data-lab-row]")) if (toggleOf(li).getAttribute("aria-expanded") === "false") act(() => toggleOf(li).click());
+    check();
+  });
+
   it("opening a row shows our reason, the report's line first, then the plain name (marked) and the question", () => {
     render();
     const g = rowNamed("Glucose, fasting");

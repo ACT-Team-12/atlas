@@ -167,6 +167,33 @@ describe("rule 2: the last nets before ElevenLabs and Vonage", () => {
   });
 });
 
+describe("the page's x-atlas-shielded header is never trusted", () => {
+  const spoofed = (path: string, body: unknown) =>
+    new Request(`http://localhost${path}`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": `10.2.0.${++ip}`, "x-atlas-shielded": "1" }, body: JSON.stringify(body) });
+
+  it("raw identifiers under a spoofed header are still shielded on every route", async () => {
+    answer = readPaper;
+    expect((await extract.POST(spoofed("/api/extract", { text: NAMED_PAPER, language: "English", reading_level: "simple" }))).status).toBe(200);
+    neverSent();
+    sent.length = 0;
+    await readExtractEvents((await stream.POST(spoofed("/api/extract/stream", { text: NAMED_PAPER, language: "English", reading_level: "simple" }))).body!, () => {});
+    neverSent();
+    sent.length = 0;
+    answer = () => ({ questions: [] });
+    expect((await understand.POST(spoofed("/api/understand", { source_text: NAMED_PAPER, language: "English", items: [{ id: "item-0", kind: "medication", title: "Maria Lopez", source_quote: "Maria, take metformin 500 mg by mouth 2 times a day with meals." }] }))).status).toBe(200);
+    neverSent();
+    sent.length = 0;
+    answer = () => ({ results: [] });
+    expect((await meaning.POST(spoofed("/api/meaning", { items: [{ id: "a", plain_language: "Take metformin.", when: "", source_quote: "Patient: Maria Lopez   DOB: 04/12/1961   MRN: 88412907" }] }))).status).toBe(200);
+    neverSent();
+    sent.length = 0;
+    answer = () => ({ summary: "Plan.", steps: [], ask_a_person: false, ask_a_person_reason: "" });
+    const care = [{ id: "item-0", kind: "lab_test", title: "A1c", plain_language: "Get the A1c test.", when: "", source_quote: "Patient: Maria Lopez   DOB: 04/12/1961   MRN: 88412907" }];
+    expect((await plan.POST(spoofed("/api/plan", { care, barriers: ["transport"], zip: "30303", language: "English", note: "" }))).status).toBe(200);
+    neverSent();
+  });
+});
+
 describe("fails closed on the answer side", () => {
   it("a placeholder the request did not carry and the server did not make (a model made it up) never reaches the answer", async () => {
     answer = (params) => ({ ...readPaper(params), questions_for_doctor: ["Ask about ⟦NAME_Q⟧ and the dose."] });

@@ -6,8 +6,9 @@ export function Trust() {
   return (
     <section id="trust" className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="trust-title">
       <div className="section-card bg-lilac px-6 sm:px-12 py-24">
-        <p className="hand text-3xl text-ink-soft -rotate-1 mb-5">how we keep it honest</p>
-        <h2 id="trust-title" className="display text-[clamp(2.4rem,5vw,5rem)] max-w-[14em]">It shows its work, and it holds back when it can&apos;t.</h2>
+        {/* The section's point leads (a teammate's review, Oct 4): what it is about, big; the line under it, smaller. */}
+        <h2 id="trust-title" className="display text-[clamp(2.6rem,5.5vw,5.5rem)]">How we keep it honest</h2>
+        <p className="mt-4 text-[clamp(1.35rem,2.4vw,2.1rem)] font-bold leading-snug max-w-[24em]">It shows its work, and it holds back when it can&apos;t.</p>
         <div className="mt-12 grid lg:grid-cols-3 gap-6">
           <div className="card p-6">
             <span className="chip bg-mint text-teal-deep">Grounded</span>

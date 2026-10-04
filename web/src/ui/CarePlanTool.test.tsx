@@ -365,9 +365,12 @@ describe("a result the person changed their answers after", () => {
     await release(read, ready(careFor(PAPER, "Metformin twice a day")));
     expect(saved()[0].text).toBe(PAPER);
 
+    expect(host.querySelector("[data-ask-paper]")).not.toBeNull();
     act(() => typeInto(paperBox(), `${PAPER} Walk for 20 minutes a day.`));
     expect(screenText()).toContain("Metformin twice a day");
     expect(screenText()).toContain(CARE_OUTDATED);
+    // Ask my paper would answer from the old text, so it is gone until the paper is read again.
+    expect(host.querySelector("[data-ask-paper]")).toBeNull();
     expect(saved()[0].text).toBe(PAPER);
 
     remount();

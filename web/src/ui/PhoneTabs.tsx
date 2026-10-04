@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useSyncExternalStore, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import { keyTarget, TABS, tabInfo, type FlowState, type Tab } from "@/lib/phoneTabs";
 
 /** Same edge as Tailwind's `md`: below it the steps are tabs, at it and above they stack as before. */
@@ -61,6 +61,19 @@ export function scrollToPanel(t: Tab, onlyIfHidden = false): PageScroll | null {
 export function PhoneTabBar({ shown, state, onPick, notice }: { shown: Tab; state: FlowState; onPick: (t: Tab) => void; notice?: string | null }) {
   const info = tabInfo(state);
   const refs = useRef<Record<number, HTMLButtonElement | null>>({});
+  // While the bar is stuck under the floating nav, the strip between the nav and the bar is covered too, so a step
+  // scrolling past never shows in that gap and reads as sitting on top of the tabs. At rest nothing is covered.
+  const bar = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const el = bar.current;
+    if (!el) return;
+    const check = () => setStuck(el.getBoundingClientRect().top <= parseFloat(getComputedStyle(el).top) + 1);
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => { window.removeEventListener("scroll", check); window.removeEventListener("resize", check); };
+  }, []);
   const closed = TABS.filter((t) => !info[t].available);
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
@@ -73,7 +86,8 @@ export function PhoneTabBar({ shown, state, onPick, notice }: { shown: Tab; stat
 
   return (
     // The mint strip behind the bar keeps the steps from showing through while it is stuck.
-    <div className="md:hidden sticky top-[4rem] z-30 mt-4 -mx-4 sm:-mx-10 bg-mint-soft px-4 sm:px-10 py-2">
+    <div ref={bar} data-stuck={stuck || undefined}
+      className={`md:hidden sticky top-[4rem] z-30 mt-4 -mx-4 sm:-mx-10 bg-mint-soft px-4 sm:px-10 py-2 ${stuck ? "before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-[4rem] before:bg-mint-soft before:content-['']" : ""}`}>
       <div role="tablist" aria-label="Steps" onKeyDown={onKeyDown}
         className="grid grid-cols-3 gap-1 rounded-full border-2 border-ink bg-paper p-1 shadow-[0_3px_0_var(--ink)]">
         {TABS.map((t) => {

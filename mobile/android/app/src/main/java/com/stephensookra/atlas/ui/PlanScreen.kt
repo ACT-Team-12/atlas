@@ -149,6 +149,10 @@ fun PlanStepCard(index: Int, step: PlanStep, plan: PlanResponse, quotes: List<St
         }
         if (remindEnabled) OutlinePill("Remind me", onClick = onRemind, fill = Palette.mint, icon = Icons.Filled.Notifications,
             contentDescription = "Remind me about step $index")
+        // Who picked these places: ATLAS, not the paper (caregiver's try, Oct 4; web lib/provenance.ts).
+        if (step.resource_ids.any { plan.resources[it] != null }) {
+            Text("Suggested by ATLAS, not from your paper", style = Type.sub.copy(fontWeight = FontWeight.Bold, color = Palette.inkSoft))
+        }
         step.resource_ids.forEach { id -> plan.resources[id]?.let { ResourceView(it) } }
     }
 }

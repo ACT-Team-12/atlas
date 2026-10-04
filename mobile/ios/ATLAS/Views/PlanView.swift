@@ -154,6 +154,10 @@ struct PlanStepCard: View {
                     .accessibilityLabel("Remind me about step \(index)")
             }
 
+            // Who picked these places: ATLAS, not the paper (caregiver's try, Oct 4; web lib/provenance.ts).
+            if step.resource_ids.contains(where: { plan.resources[$0] != nil }) {
+                Text("Suggested by ATLAS, not from your paper").font(.caption.weight(.heavy)).foregroundStyle(Palette.inkSoft)
+            }
             ForEach(step.resource_ids, id: \.self) { id in
                 if let r = plan.resources[id] { ResourceView(card: r, open: open) }
             }

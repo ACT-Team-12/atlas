@@ -32,7 +32,7 @@ describe("send to family text", () => {
     expect(t).toContain("1. Book the lab. Call the clinic.");
     // ...and the plan step tied to it carries the paper's words too.
     expect(t).toMatch(/1\. Book the lab\. Call the clinic\.\n {3}Your paper says: "Return for basic metabolic panel within 2 weeks\."/);
-    expect(t).toContain("WHO CAN HELP (picked by ATLAS, not by the doctor; checked numbers)\n- Mercy Care: (678) 843-8500");
+    expect(t).toContain("WHO CAN HELP (suggested by ATLAS, not from the paper; checked numbers)\n- Mercy Care: (678) 843-8500");
     expect(t).not.toContain("Not Used Clinic");
     expect(t).toContain("- Do I need to fast?");
     expect(t).toMatch(/not medical advice/);

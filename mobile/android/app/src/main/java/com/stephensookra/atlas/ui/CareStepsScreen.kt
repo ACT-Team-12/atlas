@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -89,7 +90,8 @@ fun CareStepsScreen(model: AppModel) {
             })
         }
 
-        items.forEach { item ->
+        // Keyed by id, so a step's open "Why?" and "Ask your pharmacist" state never moves to the next step on Remove.
+        items.forEach { item -> key(item.id) {
             val check = model.checkFor(item.id)
             CareItemCard(
                 item = item,
@@ -102,7 +104,7 @@ fun CareStepsScreen(model: AppModel) {
                 onRemind = { reminder = ReminderTarget(PaperFirst.bookTitle(item.kind), item.source_quote, PaperFirst.bookWhen(item, check)) },
                 onRemove = { model.remove(item.id) },
             )
-        }
+        } }
 
         val removed = model.removedItems
         if (removed.isNotEmpty()) {

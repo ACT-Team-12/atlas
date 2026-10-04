@@ -114,16 +114,6 @@ function browserAdjusting(now: number, y: number, layout: LayoutShift): boolean 
   return now - layout.at <= LAYOUT_SCROLL_MS && Math.abs(y - layout.y) <= OWN_SCROLL_SLACK_PX;
 }
 
-/**
- * The other order: a size change seen just AFTER a scroll, at that scroll's position. Chrome dispatches the scroll
- * event for its scroll-anchoring adjustment before size observers report the change that caused it (measured on the
- * live site, Oct 4: the "working" card changing height while a plan was built nudged the page 4 px, the scroll came
- * first and the size report 1 ms later). Such a scroll was the browser's, so the caller takes back the mark it made.
- */
-export function laterShiftExplains(scroll: { at: number; y: number }, layout: LayoutShift): boolean {
-  return layout.at >= scroll.at && layout.at - scroll.at <= LAYOUT_SCROLL_MS && Math.abs(layout.y - scroll.y) <= OWN_SCROLL_SLACK_PX;
-}
-
 /** The page's own scroll: when it started, until when it may still be moving, and from where to where (scrollY). */
 export type OwnScroll = { start: number; until: number; from: number; to: number };
 

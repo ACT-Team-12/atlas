@@ -1,0 +1,655 @@
+{
+ "about": "Cases for the 'Your medicine changes' card (web/src/lib/medicineChanges.ts): which row each medicine step goes in (stop, change, start, keep, ask = Ask your pharmacist), why, the medicine's name as written at the start of the line, and the old and new dose shown only when both are on the line. 'paper' is the paper the quote sits in (for its list heading); without it the quote stands alone. Row 'none' means the step is not a medicine and is not sorted. Non-English lines are written by the team and need a native speaker's review. The web suite replays every case (medicineChanges.vectors.test.ts); mobile/shared/check-vectors.sh runs it in web-ci.",
+ "cases": [
+  {
+   "name": "sample: metformin under START heading",
+   "language": "English",
+   "kind": "medication",
+   "quote": "metformin (GLUCOPHAGE) 500 mg tablet. Take 1 tablet by mouth 2 times a day with meals.",
+   "paper": "AFTER VISIT SUMMARY\nSample Patient   DOB: 01/01/1970   Visit: 10/01/2026   Midtown Family Medicine (sample clinic)\nProvider: Sample Provider, MD\n\nReason for visit: Follow-up for high blood sugar and blood pressure.\n\nYour diagnoses today:\n- Type 2 diabetes mellitus without complications (E11.9)\n- Essential hypertension (I10)\n\nMedication changes\nSTART taking these medications:\n- metformin (GLUCOPHAGE) 500 mg tablet. Take 1 tablet by mouth 2 times a day with meals.\nCHANGE how you take these medications:\n- lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily. Previously 10 mg once daily.\nSTOP taking these medications:\n- ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function.\n\nOrders placed today\n- Hemoglobin A1c - due in 3 months\n- Basic metabolic panel - fasting, complete within 2 weeks at any Quest or Labcorp location\n- Referral to Ophthalmology for diabetic eye exam. Their office will call you to schedule. If you have not heard from them in 10 days, call 404-555-0134.\n\nFollow-up\nReturn to clinic in 3 months, or sooner if needed.\n\nPatient instructions\nCheck your blood sugar every morning before breakfast and write down the number. Bring your log to your next visit.\nWalk 30 minutes, 5 days a week, as tolerated.\nLimit sugary drinks such as soda and sweet tea.\n\nWhen to seek care\nCall the office if your blood sugar is above 300 two times in a row.\nCall 911 or go to the nearest emergency room if you have chest pain, trouble breathing, or sudden weakness on one side of your body.",
+   "expect": {
+    "row": "start",
+    "reason": "heading",
+    "medicine_name": "metformin (GLUCOPHAGE)"
+   }
+  },
+  {
+   "name": "sample: lisinopril under CHANGE heading, both doses on the line",
+   "language": "English",
+   "kind": "medication",
+   "quote": "lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily. Previously 10 mg once daily.",
+   "paper": "AFTER VISIT SUMMARY\nSample Patient   DOB: 01/01/1970   Visit: 10/01/2026   Midtown Family Medicine (sample clinic)\nProvider: Sample Provider, MD\n\nReason for visit: Follow-up for high blood sugar and blood pressure.\n\nYour diagnoses today:\n- Type 2 diabetes mellitus without complications (E11.9)\n- Essential hypertension (I10)\n\nMedication changes\nSTART taking these medications:\n- metformin (GLUCOPHAGE) 500 mg tablet. Take 1 tablet by mouth 2 times a day with meals.\nCHANGE how you take these medications:\n- lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily. Previously 10 mg once daily.\nSTOP taking these medications:\n- ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function.\n\nOrders placed today\n- Hemoglobin A1c - due in 3 months\n- Basic metabolic panel - fasting, complete within 2 weeks at any Quest or Labcorp location\n- Referral to Ophthalmology for diabetic eye exam. Their office will call you to schedule. If you have not heard from them in 10 days, call 404-555-0134.\n\nFollow-up\nReturn to clinic in 3 months, or sooner if needed.\n\nPatient instructions\nCheck your blood sugar every morning before breakfast and write down the number. Bring your log to your next visit.\nWalk 30 minutes, 5 days a week, as tolerated.\nLimit sugary drinks such as soda and sweet tea.\n\nWhen to seek care\nCall the office if your blood sugar is above 300 two times in a row.\nCall 911 or go to the nearest emergency room if you have chest pain, trouble breathing, or sudden weakness on one side of your body.",
+   "expect": {
+    "row": "change",
+    "reason": "words_and_heading",
+    "dose": {
+     "was": "10 mg",
+     "now": "20 mg"
+    },
+    "medicine_name": "lisinopril"
+   }
+  },
+  {
+   "name": "sample: ibuprofen under STOP heading",
+   "language": "English",
+   "kind": "medication",
+   "quote": "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function.",
+   "paper": "AFTER VISIT SUMMARY\nSample Patient   DOB: 01/01/1970   Visit: 10/01/2026   Midtown Family Medicine (sample clinic)\nProvider: Sample Provider, MD\n\nReason for visit: Follow-up for high blood sugar and blood pressure.\n\nYour diagnoses today:\n- Type 2 diabetes mellitus without complications (E11.9)\n- Essential hypertension (I10)\n\nMedication changes\nSTART taking these medications:\n- metformin (GLUCOPHAGE) 500 mg tablet. Take 1 tablet by mouth 2 times a day with meals.\nCHANGE how you take these medications:\n- lisinopril 10 mg tablet. Take 2 tablets (20 mg total) by mouth once daily. Previously 10 mg once daily.\nSTOP taking these medications:\n- ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function.\n\nOrders placed today\n- Hemoglobin A1c - due in 3 months\n- Basic metabolic panel - fasting, complete within 2 weeks at any Quest or Labcorp location\n- Referral to Ophthalmology for diabetic eye exam. Their office will call you to schedule. If you have not heard from them in 10 days, call 404-555-0134.\n\nFollow-up\nReturn to clinic in 3 months, or sooner if needed.\n\nPatient instructions\nCheck your blood sugar every morning before breakfast and write down the number. Bring your log to your next visit.\nWalk 30 minutes, 5 days a week, as tolerated.\nLimit sugary drinks such as soda and sweet tea.\n\nWhen to seek care\nCall the office if your blood sugar is above 300 two times in a row.\nCall 911 or go to the nearest emergency room if you have chest pain, trouble breathing, or sudden weakness on one side of your body.",
+   "expect": {
+    "row": "stop",
+    "reason": "heading",
+    "medicine_name": "ibuprofen (ADVIL)"
+   }
+  },
+  {
+   "name": "plain stop",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Stop taking aspirin 81 mg.",
+   "expect": {
+    "row": "stop",
+    "reason": "words",
+    "medicine_name": null
+   }
+  },
+  {
+   "name": "negated stop is never a stop",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Do not stop taking metoprolol 25 mg.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "negated stop with an adverb",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Do not suddenly stop taking your metoprolol.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "hold then restart",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Hold lisinopril for 2 days, then restart.",
+   "expect": {
+    "row": "ask",
+    "reason": "hold"
+   }
+  },
+  {
+   "name": "stop then restart without hold word",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Stop lisinopril for 2 days, then restart it.",
+   "expect": {
+    "row": "ask",
+    "reason": "mixed"
+   }
+  },
+  {
+   "name": "two medicines, two actions on one line",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Stop ibuprofen and start acetaminophen 500 mg every 6 hours as needed for pain.",
+   "expect": {
+    "row": "ask",
+    "reason": "mixed"
+   }
+  },
+  {
+   "name": "two medicines, one action",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Stop taking ibuprofen and naproxen.",
+   "expect": {
+    "row": "stop",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "from X to Y: both doses on the line",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Increase lisinopril from 10 mg to 20 mg once daily.",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": {
+     "was": "10 mg",
+     "now": "20 mg"
+    },
+    "medicine_name": null
+   }
+  },
+  {
+   "name": "lower from X to Y",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Lower your metoprolol dose from 50 mg to 25 mg.",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": {
+     "was": "50 mg",
+     "now": "25 mg"
+    }
+   }
+  },
+  {
+   "name": "only the new dose is on the line",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Increase your lisinopril dose to 20 mg once daily.",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": null
+   }
+  },
+  {
+   "name": "previously, but the new dose belongs to another medicine",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Take 20 mg amlodipine daily. Previously 10 mg lisinopril.",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": null
+   }
+  },
+  {
+   "name": "previously with two other doses (two medicines)",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Change: warfarin 5 mg daily (previously 2 mg) and aspirin 81 mg daily.",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": null
+   }
+  },
+  {
+   "name": "from-to for two medicines on one line",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Increase lisinopril from 10 mg to 20 mg and metoprolol from 25 mg to 50 mg.",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": null
+   }
+  },
+  {
+   "name": "continue",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Continue metformin 500 mg twice daily.",
+   "expect": {
+    "row": "keep",
+    "reason": "words",
+    "medicine_name": null
+   }
+  },
+  {
+   "name": "no action words, no heading",
+   "language": "English",
+   "kind": "medication",
+   "quote": "metformin 500 mg tablet. Take 1 tablet twice daily.",
+   "expect": {
+    "row": "ask",
+    "reason": "no_action_words",
+    "medicine_name": "metformin"
+   }
+  },
+  {
+   "name": "a limit is not a stop",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Do not take more than 4 tablets in 24 hours.",
+   "expect": {
+    "row": "ask",
+    "reason": "stop_not_now"
+   }
+  },
+  {
+   "name": "a stop tied to a later event",
+   "language": "English",
+   "kind": "medication",
+   "quote": "Stop taking aspirin 5 days before your surgery.",
+   "expect": {
+    "row": "ask",
+    "reason": "stop_not_now"
+   }
+  },
+  {
+   "name": "conditional stop",
+   "language": "English",
+   "kind": "medication",
+   "quote": "If you get a rash, stop taking amoxicillin.",
+   "expect": {
+    "row": "ask",
+    "reason": "conditional"
+   }
+  },
+  {
+   "name": "risk words under a START heading are not a change",
+   "language": "English",
+   "kind": "medication",
+   "quote": "warfarin 5 mg tablet. Warfarin may increase your risk of bleeding.",
+   "paper": "START taking these medications:\n- warfarin 5 mg tablet. Warfarin may increase your risk of bleeding.",
+   "expect": {
+    "row": "start",
+    "reason": "heading"
+   }
+  },
+  {
+   "name": "line disagrees with its heading",
+   "language": "English",
+   "kind": "medication",
+   "quote": "aspirin 81 mg. Stop taking aspirin.",
+   "paper": "CONTINUE taking these medications:\n- aspirin 81 mg. Stop taking aspirin.",
+   "expect": {
+    "row": "ask",
+    "reason": "heading_disagrees"
+   }
+  },
+  {
+   "name": "continue heading",
+   "language": "English",
+   "kind": "medication",
+   "quote": "amlodipine 5 mg tablet. Take 1 tablet daily.",
+   "paper": "CONTINUE taking these medications:\n- amlodipine 5 mg tablet. Take 1 tablet daily.",
+   "expect": {
+    "row": "keep",
+    "reason": "heading",
+    "medicine_name": "amlodipine"
+   }
+  },
+  {
+   "name": "not a medicine step: not sorted",
+   "language": "English",
+   "kind": "self_care",
+   "quote": "Stop drinking soda.",
+   "expect": {
+    "row": "none"
+   }
+  },
+  {
+   "name": "es: stop heading",
+   "language": "Spanish",
+   "kind": "medication",
+   "quote": "ibuprofeno 200 mg tableta.",
+   "paper": "Deje de tomar estos medicamentos:\n- ibuprofeno 200 mg tableta.",
+   "expect": {
+    "row": "stop",
+    "reason": "heading",
+    "medicine_name": "ibuprofeno"
+   }
+  },
+  {
+   "name": "es: stop",
+   "language": "Spanish",
+   "kind": "medication",
+   "quote": "Deje de tomar el ibuprofeno.",
+   "expect": {
+    "row": "stop",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "es: negated stop",
+   "language": "Spanish",
+   "kind": "medication",
+   "quote": "No deje de tomar el metoprolol de repente.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "es: start",
+   "language": "Spanish",
+   "kind": "medication",
+   "quote": "Empiece a tomar metformina 500 mg dos veces al día con las comidas.",
+   "expect": {
+    "row": "start",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "es: change with both doses",
+   "language": "Spanish",
+   "kind": "medication",
+   "quote": "Aumente la dosis de lisinopril de 10 mg a 20 mg al día.",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": {
+     "was": "10 mg",
+     "now": "20 mg"
+    }
+   }
+  },
+  {
+   "name": "es: continue",
+   "language": "Spanish",
+   "kind": "medication",
+   "quote": "Continúe tomando amlodipino 5 mg al día.",
+   "expect": {
+    "row": "keep",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "es: suspend then resume",
+   "language": "Spanish",
+   "kind": "medication",
+   "quote": "Suspenda la warfarina por 2 días y luego reanude.",
+   "expect": {
+    "row": "ask",
+    "reason": "mixed"
+   }
+  },
+  {
+   "name": "es: conditional",
+   "language": "Spanish",
+   "kind": "medication",
+   "quote": "Si tiene sarpullido, deje de tomar la amoxicilina.",
+   "expect": {
+    "row": "ask",
+    "reason": "conditional"
+   }
+  },
+  {
+   "name": "vi: stop",
+   "language": "Vietnamese",
+   "kind": "medication",
+   "quote": "Ngưng uống ibuprofen.",
+   "expect": {
+    "row": "stop",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "vi: negated stop",
+   "language": "Vietnamese",
+   "kind": "medication",
+   "quote": "Không được ngưng thuốc metoprolol đột ngột.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "vi: start",
+   "language": "Vietnamese",
+   "kind": "medication",
+   "quote": "Bắt đầu uống metformin 500 mg mỗi ngày hai lần.",
+   "expect": {
+    "row": "start",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "vi: change with both doses",
+   "language": "Vietnamese",
+   "kind": "medication",
+   "quote": "Tăng liều lisinopril từ 10 mg lên 20 mg mỗi ngày.",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": {
+     "was": "10 mg",
+     "now": "20 mg"
+    }
+   }
+  },
+  {
+   "name": "vi: continue",
+   "language": "Vietnamese",
+   "kind": "medication",
+   "quote": "Tiếp tục uống amlodipine 5 mg mỗi ngày.",
+   "expect": {
+    "row": "keep",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "vi: hold",
+   "language": "Vietnamese",
+   "kind": "medication",
+   "quote": "Tạm ngưng warfarin 2 ngày rồi uống lại.",
+   "expect": {
+    "row": "ask",
+    "reason": "hold"
+   }
+  },
+  {
+   "name": "ko: stop",
+   "language": "Korean",
+   "kind": "medication",
+   "quote": "이부프로펜 복용을 중단하십시오.",
+   "expect": {
+    "row": "stop",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "ko: negated stop",
+   "language": "Korean",
+   "kind": "medication",
+   "quote": "메토프롤롤을 갑자기 중단하지 마십시오.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "ko: start",
+   "language": "Korean",
+   "kind": "medication",
+   "quote": "메트포르민 500mg 복용을 시작하십시오.",
+   "expect": {
+    "row": "start",
+    "reason": "words",
+    "medicine_name": "메트포르민"
+   }
+  },
+  {
+   "name": "ko: change, no doses to show",
+   "language": "Korean",
+   "kind": "medication",
+   "quote": "리시노프릴 용량을 늘리십시오.",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": null
+   }
+  },
+  {
+   "name": "ko: continue",
+   "language": "Korean",
+   "kind": "medication",
+   "quote": "아스피린을 계속 복용하십시오.",
+   "expect": {
+    "row": "keep",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "zh: stop",
+   "language": "Chinese",
+   "kind": "medication",
+   "quote": "停止服用布洛芬。",
+   "expect": {
+    "row": "stop",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "zh: stop heading with a full-width colon",
+   "language": "Chinese",
+   "kind": "medication",
+   "quote": "布洛芬 200 毫克",
+   "paper": "停止服用以下药物：\n・布洛芬 200 毫克",
+   "expect": {
+    "row": "stop",
+    "reason": "heading",
+    "medicine_name": "布洛芬"
+   }
+  },
+  {
+   "name": "zh: negated stop",
+   "language": "Chinese",
+   "kind": "medication",
+   "quote": "请勿突然停止服用美托洛尔。",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "zh: start",
+   "language": "Chinese",
+   "kind": "medication",
+   "quote": "开始服用二甲双胍500毫克，每天两次。",
+   "expect": {
+    "row": "start",
+    "reason": "words",
+    "medicine_name": null
+   }
+  },
+  {
+   "name": "zh: change, no doses to show",
+   "language": "Chinese",
+   "kind": "medication",
+   "quote": "赖诺普利剂量增加到20毫克，每天一次。",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": null
+   }
+  },
+  {
+   "name": "zh: continue",
+   "language": "Chinese",
+   "kind": "medication",
+   "quote": "继续服用阿司匹林81毫克。",
+   "expect": {
+    "row": "keep",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "zh: conditional",
+   "language": "Chinese",
+   "kind": "medication",
+   "quote": "如果出现皮疹，停止服用阿莫西林。",
+   "expect": {
+    "row": "ask",
+    "reason": "conditional"
+   }
+  },
+  {
+   "name": "fr: stop",
+   "language": "French",
+   "kind": "medication",
+   "quote": "Arrêtez de prendre l'ibuprofène.",
+   "expect": {
+    "row": "stop",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "fr: negated stop",
+   "language": "French",
+   "kind": "medication",
+   "quote": "N'arrêtez pas brusquement le métoprolol.",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "fr: start",
+   "language": "French",
+   "kind": "medication",
+   "quote": "Commencez la metformine 500 mg deux fois par jour.",
+   "expect": {
+    "row": "start",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "fr: change with both doses",
+   "language": "French",
+   "kind": "medication",
+   "quote": "Augmentez la dose de lisinopril de 10 mg à 20 mg par jour.",
+   "expect": {
+    "row": "change",
+    "reason": "words",
+    "dose": {
+     "was": "10 mg",
+     "now": "20 mg"
+    }
+   }
+  },
+  {
+   "name": "fr: continue",
+   "language": "French",
+   "kind": "medication",
+   "quote": "Continuez l'amlodipine 5 mg par jour.",
+   "expect": {
+    "row": "keep",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "am: stop",
+   "language": "Amharic",
+   "kind": "medication",
+   "quote": "ኢቡፕሮፌን መውሰድዎን ያቁሙ።",
+   "expect": {
+    "row": "stop",
+    "reason": "words"
+   }
+  },
+  {
+   "name": "am: negated stop",
+   "language": "Amharic",
+   "kind": "medication",
+   "quote": "ሜቶፕሮሎልን በድንገት አያቁሙ።",
+   "expect": {
+    "row": "ask",
+    "reason": "negated"
+   }
+  },
+  {
+   "name": "am: start",
+   "language": "Amharic",
+   "kind": "medication",
+   "quote": "ሜትፎርሚን 500 mg መውሰድ ይጀምሩ።",
+   "expect": {
+    "row": "start",
+    "reason": "words",
+    "medicine_name": "ሜትፎርሚን"
+   }
+  },
+  {
+   "name": "am: continue",
+   "language": "Amharic",
+   "kind": "medication",
+   "quote": "አስፕሪን መውሰድዎን ይቀጥሉ።",
+   "expect": {
+    "row": "keep",
+    "reason": "words"
+   }
+  }
+ ]
+}

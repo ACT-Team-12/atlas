@@ -191,7 +191,8 @@ describe("critical lines stay loud and open", () => {
     expect(res.counts).toEqual({ outside: 1, inside: 1, unknown: 0 });
     expect(res.rows[0]).toMatchObject({ test: "Potassium", status: "outside", direction: null, reason: "Your report marks this line critical." });
     render(res.rows);
-    const k = rowNamed("Potassium");
+    // The closed row's name is the line's own words up to the result, so the marker before the name stays on it.
+    const k = rowNamed("CRITICAL Potassium");
     expect(k.closest('[data-lab-group="outside"]')).not.toBeNull();
     expect(k.dataset.critical).toBe("true");
     expect(k.querySelector("[data-chip]")!.textContent).toBe("Flagged");

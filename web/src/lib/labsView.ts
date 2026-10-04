@@ -55,9 +55,20 @@ export function labChip(r: Pick<ResultRow, "status" | "direction">): LabChip {
 export type LabClosedRow = { name: string; value: string; unit: string; range: string; critical: boolean };
 
 export function labClosedRow(r: Pick<ResultRow, "quote" | "test" | "value" | "unit" | "range_text">): LabClosedRow {
-  // checkRows keeps a row only when the name is on its line, so the fallback (the start of the line) is a safety net.
-  const name = findTestName(r.quote, r.test)?.text ?? r.quote.split(/\s{2,}|\t/)[0].trim();
-  return { name, value: r.value, unit: r.unit, range: r.range_text, critical: criticalOnLine(r.quote) };
+  return { name: printedName(r.quote, r.test, r.value), value: r.value, unit: r.unit, range: r.range_text, critical: criticalOnLine(r.quote) };
+}
+
+/**
+ * The name as the line prints it: everything from the start of the line up to the result. The AI's test name only finds
+ * where the name is, so a shorter AI name ("Cholesterol" on "HDL Cholesterol 38") can't drop a printed qualifier
+ * (Codex review). checkRows keeps a row only when the name is on its line, so the fallback is a safety net.
+ */
+function printedName(line: string, test: string, value: string): string {
+  const found = findTestName(line, test);
+  if (!found) return line.split(/\s{2,}|\t/)[0].trim();
+  const at = value ? line.indexOf(value, found.end) : -1;
+  const name = line.slice(0, at < 0 ? found.end : at).replace(/[\s:=]+$/, "").trim();
+  return name || found.text;
 }
 
 /** The rows by what our code decided: outside first, then the ones it couldn't tell, then the ones in range. */

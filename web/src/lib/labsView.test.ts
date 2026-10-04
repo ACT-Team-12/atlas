@@ -29,4 +29,12 @@ describe("labsView", () => {
     const c = labClosedRow({ quote: "LDL Cholesterol          142       mg/dL      <100              H", test: "ldl cholesterol", value: "142", unit: "mg/dL", range_text: "<100" });
     expect(c).toEqual({ name: "LDL Cholesterol", value: "142", unit: "mg/dL", range: "<100", critical: false });
   });
+
+  it("a shorter AI name can't drop a printed qualifier: the name runs from the line's start to the result (Codex review)", () => {
+    const at = (quote: string, test: string, value: string) => labClosedRow({ quote, test, value, unit: "", range_text: "" }).name;
+    expect(at("HDL Cholesterol    38    mg/dL    >40    L", "Cholesterol", "38")).toBe("HDL Cholesterol");
+    expect(at("High Sensitivity CRP 1.0 mg/L 0.0-3.0", "CRP", "1.0")).toBe("High Sensitivity CRP");
+    expect(at("Cholesterol, HDL: 38 mg/dL >40 L", "Cholesterol", "38")).toBe("Cholesterol, HDL");
+    expect(at("Vitamin B12   450   pg/mL   200-900", "Vitamin B12", "450")).toBe("Vitamin B12");
+  });
 });

@@ -131,9 +131,10 @@
     --pip-cheek: #f58c7a;
   }
 }
-/* Paper is printed light, always: plans and handoff sheets come out black on white whatever the screen shows. */
+/* Paper is printed light, always: plans and handoff sheets come out black on white whatever the screen shows. The
+   selector list matches every dark selector above at equal or higher specificity, and comes later, so it wins. */
 @media print {
-  :root, :root[data-theme="dark"] {
+  :root, :root[data-theme="dark"], :root:not([data-theme]) {
     color-scheme: light;
     --paper: #fbf8f3;
     --ink: #102a43;

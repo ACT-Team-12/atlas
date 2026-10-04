@@ -132,7 +132,8 @@ const STOP = word(String.raw`stop|stopped|discontinue|discontinued|do${S}not${S}
 const NOT_NOW = word(
   String.raw`(?:do${S}not|don['’]t|never|not)(?:${S}\p{L}+){0,2}${S}(?:stop|discontinue)|no(?:${S}\p{L}+){0,2}${S}(?:deje|dejar|suspenda|suspender)|if|unless|when|before|after|si|cuando|antes${S}de|despu[eé]s${S}de|more${S}than|m[aá]s${S}de|exceed` +
     // How to take it, not a stop: "Do not take it on an empty stomach", "...with alcohol", "...at the same time as".
-    String.raw`|with|without|empty${S}stomach|same${S}time|together|con|sin|en${S}ayunas`,
+    // "Stop it without delay" is still a stop.
+    String.raw`|with(?!${S}(?:no${S})?delay)|without(?!${S}delay)|empty${S}stomach|same${S}time|together|con|sin(?!${S}demora)|en${S}ayunas`,
 );
 const BULLET = /^\s*(?:[-*•‣–]|\d{1,2}[.)])\s+/u;
 

@@ -177,7 +177,7 @@ describe("stepWhen: a medicine the PAPER says to stop goes under 'Right away'", 
   });
 
   it("a stop word in the quote itself", () => {
-    for (const q of ["STOP taking these medications: ibuprofen (ADVIL) 200 mg tablet.", "Discontinue naproxen.", "Do not take aspirin.", "No tome ibuprofeno."]) {
+    for (const q of ["STOP taking these medications: ibuprofen (ADVIL) 200 mg tablet.", "Discontinue naproxen.", "Do not take aspirin.", "No tome ibuprofeno.", "Stop taking aspirin without delay."]) {
       expect(stepWhen({ kind: "medication", source_quote: q, when: "" }, "unchecked").group, q).toBe("today");
     }
   });

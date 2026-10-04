@@ -121,12 +121,12 @@ const STEP_PAPERS: Record<string, string> = {
   "stop-gap": "STOP taking these medications:\n\nibuprofen 200 mg tablet.",
   "stop-numbered": "Stop these medicines:\n1. aspirin 81 mg tablet\n2) warfarin 5 mg tablet",
   "stop-es": "DEJE de tomar estos medicamentos:\n- ibuprofeno 200 mg tableta.\nSIGA tomando estos medicamentos:\n- metformina 500 mg tableta, dos veces al día.",
-  "stop-vi": "NGƯNG dùng các thuốc sau:\n- ibuprofen 200 mg viên.\nNgừng uống aspirin.\nKhông được tự ý ngưng thuốc metformin.\nĐừng ngưng thuốc prednisone đột ngột.\nNgưng dùng aspirin nếu quý vị bị chảy máu.\nNgưng dùng thuốc sau 5 ngày.\nKhông uống quá 4 viên mỗi ngày.\nNgưng aspirin trước khi phẫu thuật.\nNgưng dùng naproxen ngay.\nNgừng dùng thuốc và liên hệ với bác sĩ ngay.\nKhông uống aspirin cùng với rượu.",
-  "stop-ko": "다음 약의 복용을 중단하십시오:\n- 이부프로펜 200mg 정제\n아스피린 복용을 중단하십시오.\n나프록센을 끊으십시오.\n메트포르민을 임의로 중단하지 마십시오.\n구토하면 메트포르민 복용을 중단하십시오.\n5일 후에 복용을 중단하십시오.\n하루에 4정 이상 복용하지 마십시오.\n수술 전에 아스피린을 중단하십시오.\n약 복용을 멈추십시오.\n복용을 중단하고 의사와 함께 상의하십시오.\n갑자기 멈추지 마십시오.\n이 약을 다른 약과 함께 복용하지 마십시오.",
-  "stop-zh": "停止服用以下药物：\n1、布洛芬 200毫克\n2、萘普生 220毫克\n停用阿司匹林。\n請停用布洛芬。\n请勿在未告知您医生的情况下突然停止服用利伐沙班。\n如果出现皮疹，请停用此药。\n在手术前暂时停止服用阿哌沙班。\n不要服用超过4片。\n服药7天后停用。\n立即停用本药，同时联系医生。\n不要与酒精同时服用。",
+  "stop-vi": "NGƯNG dùng các thuốc sau:\n- ibuprofen 200 mg viên.\nNgừng uống aspirin.\nKhông được tự ý ngưng thuốc metformin.\nĐừng ngưng thuốc prednisone đột ngột.\nNgưng dùng aspirin nếu quý vị bị chảy máu.\nNgưng dùng thuốc sau 5 ngày.\nKhông uống quá 4 viên mỗi ngày.\nNgưng aspirin trước khi phẫu thuật.\nNgưng dùng naproxen ngay.\nNgừng dùng thuốc và liên hệ với bác sĩ ngay.\nKhông uống aspirin cùng với rượu.\nKhông uống ibuprofen với warfarin.",
+  "stop-ko": "다음 약의 복용을 중단하십시오:\n- 이부프로펜 200mg 정제\n아스피린 복용을 중단하십시오.\n나프록센을 끊으십시오.\n메트포르민을 임의로 중단하지 마십시오.\n구토하면 메트포르민 복용을 중단하십시오.\n5일 후에 복용을 중단하십시오.\n하루에 4정 이상 복용하지 마십시오.\n수술 전에 아스피린을 중단하십시오.\n약 복용을 멈추십시오.\n복용을 중단하고 의사와 함께 상의하십시오.\n갑자기 멈추지 마십시오.\n이 약을 다른 약과 함께 복용하지 마십시오.\n이부프로펜을 와파린과 같이 드시지 마십시오.",
+  "stop-zh": "停止服用以下药物：\n1、布洛芬 200毫克\n2、萘普生 220毫克\n停用阿司匹林。\n請停用布洛芬。\n请勿在未告知您医生的情况下突然停止服用利伐沙班。\n如果出现皮疹，请停用此药。\n在手术前暂时停止服用阿哌沙班。\n不要服用超过4片。\n服药7天后停用。\n立即停用本药，同时联系医生。\n不要与酒精同时服用。\n不要与华法林同时服用布洛芬。\n不要同时服用布洛芬和华法林。",
   "stop-zh-dots": "停用這些藥物：\n・布洛芬 200毫克",
-  "stop-am": "እነዚህን መድሃኒቶች መውሰድ ያቁሙ፦\n- ኢቡፕሮፌን 200 ሚግ\nየቲቢ መድኃኒት መውሰድዎን ያቁሙ።\nአስፕሪን አይውሰዱ።\nመድሃኒቱን በድንገት አያቁሙ።\nዶክተርዎ ያቁሙ እስከሚሉዎት ደረስ መውሰድ አለብዎት።\nሽፍታ ካለብዎት መውሰድ ያቁሙ።\nከቀዶ ጥገና በፊት አስፕሪን ያቁሙ።\nመድሃኒቱን ያቁሙ እና ከሐኪምዎ ጋር ይነጋገሩ።",
-  "stop-fr": "ARRÊTEZ de prendre ces médicaments :\n- ibuprofène 200 mg comprimé\nArrêtez l'aspirine.\nCessez de prendre le naproxène sans délai.\nN'arrêtez pas de prendre la metformine.\nNe pas arrêter brusquement la prednisone.\nArrêtez l'aspirine si vous saignez.\nArrêtez l'aspirine avant votre chirurgie.\nNe prenez pas plus de 3000 mg sur une période de 24 heures.\nArrêtez l'antibiotique après 5 jours.\nArrêtez ce médicament et communiquez avec votre médecin immédiatement.\nNe prenez pas d'ibuprofène avec de l'alcool.",
+  "stop-am": "እነዚህን መድሃኒቶች መውሰድ ያቁሙ፦\n- ኢቡፕሮፌን 200 ሚግ\nየቲቢ መድኃኒት መውሰድዎን ያቁሙ።\nአስፕሪን አይውሰዱ።\nመድሃኒቱን በድንገት አያቁሙ።\nዶክተርዎ ያቁሙ እስከሚሉዎት ደረስ መውሰድ አለብዎት።\nሽፍታ ካለብዎት መውሰድ ያቁሙ።\nከቀዶ ጥገና በፊት አስፕሪን ያቁሙ።\nመድሃኒቱን ያቁሙ እና ከሐኪምዎ ጋር ይነጋገሩ።\nኢቡፕሮፌንን ከዋርፋሪን ጋር አይውሰዱ።",
+  "stop-fr": "ARRÊTEZ de prendre ces médicaments :\n- ibuprofène 200 mg comprimé\nArrêtez l'aspirine.\nCessez de prendre le naproxène sans délai.\nN'arrêtez pas de prendre la metformine.\nNe pas arrêter brusquement la prednisone.\nArrêtez l'aspirine si vous saignez.\nArrêtez l'aspirine avant votre chirurgie.\nNe prenez pas plus de 3000 mg sur une période de 24 heures.\nArrêtez l'antibiotique après 5 jours.\nArrêtez ce médicament et communiquez avec votre médecin immédiatement.\nNe prenez pas d'ibuprofène avec de l'alcool.\nNe prenez pas d'ibuprofène avec de la warfarine.",
   "stop-inline": "Discontinue naproxen.\nDo not take aspirin.\nNo tome ibuprofeno.\nStop taking aspirin without delay.\nDo not stop taking metformin.\nNo deje de tomar metformina.\nStop taking metformin if you are vomiting.\nStop aspirin before your surgery.\nDo not take more than 4 tablets.\nDo not suddenly stop taking prednisone.\nDo not take prednisone on an empty stomach.\nDo not take ibuprofen with alcohol.\nStop it with no delay.\nSuspenda la aspirina sin demora.",
 };
 for (const p of papers) STEP_PAPERS[`eval:${p.id}`] = p.text;
@@ -206,7 +206,13 @@ it("writes the vectors", () => {
     step: Object.fromEntries(step.map((s) => [stepKey(s), s.expected.group]).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) as Record<string, string>,
   };
   const floorPath = join(process.cwd(), "..", "mobile", "shared", "safety-floor.json");
-  const floor: typeof now = existsSync(floorPath) ? JSON.parse(readFileSync(floorPath, "utf8")) : { pinned: [], step: {} };
+  // The floor must exist and hold the cases it guards in every mode: a missing or emptied floor would make the checks
+  // below pass vacuously and then let UPDATE_FLOOR record weaker behavior as the new baseline (Codex review).
+  expect(existsSync(floorPath), "mobile/shared/safety-floor.json is missing").toBe(true);
+  expect(process.env.UPDATE_FLOOR === "1" && !!process.env.CI, "UPDATE_FLOOR is for a person updating the floor, never for CI").toBe(false);
+  const floor: typeof now = JSON.parse(readFileSync(floorPath, "utf8"));
+  expect(floor.pinned.length, "floor pins").toBeGreaterThanOrEqual(60);
+  expect(Object.keys(floor.step).length, "floor steps").toBeGreaterThanOrEqual(2000);
   const pinnedNow = new Set(now.pinned);
   const lost = floor.pinned.filter((k) => !pinnedNow.has(k));
   const later = Object.entries(floor.step).filter(([k, g]) => !(k in now.step) || rank(now.step[k]) > rank(g));

@@ -16,6 +16,8 @@ describe("warning pinning: the paper's words can only add caution", () => {
     "If you have chest pressure, get help right away.",
     "Call us if you feel short of breath.",
     "Go to urgent care if the cut opens.",
+    "Call the office right away if your temperature is above 101 F.", // Codex review
+    "This is not an emergency, but call 911 if you cannot breathe.",
     "Llame al 911 si tiene dolor de pecho.",
     "Vaya a la sala de emergencias si tiene dificultad para respirar.",
   ])("reads warning language in %s", (q) => {
@@ -33,6 +35,8 @@ describe("warning pinning: the paper's words can only add caution", () => {
     "Limit sugary drinks such as soda and sweet tea.",
     "Hemoglobin A1c - due in 3 months",
     "Take it after dinner every evening.", // "er" inside words is not "ER"
+    "This is not an emergency. Call your doctor during office hours.", // Codex review
+    "Call the office if you have questions.",
   ])("leaves ordinary steps unpinned: %s", (q) => {
     expect(isWarning({ kind: "self_care", source_quote: q })).toBe(false);
   });

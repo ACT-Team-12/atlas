@@ -17,6 +17,7 @@ const WARNING_WORDS = word(
     String.raw`emergency${S}(?:room|department|services|care)|emergencies|emergency`,
     String.raw`urgent${S}care|go${S}to${S}the${S}(?:nearest${S})?hospital`,
     String.raw`seek${S}(?:\p{L}+${S})?(?:care|help|attention|treatment)|get${S}(?:medical${S})?help${S}(?:right${S}away|now|immediately)`,
+    String.raw`call${S}(?:the${S}|your${S})?(?:office|clinic|doctor|provider|nurse|care${S}team)${S}(?:right${S}away|immediately|at${S}once|now)`,
     String.raw`chest${S}(?:pain|pressure|tightness)`,
     String.raw`(?:trouble|difficulty|hard)${S}breathing|short(?:ness)?${S}of${S}breath|can(?:no|['’])t${S}breathe|cannot${S}breathe`,
     String.raw`faint(?:ing|ed)|feel(?:s|ing)?${S}faint|pass(?:ing)?${S}out|seizures?|stroke`,
@@ -26,12 +27,15 @@ const WARNING_WORDS = word(
     String.raw`busque${S}(?:atenci[oó]n|ayuda)|dolor${S}(?:de|en${S}el)${S}pecho|dificultad${S}para${S}respirar|falta${S}de${S}aire|desmay\p{L}*|convulsi\p{L}*`,
   ].join("|"),
 );
+/** Emergency words said NOT to apply: "not an emergency", "non-emergency", "no es una emergencia". */
+const NOT_EMERGENCY = new RegExp(String.raw`(?<![\p{L}\p{N}])(?:not${S}(?:an${S}|a${S})?|non-?|no${S}es${S}(?:una${S})?)(?:emergency|emergencia|urgent)(?![\p{L}\p{N}])`, "giu");
 /** "ER" only in capitals: "er" is part of too many words and names. */
 const ER = word("ER", "u");
 
 /** True when the paper's own words in this quote are warning language. */
 export function warningFromPaper(quote: string): boolean {
-  const t = quote.replace(/\s+/g, " ");
+  // "This is not an emergency" is not warning language; any other warning words in the quote still count.
+  const t = quote.replace(/\s+/g, " ").replace(NOT_EMERGENCY, " ");
   return WARNING_WORDS.test(t) || ER.test(t);
 }
 

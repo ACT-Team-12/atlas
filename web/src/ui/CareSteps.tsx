@@ -155,6 +155,7 @@ export function CareSteps(p: Props) {
   useEffect(() => { if (walkReturn) walkButton.current?.focus(); }, [walkReturn]);
   const startWalk = () => {
     if (walk.length === 0) return;
+    speech.stop(); // a row being read aloud is hidden once the walk opens
     const at = nextOpen(walk, p.done, 0);
     setWalkIds(walk.map((s) => s.it.id));
     setWalkAt(walk[at < 0 ? 0 : at].it.id);
@@ -225,9 +226,9 @@ export function CareSteps(p: Props) {
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
           <button ref={walkButton} type="button" onClick={startWalk} aria-describedby="walk-why" data-walk-open=""
             className="min-h-[48px] rounded-full border-2 border-ink bg-teal px-5 py-2 text-base font-extrabold text-paper shadow-[0_2px_0_var(--ink)] hover:bg-teal-deep focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-            {walkLine(p.language, "open")}
+            <span lang={SPEECH_LANG[p.language] ?? "en-US"}>{walkLine(p.language, "open")}</span>
           </button>
-          <span id="walk-why" className="text-xs font-semibold text-ink/70">{walkLine(p.language, "openHint")}</span>
+          <span id="walk-why" lang={SPEECH_LANG[p.language] ?? "en-US"} className="text-xs font-semibold text-ink/70">{walkLine(p.language, "openHint")}</span>
         </div>
       )}
 
@@ -447,6 +448,10 @@ function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipTex
     heading.current?.focus({ preventScroll: true });
   }, [shown]);
   const t = (line: Parameters<typeof walkLine>[1], values?: Record<string, number>) => walkLine(language, line, values);
+  // The walk's own lines are in the person's language; the paper's words and the list's labels around them are not,
+  // so each line carries its own lang for screen readers, never the whole region (Codex review).
+  const lang = SPEECH_LANG[language] ?? "en-US";
+  const tl = (line: Parameters<typeof walkLine>[1], values?: Record<string, number>) => <span lang={lang}>{t(line, values)}</span>;
   // Done and undo said out loud: the next heading takes focus, so this polite region confirms what just changed.
   const [said, setSaid] = useState("");
   const announce = (text: string) => { setSaid(""); setTimeout(() => setSaid(text), 50); };
@@ -456,13 +461,13 @@ function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipTex
   return (
     <section ref={box} role="region" aria-label={t("region")} data-walk-through="" className="walk-through scroll-mt-24 max-md:scroll-mt-44 rounded-3xl border-2 border-ink bg-paper p-4 sm:p-6"
       onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onExit(); } }}>
-      <p role="status" aria-live="polite" className="sr-only" data-walk-status="">{said}</p>
+      <p role="status" aria-live="polite" className="sr-only" lang={lang} data-walk-status="">{said}</p>
       <button type="button" onClick={onExit} data-walk-exit=""
         className="min-h-[48px] rounded-full border-2 border-ink bg-paper px-4 py-2 text-base font-bold hover:bg-mint focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-        <span aria-hidden="true">← </span>{t("back")}
+        <span aria-hidden="true">← </span>{tl("back")}
       </button>
       {step ? (
-        <WalkCard key={step.it.id} step={step} index={index} total={steps.length} done={!!done[step.it.id]} check={checkFor(step.it.id)} t={t}
+        <WalkCard key={step.it.id} step={step} index={index} total={steps.length} done={!!done[step.it.id]} check={checkFor(step.it.id)} tl={tl}
           heading={heading} pip={pip} pipText={pipText} calm={calm} speaking={speaking} onSpeak={onSpeak}
           onDone={() => { onDone(step.it.id, true); announce(t("doneAlready")); onGo(next); }}
           // The undo button goes away with the done state, so focus returns to the step's heading.
@@ -471,19 +476,19 @@ function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipTex
       ) : (
         <div className="walk-card mt-5" data-calm={calm || undefined} data-walk-end="">
           <h3 ref={heading} tabIndex={-1} className="display text-3xl leading-tight outline-none focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-teal-deep" data-walk-heading="">
-            {t("finished")}
+            {tl("finished")}
           </h3>
-          <p className="mt-2 text-xl font-bold">{t("finishedCount", { done: doneCount, total: steps.length })}</p>
+          <p className="mt-2 text-xl font-bold">{tl("finishedCount", { done: doneCount, total: steps.length })}</p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {firstOpen >= 0 && (
               <button type="button" onClick={() => onGo(steps[firstOpen].it.id)}
                 className="min-h-[56px] rounded-2xl border-2 border-ink bg-sun px-4 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-                {t("startOver")}
+                {tl("startOver")}
               </button>
             )}
             <button type="button" onClick={onExit}
               className="min-h-[56px] rounded-2xl border-2 border-ink bg-teal px-4 py-3 text-lg font-extrabold text-paper shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-              {t("back")}
+              {tl("back")}
             </button>
           </div>
         </div>
@@ -494,13 +499,13 @@ function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipTex
 
 type WalkCardProps = {
   step: WalkStep<VerifiedItem>; index: number; total: number; done: boolean; check: Check;
-  t: (line: Parameters<typeof walkLine>[1], values?: Record<string, number>) => string;
+  tl: (line: Parameters<typeof walkLine>[1], values?: Record<string, number>) => React.ReactNode;
   heading: React.RefObject<HTMLHeadingElement | null>;
   pip: ReturnType<typeof walkPip>; pipText: string; calm: boolean; speaking: boolean; onSpeak: () => void;
   onDone: () => void; onUndo: () => void; onNotYet: () => void; onPrevious: (() => void) | null;
 };
 
-function WalkCard({ step, index, total, done, check, t, heading, pip, pipText, calm, speaking, onSpeak, onDone, onUndo, onNotYet, onPrevious }: WalkCardProps) {
+function WalkCard({ step, index, total, done, check, tl, heading, pip, pipText, calm, speaking, onSpeak, onDone, onUndo, onNotYet, onPrevious }: WalkCardProps) {
   const { it, group } = step;
   const warn = group === "warning";
   const [asking, setAsking] = useState(false);
@@ -514,8 +519,8 @@ function WalkCard({ step, index, total, done, check, t, heading, pip, pipText, c
     <div className={`walk-card mt-5 ${warn ? "rounded-2xl border-4 border-red p-3 sm:p-4" : ""}`} data-calm={calm || undefined} data-walk-step={it.id} data-walk-group={group} data-seal={seal}>
       <div className="flex items-start justify-between gap-3">
         <h3 ref={heading} tabIndex={-1} className="min-w-0 outline-none focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-teal-deep" data-walk-heading="">
-          <span className="block text-base font-extrabold uppercase tracking-wide text-ink/70" data-walk-progress="">{t("progress", { n: index + 1, total })}</span>
-          <span className={`display block text-2xl leading-tight sm:text-3xl ${warn ? "text-red" : ""}`} data-walk-when="">{warn ? t("warningLabel") : WHEN_GROUP_LABEL[group]}</span>
+          <span className="block text-base font-extrabold uppercase tracking-wide text-ink/70" data-walk-progress="">{tl("progress", { n: index + 1, total })}</span>
+          <span className={`display block text-2xl leading-tight sm:text-3xl ${warn ? "text-red" : ""}`} data-walk-when="">{warn ? tl("warningLabel") : WHEN_GROUP_LABEL[group]}</span>
         </h3>
         {/* Pip's reserved spot, as on a list row; never on a warning sign. */}
         {!warn && <PipSlot>{pip && <PipMarker key={pip.mood} mood={pip.mood} calm={calm} />}</PipSlot>}
@@ -523,7 +528,6 @@ function WalkCard({ step, index, total, done, check, t, heading, pip, pipText, c
       {pip?.line && pipText && <div className="mt-1 flex justify-end"><PipBubble text={pipText} /></div>}
       <div aria-hidden="true" className="mt-3 h-2 overflow-hidden rounded-full bg-ink/10"><div className="h-full rounded-full bg-teal" style={{ width: `${((index + 1) / total) * 100}%` }} /></div>
       {!warn && GROUP_NOTE[group] && <p className="mt-2 text-base font-semibold text-ink/70">{GROUP_NOTE[group]}</p>}
-      {warn && <p role="note" className="mt-3 rounded-xl bg-red-soft p-3 text-lg font-bold text-red" data-walk-warning="">{t("warningDo")}</p>}
       <p className="mt-3 flex flex-wrap items-center gap-2 text-sm font-bold text-ink/70">
         {kind && <span className={`chip ${kind.cls}`}>{kind.label}</span>}
         <SealMark seal={seal} />
@@ -531,35 +535,37 @@ function WalkCard({ step, index, total, done, check, t, heading, pip, pipText, c
       </p>
       {/* The paper's words, by the same rule as the list (PaperFirst), only bigger (globals.css, .walk-paper). */}
       <div className="walk-paper mt-2 text-2xl leading-snug sm:text-3xl"><PaperFirst v={careStepView(it, check)} /></div>
+      {/* After the paper's words, never before them: the paper says what to do; this line only points back to it. */}
+      {warn && <p role="note" className="mt-3 rounded-xl bg-red-soft p-3 text-lg font-bold text-red" data-walk-warning="">{tl("warningDo")}</p>}
       {question && check === "certified" && <p className="mt-3 rounded-xl bg-peach p-3 text-base font-semibold text-peach-deep">On your questions list: {question}</p>}
       {done && (
         <p className="mt-4 flex flex-wrap items-center gap-3 text-lg font-extrabold text-teal-deep" data-walk-done-status="">
-          <span>✓ {t("doneAlready")}</span>
-          <button type="button" onClick={onUndo} className="min-h-[48px] rounded-full border-2 border-ink/60 bg-paper px-4 py-2 text-base font-bold text-ink hover:bg-mint">{t("undoDone")}</button>
+          <span>✓ {tl("doneAlready")}</span>
+          <button type="button" onClick={onUndo} className="min-h-[48px] rounded-full border-2 border-ink/60 bg-paper px-4 py-2 text-base font-bold text-ink hover:bg-mint">{tl("undoDone")}</button>
         </p>
       )}
       <button type="button" onClick={onSpeak} aria-pressed={speaking} data-walk-speak=""
         className={`mt-4 min-h-[48px] rounded-full border-2 border-ink px-5 py-2 text-base font-bold ${speaking ? "bg-ink text-paper" : "bg-paper hover:bg-mint"}`}>
-        <span aria-hidden="true">{speaking ? "⏹ " : "🔊 "}</span>{speaking ? t("stop") : t("readAloud")}
+        <span aria-hidden="true">{speaking ? "⏹ " : "🔊 "}</span>{speaking ? tl("stop") : tl("readAloud")}
       </button>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <button type="button" onClick={onDone} data-walk-done="" className={`${big} bg-teal text-paper`}>✓ {t("done")}</button>
-        <button type="button" onClick={onNotYet} data-walk-not-yet="" className={`${big} bg-paper hover:bg-mint`}>{t("notYet")} <span aria-hidden="true">→</span></button>
+        <button type="button" onClick={onDone} data-walk-done="" className={`${big} bg-teal text-paper`}>✓ {tl("done")}</button>
+        <button type="button" onClick={onNotYet} data-walk-not-yet="" className={`${big} bg-paper hover:bg-mint`}>{tl("notYet")} <span aria-hidden="true">→</span></button>
         <button type="button" onClick={() => setAsking((a) => !a)} aria-expanded={asking} aria-controls={askId} data-walk-ask=""
-          className={`${big} bg-sun hover:bg-mint`}>💬 {t("askPerson")}</button>
+          className={`${big} bg-sun hover:bg-mint`}>💬 {tl("askPerson")}</button>
       </div>
       <div id={askId} hidden={!asking} className="mt-3 rounded-xl border-2 border-dashed border-ink/40 p-3 text-base" data-walk-ask-panel="">
-        <p className="font-extrabold">{t("askTitle")}</p>
-        {warn ? <p className="mt-1 font-bold text-red">{t("warningDo")}</p> : (
+        <p className="font-extrabold">{tl("askTitle")}</p>
+        {warn ? <p className="mt-1 font-bold text-red">{tl("warningDo")}</p> : (
           <>
-            {ask ? <div className="mt-1" data-ask-person-panel="" data-ask-person={ask.who}><AskPersonBody ask={ask} big /></div> : <p className="mt-1 font-semibold">{t("askClinicCall")}</p>}
-            <p className="mt-2 text-sm font-semibold text-ink/70" data-walk-211="">{t("ask211")}</p>
+            {ask ? <div className="mt-1" data-ask-person-panel="" data-ask-person={ask.who}><AskPersonBody ask={ask} big /></div> : <p className="mt-1 font-semibold">{tl("askClinicCall")}</p>}
+            <p className="mt-2 text-sm font-semibold text-ink/70" data-walk-211="">{tl("ask211")}</p>
           </>
         )}
       </div>
       {onPrevious && (
         <button type="button" onClick={onPrevious} data-walk-previous="" className="mt-4 min-h-[48px] rounded-full px-4 py-2 text-base font-bold underline decoration-2 underline-offset-4">
-          <span aria-hidden="true">← </span>{t("previous")}
+          <span aria-hidden="true">← </span>{tl("previous")}
         </button>
       )}
     </div>

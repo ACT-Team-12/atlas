@@ -244,6 +244,40 @@ describe("checks that land while walking (Codex review)", () => {
   });
 });
 
+describe("round 2 (Codex review)", () => {
+  it("opening the walk stops a list row being read aloud", () => {
+    render();
+    const row = host.querySelector<HTMLLIElement>('li[data-step="eye"]')!;
+    click(row.querySelector("button[aria-expanded]"));
+    const speak = [...row.querySelectorAll("button")].find((b) => b.textContent?.includes("Read aloud"))!;
+    click(speak);
+    expect(speak.getAttribute("aria-pressed")).toBe("true");
+    const cancels = (globalThis.speechSynthesis.cancel as ReturnType<typeof vi.fn>).mock.calls.length;
+    open();
+    expect((globalThis.speechSynthesis.cancel as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(cancels);
+    click(q("[data-walk-exit]"));
+    expect(speak.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("the warning line comes after the paper's own words, never before them", () => {
+    render();
+    open();
+    const quote = card().querySelector("[data-lead]")!;
+    const line = q("[data-walk-warning]");
+    expect(quote.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("marks each localized line with its language, and leaves the paper's words alone", () => {
+    render({ language: "Vietnamese" });
+    expect(q("[data-walk-open] span").getAttribute("lang")).toBe("vi-VN");
+    open();
+    expect(q("[data-walk-done] span[lang]").getAttribute("lang")).toBe("vi-VN");
+    expect(q("[data-walk-progress] span[lang]").getAttribute("lang")).toBe("vi-VN");
+    expect(q("[data-walk-status]").getAttribute("lang")).toBe("vi-VN");
+    expect(card().querySelector("[data-lead]")!.closest("[lang]")).toBeNull();
+  });
+});
+
 describe("warning pin and paper-first labels", () => {
   it("shows the warning pin on a warning step, and no Pip there", () => {
     render();

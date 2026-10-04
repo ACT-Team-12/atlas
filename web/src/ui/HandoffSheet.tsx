@@ -8,12 +8,10 @@ import { careStepView, checkOf, paperFirstLines } from "@/lib/paperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
 import type { ShareMeaning } from "@/lib/shareText";
 import { visitQuestions } from "@/lib/visitQuestions";
+import { keyFor, LANGUAGE_NAME, uiLang } from "@/lib/uiText";
+import { useUi } from "./UiLang";
 
 const noop = () => () => {};
-
-const KIND_LABEL: Record<string, string> = {
-  medication: "Medicine", lab_test: "Lab test", referral: "Referral", follow_up_visit: "Follow-up visit", self_care: "Self care", warning_sign: "Warning sign",
-};
 
 /**
  * A one-page handoff sheet for someone without a smartphone: large type, a box to tick for each step,
@@ -42,14 +40,22 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
   const used = new Set(plan?.steps.flatMap((s) => s.resource_ids) ?? []);
   // Each step's own question only when certified; otherwise the paper's words (lib/visitQuestions.ts).
   const nextVisit = visitQuestions({ items, general: questions, also: planItems, checkFor: (id) => checkOf(meaning?.status === "done" ? meaning.byId[id] : undefined) });
-  const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const { t, code } = useUi();
+  const today = new Date().toLocaleDateString(code, { year: "numeric", month: "long", day: "numeric" });
+  // The sheet's own words in the person's language. lib/paperFirst.ts writes the lines in English; only their labels
+  // change here, never the paper's words between the quotes.
+  const says = "Your paper says:";
+  const localLine = (l: string) => l.startsWith(says) ? `${t("pf.says.paper")}${l.slice(says.length)}`
+    : l.startsWith("(The plain-words explanation is left out here because it was not") ? t("sheet.leftOutUnchecked")
+    : l.startsWith("(The plain-words explanation is left out here because a second") ? t("sheet.leftOutFlagged") : l;
+  const kindLabel = (k: string) => t(keyFor("sheet.kind", k, keyFor("kind", k, "kind.step")));
 
   return (
-    <div id="atlas-sheet" className="atlas-sheet" aria-hidden="true">
-      <h1>My plan after my visit</h1>
-      <p className="meta">Printed {today} · Written in {language} · Every step below quotes my paper.</p>
+    <div id="atlas-sheet" className="atlas-sheet" aria-hidden="true" lang={code}>
+      <h1>{t("sheet.title")}</h1>
+      <p className="meta">{t("sheet.meta", { date: today, language: LANGUAGE_NAME[uiLang(language)] })}</p>
 
-      <h2>What my paper says to do</h2>
+      <h2>{t("sheet.whatToDo")}</h2>
       <ol className="steps">
         {items.map((i) => {
           const check = checkOf(meaning?.status === "done" ? meaning.byId[i.id] : undefined);
@@ -58,8 +64,8 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
             <li key={i.id}>
               <span className="box" />
               <div>
-                <p className="title"><b>{KIND_LABEL[i.kind] ?? i.kind}</b>{check === "certified" ? `: ${i.title}${i.when ? ` · ${i.when}` : ""}` : ""}</p>
-                {lines.map((l, n) => <p key={n} className={l.startsWith("Your paper says:") ? "quote" : undefined} data-paper-quote={l.startsWith("Your paper says:") ? "" : undefined}>{l}</p>)}
+                <p className="title"><b>{kindLabel(i.kind)}</b>{check === "certified" ? `: ${i.title}${i.when ? ` · ${i.when}` : ""}` : ""}</p>
+                {lines.map((l, n) => <p key={n} className={l.startsWith(says) ? "quote" : undefined} data-paper-quote={l.startsWith(says) ? "" : undefined}>{localLine(l)}</p>)}
               </div>
             </li>
           );
@@ -68,21 +74,21 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
 
       {alsoOnPaper.length > 0 && (
         <>
-          <h2>Also on your paper</h2>
-          <p className="meta">These look like instructions but are not steps above. Read them yourself or ask your helper.</p>
+          <h2>{t("sheet.alsoOnPaper")}</h2>
+          <p className="meta">{t("sheet.alsoNote")}</p>
           <ul>{alsoOnPaper.map((t, n) => <li key={n}>&ldquo;{t}&rdquo;</li>)}</ul>
         </>
       )}
 
       {plan && plan.steps.length > 0 && (
         <>
-          <h2>My plan (suggestions from ATLAS; if anything differs from my paper, follow my paper)</h2>
+          <h2>{t("sheet.myPlan")}</h2>
           <p>{plan.summary}</p>
           <ol className="plan">
             {plan.steps.map((s, n) => (
               <li key={n}>
                 <b>{s.title}.</b> {s.action}
-                {planStepQuotes(s, planItems ?? items).map((q, k) => <p key={k} className="quote" data-paper-quote="">Your paper says: &ldquo;{q}&rdquo;</p>)}
+                {planStepQuotes(s, planItems ?? items).map((q, k) => <p key={k} className="quote" data-paper-quote="">{t("pf.says.paper")} &ldquo;{q}&rdquo;</p>)}
               </li>
             ))}
           </ol>
@@ -91,11 +97,11 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
 
       {resources.some((r) => used.has(r.id)) && (
         <>
-          <h2>Who can help (checked numbers)</h2>
+          <h2>{t("sheet.whoCanHelp")}</h2>
           <ul className="help">
             {resources.filter((r) => used.has(r.id)).map((r) =>
               r.type === "clinic"
-                ? <li key={r.id}><b>{r.clinic.name}</b> · {r.clinic.phone} · {r.clinic.address}, {r.clinic.city} {r.clinic.zip}{r.clinic.nearest_bus ? ` · Bus: ${r.clinic.nearest_bus.name}` : ""}</li>
+                ? <li key={r.id}><b>{r.clinic.name}</b> · {r.clinic.phone} · {r.clinic.address}, {r.clinic.city} {r.clinic.zip}{r.clinic.nearest_bus ? ` · ${t("sheet.bus", { name: r.clinic.nearest_bus.name })}` : ""}</li>
                 : <li key={r.id}><b>{r.program.name}</b>{r.program.access.phone ? ` · ${r.program.access.phone}` : ""}{r.program.access.text ? ` · ${r.program.access.text}` : ""}</li>,
             )}
           </ul>
@@ -104,15 +110,15 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
 
       {nextVisit.length > 0 && (
         <>
-          <h2>Questions for my next visit</h2>
+          <h2>{t("sheet.questions")}</h2>
           <ul>{nextVisit.map((q, n) => <li key={n}>{q}</li>)}</ul>
         </>
       )}
 
-      <h2>Notes from my helper</h2>
+      <h2>{t("sheet.notes")}</h2>
       <div className="lines"><span /><span /><span /></div>
 
-      <p className="foot">Made with ATLAS (atlas-team12.vercel.app). This explains your own paper. It is not medical advice. If something feels urgent, call your clinic or 911.</p>
+      <p className="foot">{t("sheet.foot")}</p>
     </div>
   );
 }

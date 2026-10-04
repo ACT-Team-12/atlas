@@ -81,6 +81,7 @@ const rowOf = (id: string) => host.querySelector<HTMLLIElement>(`li[data-step="$
 const pipRows = () => [...host.querySelectorAll<HTMLLIElement>("li[data-pip-here]")].map((li) => [li.dataset.step, li.dataset.pipHere]);
 const bubbles = () => [...host.querySelectorAll("[data-pip-bubble]")].map((b) => b.textContent);
 const live = () => host.querySelector("[data-pip-status]")!.textContent;
+const greetBubble = () => host.querySelector("[data-pip-greet] [data-pip-bubble]")?.textContent ?? null;
 const tick = (id: string) => act(() => { rowOf(id).querySelector<HTMLInputElement>('input[type="checkbox"]')!.click(); });
 const settle = (ms = 2000) => act(() => { vi.advanceTimersByTime(ms); });
 
@@ -145,9 +146,9 @@ describe("Pip on the steps", () => {
     expect(marker.hasAttribute("data-blink")).toBe(false);
     expect(rowOf("met").querySelector("svg")!.dataset.face).toBe("norm");
     expect(rowOf("met").querySelector("[data-acc]")).toBeNull();
-    expect(bubbles()).toEqual([]);
-    settle();
-    expect(live()).toBe("");
+    // Nothing on the card itself: the only bubble is the heading greeting.
+    expect(rowOf("met").querySelector("[data-pip-bubble]")).toBeNull();
+    expect(greetBubble()).toBe("Start here");
     tick("met");
     // No cheer on medicine: straight to the next step.
     expect(pipRows()).toEqual([["walk", "arrive"]]);
@@ -157,7 +158,7 @@ describe("Pip on the steps", () => {
   it("is quiet on a lab test, and never on a warning sign (warning cards have no slot at all)", () => {
     render({ items: [W911, BMP, WALK] });
     expect(pipRows()).toEqual([["bmp", "quiet"]]);
-    expect(bubbles()).toEqual([]);
+    expect(rowOf("bmp").querySelector("[data-pip-bubble]")).toBeNull();
     expect(rowOf("w911").querySelector("[data-pip-slot]")).toBeNull();
     tick("w911");
     expect(rowOf("w911").hasAttribute("data-pip-here")).toBe(false);
@@ -167,10 +168,100 @@ describe("Pip on the steps", () => {
     const meaning: MeaningState = { status: "done", byId: { walk: { id: "walk", flagged: true, numbers_ok: true, unexpected_numbers: [], model_verdict: "different", what_differs: "", certified: false } } };
     render({ items: [WALK, SODA], meaning });
     expect(pipRows()).toEqual([["walk", "quiet"]]);
-    expect(bubbles()).toEqual([]);
+    expect(rowOf("walk").querySelector("[data-pip-bubble]")).toBeNull();
     tick("walk");
     expect(pipRows()).toEqual([["soda", "arrive"]]);
   });
+
+describe("the heading greeting (first current step is quiet)", () => {
+  const greet = () => host.querySelector<HTMLElement>("[data-pip-greet]");
+  const headingPip = () => host.querySelector<HTMLElement>("[data-pip-heading] .pip");
+
+  it("a quiet first step: Pip says Start here once at the heading, pointing down, and the card stays quiet", () => {
+    render({ items: [MET, WALK] });
+    expect(greetBubble()).toBe("Start here");
+    expect(greet()!.querySelector("[data-pip-bubble]")!.getAttribute("data-point")).toBe("down");
+    const hp = headingPip()!;
+    expect(hp.dataset.pip).toBe("arrive");
+    expect(hp.hasAttribute("data-calm")).toBe(false);
+    // The card: quiet Pip, neutral face, no blink, no bubble.
+    expect(pipRows()).toEqual([["met", "quiet"]]);
+    expect(rowOf("met").querySelector<HTMLElement>(".pip")!.hasAttribute("data-blink")).toBe(false);
+    expect(rowOf("met").querySelector("svg")!.dataset.face).toBe("norm");
+    expect(bubbles()).toEqual(["Start here"]);
+    // Read once, politely.
+    settle();
+    expect(live()).toBe("Start here");
+    // In a reserved slot beside the heading, in flow (not an overlay over text).
+    const slot = hp.closest<HTMLElement>("[data-pip-slot]")!;
+    expect(slot.className).not.toMatch(/absolute|fixed/);
+    expect(slot.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("in each of the 7 app languages, the greeting is the fixed start line", () => {
+    for (const language of LANGUAGES) {
+      render({ items: [MET, WALK], language });
+      expect(greetBubble(), language).toBe(PIP_LINES[language].start);
+      act(() => root.unmount());
+      root = createRoot(host);
+    }
+  });
+
+  it("a non-quiet first step: the normal Start here on the card and no heading greeting", () => {
+    render({ items: [WALK, MET] });
+    expect(pipRows()).toEqual([["walk", "arrive"]]);
+    expect(greet()).toBeNull();
+    expect(headingPip()).toBeNull();
+    expect(bubbles()).toEqual(["Start here"]);
+  });
+
+  it("is gone after the first step is marked done, and does not come back when it is unticked", () => {
+    render({ items: [MET, WALK] });
+    expect(greet()).not.toBeNull();
+    tick("met");
+    expect(greet()).toBeNull();
+    expect(headingPip()).toBeNull();
+    // Normal behavior: no cheer on medicine, Pip goes on to the next step with Next up.
+    expect(pipRows()).toEqual([["walk", "arrive"]]);
+    expect(bubbles()).toEqual(["Next up"]);
+    tick("met"); // untick: back to nothing done, still no greeting (it was said once)
+    expect(greet()).toBeNull();
+    expect(pipRows()).toEqual([["met", "quiet"]]);
+    expect(bubbles()).toEqual([]);
+  });
+
+  it("in calm mode (and under reduced motion) the greeting fades in with no hop and no blink", () => {
+    reduced = true;
+    render({ items: [MET, WALK] });
+    const hp = headingPip()!;
+    expect(hp.hasAttribute("data-calm")).toBe(true);
+    expect(hp.hasAttribute("data-blink")).toBe(false);
+    act(() => root.unmount());
+    root = createRoot(host);
+    reduced = false;
+    act(() => setCalmMode(true));
+    try {
+      render({ items: [MET, WALK] });
+      expect(headingPip()!.hasAttribute("data-calm")).toBe(true);
+      expect(headingPip()!.hasAttribute("data-blink")).toBe(false);
+    } finally {
+      act(() => setCalmMode(false));
+    }
+  });
+
+  it("is never on or beside the warning signs", () => {
+    render({ items: [W911, MET, WALK] });
+    const g = greet()!;
+    expect(g).not.toBeNull();
+    const warnings = host.querySelector<HTMLElement>("[data-warnings]")!;
+    expect(warnings.contains(g)).toBe(false);
+    expect(warnings.contains(headingPip())).toBe(false);
+    expect(warnings.querySelector("[data-pip-bubble], .pip")).toBeNull();
+    // Not the warning section's neighbour either: the greeting sits under "Your steps", after the trust line.
+    expect(warnings.nextElementSibling?.hasAttribute("data-trust-line")).toBe(true);
+    expect(g.closest("[data-pip-heading-area]")).not.toBeNull();
+  });
+});
 
   it("keeps a reserved slot on every step row, beside the text and never over it", () => {
     render({ items: [WALK, SODA, MET] });

@@ -255,6 +255,12 @@ body {
   display: inline-block; max-width: 100%; border-radius: 0.9rem; background: var(--ink); color: var(--paper);
   padding: 0.3rem 0.7rem; font-size: 0.78rem; font-weight: 800; line-height: 1.25;
 }
+/* The heading greeting points down at the list: a small caret in its own reserved space under the bubble. */
+.pip-bubble[data-point="down"] { position: relative; margin-bottom: 0.45rem; }
+.pip-bubble[data-point="down"]::after {
+  content: ""; position: absolute; top: 100%; right: 1.1rem;
+  border: 0.4rem solid transparent; border-top-color: var(--ink); border-bottom: 0;
+}
 
 html.js-motion [data-reveal] {
   visibility: hidden;

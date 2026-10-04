@@ -83,12 +83,18 @@ export function CareSteps(p: Props) {
     const t = setTimeout(() => setCheering(null), 1400);
     return () => clearTimeout(t);
   }, [cheering]);
-  const spot = pipSpot(stepOrder, p.done, checkFor, cheering);
+  // When the first current step is a quiet card (medicine, lab, warning-kind or flagged), Pip greets once at the
+  // "Your steps" heading instead, so a first-time person still hears it. Gone for good once any step is marked done.
+  const [greetOver, setGreetOver] = useState(false);
+  const spot = pipSpot(stepOrder, p.done, checkFor, cheering, !greetOver);
   const { calm } = usePipCalm();
   const pipText = spot.at !== "none" && spot.line ? pipLine(p.language, spot.line) : "";
   // Keyed on where Pip is too, not only on the words: two steps cheered one after the other both say "Nice, that's
   // done", and the second must still be read. Clearing first makes the repeated words a fresh change (Codex review).
   const pipKey = spot.at === "step" ? `${spot.id}:${spot.mood}` : spot.at;
+  // On the card the greeting's step keeps a quiet Pip: neutral face, no bubble, no motion.
+  const cardPip: Extract<PipSpot, { at: "step" }> | null =
+    spot.at === "step" ? spot : spot.at === "greet" ? { at: "step", id: spot.id, mood: "quiet", line: null } : null;
   const [pipSaid, setPipSaid] = useState("");
   useEffect(() => {
     const clear = setTimeout(() => setPipSaid(""), 0);
@@ -120,8 +126,8 @@ export function CareSteps(p: Props) {
 
   const row = (it: VerifiedItem, warn = false) => (
     <StepRow key={it.id} it={it} n={numberOf(it.id)} warn={warn} check={checkFor(it.id)} open={isOpen(it.id)} onToggle={() => toggle(it.id)}
-      done={!!p.done[it.id]} onDone={(v) => { p.onDone(it.id, v); setCheering(v ? it.id : null); }} onRemove={() => p.onRemove(it.id)}
-      pip={!warn && spot.at === "step" && spot.id === it.id ? spot : null} pipText={pipText} calm={calm}
+      done={!!p.done[it.id]} onDone={(v) => { p.onDone(it.id, v); setCheering(v ? it.id : null); if (v) setGreetOver(true); }} onRemove={() => p.onRemove(it.id)}
+      pip={!warn && cardPip?.id === it.id ? cardPip : null} pipText={pipText} calm={calm}
       care={care} photo={p.photo} meaning={p.meaning} deviceRun={p.deviceRun} deviceStatus={p.deviceStatus}
       speaking={speech.speaking === it.id} onSpeak={() => speech.toggle(it.id, paperFirstLines(careStepView(it, checkFor(it.id))))}
       onHover={setActive} />
@@ -162,15 +168,19 @@ export function CareSteps(p: Props) {
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.15fr_1fr]">
         <div>
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="display text-2xl">Your steps</h3>
-            <div className="flex items-center gap-2">
-              <CalmToggle />
-              {/* Pip's spot once every step is done; reserved either way so the heading never shifts. */}
-              {stepOrder.length > 0 && <PipSlot>{spot.at === "header" && <PipMarker mood={spot.mood} calm={calm} />}</PipSlot>}
+          <div data-pip-heading-area="">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="display text-2xl">Your steps</h3>
+              <div className="flex items-center gap-2" data-pip-heading="">
+                <CalmToggle />
+                {/* Pip's heading spot (the first-view greeting, or every step done); reserved either way so the heading
+                    never shifts. */}
+                {stepOrder.length > 0 && <PipSlot>{(spot.at === "header" || spot.at === "greet") && <PipMarker key={spot.at} mood={spot.mood} calm={calm} />}</PipSlot>}
+              </div>
             </div>
+            {spot.at === "header" && <div className="mt-1 flex justify-end" data-pip-done-all=""><PipBubble text={pipText} /></div>}
+            {spot.at === "greet" && <div className="mt-1 flex justify-end" data-pip-greet=""><PipBubble text={pipText} pointDown /></div>}
           </div>
-          {spot.at === "header" && <div className="mt-1 flex justify-end" data-pip-done-all=""><PipBubble text={pipText} /></div>}
           <p className="text-xs font-semibold text-ink/70">Tap a step to see your paper&apos;s words, what they mean, and more. Times count from your visit, as your paper says them.</p>
           {groups.length === 0 && warnings.length === 0 && <p className="mt-3 text-sm font-semibold">No steps are left. Undo a removed step, or read your paper again.</p>}
           {groups.map(({ g, list }) => (

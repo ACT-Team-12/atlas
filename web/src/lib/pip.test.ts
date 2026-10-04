@@ -65,8 +65,21 @@ describe("where Pip goes", () => {
     expect(pipSpot(steps, { eye: true, met: true }, unchecked, "met")).toEqual({ at: "step", id: "a1c", mood: "quiet", line: null });
     // A step the check flagged: no cheer and no line either.
     const flagged = (id: string): Check => (id === "eye" ? "flagged" : "unchecked");
-    expect(pipSpot(steps, {}, flagged, null)).toEqual({ at: "step", id: "eye", mood: "quiet", line: null });
+    expect(pipSpot(steps, {}, flagged, null, false)).toEqual({ at: "step", id: "eye", mood: "quiet", line: null });
     expect(pipSpot(steps, { eye: true }, flagged, "eye")).toEqual({ at: "step", id: "met", mood: "quiet", line: null });
+  });
+
+  it("greets once at the heading when the first current step is quiet, and never after a step is done", () => {
+    // Nothing done and the current step is quiet: the heading says Start here, the card stays quiet (id).
+    const flagged = (id: string): Check => (id === "eye" ? "flagged" : "unchecked");
+    expect(pipSpot(steps, {}, flagged, null)).toEqual({ at: "greet", id: "eye", mood: "arrive", line: "start" });
+    const medFirst = [steps[1], steps[0], steps[2], steps[3]];
+    expect(pipSpot(medFirst, {}, unchecked, null)).toEqual({ at: "greet", id: "met", mood: "arrive", line: "start" });
+    // A non-quiet first step: the normal Start here on the card, no greeting.
+    expect(pipSpot(steps, {}, unchecked, null).at).toBe("step");
+    // Anything done, or the screen has turned the greeting off: quiet card only.
+    expect(pipSpot(steps, { eye: true }, unchecked, null)).toEqual({ at: "step", id: "met", mood: "quiet", line: null });
+    expect(pipSpot(medFirst, {}, unchecked, null, false)).toEqual({ at: "step", id: "met", mood: "quiet", line: null });
   });
 
   it("moves to the heading with All done for now, and is absent with no steps", () => {

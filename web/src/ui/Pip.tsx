@@ -93,9 +93,12 @@ export function PipSlot({ children, className = "" }: { children?: React.ReactNo
   return <span aria-hidden="true" data-pip-slot="" className={`pip-slot ${className}`}>{children}</span>;
 }
 
-/** What Pip says, as a small bubble under its spot. Decorative: the screen's live region reads the same words. */
-export function PipBubble({ text }: { text: string }) {
-  return <span aria-hidden="true" data-pip-bubble="" className="pip-bubble">{text}</span>;
+/**
+ * What Pip says, as a small bubble under its spot. Decorative: the screen's live region reads the same words.
+ * `pointDown` adds a small caret under the bubble (CSS only, no text) pointing at the list below.
+ */
+export function PipBubble({ text, pointDown = false }: { text: string; pointDown?: boolean }) {
+  return <span aria-hidden="true" data-pip-bubble="" data-point={pointDown ? "down" : undefined} className="pip-bubble">{text}</span>;
 }
 
 // Calm mode: the system's reduced-motion setting, or the person's own "Calm mode" toggle, saved on this device.

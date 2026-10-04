@@ -64,17 +64,27 @@ export function currentStepId(ordered: readonly { id: string }[], done: Readonly
 export type PipSpot =
   | { at: "step"; id: string; mood: "arrive" | "cheer" | "quiet"; line: PipLine | null }
   | { at: "header"; mood: "arrive"; line: "allDone" }
+  /**
+   * First view when the current step is a quiet card: Pip greets once at the "Your steps" heading with the fixed
+   * "start" line, pointing down at the list, while the card itself (`id`) keeps a quiet Pip (neutral, no bubble, still).
+   */
+  | { at: "greet"; id: string; mood: "arrive"; line: "start" }
   | { at: "none" };
 
 /**
  * Decides Pip's spot. `cheering` is a step the person just marked done (and that may be cheered); while it is set and
  * still done, Pip cheers there, then moves on. Quiet steps never get a cheer and never get a line.
+ *
+ * `greet`: whether the heading greeting is still allowed (the screen turns it off for good once any step is marked
+ * done). It shows only before anything is done and only when the current step is quiet; otherwise a first-time
+ * person would never hear Pip at all on a paper that starts with a medicine, lab or flagged step.
  */
 export function pipSpot(
   ordered: readonly { id: string; kind: string }[],
   done: Readonly<Record<string, boolean>>,
   checkFor: (id: string) => Check,
   cheering: string | null,
+  greet = true,
 ): PipSpot {
   if (ordered.length === 0) return { at: "none" };
   const cheer = cheering ? ordered.find((s) => s.id === cheering) : undefined;
@@ -82,7 +92,9 @@ export function pipSpot(
   const id = currentStepId(ordered, done);
   if (!id) return { at: "header", mood: "arrive", line: "allDone" };
   const step = ordered.find((s) => s.id === id)!;
-  if (pipQuiet(step.kind, checkFor(id))) return { at: "step", id, mood: "quiet", line: null };
   const anyDone = ordered.some((s) => done[s.id]);
+  if (pipQuiet(step.kind, checkFor(id))) {
+    return greet && !anyDone ? { at: "greet", id, mood: "arrive", line: "start" } : { at: "step", id, mood: "quiet", line: null };
+  }
   return { at: "step", id, mood: "arrive", line: anyDone ? "next" : "start" };
 }

@@ -47,6 +47,7 @@ export function AskPaper({ care, items, language }: Props) {
         signal: c.signal,
       });
       // The server's own error words are English; the person sees fixed words in their language instead.
+      if (c.signal.aborted) return;
       if (!res.ok) {
         const daily = res.headers.get("x-atlas-limit") === "shared-daily";
         setState({ kind: "error", message: res.status === 429 ? (daily ? t.today : t.busy) : res.status === 503 ? t.unavailable : t.error });
@@ -55,7 +56,7 @@ export function AskPaper({ care, items, language }: Props) {
       const json = await res.json();
       if (c.signal.aborted) return;
       if (json?.kind !== "answer" && json?.kind !== "not_in_paper" && json?.kind !== "urgent") throw new Error("bad answer");
-      setState({ kind: "done", question: q, res: json as AskResponse });
+      setState({ kind: "done", question: q, res: onThisPaper(json as AskResponse, care.source_text) });
     } catch {
       if (c.signal.aborted) return;
       setState({ kind: "error", message: t.error });
@@ -74,13 +75,20 @@ export function AskPaper({ care, items, language }: Props) {
       <form className="mt-3 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); void ask(); }}>
         <label htmlFor={inputId} className="sr-only">{t.label}</label>
         <input id={inputId} type="text" value={question} maxLength={MAX_QUESTION} placeholder={t.placeholder}
-          onChange={(e) => setQuestion(e.target.value)}
+          onChange={(e) => {
+            setQuestion(e.target.value);
+            // A new question: the one in flight is cancelled and an answer on screen is cleared, so an answer is never
+            // shown under a question it wasn't for (Codex review, round 3).
+            ctrl.current?.abort();
+            if (state.kind !== "idle") setState({ kind: "idle" });
+          }}
           className="min-w-0 flex-1 basis-56 rounded-xl border-2 border-ink/70 bg-paper p-2.5 font-semibold" />
         <button type="submit" disabled={state.kind === "loading" || question.trim().length < 3}
           className="rounded-full bg-teal text-paper px-5 py-2.5 font-bold disabled:opacity-40">{t.button}</button>
       </form>
 
       <div aria-live="polite">
+        {state.kind === "done" && <p className="mt-4 text-sm font-bold" data-ask-asked="">&ldquo;{state.question}&rdquo;</p>}
         {state.kind === "loading" && <p className="mt-4 font-semibold text-ink/70">{t.asking}</p>}
         {state.kind === "error" && <p role="alert" className="mt-4 rounded-xl bg-red-soft p-3 font-semibold text-red">{state.message}</p>}
 
@@ -151,4 +159,20 @@ function Refusal({ question, language }: { question: string; language: string })
       </div>
     </div>
   );
+}
+
+/**
+ * Keeps only quotes whose words are exactly this paper's text at their span, the same span Show on my paper
+ * highlights, so the words shown and the place highlighted can never come from two different texts (security review
+ * finding). If none is left, the answer becomes the fixed refusal.
+ */
+export function onThisPaper(res: AskResponse, source: string): AskResponse {
+  if (res.kind !== "answer") return res;
+  const ok = (q: { text: string; span: { start: number; end: number } }) =>
+    Number.isInteger(q.span?.start) && Number.isInteger(q.span?.end) && q.span.start >= 0 && q.span.end <= source.length && q.span.start < q.span.end &&
+    source.slice(q.span.start, q.span.end) === q.text;
+  const quotes = res.quotes.filter(ok);
+  const dropped = [...res.dropped, ...res.quotes.filter((q) => !ok(q)).map(() => "not_in_paper" as const)];
+  if (quotes.length === 0) return { kind: "not_in_paper", dropped, model: res.model, ms: res.ms };
+  return { ...res, quotes, dropped, topic: quotes.length === res.quotes.length ? res.topic : null };
 }

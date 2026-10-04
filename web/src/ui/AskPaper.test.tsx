@@ -86,6 +86,39 @@ describe("Ask my paper on screen", () => {
     expect(host.querySelector("[role=alert]")?.textContent).toContain("Try again tomorrow");
   });
 
+  it("a slow answer never lands under a question the person has since changed (Codex review, round 3)", async () => {
+    let release!: (r: Response) => void;
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((res) => { release = res; }));
+    await askIt("when do I come back?");
+    const input = host.querySelector("input") as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    await act(async () => { setter.call(input, "can I stop my medicine?"); input.dispatchEvent(new Event("input", { bubbles: true })); });
+    const body = { kind: "answer", quotes: [{ text: "Return to clinic in 3 months.", span: { start: 0, end: 29 } }], topic: null, topic_dropped: null, dropped: [], model: "m", ms: 1 };
+    await act(async () => { release(new Response(JSON.stringify(body), { status: 200 })); });
+    expect(host.querySelector("[data-ask-result]")).toBeNull();
+  });
+
+  it("editing the question clears an answer already shown", async () => {
+    reply = { status: 200, body: { kind: "answer", quotes: [{ text: "Return to clinic in 3 months.", span: { start: 0, end: 29 } }], topic: null, topic_dropped: null, dropped: [], model: "m", ms: 1 } };
+    await askIt("when do I come back?");
+    expect(host.querySelector("[data-ask-result=answer]")).not.toBeNull();
+    expect(host.textContent).toContain("when do I come back?");
+    const input = host.querySelector("input") as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    await act(async () => { setter.call(input, "can I drive?"); input.dispatchEvent(new Event("input", { bubbles: true })); });
+    expect(host.querySelector("[data-ask-result]")).toBeNull();
+  });
+
+  it("shows a quote only if its words are exactly the paper text at its span (security review finding)", async () => {
+    reply = { status: 200, body: { kind: "answer", quotes: [
+      { text: "Return to clinic in 3 months.", span: { start: 0, end: 29 } },
+      { text: "Double your dose.", span: { start: 30, end: 47 } },
+    ], topic: null, topic_dropped: null, dropped: [], model: "m", ms: 1 } };
+    await askIt("when do I come back?");
+    expect(host.textContent).toContain("Return to clinic in 3 months.");
+    expect(host.textContent).not.toContain("Double your dose.");
+  });
+
   it("speaks the person's language for every fixed line", async () => {
     reply = { status: 200, body: { kind: "not_in_paper", dropped: [], model: "m", ms: 1 } };
     await askIt("¿puedo manejar?", "Spanish");

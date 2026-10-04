@@ -108,6 +108,12 @@ const L = (src: string, sep: string) => new RegExp(String.raw`(?<![\p{L}\p{N}])(
 const LABELS: LabelRule[] = [
   { kind: "NAME", re: L(String.raw`patient(?:['’]s)?\s+(?:full\s+)?name|pt\.?\s+name|name\s+of\s+(?:the\s+)?patient|(?:first|last|middle|given|family)\s*name|surname|patient|pt|(?:full\s+)?name|emergency\s+contact|guardian|parent(?:\s*\/\s*guardian)?`, SEP_REQ) },
   { kind: "NAME", re: L(String.raw`patient(?:['’]s)?\s+(?:full\s+)?name`, String.raw`\s+`) },
+  // Spanish papers (Spanish is one of the app's languages): the same identity fields.
+  { kind: "NAME", re: L(String.raw`nombre\s+(?:del?\s+(?:la\s+)?paciente|completo)|nombre\s+y\s+apellidos?|apellidos?|paciente|nombre`, SEP_REQ) },
+  { kind: "DOB", re: L(String.raw`fecha\s+de\s+nacimiento|f\.?\s?nac\.?|nacid[oa](?:\s+el)?`, SEP_OPT) },
+  { kind: "MRN", re: L(String.raw`(?:n[uú]mero\s+de\s+)?(?:historia\s+cl[ií]nica|expediente)(?:\s+(?:m[eé]dico|n[uú]mero|no\.?|#))?`, SEP_OPT) },
+  { kind: "CONTACT_PHONE", explicit: true, re: L(String.raw`tel[eé]fono\s+del?\s+(?:la\s+)?paciente|celular\s+del?\s+(?:la\s+)?paciente`, SEP_REQ) },
+  { kind: "CONTACT_PHONE", re: L(String.raw`tel[eé]fono|celular|m[oó]vil`, SEP_REQ) },
   { kind: "DOB", re: L(String.raw`d\.?\s?o\.?\s?b\.?|date\s+of\s+birth|birth\s*date|born(?:\s+on)?`, SEP_OPT) },
   { kind: "DOB", re: L(String.raw`birth`, SEP_REQ) },
   { kind: "AGE", re: L(String.raw`age|aged`, SEP_OPT) },
@@ -208,7 +214,8 @@ export class PhiShield {
   private readonly counters = new Map<PhiKind, number>();
   private readonly reserved = new Set<string>();
   /** Words to hide wherever they appear (names), and exact values (ids, phones, emails). */
-  private readonly names = new Map<string, true>();
+  /** For names: true when the name was learned written all in lowercase, so its lowercase uses are the patient's too. */
+  private readonly names = new Map<string, boolean>();
   private readonly values = new Map<string, PhiKind>();
 
   constructor(opts: { reserved?: Iterable<string> } = {}) {
@@ -265,11 +272,14 @@ export class PhiShield {
     const v = value.trim();
     if (!v) return;
     if (kind === "NAME") {
+      // A name learned in lowercase ("patient:maria lopez", OCR output) is hidden in lowercase later too; a capitalized
+      // one only where it is capitalized ("may", "rose" in a sentence are words).
+      const add = (key: string, s: string) => this.names.set(key, (this.names.get(key) ?? false) || !/\p{Lu}/u.test(s));
       const whole = nameKey(v);
-      if (whole) this.names.set(whole, true);
+      if (whole) add(whole, v);
       for (const part of v.split(/[\s,]+/)) {
         const p = part.replace(/^[.'’-]+|[.'’-]+$/g, "");
-        if (p.length >= 2 && !NO_SPREAD.has(p.toLowerCase()) && !NOT_NAME.has(p.toLowerCase())) this.names.set(nameKey(p), true);
+        if (p.length >= 2 && !NO_SPREAD.has(p.toLowerCase()) && !NOT_NAME.has(p.toLowerCase())) add(nameKey(p), p);
       }
     } else if ((kind === "MRN" || kind === "ACCT" || kind === "ID" || kind === "SSN") && v.replace(/[^A-Za-z0-9]/g, "").length >= 5) {
       if (!this.values.has(v)) { this.values.set(v, kind); this.matcher = null; }
@@ -360,8 +370,8 @@ export class PhiShield {
       // spaces, a comma or an initial's period) wins. A hyphenated or possessive word ("Lopez-Garcia", "Lopez's") is
       // also checked piece by piece, as a word-boundary match would have found "Lopez" in it.
       const words = [...text.matchAll(WORD)].map((m) => ({ start: m.index, end: m.index + m[0].length, key: m[0].toLowerCase() }));
-      const ok = (start: number, end: number) => {
-        if (!/\p{Lu}/u.test(text[start])) return false; // "may", "will", "rose" in a sentence are words, not the patient
+      const ok = (start: number, end: number, key: string) => {
+        if (!/\p{Lu}/u.test(text[start]) && !this.names.get(key)) return false; // "may", "will", "rose" in a sentence are words, not the patient
         const before = text.slice(Math.max(0, start - 40), start);
         const after = text.slice(end, end + 60);
         return !(PROVIDER_BEFORE.test(before) || PROVIDER_AFTER.test(after) || ORG_AFTER.test(after) || ORG_BEFORE.test(before));
@@ -372,7 +382,7 @@ export class PhiShield {
         for (let k = 0; k < MAX_NAME_WORDS && i + k < words.length; k++) {
           if (k > 0 && !NAME_GAP.test(text.slice(words[i + k - 1].end, words[i + k].start))) break;
           key = k === 0 ? words[i].key : `${key} ${words[i + k].key}`;
-          if (this.names.has(key) && ok(words[i].start, words[i + k].end)) found = k + 1;
+          if (this.names.has(key) && ok(words[i].start, words[i + k].end, key)) found = k + 1;
         }
         if (found) {
           out.push({ start: words[i].start, end: words[i + found - 1].end, kind: "NAME" });
@@ -383,7 +393,7 @@ export class PhiShield {
         if (!/['’.-]/.test(text.slice(w.start, w.end))) continue;
         for (const p of text.slice(w.start, w.end).matchAll(/[\p{L}\p{N}]+/gu)) {
           const s = w.start + p.index, e = s + p[0].length;
-          if (this.names.has(p[0].toLowerCase()) && ok(s, e)) out.push({ start: s, end: e, kind: "NAME" });
+          if (this.names.has(p[0].toLowerCase()) && ok(s, e, p[0].toLowerCase())) out.push({ start: s, end: e, kind: "NAME" });
         }
       }
     }
@@ -752,8 +762,10 @@ function detectLines(text: string, gaps: readonly number[]): Hit[] {
       // person's phone.
       if (k === "NAME") {
         const rest = line.text.slice(f.hit.valueStart + f.len, f.end);
-        const lead = /^[\s,;(-]*(?:(?:ph(?:one)?|tel|cell|mobile|#)\.?:?\s*)?/i.exec(rest)![0].length;
-        const ph = PHONE_AT.exec(rest.slice(lead));
+        let lead = /^[\s,;(-]*(?:(?:ph(?:one)?|tel|cell|mobile|#)\.?:?\s*)?/i.exec(rest)![0].length;
+        let ph = PHONE_AT.exec(rest.slice(lead));
+        // "(404) 555-0182": the "(" the lead took is the area code's own.
+        if (!ph && lead > 0 && rest[lead - 1] === "(") ph = PHONE_AT.exec(rest.slice(--lead));
         if (ph) hits.push({ start: start + f.len + lead, end: start + f.len + lead + ph[0].length, kind: "PHONE" });
       }
       // An address can go on to a "City, ST 30310" line (matched with whitespace collapsed, so it cannot backtrack).

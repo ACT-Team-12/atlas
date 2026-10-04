@@ -163,6 +163,12 @@ const STYLED = /[①-⓿]|[\u{1D400}-\u{1D7FF}]/u;
 /** Compatibility symbols common on medical papers, sent as they are: micro sign, trademark, degrees, ordinals. */
 const COMPAT_OK = /[\u00B5\u2122\u2120\u2103\u2109\u00BA\u00AA]/;
 const SUPSUB_DIGIT = /[²³¹⁰⁴-⁹₀-₉]/;
+/**
+ * Latin letters that look like a plain ASCII letter but are not one, and are not used to write any of the app's
+ * languages: dotless i and j (ı ȷ), IPA letters (ɑ ɡ ɩ...), small capitals and phonetic letters (ᴀ ʙ ꜱ...). A model
+ * reads "Nɑme" as "Name"; the patterns here would not, so they are refused like Cyrillic lookalikes.
+ */
+const LATIN_LOOKALIKE = /[ıȷɐ-ʯᴀ-ᶿꜰ-ꟿ]/;
 const LATIN = /\p{Script=Latin}/u;
 const CYRILLIC = /\p{Script=Cyrillic}/u;
 const GREEK = /\p{Script=Greek}/u;
@@ -268,11 +274,12 @@ export function canonicalize(raw: string): Canon {
     let end = i + (cp > 0xffff ? 2 : 1);
     const base = raw.slice(i, end);
     if (STYLED.test(base)) throw new PhiCharRefused("styled or circled letters or numbers");
-    // A superscript or subscript digit next to any other digit could be read as part of a number ("555-12³4"): refused.
-    // On its own ("m²") it stays.
+    if (LATIN_LOOKALIKE.test(base)) throw new PhiCharRefused("Latin letters that look like other letters (such as ı or ɑ)");
+    // A superscript or subscript digit could be read as part of a number ("555-12³4", "884-¹-2907"): refused, unless
+    // it sits right after a letter and before no digit ("m²", "CO₂", a footnote mark "aspirin¹").
     const nextCh = end < n ? String.fromCodePoint(raw.codePointAt(end)!) : "";
-    if (SUPSUB_DIGIT.test(base) && (/\p{N}/u.test(text.slice(-1)) || /\p{N}/u.test(nextCh))) {
-      throw new PhiCharRefused("a superscript or subscript digit next to other digits");
+    if (SUPSUB_DIGIT.test(base) && (!/\p{L}/u.test(text.slice(-1)) || /\p{N}/u.test(nextCh))) {
+      throw new PhiCharRefused("a superscript or subscript digit that could be read as part of a number");
     }
     // A cluster: the code point and the combining marks after it (invisible characters inside it are removed).
     let cluster = base;

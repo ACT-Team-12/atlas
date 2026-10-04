@@ -2,6 +2,7 @@ import { describe, expect, it, test } from "vitest";
 import { PhiShield, PhiShieldRefused, TOKEN_RE, hasToken, shield, stripTokens, unshieldString, type ShieldResult } from "./phiShield";
 import { canonicalize, detectionView, readText } from "./phiRead";
 import { shieldText } from "./phiResponses";
+import { guardMeaning, guardPlan, guardUnderstand } from "./phiGuard";
 import { plantedPapers } from "./phiPlanted";
 
 /**
@@ -92,6 +93,14 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     ["MRN: ८८४१२९०७", ["८८४१२९०७"]],
     ["Patient: MariaㅤLopez\n\nLopez, rest.", ["MariaㅤLopez", "Lopez"]],
     ["Patient: ⟦NAME_A⟧   DOB: ⟦DOB_A⟧\nName   DOB   MRN\nMaria Lopez   01/01/1970   88412907", ["Maria Lopez", "01/01/1970", "88412907"]],
+    // A parenthesized phone right after a labeled name.
+    ["Patient: Maria Lopez (404) 555-0182", ["Maria Lopez", "(404) 555-0182"]],
+    ["Emergency contact: John Lee (404) 555-0101", ["John Lee", "(404) 555-0101"]],
+    // A Spanish paper's identity fields.
+    ["Nombre del paciente: María López\nFecha de nacimiento: 01/01/1970\nTeléfono: 404-555-0182", ["María López", "01/01/1970", "404-555-0182"]],
+    ["Paciente: María López\nExpediente: 88412907\n\nMaría debe descansar.", ["María López", "88412907", "María"]],
+    // A name learned in lowercase is hidden in lowercase later.
+    ["patient:maria lopez\nmaria should rest today.", ["maria lopez", "maria"]],
   ];
   test.each(CASES)("%j", (paper, values) => {
     const r = shield(paper);
@@ -134,6 +143,14 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     "Name   DOB   MRN\u0085Maria Lopez   01/01/1970   88412907",
     "Patient: Maria\u2029Lopez",
     "Patient: Maria\u0007Lopez",
+    // Latin letters that look like other Latin letters.
+    "Nɑme: Maria Lopez",
+    "Patıent: Maria Lopez",
+    "Patient: ᴍaria Lopez",
+    // A superscript or subscript digit between punctuation inside a number.
+    "MRN: 884-¹-2907\nTake medicine today.",
+    "MRN: 884-₁-2907",
+    "MRN: 884 ¹ 2907",
   ];
   test.each([
     ["Patient email: maria\u2063.lopez@example.com", "maria\u2063.lopez@example.com"],
@@ -176,7 +193,7 @@ describe("bypass inputs: each identifier is hidden in full", () => {
     expect(() => shield(paper)).not.toThrow();
   });
 
-  test.each(["Take \u00BD tablet.", "Inject 50 \u00B5g.", "Area 2 m\u00B2.", "Fever over 38\u2103.", "Brand\u2122 cream", "Take 1 \u00BD tablets."])("common symbols on a paper stay: %j", (paper) => {
+  test.each(["Take \u00BD tablet.", "Inject 50 \u00B5g.", "Area 2 m\u00B2.", "Fever over 38\u2103.", "Brand\u2122 cream", "Take 1 \u00BD tablets.", "Breathe out CO\u2082.", "Take aspirin\u00B9 daily.", "Vitamin D\u2083 drops"])("common symbols on a paper stay: %j", (paper) => {
     expect(shield(paper).text).toBe(paper);
   });
 
@@ -397,5 +414,31 @@ describe("differential: the browser shield and the server guard agree", () => {
       for (const v of ["Maria", "Lopez", "88412907"]) if (p.includes(v)) expect(leftIn(client.result.text, v), `${p} -> ${client.result.text}`).toEqual([]);
       expect(shieldText(new PhiShield(), client.result.text).result.offsetMap).toEqual([]);
     }
+  });
+});
+
+describe("a step's free-form id and kind never reach the AI", () => {
+  it("plan, understand and meaning send opaque ids and a listed kind, and put the real ids back", async () => {
+    const sent: string[] = [];
+    const care = [{ id: "Maria Lopez", kind: "MRN 88412907", title: "Take medicine", plain_language: "Take medicine", when: "today", source_quote: "Take medicine" }];
+    const plan = await guardPlan({ care, barriers: ["cost"], language: "English", note: "" } as never, async (r) => {
+      sent.push(JSON.stringify(r));
+      return { steps: [{ care_ids: [(r as { care: { id: string }[] }).care[0].id] }] };
+    });
+    expect(plan.steps[0].care_ids).toEqual(["Maria Lopez"]);
+    const items = [{ id: "Maria Lopez", kind: "medication", title: "Take medicine", source_quote: "Take medicine" }];
+    const u = await guardUnderstand({ source_text: "Take medicine every morning.", language: "English", items } as never, async (r) => {
+      sent.push(JSON.stringify(r));
+      return { questions: [], dropped: [{ item_id: r.items[0].id, reason: "unknown_step" }], model: "m", ms: 0 } as never;
+    });
+    expect(u.dropped[0].item_id).toBe("Maria Lopez");
+    const m = await guardMeaning({ items: [{ id: "Maria Lopez", plain_language: "Take medicine", when: "", source_quote: "Take medicine" }] } as never, async (r) => {
+      sent.push(JSON.stringify(r));
+      return { results: [{ id: r.items[0].id }] };
+    });
+    expect(m.results[0].id).toBe("Maria Lopez");
+    expect(sent).toHaveLength(3);
+    for (const s of sent) expect(s).not.toMatch(/Maria|Lopez|88412907/);
+    expect(sent[1]).toContain('"kind":"medication"');
   });
 });

@@ -18,6 +18,7 @@ import { restoredPlan } from "@/lib/planText";
 import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
+import { AskPaper } from "./AskPaper";
 import { HandoffSheet } from "./HandoffSheet";
 import { MissedLines, useMissedLines } from "./MissedLines";
 import { missedLineTexts } from "@/lib/missedLines";
@@ -1059,6 +1060,8 @@ export function CarePlanTool() {
                 photo={readPhoto?.for === care ? readPhoto.file : null} simpler={{ ok: simplerOk, onClick: makeSimpler }} />
               <MissedLines view={missed} />
               <Understand key={`${care.source_text.length}:${items.map((i) => i.id).join(",")}:${language}`} care={care} items={items} language={language} />
+              {/* "Ask my paper": answers only in the paper's own words, checked, or "your paper doesn't say" (lib/ask.ts). */}
+              <AskPaper key={`${runIdFor(care)}:${language}`} care={care} items={items} language={language} />
               <button type="button" onClick={() => pickTab(2, false)}
                 className="md:hidden mt-8 w-full rounded-full border-2 border-ink bg-sun px-5 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
                 Next: your needs →

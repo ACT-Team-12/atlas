@@ -1,0 +1,148 @@
+"use client";
+
+import { useEffect, useId, useRef, useState } from "react";
+import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
+import type { AskResponse } from "@/lib/ask";
+import { askAboutQuestion, askText, isUrgentQuestion, MAX_QUESTION } from "@/lib/askText";
+import { isWarning } from "@/lib/warningPin";
+import { ShowOnPaper } from "./ShowOnPaper";
+
+type Props = { care: CarePlanResponse; items: VerifiedItem[]; language: string };
+
+type State =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "done"; question: string; res: AskResponse };
+
+/**
+ * "Ask my paper": a question answered only with the paper's own words (lib/ask.ts checks every quote server-side).
+ * Paper first: the quotes lead, labelled "Copied word for word from your paper"; the AI's one-line lead-in comes
+ * after, smaller, under "not double-checked yet". Nothing survives: the fixed refusal and a ready question built
+ * from the person's own words. An urgent question gets 911 / 211 guidance and the paper's own warning lines, never
+ * an AI answer, and is caught here before anything is sent. The parent remounts this on any new paper or language.
+ */
+export function AskPaper({ care, items, language }: Props) {
+  const t = askText(language);
+  const [question, setQuestion] = useState("");
+  const [state, setState] = useState<State>({ kind: "idle" });
+  const ctrl = useRef<AbortController | null>(null);
+  const inputId = useId();
+
+  useEffect(() => () => ctrl.current?.abort(), []);
+
+  async function ask() {
+    const q = question.replace(/\s+/g, " ").trim();
+    if (q.length < 3) return;
+    ctrl.current?.abort();
+    if (isUrgentQuestion(q)) { setState({ kind: "done", question: q, res: { kind: "urgent" } }); return; }
+    const c = new AbortController();
+    ctrl.current = c;
+    setState({ kind: "loading" });
+    try {
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source_text: care.source_text, language, question: q }),
+        signal: c.signal,
+      });
+      const json = await res.json();
+      if (c.signal.aborted) return;
+      if (!res.ok) throw new Error(typeof json.error === "string" ? json.error : t.error);
+      if (json?.kind !== "answer" && json?.kind !== "not_in_paper" && json?.kind !== "urgent") throw new Error(t.error);
+      setState({ kind: "done", question: q, res: json as AskResponse });
+    } catch (e) {
+      if (c.signal.aborted) return;
+      setState({ kind: "error", message: e instanceof Error ? e.message : t.error });
+    }
+  }
+
+  const res = state.kind === "done" ? state.res : null;
+  const held = res && res.kind !== "urgent" ? res.dropped.length : 0;
+  const warnings = items.filter((i) => i.grounded && isWarning(i));
+
+  return (
+    <div className="mt-6 rounded-2xl border-2 border-teal bg-paper p-4 sm:p-6" aria-labelledby="ask-paper-title" data-ask-paper="">
+      <p id="ask-paper-title" className="font-extrabold text-lg">{t.title}</p>
+      <p className="text-sm font-semibold text-ink/70">{t.intro}</p>
+      <form className="mt-3 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); void ask(); }}>
+        <label htmlFor={inputId} className="sr-only">{t.label}</label>
+        <input id={inputId} type="text" value={question} maxLength={MAX_QUESTION} placeholder={t.placeholder}
+          onChange={(e) => setQuestion(e.target.value)}
+          className="min-w-0 flex-1 basis-56 rounded-xl border-2 border-ink/70 bg-paper p-2.5 font-semibold" />
+        <button type="submit" disabled={state.kind === "loading" || question.trim().length < 3}
+          className="rounded-full bg-teal text-paper px-5 py-2.5 font-bold disabled:opacity-40">{t.button}</button>
+      </form>
+
+      <div aria-live="polite">
+        {state.kind === "loading" && <p className="mt-4 font-semibold text-ink/70">{t.asking}</p>}
+        {state.kind === "error" && <p role="alert" className="mt-4 rounded-xl bg-red-soft p-3 font-semibold text-red">{state.message}</p>}
+
+        {res?.kind === "urgent" && (
+          <div className="mt-4 rounded-2xl border-2 border-red bg-red-soft p-4" data-ask-result="urgent">
+            <p className="font-extrabold text-red">{t.urgentTitle}</p>
+            <p className="mt-1 font-semibold">{t.urgentBody}</p>
+            {warnings.length > 0 && (
+              <div className="mt-3">
+                <p className="text-sm font-bold">{t.urgentPaper}</p>
+                <ul className="mt-1 space-y-1">
+                  {warnings.map((w) => <li key={w.id} data-paper-quote="" className="border-l-4 border-sun pl-2 text-sm font-semibold">&ldquo;{w.source_quote}&rdquo;</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {res?.kind === "not_in_paper" && state.kind === "done" && <Refusal question={state.question} language={language} />}
+
+        {res?.kind === "answer" && (
+          <div className="mt-4" data-ask-result="answer">
+            <div data-paper-quote="" className="border-l-4 border-sun pl-2">
+              <p className="text-[11px] font-extrabold uppercase tracking-wide text-teal-deep">{t.paperLabel}</p>
+              <ul className="space-y-2">
+                {res.quotes.map((q, i) => (
+                  <li key={`${q.span.start}-${q.span.end}`}>
+                    <p className="font-semibold">&ldquo;{q.text}&rdquo;</p>
+                    <ShowOnPaper care={care} photo={null} check="unchecked"
+                      item={{ id: `ask-${i}`, kind: "self_care", title: "", plain_language: "", why: "", when: "", source_quote: q.text, needs_clarification: false, question_for_clinic: "", grounded: true, span: q.span }} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {res.lead_in && (
+              <div data-explanation="" data-secondary="" className="mt-3 text-sm text-ink/70">
+                <p className="text-xs font-bold">{t.leadNote}</p>
+                <p>{res.lead_in}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {held > 0 && <p className="mt-3 text-[11px] font-semibold text-ink/70" data-ask-held={held}>{t.held(held)}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** The fixed "your paper doesn't say" answer, with a question built only from the person's own words. */
+function Refusal({ question, language }: { question: string; language: string }) {
+  const t = askText(language);
+  const ready = askAboutQuestion(question, language);
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard?.writeText(ready.question).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
+  }
+  return (
+    <div className="mt-4 rounded-2xl border-2 border-peach-deep bg-peach p-4" data-ask-result="not_in_paper">
+      <p className="font-extrabold">{t.refusal}</p>
+      <div className="mt-3 rounded-xl border-2 border-dashed border-ink/40 bg-paper p-3 text-sm">
+        <p className="text-xs font-bold text-ink/70">{t.readyLabel}. {t.readyHint}</p>
+        <p className="mt-1 font-semibold" data-ask-question="">{ready.question}</p>
+        <div className="mt-2 flex items-center gap-2">
+          <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">{t.copy}</button>
+          <span role="status" className="text-xs font-semibold text-ink/70">{copied ? t.copied : ""}</span>
+        </div>
+      </div>
+    </div>
+  );
+}

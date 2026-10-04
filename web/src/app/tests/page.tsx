@@ -205,9 +205,14 @@ export default async function TestsPage() {
               We took the correct rows and planted the mistakes a wrong AI could make. Our code must leave each one out, or still judge it from what the report prints.
             </p>
             <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              <Stat big={`${labPlanted.real.right}/${labPlanted.real.total}`} label="correct rows judged right" />
-              <Stat big={`${labPlanted.planted.caught}/${labPlanted.planted.total}`} label="planted mistakes caught" note={`${labPlanted.planted.dropped} left out, ${labPlanted.planted.judged_right} still judged right`} tone="bg-mint" />
+              <Stat big={`${labPlanted.real.right}/${labPlanted.real.total}`} label="correct rows judged right" note={labPlanted.real.cautious.length ? `${labPlanted.real.cautious.length} more shown as can't tell on purpose, below` : undefined} />
+              <Stat big={`${labPlanted.planted.caught}/${labPlanted.planted.total}`} label="planted mistakes caught" note={`${labPlanted.planted.dropped} left out, ${labPlanted.planted.judged_right} still judged right${labPlanted.planted.cautious_kept ? `, ${labPlanted.planted.cautious_kept} shown as can't tell on the cautious row` : ""}`} tone="bg-mint" />
             </div>
+            {labPlanted.real.cautious.length > 0 && (
+              <ul className="mt-4 max-w-[50em] text-sm font-semibold list-disc pl-5">
+                {labPlanted.real.cautious.map((c) => <li key={`${c.report}${c.test}`}>{c.report}, {c.test}: truth is {c.truth}, shown as can&apos;t tell. {c.why}</li>)}
+              </ul>
+            )}
             <ul className="mt-6 max-w-[50em] space-y-2 text-sm font-semibold">
               {Object.entries(labPlanted.planted.byKind).map(([k, v]) => (
                 <li key={k} className="card p-4 bg-paper">

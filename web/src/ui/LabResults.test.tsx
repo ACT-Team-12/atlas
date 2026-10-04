@@ -175,6 +175,29 @@ describe("critical lines stay loud and open", () => {
     expect(toggleOf(crit).contains(crit.querySelector("[data-critical-note]"))).toBe(true);
     expect(crit.closest('[data-lab-group="inside"]')).toBeNull();
   });
+
+  it("a critical marker before the value, on a number inside its range, is still flagged, never folded (Codex review)", () => {
+    const src = "CHEMISTRY\nCRITICAL Potassium      4.0       mmol/L     3.5-5.1\nSodium   139   mmol/L   136-145\n";
+    const res = checkRows(src, [
+      { test: "Potassium", value: "4.0", unit: "mmol/L", range_text: "3.5-5.1", quote: "CRITICAL Potassium      4.0       mmol/L     3.5-5.1", plain_name: "AI-PLAIN [k]", ask: "AI-ASK [k]?" },
+      { test: "Sodium", value: "139", unit: "mmol/L", range_text: "136-145", quote: "Sodium   139   mmol/L   136-145", plain_name: "AI-PLAIN [na]", ask: "AI-ASK [na]?" },
+    ]);
+    expect(res.counts).toEqual({ outside: 1, inside: 1, unknown: 0 });
+    expect(res.rows[0]).toMatchObject({ test: "Potassium", status: "outside", direction: null, reason: "Your report marks this line critical." });
+    render(res.rows);
+    const k = rowNamed("Potassium");
+    expect(k.closest('[data-lab-group="outside"]')).not.toBeNull();
+    expect(k.dataset.critical).toBe("true");
+    expect(k.querySelector("[data-chip]")!.textContent).toBe("Flagged");
+    expect(toggleOf(k).getAttribute("aria-expanded")).toBe("true");
+    expect(host.querySelector("[data-ask-clinic]")!.textContent).toContain("AI-ASK [k]?");
+  });
+
+  it("a test name with the word critical in it does not make a line critical", () => {
+    const line = "Critical Care Panel Sodium   139   mmol/L   136-145";
+    const res = checkRows(`${line}\n`, [{ test: "Critical Care Panel Sodium", value: "139", unit: "mmol/L", range_text: "136-145", quote: line, plain_name: "x", ask: "y" }]);
+    expect(res.rows[0].status).toBe("inside");
+  });
 });
 
 describe("the AI's words never show without the report's line", () => {

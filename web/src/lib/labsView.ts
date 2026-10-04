@@ -32,7 +32,16 @@ export function isCritical(line: string): boolean {
   return /(?<![\p{L}\p{N}])(?:critical|panic)(?![\p{L}\p{N}])/iu.test(line) || /(?:^|[\s(\[*])(?:HH|LL)(?=$|[\s)\]*!])/.test(line);
 }
 
-export type LabChip = { label: string; tone: "high" | "low" | "flag" | "inside" | "unknown" };
+/**
+ * isCritical on the line with the test name blanked out, so a name never makes a line critical and a marker anywhere
+ * else on it (before the value too: "CRITICAL Potassium 4.0") does. results.ts (judgeRow) and the row use this one rule.
+ */
+export function criticalOnLine(line: string, test: string): boolean {
+  const name = findTestName(line, test);
+  return isCritical(name ? line.slice(0, name.start) + " ".repeat(name.text.length) + line.slice(name.end) : line);
+}
+
+export type LabChip ={ label: string; tone: "high" | "low" | "flag" | "inside" | "unknown" };
 
 /** The chip on a row, from our code's decision (status and direction), never from the AI. */
 export function labChip(r: Pick<ResultRow, "status" | "direction">): LabChip {
@@ -47,7 +56,7 @@ export type LabClosedRow = { name: string; value: string; unit: string; range: s
 export function labClosedRow(r: Pick<ResultRow, "quote" | "test" | "value" | "unit" | "range_text">): LabClosedRow {
   // checkRows keeps a row only when the name is on its line, so the fallback (the start of the line) is a safety net.
   const name = findTestName(r.quote, r.test)?.text ?? r.quote.split(/\s{2,}|\t/)[0].trim();
-  return { name, value: r.value, unit: r.unit, range: r.range_text, critical: isCritical(r.quote) };
+  return { name, value: r.value, unit: r.unit, range: r.range_text, critical: criticalOnLine(r.quote, r.test) };
 }
 
 /** The rows by what our code decided: outside first, then the ones it couldn't tell, then the ones in range. */

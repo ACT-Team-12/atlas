@@ -4,7 +4,7 @@ import { z } from "zod";
 import { ExtractError, MODEL } from "./extract";
 import { LANGUAGES } from "./schema";
 import { findSpanIn, mapSource, type MappedSource } from "./verify";
-import { findTestName } from "./labsView";
+import { criticalOnLine, findTestName } from "./labsView";
 
 /**
  * "Explain my lab results": asked for by a real patient on Oct 2 ("a summary option that only highlights what I
@@ -161,6 +161,16 @@ function readLine(line: string, r: Pick<ModelRow, "test" | "unit" | "range_text"
  * moves from another line changes nothing.
  */
 export function judgeRow(r: ModelRow): Omit<ResultRow, keyof ModelRow> {
+  const judged = judgeByValue(r);
+  // A line the report marks critical or panic (anywhere on it but the test name, before the value too) is never in
+  // range and never "can't tell": a range check must not give it an all-clear (Codex review).
+  if (criticalOnLine(r.quote, r.test) && judged.status !== "outside") {
+    return { status: "outside", direction: null, reason: "Your report marks this line critical." };
+  }
+  return judged;
+}
+
+function judgeByValue(r: ModelRow): Omit<ResultRow, keyof ModelRow> {
   const read = readLine(r.quote, r);
   if (!read) return { status: "unknown", direction: null, reason: "We couldn't find this result on the line." };
   const { value, valueRange, range, rangeText, flag, loneL } = read;

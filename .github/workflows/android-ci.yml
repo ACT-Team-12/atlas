@@ -43,4 +43,12 @@ jobs:
           print("SafetyVectorsTest", m.groups() if m else "missing")
           assert m and int(m[1]) >= 6 and m[2] == "0" and m[3] == "0", "the shared safety vector replay did not run and pass"
           assert "safety vectors: when " in h and "safety vectors: warning " in h, "the safety vector replay did not report"
+          # The shared Pip vectors (placement, the quiet rule, the fixed lines) must have run and passed.
+          s = glob.glob("app/build/test-results/testDebugUnitTest/TEST-com.stephensookra.atlas.PipVectorsTest.xml")
+          h = open(s[0]).read() if s else ""
+          m = re.search(r'tests="(\d+)".*?failures="(\d+)".*?errors="(\d+)"', h, re.S)
+          print("PipVectorsTest", m.groups() if m else "missing")
+          assert m and int(m[1]) >= 8 and m[2] == "0" and m[3] == "0", "the shared Pip vector replay did not run and pass"
+          r = re.search(r"pip vectors: (\d+) of (\d+) equal to the web reference", h)
+          assert r and r[1] == r[2] and int(r[2]) > 600, "the Pip vector replay did not report"
           PY

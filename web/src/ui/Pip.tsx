@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useSyncExternalStore } from "react";
+import { useUi } from "./UiLang";
 
 /**
  * Pip (Akhil's design): an inline SVG built from his rig (video/assets/pip-rig.svg), with his named parts as props:
@@ -148,12 +149,13 @@ export function usePipCalm() {
 /** The "Calm mode" switch: Pip fades between spots instead of hopping, and stops blinking. */
 export function CalmToggle() {
   const { calm, saved, reduced } = usePipCalm();
+  const { t } = useUi();
   return (
     <button type="button" aria-pressed={calm} disabled={reduced} onClick={() => setCalmMode(!saved)} data-calm-toggle=""
-      title={reduced ? "Your device already asks for less motion" : undefined}
+      title={reduced ? t("pip.calmReduced") : undefined}
       className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink/60 bg-paper px-3 py-1 text-xs font-bold hover:bg-mint-soft disabled:opacity-70">
       <span aria-hidden="true" className={`inline-block h-3 w-3 rounded-full border-2 border-ink ${calm ? "bg-teal" : "bg-paper"}`} />
-      Calm mode
+      {t("pip.calm")}
     </button>
   );
 }

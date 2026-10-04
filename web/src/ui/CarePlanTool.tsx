@@ -9,7 +9,7 @@ import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
-import { BARRIERS, BARRIER_LABEL, type Barrier } from "@/lib/resources";
+import { BARRIERS, type Barrier } from "@/lib/resources";
 import type { PlanResponse } from "@/lib/plan";
 import { topResources } from "@/lib/planTop";
 import { ProblemRow, TopCalls } from "./PlanStart";
@@ -54,6 +54,8 @@ import { autosaveStore } from "@/lib/autosave";
 import { fetchMeaning, IDLE_MEANING, RunFence, runMeaningCheck, type MeaningState } from "@/lib/meaningRun";
 import { consumeHelperSession, entryHeaders } from "@/lib/helperLink";
 import { HelperBanner, useHelperArrival } from "./HelperArrival";
+import { keyFor, LANGUAGE_NAME, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
+import { UiLangProvider, useUi } from "./UiLang";
 
 /** Id for a saved plan. randomUUID needs a secure page; the fallback is fine for a local key. */
 function newPlanId() {
@@ -113,17 +115,18 @@ async function streamExtract(body: Record<string, unknown>, onItem: (it: Verifie
  * paper's own words, so a mislabeled "call 911" line is red here too.
  */
 export function StreamingSteps({ items }: { items: VerifiedItem[] }) {
+  const { t, tn } = useUi();
   return (
     <div className="mt-8" aria-busy="true">
-      <p className="display text-2xl">Still reading your paper<span className="working-dots" aria-hidden="true" /></p>
+      <p className="display text-2xl">{t("paper.stillReading")}<span className="working-dots" aria-hidden="true" /></p>
       <p className="text-sm font-bold text-ink/70 mt-1">
-        {items.length} {items.length === 1 ? "step" : "steps"} found so far. We found each one&apos;s words in your paper. More may come.
+        {tn("stepsFoundSoFar", items.length)} {t("paper.foundSoFarMore")}
       </p>
       <ul className="mt-4 space-y-3">
         {items.map((it) => (
           <li key={it.id} data-warning={isWarning(it) ? "" : undefined} className={`step-in rounded-2xl border-2 p-4 ${isWarning(it) ? "border-red bg-red-soft/50" : "border-ink/70 bg-paper"}`}>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`chip ${KIND[it.kind]?.cls}`}>{KIND[it.kind]?.label}</span>
+              <span className={`chip ${KIND[it.kind]?.cls}`}>{t(keyFor("kind", it.kind, "kind.step"))}</span>
             </div>
             {/* Not checked yet while streaming, so the paper's words lead (lib/paperFirst.ts). */}
             <PaperFirst v={careStepView(it, "unchecked")} />
@@ -160,6 +163,9 @@ export function CarePlanTool() {
   const [text, setTextState] = useState("");
   const [photo, setPhotoState] = useState<File | null>(null);
   const [language, setLanguageState] = useState<(typeof LANGUAGES)[number]>("English");
+  // The app's own words in the chosen language (lib/uiText.ts); children read it from UiLangProvider below.
+  const t = (key: UiKey, vars?: Record<string, string | number>) => ui(language, key, vars);
+  const tn = (key: UiPluralKey, n: number, vars?: Record<string, string | number>) => uiCount(language, key, n, vars);
   const [level, setLevelState] = useState<(typeof READING_LEVELS)[number]>("simple");
   // The level the steps on screen were read at (the select can change after a read).
   const [readLevel, setReadLevel] = useState<(typeof READING_LEVELS)[number] | null>(null);
@@ -389,7 +395,7 @@ export function CarePlanTool() {
     barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc,
   }) !== planFp);
   const resultsCurrent = !careOutdated && !planOutdated;
-  const actionsOffReason = careOutdated ? "Read your paper again first" : "Update the plan first";
+  const actionsOffReason = t(careOutdated ? "plan.offPaper" : "plan.offPlan");
   // A plan made near the device's position, with no position or ZIP now: it needs a place before it can be updated.
   const needsPlace = !!plan && plan.located.by === "device" && !loc && !/^\d{5}$/.test(zip);
 
@@ -529,7 +535,7 @@ export function CarePlanTool() {
       if (readRun.current !== run) return; // stopped or replaced: nothing to show
       if (pendingRead.current?.run === run && pendingRead.current.fp !== liveReadFp()) return stopStaleRead();
       pendingRead.current = null;
-      setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong.");
+      setPartial([]); setError(e instanceof Error ? e.message : t("common.somethingWrong"));
     }
     finally { if (readRun.current === run) setReading(false); }
   }
@@ -538,13 +544,13 @@ export function CarePlanTool() {
   function stopStaleRead() {
     readRun.current++; pendingRead.current?.abort.abort(); pendingRead.current = null;
     setReading(false); setPartial([]);
-    setReadNote("You changed your paper or settings, so we stopped reading. Press Read my paper again when ready.");
+    setReadNote(t("paper.readStopped"));
   }
 
   function stopStalePlan() {
     planRun.current++; pendingPlan.current?.abort.abort(); pendingPlan.current = null;
     setPlanning(false);
-    setPlanNote("You changed your answers, so we stopped building the plan. Press Make my plan again when ready.");
+    setPlanNote(t("needs.planStopped"));
   }
 
   function autoScrollOk(submittedAt: number) {
@@ -591,7 +597,7 @@ export function CarePlanTool() {
     } catch (e) {
       if (planRun.current !== run) return;
       if (pendingPlan.current?.run === run && pendingPlan.current.fp !== livePlanFp()) return stopStalePlan();
-      pendingPlan.current = null; setError(e instanceof Error ? e.message : "Something went wrong.");
+      pendingPlan.current = null; setError(e instanceof Error ? e.message : t("common.somethingWrong"));
     }
     finally { if (planRun.current === run) setPlanning(false); }
   }
@@ -599,7 +605,7 @@ export function CarePlanTool() {
   // Asking again drops the old position at once: a plan built from it is outdated until this request answers.
   // Only the latest request counts (a typed ZIP also supersedes any request still out).
   function useMyLocation() {
-    if (!navigator.geolocation) return setError("This browser can't share location. Type a ZIP instead.");
+    if (!navigator.geolocation) return setError(t("needs.noGeo"));
     const gen = ++locGen.current;
     setLoc(null); setLocating(true);
     navigator.geolocation.getCurrentPosition(
@@ -609,7 +615,7 @@ export function CarePlanTool() {
       },
       () => {
         if (locGen.current !== gen) return;
-        setLocating(false); setError("Location wasn't shared. Type a ZIP instead.");
+        setLocating(false); setError(t("needs.geoDenied"));
       },
       { timeout: 8000 },
     );
@@ -618,8 +624,8 @@ export function CarePlanTool() {
   // The phone's own voice. One utterance per line: Chrome silently stops a single long utterance after about 15 seconds.
   // If the browser never starts (iPhone Safari can ignore speech that isn't started by a tap), give up after 5 seconds.
   function phoneVoice(lines: string[], run: number) {
-    if (!("speechSynthesis" in window)) { setSpeaking(false); setVoiceNote("This device can't read aloud. Try Print or Send to family."); return; }
-    setVoiceNote("Reading with your phone's voice.");
+    if (!("speechSynthesis" in window)) { setSpeaking(false); setVoiceNote(t("voice.cant")); return; }
+    setVoiceNote(t("voice.phone"));
     let started = false;
     lines.forEach((line, i) => {
       const u = new SpeechSynthesisUtterance(line);
@@ -634,7 +640,7 @@ export function CarePlanTool() {
       if (speechRun.current !== run || started) return;
       window.speechSynthesis.cancel();
       setSpeaking(false);
-      setVoiceNote("This device didn't start reading. Tap Read it out loud again, or use Print or Send to family.");
+      setVoiceNote(t("voice.didntStart"));
     }, 5000);
   }
 
@@ -658,7 +664,7 @@ export function CarePlanTool() {
     } catch (e) {
       if (speechRun.current !== run) return;
       // iPhone Safari: the tap that started this expired during the download. One more tap plays it.
-      if (e instanceof DOMException && e.name === "NotAllowedError") { setTapToPlay(true); setVoiceNote("The voice is ready. Tap play."); }
+      if (e instanceof DOMException && e.name === "NotAllowedError") { setTapToPlay(true); setVoiceNote(t("voice.tapPlay")); }
       else fallBack(run);
     }
   }
@@ -837,7 +843,7 @@ export function CarePlanTool() {
     const free = autoScrollOk(nav.submittedAt);
     const phone = isPhoneNow();
     if (free || !phone) setTab(3);
-    else setPlanReadyNote("Your plan is ready. Open 3 · Plan.");
+    else setPlanReadyNote(t("plan.ready"));
     const target = scrollTargetAfter("plan", phone);
     if (!target || !free) return;
     const next = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt };
@@ -951,17 +957,18 @@ export function CarePlanTool() {
   const onPhone = (t: Tab) => (t === shown ? "" : "max-md:hidden");
 
   return (
-    <section id="try" className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="try-title">
+    <UiLangProvider language={language}>
+    <section id="try" lang={UI_LANG_CODE[language]} className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="try-title">
       <div className="section-card bg-mint-soft px-4 sm:px-10 py-20">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 id="try-title" tabIndex={-1} className="display text-[clamp(2.4rem,5vw,5rem)]">Try it</h2>
-          <p className="hand text-3xl text-teal-deep rotate-1 max-w-[16em]">use the sample, or a paper you&apos;re comfortable sharing</p>
+          <h2 id="try-title" tabIndex={-1} className="display text-[clamp(2.4rem,5vw,5rem)]">{t("paper.sectionTitle")}</h2>
+          <p className="hand text-3xl text-teal-deep rotate-1 max-w-[16em]">{t("paper.sectionNote")}</p>
         </div>
 
         {restoredAt && (
           <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-teal bg-paper p-4">
-            <p className="font-bold">Welcome back. {openName ? <>&ldquo;{openName}&rdquo; is</> : "Your plan is"} saved on this device ({new Date(restoredAt).toLocaleString()}).</p>
-            <button type="button" onClick={clearSaved} className="rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold hover:bg-red-soft">Clear it from this device</button>
+            <p className="font-bold">{t("paper.welcomeBack")} {openName ? t("paper.savedNamed", { name: openName, when: new Date(restoredAt).toLocaleString(UI_LANG_CODE[language]) }) : t("paper.savedHere", { when: new Date(restoredAt).toLocaleString(UI_LANG_CODE[language]) })}</p>
+            <button type="button" onClick={clearSaved} className="rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold hover:bg-red-soft">{t("paper.clearSaved")}</button>
           </div>
         )}
 
@@ -976,34 +983,35 @@ export function CarePlanTool() {
 
         {/* Step 1 */}
         <div {...panel(1)} className={`card mt-10 max-md:mt-4 p-5 sm:p-8 max-md:scroll-mt-44 ${onPhone(1)}`}>
-          <StepHeader n={1} title="Your visit paper" done={!!care} note="optional, but it makes the plan yours" />
+          <StepHeader n={1} title={t("paper.title")} done={!!care} note={t("paper.titleNote")} />
           <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_15rem]">
             <div>
-              <textarea data-lenis-prevent aria-label="After-visit summary text" className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
-                placeholder="Paste the after-visit summary here..." value={text} onChange={(e) => { setText(e.target.value); setPhoto(null); }} />
+              <textarea data-lenis-prevent aria-label={t("paper.textLabel")} className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
+                placeholder={t("paper.placeholder")} value={text} onChange={(e) => { setText(e.target.value); setPhoto(null); }} />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
-                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setText(SAMPLE_AVS); setPhoto(null); setTab(1); }}>Use the sample paper</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setText(SAMPLE_AVS); setPhoto(null); setTab(1); }}>{t("paper.useSample")}</button>
                 <label className="cursor-pointer rounded-full border-2 border-ink px-4 py-2 hover:bg-mint">
-                  📷 {photo ? photo.name : "Take or upload a photo"}
+                  📷 {photo ? photo.name : t("common.photoButton")}
                   <input type="file" accept="image/*" capture="environment" className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0] ?? null; setPhoto(f); if (f) setText(""); }} />
                 </label>
               </div>
-              <p className="mt-2 text-xs text-ink/70">{SAMPLE_LABEL}.</p>
+              <p className="mt-2 text-xs text-ink/70">{language === "English" ? SAMPLE_LABEL : t("paper.sampleLabel")}.</p>
             </div>
             <div className="flex flex-col gap-3">
-              <label className="text-sm font-bold">Explain it in
+              <label className="text-sm font-bold">{t("common.explainIn")}
                 <select className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" value={language} onChange={(e) => setLanguage(e.target.value as typeof language)}>
-                  {LANGUAGES.map((l) => <option key={l}>{l}</option>)}
+                  {/* Each language in its own name; the value stays the English name the API expects. */}
+                  {LANGUAGES.map((l) => <option key={l} value={l} lang={UI_LANG_CODE[l]}>{LANGUAGE_NAME[l]}</option>)}
                 </select>
               </label>
-              <label className="text-sm font-bold">Reading level
+              <label className="text-sm font-bold">{t("paper.readingLevel")}
                 <select className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" value={level} onChange={(e) => setLevel(e.target.value as typeof level)}>
-                  {READING_LEVELS.map((l) => <option key={l}>{l}</option>)}
+                  {READING_LEVELS.map((l) => <option key={l} value={l}>{t(keyFor("paper.level", l, "paper.level.simple"))}</option>)}
                 </select>
               </label>
               <SquashButton onClick={() => readPaper()} disabled={reading || (!photo && text.trim().length < 20)} bg="var(--teal)" accent="var(--sun)" className="mt-auto">
-                {reading ? "Reading..." : "Read my paper"}
+                {reading ? t("common.reading") : t("paper.read")}
               </SquashButton>
             </div>
           </div>
@@ -1011,39 +1019,39 @@ export function CarePlanTool() {
           {readNote && <p role="status" className="mt-4 rounded-2xl border-2 border-sun bg-paper p-3 text-sm font-bold">{readNote}</p>}
           {careOutdated && !reading && (
             <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-paper p-3 text-sm font-bold">
-              <p className="flex-1 min-w-[14rem]">You changed your paper or settings after we read it. The steps below are from the earlier version, and changes are not saved until you read it again.</p>
+              <p className="flex-1 min-w-[14rem]">{t("paper.changedAfterRead")}</p>
               <button type="button" onClick={() => readPaper()} disabled={!photo && text.trim().length < 20}
-                className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">Read it again</button>
+                className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">{t("paper.readAgain")}</button>
             </div>
           )}
           {/* Always mounted so screen readers hear each count change; one update per verified step, never per word. */}
           <p className="sr-only" role="status" aria-live="polite">
-            {reading && partial.length > 0 ? `${partial.length} ${partial.length === 1 ? "step" : "steps"} found so far` : ""}
+            {reading && partial.length > 0 ? tn("stepsFoundSoFar", partial.length) : ""}
           </p>
           {reading && partial.length === 0 && <WorkingCard kind="read" />}
           {reading && partial.length > 0 && <StreamingSteps items={partial} />}
 
           {care && needsPhotoCheck && (
             <div className="mt-8 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4 sm:p-5">
-              <p className="font-extrabold">Check how we read your photo</p>
+              <p className="font-extrabold">{t("paper.checkPhotoTitle")}</p>
               <p className="text-sm font-semibold text-ink/70">
-                Every step below has to quote this text. If a word or number is wrong here, fix it, then read it again so the steps come from your corrected text.
+                {t("paper.checkPhotoBody")}
               </p>
-              <textarea data-lenis-prevent aria-label="Text read from your photo" className="mt-3 h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
+              <textarea data-lenis-prevent aria-label={t("paper.photoTextLabel")} className="mt-3 h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 value={transcript ?? care.source_text} onChange={(e) => setTranscript(e.target.value)} />
               <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full bg-ink text-paper px-4 py-2 disabled:opacity-40"
                   disabled={reading || (transcript ?? care.source_text).trim().length < 20 || transcript === care.source_text}
-                  onClick={() => readPaper(transcript ?? care.source_text)}>Use my corrected text</button>
+                  onClick={() => readPaper(transcript ?? care.source_text)}>{t("paper.useCorrected")}</button>
                 <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint disabled:opacity-40"
                   disabled={transcriptEdited} aria-describedby={transcriptEdited ? "photo-edited" : undefined}
-                  onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>It matches my paper</button>
+                  onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>{t("paper.itMatches")}</button>
                 {transcriptEdited && (
-                  <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => setTranscript(care.source_text)}>Undo my changes</button>
+                  <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => setTranscript(care.source_text)}>{t("paper.undoChanges")}</button>
                 )}
               </div>
               {transcriptEdited && (
-                <p id="photo-edited" className="mt-2 text-sm font-bold text-ink/70">You changed the text, so use your corrected text, or undo your changes.</p>
+                <p id="photo-edited" className="mt-2 text-sm font-bold text-ink/70">{t("paper.photoEdited")}</p>
               )}
             </div>
           )}
@@ -1061,7 +1069,7 @@ export function CarePlanTool() {
               <Understand key={`${care.source_text.length}:${items.map((i) => i.id).join(",")}:${language}`} care={care} items={items} language={language} />
               <button type="button" onClick={() => pickTab(2, false)}
                 className="md:hidden mt-8 w-full rounded-full border-2 border-ink bg-sun px-5 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-                Next: your needs →
+                {t("paper.nextNeeds")}
               </button>
             </div>
           )}
@@ -1069,37 +1077,37 @@ export function CarePlanTool() {
 
         {/* Step 2 */}
         <div {...panel(2)} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 scroll-mt-24 max-md:scroll-mt-44 ${onPhone(2)}`}>
-          <StepHeader n={2} title="What gets in the way?" done={!!plan} note="pick any that fit" />
-          <div className="mt-6 flex flex-wrap gap-2.5" role="group" aria-label="Barriers">
+          <StepHeader n={2} title={t("needs.title")} done={!!plan} note={t("needs.note")} />
+          <div className="mt-6 flex flex-wrap gap-2.5" role="group" aria-label={t("needs.group")}>
             {BARRIERS.map((b) => {
               const on = barriers.includes(b);
               return (
                 <button key={b} type="button" aria-pressed={on} onClick={() => setBarriers((x) => (on ? x.filter((y) => y !== b) : [...x, b]))}
                   className={`rounded-full border-2 border-ink px-4 py-2.5 text-sm font-bold transition-all ${on ? "bg-teal text-paper shadow-[0_3px_0_var(--ink)] -translate-y-0.5" : "bg-paper hover:bg-mint"}`}>
-                  {on ? "✓ " : ""}{BARRIER_LABEL[b]}
+                  {on ? "✓ " : ""}{t(keyFor("barrier", b, "needs.group"))}
                 </button>
               );
             })}
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-[14rem_1fr]">
             <div>
-              <label className="text-sm font-bold" htmlFor="zip">Your ZIP</label>
+              <label className="text-sm font-bold" htmlFor="zip">{t("needs.zip")}</label>
               <input id="zip" inputMode="numeric" maxLength={5} className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5"
-                placeholder="e.g. 30340" value={zip} onChange={(e) => { setZip(e.target.value.replace(/\D/g, "")); setLoc(null); locGen.current++; setLocating(false); }} />
+                placeholder={t("needs.zipExample")} value={zip} onChange={(e) => { setZip(e.target.value.replace(/\D/g, "")); setLoc(null); locGen.current++; setLocating(false); }} />
               <button type="button" onClick={useMyLocation} className="mt-2 text-sm font-bold underline decoration-2 underline-offset-4">
-                {locating ? "Finding your location..." : loc ? "✓ Using your location (stays on this device)" : "Or use my location"}
+                {locating ? t("needs.locating") : loc ? t("needs.usingLocation") : t("needs.useLocation")}
               </button>
             </div>
-            <label className="text-sm font-bold">Anything else we should know? (optional)
-              <textarea data-lenis-prevent className="mt-1 h-24 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" placeholder="e.g. no car, I work mornings, I prefer home remedies first"
+            <label className="text-sm font-bold">{t("needs.anythingElse")}
+              <textarea data-lenis-prevent className="mt-1 h-24 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" placeholder={t("needs.anythingElseExample")}
                 value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           </div>
           <div className="mt-6">
             <SquashButton onClick={makePlan} disabled={planning || needsPhotoCheck || locating || (barriers.length === 0 && items.length === 0)} bg="var(--ink)" accent="var(--mint)">
-              {planning ? "Building your plan..." : "Make my plan"}
+              {planning ? t("needs.building") : t("needs.makePlan")}
             </SquashButton>
-            {needsPhotoCheck && <p className="mt-3 text-sm font-bold text-ink/70">First check how we read your photo in step 1.</p>}
+            {needsPhotoCheck && <p className="mt-3 text-sm font-bold text-ink/70">{t("needs.checkPhotoFirst")}</p>}
             {planNote && <p role="status" className="mt-3 rounded-2xl border-2 border-sun bg-paper p-3 text-sm font-bold">{planNote}</p>}
             {planning && <WorkingCard kind="plan" />}
           </div>
@@ -1111,59 +1119,59 @@ export function CarePlanTool() {
         {plan && (
           <div {...panel(3)} ref={planCard} data-outdated={planOutdated || undefined} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 max-md:pb-36 scroll-mt-24 max-md:scroll-mt-44 ${planOutdated ? "plan-outdated" : ""} ${onPhone(3)}`}>
             {/* Printing from the browser menu while the plan is outdated prints only this, never the outdated plan. */}
-            {planOutdated && <p className="outdated-print-note">This plan is out of date, so it is not printed. {actionsOffReason}, then print again.</p>}
-            <StepHeader n={3} title="Your plan" done note={plan.located.label} />
+            {planOutdated && <p className="outdated-print-note">{t("plan.outdatedPrint", { reason: actionsOffReason })}</p>}
+            <StepHeader n={3} title={t("plan.title")} done note={plan.located.label} />
             {planOutdated && (
               <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-sun/30 p-3 text-sm font-bold">
                 {careOutdated
-                  ? <p>This plan was made from your earlier paper. Read it again in step 1, then make a new plan.</p>
+                  ? <p>{t("plan.outdatedPaper")}</p>
                   : <>
                       <p className="flex-1 min-w-[14rem]">
                         {needsPlace
-                          ? "This plan used your location from before, and your location is never saved. Use my location again or enter a ZIP in step 2, then update the plan."
-                          : "You changed your answers after this plan was made, so it may not fit them. Changes are not saved until you update it."}
+                          ? t("plan.outdatedPlace")
+                          : t("plan.outdatedAnswers")}
                       </p>
                       <button type="button" onClick={makePlan} disabled={planning || needsPlace || locating || (barriers.length === 0 && items.length === 0)}
-                        className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">Update plan</button>
+                        className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">{t("plan.update")}</button>
                     </>}
               </div>
             )}
-            <p className="mt-4 text-xs font-bold uppercase tracking-wide text-ink/70">Suggestions from ATLAS, not your paper. If anything differs, follow your paper.</p>
+            <p className="mt-4 text-xs font-bold uppercase tracking-wide text-ink/70">{t("plan.suggestions")}</p>
             <p className="mt-1 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
             {/* On the first screen at every width: right under the summary, before the actions and the three calls. */}
             {plan.ask_a_person && (
               <div className="mt-4 rounded-2xl border-2 border-peach-deep bg-peach p-4 max-w-[50em]">
-                <p className="font-extrabold text-peach-deep">This needs a person too</p>
-                <p className="text-sm font-semibold">{plan.ask_a_person_reason} Call 211 (United Way of Greater Atlanta) or your community health worker.</p>
-                <p className="mt-2 text-xs font-semibold"><a className="underline decoration-2 underline-offset-4" href="/helper">Helping someone? Make them a link</a></p>
+                <p className="font-extrabold text-peach-deep">{t("plan.needsPerson")}</p>
+                <p className="text-sm font-semibold">{plan.ask_a_person_reason} {t("plan.call211")}</p>
+                <p className="mt-2 text-xs font-semibold"><a className="underline decoration-2 underline-offset-4" href="/helper">{t("plan.helperLink")}</a></p>
               </div>
             )}
             {/* An outdated plan can't be read aloud, printed, sent, booked or called from; the on-screen note says why. */}
-            {planOutdated && <p id="plan-actions-off" className="mt-3 text-sm font-bold text-peach-deep">{actionsOffReason}: read aloud, printing, the handoff sheet, Send to family, Book it now and the calls, websites and directions below are off until then.</p>}
+            {planOutdated && <p id="plan-actions-off" className="mt-3 text-sm font-bold text-peach-deep">{t("plan.actionsOff", { reason: actionsOffReason })}</p>}
             {/* One set of plan actions. Wider screens: a row under the summary. Phones: a bar fixed to the bottom while
                 this card is on screen (globals.css, .plan-dock). Screen only; the print stylesheet leaves it out. */}
-            <div role="group" aria-label="Plan actions" data-away={dockAway || undefined} data-lenis-prevent
+            <div role="group" aria-label={t("plan.actions")} data-away={dockAway || undefined} data-lenis-prevent
               className="plan-dock mt-4 flex flex-wrap items-center gap-3 text-sm font-bold">
               {tapToPlay
-                ? <button type="button" onClick={() => void startAudio(speechRun.current)} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink bg-sun px-4 py-2 disabled:opacity-40"><DockLabel icon="▶" short="Play" long="Tap to play" /></button>
+                ? <button type="button" onClick={() => void startAudio(speechRun.current)} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink bg-sun px-4 py-2 disabled:opacity-40"><DockLabel icon="▶" short={t("dock.play.short")} long={t("dock.play.long")} /></button>
                 : <button type="button" onClick={speak} aria-pressed={speaking} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined}
                     className={`rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40 ${speaking ? "bg-ink text-paper" : "bg-sun"}`}>
-                    {speaking ? <DockLabel icon="⏹" short="Stop" long="Stop reading" /> : <DockLabel icon="🔊" short="Listen" long="Read it out loud" />}
+                    {speaking ? <DockLabel icon="⏹" short={t("dock.stop.short")} long={t("dock.stop.long")} /> : <DockLabel icon="🔊" short={t("dock.listen.short")} long={t("dock.listen.long")} />}
                   </button>}
-              {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2"><DockLabel icon="✕" short="Cancel" long="Cancel" /></button>}
-              {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} short="Call me" />}
-              {care && <ShareFamily items={items} plan={plan} questions={generalQuestions} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short="Send" />}
-              <button type="button" onClick={() => { if (!planOutdated) window.print(); }} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short="Print" long="Print for the next visit" /></button>
-              <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short="Handoff" long="Print a handoff sheet" /></button>
+              {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2"><DockLabel icon="✕" short={t("dock.cancel")} long={t("dock.cancel")} /></button>}
+              {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} short={t("dock.callMe.short")} />}
+              {care && <ShareFamily items={items} plan={plan} questions={generalQuestions} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short={t("dock.send.short")} />}
+              <button type="button" onClick={() => { if (!planOutdated) window.print(); }} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short={t("dock.print.short")} long={t("dock.print.long")} /></button>
+              <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short={t("dock.handoff.short")} long={t("dock.handoff.long")} /></button>
               <span role="status" className={voiceNote ? "dock-note self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
             </div>
-            <p className="mt-3 text-xs font-bold text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</p>
+            <p className="mt-3 text-xs font-bold text-ink/70">{tn("planStats", plan.stats.steps, { c: plan.stats.candidates, d: plan.stats.dropped_refs })}</p>
             <TopCalls top={top} chosen={barriers} language={language} off={planOutdated ? actionsOffReason : undefined} offId={planOutdated ? "plan-actions-off" : undefined} />
             <div className="mt-6">
               <section aria-labelledby="plan-rows-title" className="min-w-0">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <h4 id="plan-rows-title" className="display text-2xl">Your plan, {plan.steps.length} {plan.steps.length === 1 ? "step" : "steps"}</h4>
-                  <p className="text-xs font-bold text-ink/70">Tap one for the full plan. Tick it off when it&apos;s done.</p>
+                  <h4 id="plan-rows-title" className="display text-2xl">{t("plan.yourPlanN", { steps: tn("steps", plan.steps.length) })}</h4>
+                  <p className="text-xs font-bold text-ink/70">{t("plan.tapOne")}</p>
                 </div>
                 <ol className="mt-3 space-y-2.5">
                   {plan.steps.map((s, i) => (
@@ -1179,16 +1187,17 @@ export function CarePlanTool() {
             </div>
             {nextVisit.length > 0 && (
               <div className="mt-6 rounded-2xl border-2 border-ink/70 bg-paper p-5">
-                <p className="display text-2xl">Questions for your next visit</p>
+                <p className="display text-2xl">{t("plan.nextVisitQuestions")}</p>
                 <ul className="mt-2 list-disc pl-5 space-y-1">{nextVisit.map((q, i) => <li key={i}>{q}</li>)}</ul>
               </div>
             )}
             {care && !planOutdated && <SessionSummary key={helperSessionKey(store.active, plan.summary)} barriers={barriers} items={items} done={done} plan={plan} questions={nextVisit} language={language} readingLevel={readLevel ?? level} />}
             <Feedback key={plan.summary} language={language} token={plan.feedback_token ?? null} />
-            <p className="mt-6 text-xs text-ink/70">ATLAS explains your own paperwork and points to verified public resources. It is not medical advice. Model: {plan.model}.</p>
+            <p className="mt-6 text-xs text-ink/70">{t("common.notMedicalAdvice", { model: plan.model })}</p>
           </div>
         )}
       </div>
     </section>
+    </UiLangProvider>
   );
 }

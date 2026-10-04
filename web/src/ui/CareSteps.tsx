@@ -6,7 +6,7 @@ import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { MeaningState } from "@/lib/meaningRun";
 import type { DeviceRun, DeviceStatus } from "@/lib/deviceRun";
 import { isWarning } from "@/lib/warningPin";
-import { closedRow, SEAL_SHORT, SEAL_TEXT, sealOf, shortQuote, stepWhen, WHEN_GROUP_LABEL, WHEN_GROUPS, type Seal, type WhenGroup } from "@/lib/stepsView";
+import { closedRow, sealOf, shortQuote, stepWhen, WHEN_GROUPS, type Seal, type WhenGroup } from "@/lib/stepsView";
 import { askPerson } from "@/lib/askPerson";
 import { readingGeneralQuestions, stepVisitQuestion, uniqueStepQuestions } from "@/lib/visitQuestions";
 import { buildIcs } from "@/lib/booking";
@@ -16,6 +16,8 @@ import { pipLine, pipSpot, type PipSpot } from "@/lib/pip";
 import { PaperFirst } from "./PaperFirst";
 import { ShowOnPaper } from "./ShowOnPaper";
 import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
+import { keyFor } from "@/lib/uiText";
+import { useUi } from "./UiLang";
 
 export const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -24,10 +26,6 @@ export const KIND: Record<string, { label: string; cls: string }> = {
   follow_up_visit: { label: "Next visit", cls: "bg-mint text-teal-deep" },
   self_care: { label: "Daily care", cls: "bg-mint-soft text-teal-deep" },
   warning_sign: { label: "Warning sign", cls: "bg-red-soft text-red" },
-};
-
-const GROUP_NOTE: Partial<Record<WhenGroup, string>> = {
-  unclear: "Your paper doesn't give a clear time for these yet, or we couldn't confirm one. Check the date on your paper, or ask your clinic.",
 };
 
 type Props = {
@@ -63,6 +61,7 @@ export function CareSteps(p: Props) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string | null>(null);
   const speech = useStepSpeech(p.language);
+  const { t, tn } = useUi();
 
   const warnings = items.filter(isWarning);
   const groups = useMemo(() => {
@@ -118,8 +117,8 @@ export function CareSteps(p: Props) {
 
   // A check that disagrees can land after the steps are on screen. Opening the step is not an announcement, so a
   // polite live region (always mounted, text set a moment later) names each one by its paper words (Codex review).
-  const flaggedNote = recheck === 0 ? "" : `${recheck} ${recheck === 1 ? "step needs" : "steps need"} a second look, opened below: ${items
-    .filter((i) => sealOf(checkFor(i.id)) === "recheck").map((i) => `"${shortQuote(i.source_quote, 60)}"`).join(", ")}.`;
+  const flaggedNote = recheck === 0 ? "" : tn("flaggedStatus", recheck, { quotes: items
+    .filter((i) => sealOf(checkFor(i.id)) === "recheck").map((i) => `"${shortQuote(i.source_quote, 60)}"`).join(", ") });
   const [spoken, setSpoken] = useState("");
   useEffect(() => {
     const t = setTimeout(() => setSpoken(flaggedNote), 400);
@@ -144,8 +143,8 @@ export function CareSteps(p: Props) {
       <p role="status" aria-live="polite" className="sr-only" data-pip-status="">{pipSaid}</p>
       {(care.has_warning_signs || warnings.length > 0) && (
         <section aria-labelledby="warn-title" className="mb-5 rounded-2xl border-2 border-red bg-red-soft p-4 text-red" data-warnings="">
-          <h3 id="warn-title" className="display text-xl">Warning signs from your paper</h3>
-          <p className="text-sm font-semibold">If you have any of them right now, do what your paper says: call your clinic, or call 911.</p>
+          <h3 id="warn-title" className="display text-xl">{t("steps.warnTitle")}</h3>
+          <p className="text-sm font-semibold">{t("steps.warnBody")}</p>
           {warnings.length > 0 && <ul className="mt-3 space-y-2">{warnings.map((it) => row(it, true))}</ul>}
         </section>
       )}
@@ -153,21 +152,21 @@ export function CareSteps(p: Props) {
       <div className="flex items-start gap-3 rounded-2xl bg-mint-soft px-3 py-2 text-sm font-bold text-teal-deep" data-trust-line="">
         <SealMark seal="twice" />
         <p className="min-w-0 flex-1">
-          {items.length === 1 ? "Your 1 step uses words from your paper." : `All ${items.length} steps use words from your paper.`}
-          {p.meaning.status === "loading" ? " Double-checking each one now..." : ` ${twice} checked twice.`}
-          {recheck > 0 && <span className="text-peach-deep"> {recheck} {recheck === 1 ? "needs" : "need"} a second look.</span>}
+          {tn("trustLine", items.length)}
+          {p.meaning.status === "loading" ? t("steps.trustLoading") : ` ${tn("checkedTwice", twice)}`}
+          {recheck > 0 && <span className="text-peach-deep"> {tn("needSecondLook", recheck)}</span>}
         </p>
       </div>
-      <p className="mt-2 text-xs font-bold text-ink/70">{care.stats.grounded} steps found in your paper · {care.stats.refused} held back because we couldn&apos;t show their words from your paper · {(care.stats.ms / 1000).toFixed(1)}s</p>
-      {p.deviceStatus === "loading" && <p className="mt-1 text-xs font-semibold text-ink/70">Checking each step again on this device...</p>}
-      {p.deviceStatus === "error" && <p className="mt-1 text-xs font-semibold text-ink/70">This device couldn&apos;t run its own check, so each step shows our server&apos;s check only.</p>}
+      <p className="mt-2 text-xs font-bold text-ink/70">{tn("foundHeld", care.stats.grounded)} · {tn("heldBack", care.stats.refused)} · {(care.stats.ms / 1000).toFixed(1)}s</p>
+      {p.deviceStatus === "loading" && <p className="mt-1 text-xs font-semibold text-ink/70">{t("steps.deviceLoading")}</p>}
+      {p.deviceStatus === "error" && <p className="mt-1 text-xs font-semibold text-ink/70">{t("steps.deviceError")}</p>}
       {p.simpler.ok && (
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
           <button type="button" onClick={p.simpler.onClick} aria-describedby="simpler-why"
             className="rounded-full border-2 border-ink bg-sun px-4 py-2 text-sm font-bold shadow-[0_2px_0_var(--ink)] hover:bg-mint focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-            Too much? Make it simpler
+            {t("steps.simpler")}
           </button>
-          <span id="simpler-why" className="text-xs font-semibold text-ink/70">Reads your paper again in plainer words, in the same language.</span>
+          <span id="simpler-why" className="text-xs font-semibold text-ink/70">{t("steps.simplerWhy")}</span>
         </div>
       )}
 
@@ -175,7 +174,7 @@ export function CareSteps(p: Props) {
         <div>
           <div data-pip-heading-area="">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="display text-2xl">Your steps</h3>
+              <h3 className="display text-2xl">{t("steps.title")}</h3>
               <div className="flex items-center gap-2" data-pip-heading="">
                 <CalmToggle />
                 {/* Pip's heading spot (the first-view greeting, or every step done); reserved either way so the heading
@@ -186,15 +185,15 @@ export function CareSteps(p: Props) {
             {spot.at === "header" && <div className="mt-1 flex justify-end" data-pip-done-all=""><PipBubble text={pipText} /></div>}
             {spot.at === "greet" && <div className="mt-1 flex justify-end" data-pip-greet=""><PipBubble text={pipText} pointDown /></div>}
           </div>
-          <p className="text-xs font-semibold text-ink/70">Tap a step to see your paper&apos;s words, what they mean, and more. Times count from your visit, as your paper says them.</p>
-          {groups.length === 0 && warnings.length === 0 && <p className="mt-3 text-sm font-semibold">No steps are left. Undo a removed step, or read your paper again.</p>}
+          <p className="text-xs font-semibold text-ink/70">{t("steps.tapHint")}</p>
+          {groups.length === 0 && warnings.length === 0 && <p className="mt-3 text-sm font-semibold">{t("steps.noneLeft")}</p>}
           {groups.map(({ g, list }) => (
             <section key={g} aria-labelledby={`when-${g}`} className="mt-4" data-when-group={g}>
               <h4 id={`when-${g}`} className="flex items-baseline justify-between gap-2 font-extrabold">
-                <span className="display text-lg">{WHEN_GROUP_LABEL[g]}</span>
-                <span className="text-xs font-bold text-ink/70">{list.length} {list.length === 1 ? "step" : "steps"}</span>
+                <span className="display text-lg">{t(keyFor("when", g, "when.unclear"))}</span>
+                <span className="text-xs font-bold text-ink/70">{tn("steps", list.length)}</span>
               </h4>
-              {GROUP_NOTE[g] && <p className="text-xs font-semibold text-ink/70">{GROUP_NOTE[g]}</p>}
+              {g === "unclear" && <p className="text-xs font-semibold text-ink/70">{t("when.unclearNote")}</p>}
               <ul className="mt-2 space-y-2">{list.map((it) => row(it))}</ul>
             </section>
           ))}
@@ -204,25 +203,25 @@ export function CareSteps(p: Props) {
           {questionCount > 0 && <AskClinic stepQuestions={stepQuestions} general={generalQuestions} />}
           {care.not_in_document.length > 0 && (
             <section aria-labelledby="not-said-title" className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
-              <h3 id="not-said-title" className="font-extrabold">What your paper does not say</h3>
-              <p className="text-xs text-ink/70">Worth asking your clinic about.</p>
+              <h3 id="not-said-title" className="font-extrabold">{t("steps.notSaidTitle")}</h3>
+              <p className="text-xs text-ink/70">{t("steps.notSaidNote")}</p>
               <ul className="mt-2 list-disc pl-5 text-sm">{care.not_in_document.map((q, i) => <li key={i}>{q}</li>)}</ul>
             </section>
           )}
           <div className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
-            <p className="font-extrabold mb-2">Your paper, every step highlighted</p>
+            <p className="font-extrabold mb-2">{t("steps.paperHighlighted")}</p>
             {/* Focusable so keyboard users can scroll the paper (axe scrollable-region-focusable). */}
-            <div data-lenis-prevent tabIndex={0} role="region" aria-label="Your paper with every step highlighted"
+            <div data-lenis-prevent tabIndex={0} role="region" aria-label={t("steps.paperRegion")}
               className="max-h-[26rem] overflow-auto rounded-lg focus-visible:outline-2 focus-visible:outline-teal"><Highlighted text={care.source_text} items={items} active={active} /></div>
           </div>
           {p.removedItems.length > 0 && (
             <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4 text-sm">
-              <p className="font-extrabold">You removed {p.removedItems.length}</p>
+              <p className="font-extrabold">{tn("removedCount", p.removedItems.length)}</p>
               <ul className="mt-2 space-y-1">
                 {p.removedItems.map((r) => (
                   <li key={r.id} className="flex items-center justify-between gap-2">
-                    <span data-paper-quote="">{KIND[r.kind]?.label ?? "Step"}: your paper says &ldquo;{r.source_quote}&rdquo;</span>
-                    <button type="button" className="font-bold underline" onClick={() => p.onUndoRemove(r.id)}>Undo</button>
+                    <span data-paper-quote="">{t("steps.removedSays", { kind: t(keyFor("kind", r.kind, "kind.step")) })} &ldquo;{r.source_quote}&rdquo;</span>
+                    <button type="button" className="font-bold underline" onClick={() => p.onUndoRemove(r.id)}>{t("common.undo")}</button>
                   </li>
                 ))}
               </ul>
@@ -230,11 +229,11 @@ export function CareSteps(p: Props) {
           )}
           {care.refused.length > 0 && (
             <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4">
-              <p className="font-extrabold">Held back to protect you ({care.refused.length})</p>
-              <p className="text-xs text-ink/70">The AI suggested these, but we couldn&apos;t show their words from your paper, so we don&apos;t show what it said. Read your paper itself.</p>
+              <p className="font-extrabold">{tn("heldTitle", care.refused.length)}</p>
+              <p className="text-xs text-ink/70">{t("steps.heldNote")}</p>
               {/* Never the AI's title: a held-back step has no paper words to stand next to it (Codex round 13). */}
               <ul className="mt-2 list-disc pl-5 text-sm">{care.refused.map((r, n) => (
-                <li key={r.id}>Held back {n + 1}: {r.held_reason === "sentence_too_long" ? "its sentence in your paper is too long to show here." : r.held_reason === "skips_across" ? "its words come from different lines of your paper." : "its words are not in your paper."}</li>
+                <li key={r.id}>{tn("heldItem", n + 1)} {t(r.held_reason === "sentence_too_long" ? "steps.held.sentence_too_long" : r.held_reason === "skips_across" ? "steps.held.skips_across" : "steps.held.missing")}</li>
               ))}</ul>
             </div>
           )}
@@ -268,11 +267,12 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
   // Not certified: the "Ask your clinic" box below already carries the paper-words question, so no second copy here.
   const question = stepVisitQuestion(it, check) ?? "";
   const kind = KIND[it.kind];
+  const { t } = useUi();
   return (
     <li onMouseEnter={() => onHover(it.id)} onMouseLeave={() => onHover(null)} data-step={it.id} data-seal={seal} data-open={open || undefined} data-pip-here={pip?.mood}
       className={`rounded-2xl border-2 bg-paper ${warn ? "border-red" : open ? "border-ink" : "border-ink/20"}`}>
       <div className="flex items-start gap-3 p-3">
-        <input type="checkbox" aria-label={`Mark step ${n} done`} className="mt-1 h-6 w-6 flex-none accent-[var(--teal)]"
+        <input type="checkbox" aria-label={t("steps.markDone", { n })} className="mt-1 h-6 w-6 flex-none accent-[var(--teal)]"
           checked={done} onChange={(e) => onDone(e.target.checked)} />
         <button type="button" onClick={onToggle} aria-expanded={open} aria-controls={panelId}
           className="group grid flex-1 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-xl text-left">
@@ -283,17 +283,17 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
               : open ? null
               : (
                 <span className={`block leading-snug ${done ? "line-through text-ink/70" : ""}`} data-paper-quote="">
-                  <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">From your paper</span>
+                  <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">{t("steps.fromYourPaper")}</span>
                   <span className="font-bold">&ldquo;{closed.quote}&rdquo;</span>
                 </span>
               )}
             <span className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-ink/70 ${closed.lead === "quote" && open ? "" : "mt-1"}`}>
-              {kind && <span className={`chip ${kind.cls}`}>{kind.label}</span>}
+              {kind && <span className={`chip ${kind.cls}`}>{t(keyFor("kind", it.kind, "kind.step"))}</span>}
               {closed.lead === "explanation" && closed.when && <span>{closed.when}</span>}
               {closed.lead === "quote" && closed.paperWhen.length > 0 && <span>{closed.paperWhen.map((w) => `“${w}”`).join(", ")}</span>}
-              {question && <span className="rounded-full bg-peach px-2 text-[11px] font-extrabold text-peach-deep">? Ask</span>}
+              {question && <span className="rounded-full bg-peach px-2 text-[11px] font-extrabold text-peach-deep">{t("steps.ask")}</span>}
               {/* Only the "double-check" seal speaks up with words on the row; the quiet ones say theirs to screen readers. */}
-              <span data-seal-label="" className={seal === "recheck" ? "rounded-full border border-peach-deep bg-peach px-2 text-[11px] font-extrabold text-peach-deep" : "sr-only"}>{SEAL_SHORT[seal]}</span>
+              <span data-seal-label="" className={seal === "recheck" ? "rounded-full border border-peach-deep bg-peach px-2 text-[11px] font-extrabold text-peach-deep" : "sr-only"}>{t(keyFor("seal", seal, "seal.once"))}</span>
             </span>
           </span>
           <SealMark seal={seal} />
@@ -306,14 +306,14 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
       <div id={panelId} hidden={!open} className="space-y-2 px-3 pb-3 sm:pl-12">
         {device && device !== "match" && (
           <p role="note" className="rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep" data-device-check="differ">
-            Double-check this one: this device&apos;s own check {device === "missing" ? "could not find these words in your paper" : "found these words in a different place in your paper"}. Read the line from your paper below.
+            {t(device === "missing" ? "steps.deviceDiffer.missing" : "steps.deviceDiffer.differ")}
           </p>
         )}
         {m?.flagged && (
           <p role="note" className="rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep" data-meaning-check="flagged">
-            Double-check this one with your clinic: our second check says the explanation may not match your paper.
+            {t("steps.meaningFlagged")}
             {m.what_differs ? ` ${m.what_differs.charAt(0).toUpperCase()}${m.what_differs.slice(1)}` : ""}
-            {m.unexpected_numbers.length > 0 ? ` (Number not in your paper: ${m.unexpected_numbers.join(", ")}.)` : ""}
+            {m.unexpected_numbers.length > 0 ? t("steps.numberNotInPaper", { nums: m.unexpected_numbers.join(", ") }) : ""}
           </p>
         )}
         <PaperFirst v={careStepView(it, check)} />
@@ -322,36 +322,36 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
           <details className="text-xs font-bold text-ink/70" data-seal-text={seal}>
             <summary className="inline-flex cursor-pointer items-center gap-2 rounded-full focus-visible:outline-2 focus-visible:outline-teal-deep">
               <SealMark seal={seal} />
-              <span>{SEAL_SHORT[seal]}{meaning.status === "loading" ? " · double-checking now..." : ""}</span>
-              <span className="underline">Why?</span>
+              <span>{t(keyFor("seal", seal, "seal.once"))}{meaning.status === "loading" ? t("steps.doubleCheckingNow") : ""}</span>
+              <span className="underline">{t("steps.why")}</span>
             </summary>
             <p className="mt-1 pl-8 font-semibold">
-              {SEAL_TEXT[seal]}
-              {device === "match" && <span data-device-check="match"> This device found the same words in the same place.</span>}
-              {m && !m.flagged && !m.certified && " Our second check couldn't confirm this one."}
+              {t(keyFor("seal", `${seal}.text`, "seal.once.text"))}
+              {device === "match" && <span data-device-check="match">{t("steps.deviceMatch")}</span>}
+              {m && !m.flagged && !m.certified && t("steps.notConfirmed")}
             </p>
           </details>
         ) : (
           <p className={`flex items-start gap-2 text-xs font-bold ${seal === "twice" ? "text-teal-deep" : "text-peach-deep"}`} data-seal-text={seal}>
             <SealMark seal={seal} />
             <span>
-              {SEAL_TEXT[seal]}
-              {device === "match" && <span data-device-check="match"> This device found the same words in the same place.</span>}
-              {meaning.status === "loading" && " Double-checking this against your paper..."}
-              {m && !m.flagged && !m.certified && " Our second check couldn't confirm this one."}
+              {t(keyFor("seal", `${seal}.text`, "seal.once.text"))}
+              {device === "match" && <span data-device-check="match">{t("steps.deviceMatch")}</span>}
+              {meaning.status === "loading" && t("steps.doubleCheckingThis")}
+              {m && !m.flagged && !m.certified && t("steps.notConfirmed")}
             </span>
           </p>
         )}
-        {question && check === "certified" && <p className="rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">On your questions list: {question}</p>}
+        {question && check === "certified" && <p className="rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">{t("steps.onQuestionsList")} {question}</p>}
         <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
           <AskAPerson it={it} check={check} />
           <ShowOnPaper care={care} item={it} photo={photo} check={check} />
           <RemindMe it={it} check={check} />
           <button type="button" onClick={onSpeak} aria-pressed={speaking}
             className={`mt-2 rounded-full border-2 border-ink px-3 py-1 ${speaking ? "bg-ink text-paper" : "bg-paper hover:bg-mint"}`}>
-            {speaking ? "⏹ Stop" : "🔊 Read aloud"}
+            {speaking ? t("steps.stop") : t("steps.readAloud")}
           </button>
-          <button type="button" aria-label={`Remove step ${n}`} onClick={onRemove} className="mt-2 rounded-full px-3 py-1 text-ink/70 hover:text-red">Remove</button>
+          <button type="button" aria-label={t("steps.removeN", { n })} onClick={onRemove} className="mt-2 rounded-full px-3 py-1 text-ink/70 hover:text-red">{t("steps.remove")}</button>
         </div>
       </div>
     </li>
@@ -361,33 +361,34 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
 /** Every "Ask your clinic" question in one list. A step's question carries the paper line it is about. */
 function AskClinic({ stepQuestions, general }: { stepQuestions: { it: VerifiedItem; q: string }[]; general: string[] }) {
   const [copied, setCopied] = useState(false);
+  const { t } = useUi();
   const lines = [...stepQuestions.map((s) => s.q), ...general];
   function copy() {
     navigator.clipboard?.writeText(lines.map((q, i) => `${i + 1}. ${q}`).join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
   }
   return (
     <section aria-labelledby="ask-clinic-title" className="rounded-2xl border-2 border-dashed border-peach-deep bg-paper p-4" data-ask-clinic="">
-      <h3 id="ask-clinic-title" className="display text-xl">Ask your clinic ({lines.length})</h3>
-      <p className="text-xs text-ink/70">Bring these to your next call or visit.</p>
+      <h3 id="ask-clinic-title" className="display text-xl">{t("askClinic.title", { n: lines.length })}</h3>
+      <p className="text-xs text-ink/70">{t("askClinic.bring")}</p>
       <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm">
         {stepQuestions.map(({ it, q }) => (
           <li key={it.id}>
             {q}
-            <span className="block text-xs font-semibold text-ink/70" data-paper-quote="">About this line of your paper: &ldquo;{shortQuote(it.source_quote, 60)}&rdquo;</span>
+            <span className="block text-xs font-semibold text-ink/70" data-paper-quote="">{t("askClinic.aboutLine")} &ldquo;{shortQuote(it.source_quote, 60)}&rdquo;</span>
           </li>
         ))}
       </ol>
       {general.length > 0 && (
         <>
-          {stepQuestions.length > 0 && <h4 className="mt-3 text-xs font-extrabold uppercase tracking-wide text-ink/70">More questions for your next visit</h4>}
+          {stepQuestions.length > 0 && <h4 className="mt-3 text-xs font-extrabold uppercase tracking-wide text-ink/70">{t("askClinic.more")}</h4>}
           <ol start={stepQuestions.length + 1} className="mt-2 list-decimal space-y-2 pl-5 text-sm">
             {general.map((q, k) => <li key={`d${k}`}>{q}</li>)}
           </ol>
         </>
       )}
       <div className="mt-3 flex items-center gap-2">
-        <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">Copy questions</button>
-        <span role="status" className="text-xs font-semibold text-ink/70">{copied ? "Copied" : ""}</span>
+        <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">{t("common.copyQuestions")}</button>
+        <span role="status" className="text-xs font-semibold text-ink/70">{copied ? t("common.copied") : ""}</span>
       </div>
     </section>
   );
@@ -401,6 +402,7 @@ function AskAPerson({ it, check }: { it: VerifiedItem; check: Check }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const panelId = useId();
+  const { t } = useUi();
   const ask = askPerson(it, check);
   if (!ask) return null;
   function copy() {
@@ -409,13 +411,13 @@ function AskAPerson({ it, check }: { it: VerifiedItem; check: Check }) {
   return (
     <>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId} data-ask-person={ask.who}
-        className="mt-2 rounded-full border-2 border-ink bg-sun px-3 py-1 hover:bg-mint">💬 {ask.label}</button>
+        className="mt-2 rounded-full border-2 border-ink bg-sun px-3 py-1 hover:bg-mint">💬 {t(ask.who === "pharmacist" ? "ask.pharmacist" : "ask.clinic")}</button>
       <div id={panelId} hidden={!open} className="basis-full rounded-xl border-2 border-dashed border-ink/40 p-3 text-sm" data-ask-person-panel="">
-        <p className="text-xs font-bold text-ink/70">{ask.who === "pharmacist" ? "Show or read this to your pharmacist. It uses only your paper's words." : "Show or read this to your clinic. It uses only your paper's words."}</p>
-        <p className="mt-1 font-semibold" data-ask-question="">{ask.question}</p>
+        <p className="text-xs font-bold text-ink/70">{t(ask.who === "pharmacist" ? "ask.showPharmacist" : "ask.showClinic")}</p>
+        <p lang="en" className="mt-1 font-semibold" data-ask-question="">{ask.question}</p>
         <div className="mt-2 flex items-center gap-2">
-          <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">Copy question</button>
-          <span role="status" className="text-xs font-semibold text-ink/70">{copied ? "Copied" : ""}</span>
+          <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">{t("ask.copyQuestion")}</button>
+          <span role="status" className="text-xs font-semibold text-ink/70">{copied ? t("common.copied") : ""}</span>
         </div>
       </div>
     </>
@@ -432,6 +434,7 @@ function RemindMe({ it, check }: { it: VerifiedItem; check: Check }) {
   const [day, setDay] = useState(days[0].value);
   const [time, setTime] = useState("09:00");
   const panelId = useId();
+  const { t } = useUi();
   const start = localStart(day, time);
   const title = bookSafe(it, check).title;
   const details = [...paperFirstLines(careStepView(it, check)), "Made with ATLAS (atlas-team12.vercel.app). Not medical advice."].join("\n");
@@ -451,25 +454,25 @@ function RemindMe({ it, check }: { it: VerifiedItem; check: Check }) {
   return (
     <>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId}
-        className="mt-2 rounded-full border-2 border-ink bg-paper px-3 py-1 hover:bg-mint">⏰ Remind me</button>
+        className="mt-2 rounded-full border-2 border-ink bg-paper px-3 py-1 hover:bg-mint">{t("remind.button")}</button>
       <div id={panelId} hidden={!open} className="basis-full rounded-xl border-2 border-dashed border-ink/40 p-3 text-sm">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="font-bold">Day
+          <label className="font-bold">{t("remind.day")}
             <select value={day} onChange={(e) => setDay(e.target.value)} className="ml-2 rounded-lg border-2 border-ink/40 bg-paper px-2 py-1">
               {days.map((d) => <option key={d.value} value={d.value}>{d.label}, {d.sub}</option>)}
             </select>
           </label>
-          <label className="font-bold">Time
+          <label className="font-bold">{t("remind.time")}
             <select value={time} onChange={(e) => setTime(e.target.value)} className="ml-2 rounded-lg border-2 border-ink/40 bg-paper px-2 py-1">
               {timeOptions().map((t) => <option key={t} value={t}>{formatTime(t)}</option>)}
             </select>
           </label>
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
-          <a href={googleUrl} target="_blank" rel="noreferrer" className="rounded-full bg-teal px-3 py-1 font-bold text-paper">Add to Google Calendar ↗</a>
-          <button type="button" onClick={download} className="rounded-full border-2 border-ink px-3 py-1 font-bold">Apple or Outlook (.ics)</button>
+          <a href={googleUrl} target="_blank" rel="noreferrer" className="rounded-full bg-teal px-3 py-1 font-bold text-paper">{t("remind.google")}</a>
+          <button type="button" onClick={download} className="rounded-full border-2 border-ink px-3 py-1 font-bold">{t("remind.ics")}</button>
         </div>
-        <p className="mt-1 text-xs text-ink/70">The reminder carries the line from your paper{check === "certified" ? " and the double-checked explanation" : ""}.</p>
+        <p className="mt-1 text-xs text-ink/70">{t(check === "certified" ? "remind.carriesBoth" : "remind.carriesLine")}</p>
       </div>
     </>
   );

@@ -7,6 +7,7 @@ import { locateOnPhoto, progressMessage, UNSUPPORTED_MESSAGE, type Stage } from 
 import type { OcrPage } from "@/lib/paperOcr";
 import type { Check } from "@/lib/paperFirst";
 import { shortQuote } from "@/lib/stepsView";
+import { useUi } from "./UiLang";
 
 /**
  * "Show on my paper": one tap shows where a step's words are on the person's own paper.
@@ -20,6 +21,7 @@ export function ShowOnPaper({ care, item, photo, check }: { care: CarePlanRespon
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const statusId = useId();
+  const { t } = useUi();
 
   useEffect(() => {
     const d = ref.current;
@@ -32,9 +34,9 @@ export function ShowOnPaper({ care, item, photo, check }: { care: CarePlanRespon
   const readsPhoto = care.source_kind === "image" && photo !== null && guessOcrLang(care.source_text) !== null;
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} aria-label={`Show on my paper: ${name}`} aria-haspopup="dialog"
+      <button type="button" onClick={() => setOpen(true)} aria-label={t("show.buttonLabel", { name })} aria-haspopup="dialog"
         className="mt-2 rounded-full border-2 border-ink bg-paper px-3 py-1 text-xs font-bold hover:bg-mint">
-        📄 Show on my paper
+        {t("show.button")}
       </button>
       {open && (
         <dialog ref={ref} aria-labelledby={titleId} aria-describedby={statusId} onClose={() => setOpen(false)}
@@ -43,16 +45,16 @@ export function ShowOnPaper({ care, item, photo, check }: { care: CarePlanRespon
           <div className="flex max-h-[92dvh] flex-col">
             <div className="flex items-start gap-3 border-b-2 border-ink/20 p-4">
               <div className="flex-1">
-                <h2 id={titleId} className="display text-2xl">On your paper</h2>
+                <h2 id={titleId} className="display text-2xl">{t("show.title")}</h2>
                 <p className="mt-1 text-sm font-bold">{name}</p>
               </div>
               <button type="button" onClick={() => ref.current?.close()}
-                className="rounded-full border-2 border-ink px-4 py-2 text-sm font-bold hover:bg-mint">Close</button>
+                className="rounded-full border-2 border-ink px-4 py-2 text-sm font-bold hover:bg-mint">{t("common.close")}</button>
             </div>
             <div className="overflow-y-auto p-4" data-lenis-prevent>
               <Panel care={care} item={item} photo={care.source_kind === "image" ? photo : null} statusId={statusId} />
               <p className="mt-4 text-xs font-semibold text-ink/70">
-                🔒 Nothing new is sent to any server for this: it uses only what is already on this device{readsPhoto ? ", and your photo is read right here" : ""}.
+                {t(readsPhoto ? "show.localPhoto" : "show.local")}
               </p>
             </div>
           </div>
@@ -72,6 +74,7 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
   const [state, setState] = useState<PhotoState>({ kind: "reading", stage: "loading", pct: 0, message: progressMessage("loading", 0) });
   // Decided from the text we already read, before any OCR code or data is fetched.
   const unsupported = photo !== null && guessOcrLang(care.source_text) === null;
+  const { t } = useUi();
 
   useEffect(() => {
     if (!photo || unsupported) return;
@@ -101,8 +104,8 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
       <>
         <p id={statusId} role="status" className="mb-3 text-sm font-bold">
           {care.source_kind === "image"
-            ? "Your photo is no longer open on this page, so here is the quote in the text we read from it. Quoted on your paper:"
-            : "Quoted on your paper, highlighted below."}
+            ? t("show.photoGone")
+            : t("show.textQuoted")}
         </p>
         <TextPaper text={care.source_text} span={item.span!} />
       </>
@@ -124,7 +127,7 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
     return (
       <>
         <p id={statusId} role="status" className="mb-3 text-sm font-bold">
-          Quoted on your paper: highlighted on your photo ({state.matched} of {state.total} words matched).
+          {t("show.found", { m: state.matched, n: state.total })}
         </p>
         <PhotoPaper state={state} />
         <p className="mt-3 border-l-4 border-sun pl-2 text-sm italic text-ink/80">
@@ -137,8 +140,8 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
     <>
       <p id={statusId} role="status" className="mb-3 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">
         {state.kind === "error"
-          ? "This device could not read your photo. Here is the quote from the text we read:"
-          : "We could not find this exact spot on your photo. Here is the quote from the text we read:"}
+          ? t("show.photoError")
+          : t("show.notFound")}
       </p>
       <TextPaper text={care.source_text} span={item.span!} />
     </>

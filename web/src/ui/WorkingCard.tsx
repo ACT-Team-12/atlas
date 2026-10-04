@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { UiKey } from "@/lib/uiText";
+import { useUi } from "./UiLang";
 
 /**
  * What the person sees during the 15 to 30 seconds the AI takes.
@@ -9,28 +11,14 @@ import { useEffect, useRef, useState } from "react";
  * Typical times: eval medians (read 11.9 s, plan 15.6 s, web/src/data/eval/results.json) and live runs on 2026-10-02 (about 20 s each).
  */
 const COPY = {
-  read: {
-    title: "Reading your paper",
-    typical: "Usually 10 to 25 seconds.",
-    steps: [
-      "The AI reads every line of your paper.",
-      "Our own code looks for each step's exact words in your paper. A step it can't find is held back, not shown.",
-      "Then a second AI double-checks that each explanation says what its line says.",
-    ],
-  },
-  plan: {
-    title: "Building your plan",
-    typical: "Usually 15 to 25 seconds.",
-    steps: [
-      "We pick verified clinics and programs near you that match what you told us.",
-      "The AI builds steps around your barriers, using only those.",
-      "Our code removes anything it suggests that isn't on our verified list.",
-    ],
-  },
-} as const;
+  read: { title: "work.read.title", typical: "work.read.typical", steps: ["work.read.1", "work.read.2", "work.read.3"] },
+  plan: { title: "work.plan.title", typical: "work.plan.typical", steps: ["work.plan.1", "work.plan.2", "work.plan.3"] },
+} as const satisfies Record<string, { title: UiKey; typical: UiKey; steps: readonly UiKey[] }>;
 
 export function WorkingCard({ kind }: { kind: keyof typeof COPY }) {
-  const c = COPY[kind];
+  const { t } = useUi();
+  const k = COPY[kind];
+  const c = { title: t(k.title), typical: t(k.typical), steps: k.steps.map((x) => t(x)) };
   const start = useRef(0);
   const [sec, setSec] = useState(0);
   useEffect(() => {

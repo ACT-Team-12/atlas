@@ -200,7 +200,7 @@ export function TopCalls({ top, chosen, language, off, offId }: { top: RankedRes
           <CalmToggle />
         </span>
       </div>
-      {/* Who picked these: not the doctor. A caregiver could not tell (Oct 4 try). */}
+      {/* Who picked these: ATLAS. A caregiver could not tell (Oct 4 try). */}
       <p className="mt-1 max-w-3xl text-sm font-semibold text-ink/80" data-places-note="">{PLACES_NOTE}</p>
       <ol className="mt-3 grid gap-3 lg:grid-cols-3">
         {top.map((r, i) => <TopCard key={r.id} r={r} rank={i + 1} chosen={chosen} language={language} off={off} offId={offId}

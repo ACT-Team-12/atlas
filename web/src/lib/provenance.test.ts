@@ -38,16 +38,30 @@ describe("who suggested the places to call", () => {
     }
   });
 
-  // The claim itself, in any order and across sentences or source lines: "not (from/on/in/by) the/your/my paper or
-  // doctor" within 200 characters of "ATLAS" in the file's text with whitespace and string joins collapsed.
-  const CLAIM = /\bnot\s+(?:(?:from|on|in|by)\s+)?(?:the|your|my)\s+(?:paper|doctor)\b/gi;
-  // True statements that use the same words: a check result about a number.
-  const ALLOWED = [/Number not in your paper/gi];
+  // The claim itself, wherever it appears in shipped source, with contractions expanded, whitespace and string joins
+  // collapsed, and no "ATLAS" needed nearby: "not (from/on/in/by) (the/your/my) paper or doctor", or "the paper/doctor
+  // did not recommend/mention/name/send...". A regex can't know every English wording: this is a tripwire for the
+  // family the reviews found, and the exact-label tests above are the real check.
+  const CLAIMS = [
+    /\bnot\s+(?:(?:from|on|in|by)\s+)?(?:(?:the|your|my|her|his|their)\s+)?(?:paper|doctor)\b/gi,
+    /\b(?:paper|doctor)\s+(?:does|did|do)\s+not\s+(?:recommend|mention|name|send|list|include|suggest|refer)\w*/gi,
+  ];
+  // True statements that use the same words, each listed exactly: a number the checker did not find, a step held back
+  // because its words are not in the paper, and what the server does not keep or log. Each is blanked out first, so it
+  // excuses only itself, never a claim beside it.
+  const ALLOWED = [
+    /Number not in your paper/gi,
+    /words are not in your paper/gi,
+    /not the question, not the paper/gi,
+    /log the kind of error, not your paper/gi,
+    /its words, not the paper's/gi,
+    /\}" is not in the paper/gi,
+    /held back like one not in the paper/gi,
+  ];
   const claimsNearAtlas = (text: string): string[] => {
-    // Allowed phrases are blanked out first, so each one excuses only itself, never a claim beside it (Codex review).
-    const flat = ALLOWED.reduce((t, a) => t.replace(a, (m) => " ".repeat(m.length)), text.replace(/["'`]\s*\+\s*["'`]/g, "").replace(/\s+/g, " "));
-    return [...flat.matchAll(CLAIM)].map((m) => flat.slice(Math.max(0, m.index - 200), m.index + m[0].length + 200))
-      .filter((w) => /ATLAS/.test(w));
+    const joined = text.replace(/["'`]\s*\+\s*["'`]/g, "").replace(/n['’]t\b/gi, " not").replace(/\s+/g, " ");
+    const flat = ALLOWED.reduce((t, a) => t.replace(a, (m) => " ".repeat(m.length)), joined);
+    return CLAIMS.flatMap((c) => [...flat.matchAll(c)].map((m) => flat.slice(Math.max(0, m.index - 80), m.index + m[0].length + 80)));
   };
 
   it("the claim guard catches reversed, split and sentence-separated wordings", () => {
@@ -57,6 +71,11 @@ describe("who suggested the places to call", () => {
       'const s = "Suggested by ATLAS, " +\n  "not the paper";',
       "Suggestion from ATLAS, not the paper: Mercy Care",
       "Number not in your paper: 3. Suggested by ATLAS, not from your paper.",
+      "ATLAS suggested this. It isn't from your paper",
+      "ATLAS suggested this. Your paper does not recommend it",
+      "These places are not from your paper",
+      "These places are not from paper",
+      "ATLAS found these places. " + "Long text ".repeat(40) + "Your doctor didn't send you there.",
     ]) expect(claimsNearAtlas(bad)).not.toEqual([]);
     expect(claimsNearAtlas("ATLAS checked it. (Number not in your paper: 3.)")).toEqual([]);
     expect(claimsNearAtlas("ATLAS explains your paper. It is not medical advice.")).toEqual([]);
@@ -70,7 +89,7 @@ describe("who suggested the places to call", () => {
     });
     const files = ["web/src", "mobile/ios/ATLAS", "mobile/android/app/src/main"].flatMap((d) => walk(join(repo, d)));
     expect(files.length).toBeGreaterThan(150); // a walk that finds nothing would pass silently
-    const bad = files.flatMap((f) => claimsNearAtlas(readFileSync(f, "utf8")).map((w) => `${f.slice(repo.length + 1)}: ...${w.slice(150, 300)}...`));
+    const bad = files.flatMap((f) => claimsNearAtlas(readFileSync(f, "utf8")).map((w) => `${f.slice(repo.length + 1)}: ...${w}...`));
     expect(bad).toEqual([]);
   });
 

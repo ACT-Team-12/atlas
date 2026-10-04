@@ -284,6 +284,7 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
   const values = (c: string) => new Set(q.filter(([, qc]) => qc === c).map(([n]) => n));
   // Only a word that names ONE value counts ("lispro", not the shared "insulin" of "insulin glargine 10 units and
   // insulin lispro 5 units", Codex round 8), and the explanation's words must not name another value too.
+  const plainNames = new Set([...plain.toLowerCase().matchAll(/[\p{L}\p{M}]+/gu)].map((m) => SAME_NAME[m[0]] ?? m[0]));
   const namesOf = (n: string, c: string) => new Set(q.flatMap(([qn, qc], k) => (qn === n && qc === c ? qCtx[k] : [])));
   const aligned = (n: string, c: string, ctx: string[]) => {
     const others = [...values(c)].filter((v) => v !== n).map((v) => namesOf(v, c));
@@ -293,8 +294,11 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
     if (own.some((w) => ctx.includes(w) && !ALIAS_NAMES.has(w))) return true;
     // Lined up only by a shared word ("tablet", "previously"): every naming word must be this number's own, or a
     // medicine name past the three-word window could hide behind it (Codex: "warfarin extended release tablet 2").
+    // Nor may another value's name appear anywhere in the explanation, since a name after the number ("contains 2 mg
+    // warfarin") is outside the window (Codex round 2).
     const mine = namesOf(n, c);
-    return own.some((w) => ctx.includes(w)) && ctx.every((w) => mine.has(w));
+    const elsewhere = others.some((o) => [...o].some((w) => !mine.has(w) && !ALIAS_NAMES.has(w) && plainNames.has(w)));
+    return own.some((w) => ctx.includes(w)) && ctx.every((w) => mine.has(w)) && !elsewhere;
   };
   const free = new Set(["clockmin", "phone"]);
   if (p.pairs.some(([n, c], k) => c !== null && !free.has(c) && values(c).size >= 2 && !aligned(n, c, pCtx[k]))) return true;

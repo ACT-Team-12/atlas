@@ -299,6 +299,9 @@ describe("a correct dose change in everyday words certifies; a wrong number, fre
     // A shared "tablet" never stands in for the medicine name the three-word window dropped.
     ["Take aspirin pill 2 times daily. Take warfarin 5 times daily.", "Take warfarin extended release tablet 2 times daily."],
     ["The aspirin pill contains 2 mg. Warfarin contains 5 mg.", "The warfarin extended release tablet contains 2 mg."],
+    // Nor for a medicine named after the number (Codex round 2).
+    ["The aspirin pill contains 2 mg. Warfarin contains 5 mg.", "The tablet contains 2 mg warfarin."],
+    ["The aspirin pill contains 2 mg. Warfarin contains 5 mg.", "The pill contains 2 mg warfarin."],
   ])("Codex: %j explained as %j is never certified", (paper, plain) => {
     expect(at(paper, plain).certified).toBe(false);
   });

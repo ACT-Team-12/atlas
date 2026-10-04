@@ -28,6 +28,33 @@
   --button-ease-bounce: cubic-bezier(0.34, 2.27, 0.64, 1);
 
   --radius-section: 3em;
+
+  /* Pip (Akhil's colors, light). Eyes and mouth stay #14283A on the light face in both themes. */
+  --pip-ink: #14283a;
+  --pip-pin: #ffa47e;
+  --pip-pin2: #f0606a;
+  --pip-deep: #d2543f;
+  --pip-leaf: #3f9a52;
+  --pip-go: #24895d;
+  --pip-sky: #2f6fc9;
+  --pip-face: #fffdf7;
+  --pip-cheek: #f58c7a;
+}
+
+/*
+ * Pip's dark colors (Akhil's). ATLAS has no dark theme yet and keeps its light paper in a dark OS setting, so these
+ * switch on with a data-theme="dark" ancestor, not on prefers-color-scheme (light outlines on light paper would vanish).
+ */
+[data-theme="dark"] {
+  --pip-ink: #e4edf3;
+  --pip-pin: #ffad8a;
+  --pip-pin2: #f06a72;
+  --pip-deep: #ff8e6e;
+  --pip-leaf: #5dbb6f;
+  --pip-go: #45be88;
+  --pip-sky: #6fa3ee;
+  --pip-face: #fffdf7;
+  --pip-cheek: #f58c7a;
 }
 
 @theme inline {
@@ -190,6 +217,45 @@ body {
 }
 .step-in { animation: step-in 0.3s ease-out both; }
 
+/*
+ * Pip, the "you are here" marker (ui/Pip.tsx). It lives in a reserved slot on a card's right edge (.pip-slot always
+ * takes its space), so it never covers text. Hop in on arrival, a small bounce on a cheer, a blink every few seconds
+ * (Akhil's keyframe). Quiet Pip (medicine, lab tests, warning signs) never moves. Calm mode fades and never blinks.
+ */
+.pip-slot { flex: none; display: block; width: 2.75rem; height: 3rem; }
+.pip { display: block; width: 100%; height: 100%; pointer-events: none; }
+.pip-body { display: block; width: 100%; height: 100%; transform-origin: 50% 100%; }
+.pip-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.pip-eyes { transform-origin: 32px 28px; }
+.pip[data-pip="arrive"] .pip-body { animation: pip-hop 0.6s var(--ease-soft-overshoot) both; }
+.pip[data-pip="cheer"] .pip-body { animation: pip-cheer 0.7s ease-out both; }
+.pip[data-blink] .pip-eyes { animation: pip-blink 4.2s infinite; }
+.pip[data-calm] .pip-body { animation: pip-fade 0.4s ease-out both; }
+.pip[data-calm] .pip-eyes, .pip[data-pip="quiet"] .pip-body, .pip[data-pip="quiet"] .pip-eyes { animation: none; }
+@keyframes pip-hop {
+  0% { opacity: 0; transform: translateY(-14px) scale(0.96, 1.04); }
+  55% { opacity: 1; transform: translateY(0) scale(1.06, 0.92); }
+  80% { transform: translateY(-3px) scale(0.98, 1.02); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes pip-cheer {
+  0%, 100% { transform: none; }
+  35% { transform: translateY(-5px); }
+  60% { transform: translateY(0) scale(1.04, 0.96); }
+}
+@keyframes pip-blink {
+  0%, 94%, 100% { transform: scaleY(1); }
+  97% { transform: scaleY(0.1); }
+}
+@keyframes pip-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.pip-bubble {
+  display: inline-block; max-width: 100%; border-radius: 0.9rem; background: var(--ink); color: var(--paper);
+  padding: 0.3rem 0.7rem; font-size: 0.78rem; font-weight: 800; line-height: 1.25;
+}
+
 html.js-motion [data-reveal] {
   visibility: hidden;
 }
@@ -202,6 +268,9 @@ html.js-motion [data-reveal] {
   }
   .marquee-track { animation: none; }
   .step-in { animation: none; }
+  /* Pip in reduced motion: no hop, no bounce, no blink; it only fades into its spot (the one motion kept, on purpose). */
+  .pip .pip-eyes, .pip[data-pip] .pip-body { animation: none !important; }
+  .pip[data-pip="arrive"] .pip-body, .pip[data-pip="cheer"] .pip-body { animation: pip-fade 0.4s ease-out both !important; }
 }
 
 /* Handoff sheet: hidden on screen; when printing it, it is the only thing on the page. */
@@ -290,4 +359,9 @@ html.js-motion [data-reveal] {
 }
 @media (min-width: 48rem) {
   .plan-dock .dock-ic { margin-right: 0.35em; }
+}
+
+/* Pip and its calm toggle are screen-only. */
+@media print {
+  .pip-slot, .pip-bubble, [data-calm-toggle] { display: none !important; }
 }

@@ -42,7 +42,7 @@ export default function PrivacyPage() {
             </Block>
             <Block title="Asking your paper a question">
               <p>When you press Ask my paper, your question and the text of your paper go to our server and to Anthropic, so its AI model can point to the words in your paper that answer it. Our own checker then makes sure those words are really in your paper before anything is shown. If they are not, you see &quot;Your paper doesn&apos;t say&quot; instead.</p>
-              <p>We do not save your question or your paper. To stay within budget, our database counts how many questions the whole site answers each day: only the day and the count, nothing about you, your question or your network address. A question that sounds like an emergency is never sent at all.</p>
+              <p>We do not save your question or your paper. To stay within budget, our database counts how many questions the whole site answers each day: only the day and the count, nothing about you, your question or your network address. A question our own check recognizes as an emergency (for example chest pain or trouble breathing) is never sent; it gets 911 and 211 guidance instead.</p>
             </Block>
             <Block title="Saying your answer out loud">
               <p>In Check I understood, you can tap Say your answer instead of typing or tapping. Only then, and only while you record (up to 20 seconds), the recording is sent to a speech-to-text service to turn it into words. The words come back to your screen so you can fix them before you check your answer. If you never tap Say your answer, nothing is recorded.</p>

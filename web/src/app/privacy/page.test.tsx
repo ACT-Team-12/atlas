@@ -44,6 +44,6 @@ describe("privacy page: asking your paper a question", () => {
 
   it("describes the daily count as the day and the count only, and that emergency questions are never sent", () => {
     expect(section).toMatch(/only the day and the count, nothing about you/);
-    expect(section).toMatch(/A question that sounds like an emergency is never sent at all/);
+    expect(section).toMatch(/A question our own check recognizes as an emergency \(for example chest pain or trouble breathing\) is never sent/);
   });
 });

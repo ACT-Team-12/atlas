@@ -5,6 +5,7 @@ import { bookSafe, careStepView, paperFirstLines, type Check } from "@/lib/paper
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { MeaningState } from "@/lib/meaningRun";
 import type { DeviceRun, DeviceStatus } from "@/lib/deviceRun";
+import { isWarning } from "@/lib/warningPin";
 import { closedRow, SEAL_SHORT, SEAL_TEXT, sealOf, shortQuote, stepWhen, WHEN_GROUP_LABEL, WHEN_GROUPS, type Seal, type WhenGroup } from "@/lib/stepsView";
 import { askPerson } from "@/lib/askPerson";
 import { readingGeneralQuestions, stepVisitQuestion, uniqueStepQuestions } from "@/lib/visitQuestions";
@@ -63,12 +64,12 @@ export function CareSteps(p: Props) {
   const [active, setActive] = useState<string | null>(null);
   const speech = useStepSpeech(p.language);
 
-  const warnings = items.filter((i) => i.kind === "warning_sign");
+  const warnings = items.filter(isWarning);
   const groups = useMemo(() => {
     const by = new Map<WhenGroup, VerifiedItem[]>(WHEN_GROUPS.map((g) => [g, []]));
-    for (const it of items) if (it.kind !== "warning_sign") by.get(stepWhen(it, checkFor(it.id)).group)!.push(it);
+    for (const it of items) if (!isWarning(it)) by.get(stepWhen(it, checkFor(it.id), care.source_text).group)!.push(it);
     return WHEN_GROUPS.map((g) => ({ g, list: by.get(g)! })).filter((x) => x.list.length > 0);
-  }, [items, checkFor]);
+  }, [items, checkFor, care.source_text]);
   // Numbered in the order shown, so "step 3" is the third row a person sees.
   const order = [...warnings, ...groups.flatMap((x) => x.list)];
   const numberOf = (id: string) => order.findIndex((i) => i.id === id) + 1;

@@ -1243,7 +1243,7 @@ export function CarePlanTool() {
                     </>}
               </div>
             )}
-            <p className="mt-4 text-xs font-bold uppercase tracking-wide text-ink/70">Suggestions from ATLAS, not your paper. If anything differs, follow your paper.</p>
+            <p className="mt-4 text-xs font-bold uppercase tracking-wide text-ink/70">Suggestions from ATLAS. If anything differs from your paper, follow your paper.</p>
             <p className="mt-1 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
             {/* On the first screen at every width: right under the summary, before the actions and the three calls. */}
             {plan.ask_a_person && (

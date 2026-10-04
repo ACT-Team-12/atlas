@@ -6,6 +6,7 @@ import type { VerifiedItem } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { careStepView, checkOf, paperFirstLines } from "@/lib/paperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
+import { HELP_HEADING_SHEET } from "@/lib/provenance";
 import type { ShareMeaning } from "@/lib/shareText";
 import { visitQuestions } from "@/lib/visitQuestions";
 import { MED_ROW_LABEL, medicineChanges } from "@/lib/medicineChanges";
@@ -116,7 +117,7 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
 
       {resources.some((r) => used.has(r.id)) && (
         <>
-          <h2>Who can help (checked numbers)</h2>
+          <h2>{HELP_HEADING_SHEET}</h2>
           <ul className="help">
             {resources.filter((r) => used.has(r.id)).map((r) =>
               r.type === "clinic"

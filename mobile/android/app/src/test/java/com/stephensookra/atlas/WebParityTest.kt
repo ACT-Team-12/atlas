@@ -224,6 +224,11 @@ class WebParityTest {
         // A removed step's question stays out of the general list as well.
         assertEquals(listOf("Do I need a ride?"), PaperFirst.visitQuestions(emptyList(), general, listOf(asks)) { Check.certified })
         assertEquals("which pain medicines are safe", PaperFirst.questionKey("  Which pain-medicines, are SAFE?? "))
+        // A held-back (refused) step's question, repeated in a saved reading's general list, stays out too.
+        val refused = item("r1", grounded = false).copy(needs_clarification = true, question_for_clinic = "Should I double my insulin?")
+        val saved = CarePlanResponse(items = emptyList(), refused = listOf(refused), questions_for_doctor = listOf("Should I double my insulin?", "Do I need a ride?"),
+            stats = com.stephensookra.atlas.data.CareStats(1, 0, 1, 1))
+        assertEquals(listOf("Do I need a ride?"), PaperFirst.readingGeneralQuestions(saved))
         assertTrue("visitQuestions.ts moved", File("../../../web/src/lib/visitQuestions.ts").readText().contains("export function visitQuestions"))
     }
 

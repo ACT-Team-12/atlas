@@ -43,7 +43,7 @@ struct PlanView: View {
                         ReadAloudBar(speaker: speaker, language: model.language, lines: PaperFirst.planSpeechLines(plan, items: planItems))
                     }
                     if !outdated {
-                        ShareLink(item: ShareText.plan(items: model.items, plan: plan, questions: model.care?.questions_for_doctor ?? [],
+                        ShareLink(item: ShareText.plan(items: model.items, plan: plan, questions: model.care.map(PaperFirst.readingGeneralQuestions) ?? [],
                                                        meaning: model.meaning, planItems: planItems),
                                   subject: Text(ShareText.title), preview: SharePreview(ShareText.title)) {
                             Label("Send to family", systemImage: "square.and.arrow.up")
@@ -76,7 +76,7 @@ struct PlanView: View {
                     }
 
                     // Paper first (PaperFirst.visitQuestions): a step's own question only when certified.
-                    let nextVisit = PaperFirst.visitQuestions(items: model.items.filter(\.grounded), general: model.care?.questions_for_doctor ?? [],
+                    let nextVisit = PaperFirst.visitQuestions(items: model.items.filter(\.grounded), general: model.care.map(PaperFirst.readingGeneralQuestions) ?? [],
                                                               also: model.removedItems, check: { model.check(for: $0) })
                     if !nextVisit.isEmpty {
                         Card {

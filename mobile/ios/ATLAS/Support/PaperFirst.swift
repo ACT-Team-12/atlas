@@ -121,6 +121,12 @@ enum PaperFirst {
         return general.filter { let k = questionKey($0); return !k.isEmpty && !own.contains(k) }
     }
 
+    /// readingGeneralQuestions in visitQuestions.ts: the reading's general list with every step's own question taken
+    /// out, held-back (refused) steps included, since a saved reading's list can repeat any of them.
+    static func readingGeneralQuestions(_ care: CarePlanResponse) -> [String] {
+        generalVisitQuestions(care.questions_for_doctor, steps: care.items + care.refused)
+    }
+
     /// `also`: steps not listed (removed ones) whose own questions must still stay out of the general list.
     static func visitQuestions(items: [VerifiedItem], general: [String], also: [VerifiedItem] = [],
                                check: (String) -> Check) -> [String] {

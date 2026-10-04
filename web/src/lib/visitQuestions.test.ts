@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Check } from "./paperFirst";
-import { generalVisitQuestions, stepVisitQuestion, visitQuestions } from "./visitQuestions";
+import { generalVisitQuestions, readingGeneralQuestions, stepVisitQuestion, uniqueStepQuestions, visitQuestions } from "./visitQuestions";
 
 const QUOTE = "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function.";
 const AI_Q = "Which pain medicines are safe for me instead?";
@@ -42,5 +42,17 @@ describe("questions for the next visit, paper first", () => {
   it("a removed step's question stays out of the general list too", () => {
     expect(generalVisitQuestions([AI_Q, "Do I need to fast?"], [step()])).toEqual(["Do I need to fast?"]);
     expect(visitQuestions({ items: [], also: [step()], general: [AI_Q], checkFor: all("certified") })).toEqual([]);
+  });
+
+  it("a saved reading's general list never carries a held-back (refused) step's question", () => {
+    const refused = step({ id: "r1", question_for_clinic: "Should I double my insulin?" });
+    expect(readingGeneralQuestions({ questions_for_doctor: ["Should I double my insulin?", "Do I need to fast?"], items: [step()], refused: [refused] }))
+      .toEqual(["Do I need to fast?"]);
+  });
+
+  it("two steps with the same question list it once, with the first step's paper line", () => {
+    const twin = step({ id: "ibu2", source_quote: "Another line." });
+    const q = uniqueStepQuestions([step(), twin], all("certified"));
+    expect(q.map((x) => [x.it.id, x.q])).toEqual([["ibu", AI_Q]]);
   });
 });

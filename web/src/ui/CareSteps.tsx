@@ -7,7 +7,7 @@ import type { MeaningState } from "@/lib/meaningRun";
 import type { DeviceRun, DeviceStatus } from "@/lib/deviceRun";
 import { closedRow, SEAL_SHORT, SEAL_TEXT, sealOf, shortQuote, stepWhen, WHEN_GROUP_LABEL, WHEN_GROUPS, type Seal, type WhenGroup } from "@/lib/stepsView";
 import { askPerson } from "@/lib/askPerson";
-import { generalVisitQuestions, stepVisitQuestion } from "@/lib/visitQuestions";
+import { readingGeneralQuestions, stepVisitQuestion, uniqueStepQuestions } from "@/lib/visitQuestions";
 import { buildIcs } from "@/lib/booking";
 import { dayOptions, formatTime, googleCalendarUrl, localStart, timeOptions } from "@/lib/calendarLinks";
 import { SPEECH_LANG } from "@/lib/speechLang";
@@ -76,8 +76,8 @@ export function CareSteps(p: Props) {
   const recheck = seals.filter((s) => s === "recheck").length;
   // Paper first (lib/visitQuestions.ts): a step's own question only when certified, else the paper's words. The general
   // list never repeats a step's question (older readings carried each one there too, so it showed twice).
-  const stepQuestions = items.flatMap((it) => { const q = stepVisitQuestion(it, checkFor(it.id)); return q ? [{ it, q }] : []; });
-  const generalQuestions = generalVisitQuestions(care.questions_for_doctor, [...items, ...p.removedItems]);
+  const stepQuestions = uniqueStepQuestions(items, checkFor);
+  const generalQuestions = readingGeneralQuestions(care);
   const questionCount = stepQuestions.length + generalQuestions.length;
 
   // A check that disagrees can land after the steps are on screen. Opening the step is not an announcement, so a

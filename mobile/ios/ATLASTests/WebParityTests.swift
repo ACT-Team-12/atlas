@@ -228,6 +228,9 @@ struct WebParityTests {
         // A removed step's question stays out of the general list as well.
         #expect(PaperFirst.visitQuestions(items: [], general: general, also: [asks], check: { _ in .certified }) == ["Do I need a ride?"])
         #expect(PaperFirst.questionKey("  Which pain-medicines, are SAFE?? ") == "which pain medicines are safe")
+        // A held-back (refused) step's question, repeated in a saved reading's general list, stays out too.
+        let saved = try JSONDecoder().decode(CarePlanResponse.self, from: Data(#"{"items":[],"refused":[{"id":"r1","kind":"medication","title":"t","plain_language":"p","source_quote":"q","needs_clarification":true,"question_for_clinic":"Should I double my insulin?","grounded":false}],"questions_for_doctor":["Should I double my insulin?","Do I need a ride?"],"stats":{"extracted":1,"grounded":0,"refused":1,"ms":1}}"#.utf8))
+        #expect(PaperFirst.readingGeneralQuestions(saved) == ["Do I need a ride?"])
         let web = try repoFile("web/src/lib/visitQuestions.ts")
         #expect(web.contains("export function visitQuestions"), "visitQuestions.ts moved")
     }

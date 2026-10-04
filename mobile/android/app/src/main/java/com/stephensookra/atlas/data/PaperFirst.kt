@@ -99,6 +99,12 @@ object PaperFirst {
         return general.filter { val k = questionKey(it); k.isNotEmpty() && k !in own }
     }
 
+    /**
+     * readingGeneralQuestions in visitQuestions.ts: the reading's general list with every step's own question taken
+     * out, held-back (refused) steps included, since a saved reading's list can repeat any of them.
+     */
+    fun readingGeneralQuestions(care: CarePlanResponse): List<String> = generalVisitQuestions(care.questions_for_doctor, care.items + care.refused)
+
     /** `also`: steps not listed (removed ones) whose own questions must still stay out of the general list. */
     fun visitQuestions(items: List<VerifiedItem>, general: List<String>, also: List<VerifiedItem> = emptyList(), check: (String) -> Check): List<String> {
         val out = mutableListOf<String>()

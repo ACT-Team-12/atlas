@@ -36,6 +36,25 @@ export function generalVisitQuestions(general: string[], steps: Step[]): string[
   return general.filter((q) => dedupeKey(q) && !own.has(dedupeKey(q)));
 }
 
+/**
+ * A reading's general questions with every step's own question taken out, held-back (refused) steps included: a
+ * saved reading's model list can repeat any of them, and a held-back step is never checked (Codex review).
+ */
+export function readingGeneralQuestions(care: { questions_for_doctor?: string[]; items: Step[]; refused?: Step[] }): string[] {
+  return generalVisitQuestions(care.questions_for_doctor ?? [], [...care.items, ...(care.refused ?? [])]);
+}
+
+/** Step questions with repeats (same key) dropped, keeping the first step's paper line. */
+export function uniqueStepQuestions<T extends Step>(items: T[], checkFor: (id: string) => Check): { it: T; q: string }[] {
+  const seen = new Set<string>();
+  return items.flatMap((it) => {
+    const q = stepVisitQuestion(it, checkFor(it.id));
+    if (!q || seen.has(dedupeKey(q))) return [];
+    seen.add(dedupeKey(q));
+    return [{ it, q }];
+  });
+}
+
 export function visitQuestions(input: { items: Step[]; general: string[]; checkFor: (id: string) => Check; also?: Step[] }): string[] {
   const out: string[] = [];
   const seen = new Set<string>();

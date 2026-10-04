@@ -7,7 +7,7 @@
 - **Channel:** in person. Her words are **as relayed by Timothy in team Slack** (his recollection, written right after), not a recording.
 
 ## What she said (as relayed by Timothy, 2:50 pm; his recollection written right after, not a recording)
-- "This is amazing! I can use this for my parents and grandparents who stay in Ohio."
+- "This is amazing! I can use this for my parents and grandparents who stay in [another state]." (state removed, as agreed for quoting)
 - "This can help me understand everything that needs to go on and put it on my schedule to keep them on track."
 - "Is this going to be a real app?"
 - A remark about the sibling who does the in-person care is left out on purpose (it is about a third person).

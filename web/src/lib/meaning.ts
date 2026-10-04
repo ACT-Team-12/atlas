@@ -302,6 +302,40 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
   };
   const free = new Set(["clockmin", "phone"]);
   if (p.pairs.some(([n, c], k) => c !== null && !free.has(c) && values(c).size >= 2 && !aligned(n, c, pCtx[k]))) return true;
+  // A unit with ONE value in the quote can still be moved to another medicine: "Take aspirin 2 mg. Take warfarin 1
+  // tablet daily." explained as "Take warfarin 2 mg daily." The explanation's naming words for a number must not name
+  // only another dose in the quote (PR 76 follow-up). Doses only (mg, tablets, mL), so a time ("5 hours") is never
+  // read as a medicine's. Shared words ("tablet", "previously") and unit words don't count.
+  const DOSE = new Set(["mass", "dose", "volume"]);
+  const namesOfValue = (n: string) => new Set(q.flatMap(([qn], k) => (qn === n ? qCtx[k] : [])));
+  const otherOnly = (n: string) => {
+    const mine = namesOfValue(n);
+    return new Set(q.flatMap(([qn, qc], k) => (qn !== n && qc !== null && DOSE.has(qc) ? qCtx[k] : [])).filter((w) => !mine.has(w) && !ALIAS_NAMES.has(w) && unitClass(w) === null));
+  };
+  if (p.pairs.some(([n, c], k) => c !== null && DOSE.has(c) && values(c).size < 2 && pCtx[k].some((w) => otherOnly(n).has(w)))) return true;
+  // A name after the number ("Take 2 mg warfarin") is outside that window: a sentence of the explanation that gives a
+  // dose, names only another dose's medicine and none of this one's own names, is refused too (Codex review).
+  // A decimal point ("2.5 mg") is not a sentence end.
+  for (const sentence of plain.split(/(?<!\d)\.|\.(?!\d)|[;!?\n]+/)) {
+    const sp = numberUnits(sentence, languages).pairs.filter(([n, c]) => plainNumbers.has(n) && c !== null && DOSE.has(c) && values(c).size < 2);
+    if (sp.length === 0) continue;
+    const words = new Set([...sentence.toLowerCase().matchAll(/[\p{L}\p{M}]+/gu)].map((m) => SAME_NAME[m[0]] ?? m[0]));
+    for (const [n] of sp) {
+      const other = otherOnly(n);
+      const own = [...namesOfValue(n)].filter((w) => !other.has(w) && !ALIAS_NAMES.has(w) && unitClass(w) === null && !q.some(([qn], k) => qn !== n && qCtx[k].includes(w)));
+      if ([...other].some((w) => words.has(w)) && !own.some((w) => words.has(w))) return true;
+    }
+  }
+  // A dose the paper says was the OLD one ("Previously 10 mg once daily"): an explanation that gives that kind of dose
+  // must give at least one of the paper's current doses too, so "You previously took 10 mg" alone is not certified.
+  for (const c of DOSE) {
+    const old = new Set(q.filter(([, qc], k) => qc === c && qCtx[k].includes("previously")).map(([n]) => n));
+    if (old.size === 0) continue;
+    const current = [...values(c)].filter((v) => !old.has(v));
+    if (current.length === 0) continue;
+    const mentions = p.pairs.some(([n, pc]) => pc === c || old.has(n));
+    if (mentions && !p.pairs.some(([n, pc]) => pc === c && current.includes(n))) return true;
+  }
   const known = new Set(q.map(([n, c]) => `${n}|${c}`));
   // A number with no unit is fine only where the quote never gives that number a unit either ("100 Sample Street").
   // ...and only when the quote has a single unitless value, so two unitless numbers can't trade places (round 12).

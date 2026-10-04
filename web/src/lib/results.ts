@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ExtractError, MODEL } from "./extract";
 import { LANGUAGES } from "./schema";
 import { findSpanIn, mapSource, type MappedSource } from "./verify";
+import { criticalOnLine, findTestName, isCritical } from "./labsView";
 
 /**
  * "Explain my lab results": asked for by a real patient on Oct 2 ("a summary option that only highlights what I
@@ -99,7 +100,7 @@ export function printedFlag(text: string): "high" | "low" | "abnormal" | null {
   const letter = (c: string) => new RegExp(`(?:^|[\\s(\\[*])(?:${c}${c}|${c})(?=$|[\\s)\\]*!])`).test(t);
   if (letter("H") || /\bhigh\b/i.test(t)) return "high";
   if (letter("L") || /\blow\b/i.test(t)) return "low";
-  if (/\b(abnormal|critical|out of range)\b/i.test(t)) return "abnormal";
+  if (/\b(abnormal|critical|panic|out of range)\b/i.test(t)) return "abnormal";
   return null;
 }
 
@@ -109,21 +110,23 @@ const ATOM = new RegExp(String.raw`(?<=^|[\s(\[:=])(?:<=|>=|≤|≥|<|>)?\s?-?${
 // A range printed on a line: "70-99", "4.0 - 11.0", "150,000-400,000", "-2 to 3", "<200", ">=60". Never part of a date.
 const RANGE = new RegExp(String.raw`(?<![\w.^/-])(?:(?:<=|>=|≤|≥|<|>)\s*-?${NUMC}|-?${NUMC}\s*(?:-|–|to)\s*-?${NUMC})(?![\w.]|-\d)`, "g");
 
+/** Short report marks beyond printedFlag's: A, ABN, CRIT, hh/ll/h/l in any case, or a standalone "!" or "*". */
+const OTHER_MARK = /(?:^|[\s(\[])(?:A|[Aa][Bb][Nn]|[Cc][Rr][Ii][Tt]|[HhLl]{1,2})(?=$|[\s)\]*!])|(?:^|\s)[!*]+(?=$|\s)/;
+
 type Span = { text: string; start: number; end: number };
 const spans = (re: RegExp, s: string): Span[] => [...s.matchAll(re)].map((m) => ({ text: m[0], start: m.index ?? 0, end: (m.index ?? 0) + m[0].length }));
 const inside = (a: Span, b: Span) => a.start >= b.start && a.end <= b.end;
 
-/** Finds the test name on the line, ignoring case and punctuation ("Glucose Fasting" finds "Glucose, Fasting"). */
-function findName(line: string, test: string): Span | null {
-  const words = test.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-  if (!words.length) return null;
-  const m = new RegExp(`(?<![\\p{L}\\p{N}])${words.map(escapeRe).join("[^\\p{L}\\p{N}]+")}(?![\\p{L}\\p{N}])`, "iu").exec(line);
-  return m ? { text: m[0], start: m.index, end: m.index + m[0].length } : null;
-}
+/** The test name as printed on the line (labsView.ts, shared with the page). */
+const findName = findTestName;
 
 type LineRead = {
   value: Span; valueRange: Interval; range: Interval | null; rangeText: string;
   flag: "high" | "low" | "abnormal" | null; loneL: boolean; unitSeen: boolean;
+  /** Where the value falls against each range the line prints after it. More than one that disagree: we can't tell. */
+  verdicts: ("inside" | "high" | "low" | "unknown")[];
+  /** A flag anywhere on the line, read with nothing the AI returned taken out (only the ranges and the value). */
+  lineMark: "high" | "low" | "abnormal" | null;
 };
 
 /**
@@ -153,7 +156,16 @@ function readLine(line: string, r: Pick<ModelRow, "test" | "unit" | "range_text"
   const at = unit ? new RegExp(`(?<=^|\\s)${escapeRe(unit)}(?=$|\\s)`).exec(tail) : null;
   if (at) tail = tail.slice(0, at.index) + " ".repeat(unit.length) + tail.slice(at.index + unit.length);
   const words = tail.trim().split(/\s+/).filter(Boolean);
+  // The whole line with only our code's spans blanked (the ranges and the value), never the AI's name or unit.
+  let whole = line;
+  // No exception, not even a liter "L": the unit is the AI's word, and an AI field may only add caution (security
+  // review). "1.8 L 0.8-2.0" is "can't tell", shown, never folded as in range.
+  for (const s of [...spans(RANGE, line), value]) whole = whole.slice(0, s.start) + " ".repeat(s.end - s.start) + whole.slice(s.end);
   return {
+    verdicts: others.map((s) => parseRange(s.text)).filter((x): x is Interval => !!x).map((x) => classify(valueRange, x)),
+    // Also short marks printedFlag doesn't name (A, ABN, CRIT, "!", lowercase hh/ll/h/l): any of them keeps a line
+    // out of "in range" (security review). Over-cautious on purpose: "Vitamin A" reads as can't tell.
+    lineMark: printedFlag(whole) ?? (OTHER_MARK.test(whole) ? "abnormal" : null),
     value, valueRange, range: pick ? parseRange(pick.text) : null, rangeText: pick ? pick.text.trim() : "",
     flag: printedFlag(tail), loneL: !at && words.length === 1 && words[0] === "L", unitSeen: !!at,
   };
@@ -165,6 +177,34 @@ function readLine(line: string, r: Pick<ModelRow, "test" | "unit" | "range_text"
  * moves from another line changes nothing.
  */
 export function judgeRow(r: ModelRow): Omit<ResultRow, keyof ModelRow> {
+  const judged = failClosed(r, judgeByValue(r));
+  // A line the report marks critical or panic (anywhere on it but the test name, before the value too) is never in
+  // range and never "can't tell": a range check must not give it an all-clear (Codex review).
+  if (criticalOnLine(r.quote) && judged.status !== "outside") {
+    return { status: "outside", direction: null, reason: "Your report marks this line critical." };
+  }
+  return judged;
+}
+
+/**
+ * Fail closed on what the AI's own fields could hide (security review): a mark on the line that the AI's test name or
+ * unit absorbed ("Potassium H 4.0", unit "H"), or two printed ranges that disagree (the AI's range_text picks one).
+ * Either way an "inside" becomes "can't tell", which stays visible and never counts toward an all-clear.
+ */
+function failClosed(r: ModelRow, judged: Omit<ResultRow, keyof ModelRow>): Omit<ResultRow, keyof ModelRow> {
+  if (judged.status !== "inside") return judged;
+  const read = readLine(r.quote, r);
+  if (!read) return judged;
+  // The AI's test name decides where the value search starts. Any number standing on its own before the value we read
+  // (inside the name or before it: "Glucose 250 previous result 80" named "previous result") may be the real result,
+  // so the line can't be in range (security review).
+  if (spans(ATOM, r.quote).some((a) => a.start < read.value.start)) return { status: "unknown", direction: null, reason: "This line has a number before the result we read, so we can't be sure which number is the result. Look at the line, or ask your clinic." };
+  if (new Set(read.verdicts).size > 1) return { status: "unknown", direction: null, reason: "Your report prints more than one range on this line, and they disagree. Ask your clinic which one applies." };
+  if (read.lineMark) return { status: "unknown", direction: null, reason: "Your report has a mark on this line we couldn't place. Look at the line, or ask your clinic." };
+  return judged;
+}
+
+function judgeByValue(r: ModelRow): Omit<ResultRow, keyof ModelRow> {
   const read = readLine(r.quote, r);
   if (!read) return { status: "unknown", direction: null, reason: "We couldn't find this result on the line." };
   const { value, valueRange, range, rangeText, flag, loneL } = read;
@@ -194,12 +234,26 @@ function lineOf(source: string, paper: MappedSource, quote: string): { line: str
   return { line: source.slice(start, nl < 0 ? source.length : nl).trim() };
 }
 
+/** True when every word on the line is a critical marker or a heading word, so nothing on it names a test. */
+const HEADING_WORDS = new Set(["critical", "panic", "hh", "ll", "value", "values", "result", "results", "lab", "labs", "range", "ranges", "alert", "alerts", "section", "list", "notification", "notifications", "and", "or", "page", "of", "continued", "cont"]);
+function isCriticalHeading(line: string): boolean {
+  // Page and count marks ("PAGE 2", "2 of 3", "(2)", "#2") are not a result value (Codex review, round 2).
+  const bare = line.replace(/\bpage\s*\d+(?:\s*(?:of|\/)\s*\d+)?/giu, " ").replace(/\b\d+\s*(?:of|\/)\s*\d+\b/giu, " ").replace(/[(#[]\s*\d+\s*[)\]]?/gu, " ");
+  if (/\p{N}/u.test(bare)) return false;
+  return (line.match(/[\p{L}]+/gu) ?? []).every((w) => HEADING_WORDS.has(w.toLowerCase()));
+}
+
 /** Lines that look like a test result: a number standing on its own, plus a printed range or a High/Low flag. */
 export function resultLines(source: string): string[] {
   const seen = new Set<string>();
   for (const raw of source.split(/\r?\n/)) {
     const line = raw.trim();
-    if (!line || seen.has(line) || !spans(ATOM, line).length) continue;
+    if (!line || seen.has(line)) continue;
+    // A line the report marks critical or panic counts even with no number we can read ("Troponin unable to calculate
+    // CRITICAL"), so it is never left out of the coverage count (security review). A heading made only of the marker
+    // and heading words ("CRITICAL VALUES", "*** Panic results ***") is not a result, so it raises no alarm (Codex review).
+    if (isCritical(line)) { if (!isCriticalHeading(line)) seen.add(line); continue; }
+    if (!spans(ATOM, line).length) continue;
     if (spans(RANGE, line).some((s) => parseRange(s.text)) || printedFlag(line)) seen.add(line);
   }
   return [...seen];
@@ -231,8 +285,11 @@ export function checkRows(source: string, rows: ModelRow[]): Pick<ResultsRespons
   out.sort((a, b) => order[a.status] - order[b.status]);
   const candidates = resultLines(source);
   const covered = new Set(out.map((r) => r.quote));
+  // Every critical line, first; the 40-line cap applies only to the rest, so it never drops one (security review,
+  // Codex review round 2). The page names how many were left off.
   const unchecked = candidates.filter((l) => !covered.has(l));
-  return { rows: out, dropped, counts, coverage: { candidates: candidates.length, checked: candidates.length - unchecked.length, unchecked: unchecked.slice(0, 40) } };
+  const shown = [...unchecked.filter(isCritical), ...unchecked.filter((l) => !isCritical(l)).slice(0, 40)];
+  return { rows: out, dropped, counts, coverage: { candidates: candidates.length, checked: candidates.length - unchecked.length, unchecked: shown } };
 }
 
 const SYSTEM = `You read a person's lab report and list every test result on it.

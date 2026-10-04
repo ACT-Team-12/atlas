@@ -36,6 +36,9 @@ final class AppModel {
     /// What `care` was read from and what `plan` was built from (StaleGuard). Nil when unknown (older saved files).
     private(set) var readFingerprint: String?
     private(set) var planFingerprint: String?
+    /// Counts the readings in this run of the app, so a screen can reset per-reading state (Pip's greeting and cheer) when
+    /// "Read my paper again" replaces the steps in place, as the website does by keying its steps on the run. Not saved.
+    private(set) var readingCount = 0
     /// When the steps or the plan last changed (SavedSession.savedAt). Input changes and helper links keep it.
     @ObservationIgnored private var planChangedAt: Date?
 
@@ -73,6 +76,10 @@ final class AppModel {
 
     var items: [VerifiedItem] { (care?.items ?? []).filter { removed[$0.id] != true } }
     var removedItems: [VerifiedItem] { (care?.items ?? []).filter { removed[$0.id] == true } }
+    /// The steps as shown: warning signs pinned on top (WarningPin, the website's isWarning), then the rest in paper order.
+    var warningItems: [VerifiedItem] { items.filter(WarningPin.isWarning) }
+    /// The reading's warning flag, or any shown step the paper's own words pin as a warning (CareSteps.tsx).
+    var hasWarnings: Bool { care?.has_warning_signs == true || !warningItems.isEmpty }
     var careByID: [String: VerifiedItem] {
         Dictionary((care?.items ?? []).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
     }
@@ -203,6 +210,7 @@ final class AppModel {
                 readFingerprint = StaleGuard.readFingerprint(text: text, language: language, level: level)
                 planFingerprint = nil
                 care = result
+                readingCount += 1
                 plan = nil
                 done = [:]
                 removed = [:]

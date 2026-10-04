@@ -44,7 +44,16 @@ jobs:
           m = re.search(r'Test run with (\d+) tests', log)
           n = int(m[1]) if m else 0
           print('tests', n)
-          assert n >= 67, 'fewer iOS tests ran than expected'
+          assert n >= 73, 'fewer iOS tests ran than expected'
           v = re.search(r'missed_lines vectors: 42 fixtures, (\d+) of (\d+) kept sets equal to the web reference', log)
           print(v[0] if v else 'missed_lines vector replay did not report')
-          assert v and v[1] == v[2] == '753', 'the shared missed_lines vectors did not all run and pass'"
+          assert v and v[1] == v[2] == '753', 'the shared missed_lines vectors did not all run and pass'
+          w = re.search(r'safety vectors: warning (\d+) of (\d+) equal to the web reference', log)
+          print(w[0] if w else 'safety vector replay did not report')
+          assert w and w[1] == w[2] and int(w[2]) > 100, 'the shared safety vectors did not all run and pass'
+          g = re.search(r'safety vectors: when (\d+) of (\d+) equal to the web reference', log)
+          print(g[0] if g else 'by-when vector replay did not report')
+          assert g and g[1] == g[2] and int(g[2]) > 1000, 'the shared by-when vectors did not all run and pass'
+          p = re.search(r'pip vectors: (\d+) of (\d+) equal to the web reference', log)
+          print(p[0] if p else 'Pip vector replay did not report')
+          assert p and p[1] == p[2] and int(p[2]) > 600, 'the shared Pip vectors did not all run and pass'"

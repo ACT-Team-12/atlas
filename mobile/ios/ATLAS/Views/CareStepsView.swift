@@ -1,3 +1,4 @@
+import Accessibility
 import SwiftUI
 
 /// The care steps found in the paper, each one quoting the paper word for word. Paper first: unless the second check
@@ -6,6 +7,12 @@ struct CareStepsView: View {
     @Environment(AppModel.self) private var model
     @State private var speaker = Speaker()
     @State private var reminder: ReminderTarget?
+    // Pip (Support/Pip.swift): the step just marked done, cheered for a moment, and whether the first-view heading
+    // greeting is over (for good once a step is marked done here).
+    @State private var cheering: String?
+    @State private var greetOver = false
+    @AppStorage(Pip.calmKey) private var calmSaved = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ScrollView {
@@ -17,7 +24,9 @@ struct CareStepsView: View {
                             ? "These steps were saved by an older version of ATLAS, so we can't tell which text, language or reading level they were read with. Read your paper again to update them."
                             : "You changed the text, language or reading level since this was read. Read your paper again to update these steps.")
                     }
-                    if care.has_warning_signs { WarningBanner() }
+                    // One warning section, as on the website: the pinned steps' own heading below when there are any; this banner only
+                    // when the reading flags warnings but no shown step is pinned.
+                    if model.hasWarnings && model.warningItems.isEmpty { WarningBanner() }
 
                     Text("\(care.stats.grounded) steps found in your paper · \(care.stats.refused) held back because we couldn't show their words from your paper · \(String(format: "%.1f", Double(care.stats.ms) / 1000))s")
                         .font(.footnote.weight(.bold)).foregroundStyle(Palette.inkSoft)
@@ -40,17 +49,37 @@ struct CareStepsView: View {
                         ReadAloudBar(speaker: speaker, language: language, lines: readLines)
                     }
 
-                    ForEach(model.items) { item in
-                        let check = model.check(for: item.id)
-                        CareItemCard(item: item, check: check, result: model.meaning.result(for: item.id),
-                                     checking: model.meaning.status == .loading, errored: model.meaning.status == .error,
-                                     done: doneBinding(item.id)) {
-                            // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
-                            reminder = ReminderTarget(title: PaperFirst.bookTitle(kind: item.kind), quote: item.source_quote,
-                                                      detail: PaperFirst.bookWhen(item, check: check))
-                        } onRemove: {
-                            model.removed[item.id] = true
+                    // As on the website (CareSteps.tsx): warning signs pinned on top, then every other step in a time
+                    // group read from the paper's own words (StepsWhen), "Right away" first.
+                    let layout = self.layout(care)
+                    if !layout.warnings.isEmpty {
+                        StepGroupHeader(title: "Warning signs from your paper", count: layout.warnings.count,
+                                        note: "If you have any of them right now, do what your paper says: call your clinic, or call 911.",
+                                        warning: true)
+                        ForEach(layout.warnings) { card($0, warning: true) }
+                    }
+                    // Pip's heading spot: the first-view greeting, or every step done. Reserved either way, beside the
+                    // Calm mode switch, so nothing shifts when he comes or goes. Never beside the warning signs.
+                    let pip = pipState(layout)
+                    if !pip.order.isEmpty {
+                        VStack(alignment: .trailing, spacing: 4) {
+                            HStack(spacing: 8) {
+                                Spacer()
+                                CalmToggle()
+                                PipSlot {
+                                    if let mood = pip.drawn.heading {
+                                        PipMarker(mood: mood, calm: pip.calm).id("\(model.readingCount):\(Pip.announceKey(pip.spot))")
+                                    }
+                                }
+                            }
+                            if pip.drawn.heading != nil && !pip.text.isEmpty {
+                                PipBubble(text: pip.text, pointDown: pip.spot.isGreet)
+                            }
                         }
+                    }
+                    ForEach(layout.groups) { g in
+                        StepGroupHeader(title: g.group.label, count: g.items.count, note: g.group.note)
+                        ForEach(g.items) { card($0, pip: pip) }
                     }
 
                     if !model.removedItems.isEmpty {
@@ -115,16 +144,117 @@ struct CareStepsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear { speaker.stop() }
         .sheet(item: $reminder) { ReminderSheet(target: $0) }
+        // A new reading ("Read my paper again" replaces the steps in place) is a new first view, as on the website, which
+        // keys its steps on the run.
+        .onChange(of: model.readingCount) { cheering = nil; greetOver = false }
+        // A cheer lasts a moment, then Pip moves on.
+        .task(id: cheering) {
+            guard cheering != nil else { return }
+            try? await Task.sleep(for: .seconds(Pip.cheerSeconds))
+            if !Task.isCancelled { cheering = nil }
+        }
+        // What Pip says is read once, politely (queued behind what VoiceOver is already saying). Keyed on where he is too,
+        // so a second "Nice, that's done" on another step is still read.
+        .task(id: pipAnnouncement) {
+            guard let text = pipAnnouncement?.text, !text.isEmpty else { return }
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            var said = AttributedString(text)
+            said.accessibilitySpeechAnnouncementPriority = .low
+            AccessibilityNotification.Announcement(said).post()
+        }
+    }
+
+    private func layout(_ care: CarePlanResponse) -> (warnings: [VerifiedItem], groups: [StepGroup]) {
+        StepsWhen.grouped(model.items, check: { model.check(for: $0) }, paper: care.source_text)
+    }
+
+    /// Where Pip is on this screen (pipSpot on the website): on the first step not done in the order shown, earliest
+    /// group first; warning signs are never his spot.
+    struct PipState {
+        let order: [Pip.Step]
+        let spot: Pip.Spot
+        let drawn: Pip.Drawn
+        let text: String
+        let calm: Bool
+    }
+
+    private func pipState(_ layout: (warnings: [VerifiedItem], groups: [StepGroup])) -> PipState {
+        let order = layout.groups.flatMap(\.items).map { Pip.Step(id: $0.id, kind: $0.kind) }
+        let spot = Pip.spot(order, done: model.done, check: { model.check(for: $0) }, cheering: cheering,
+                            greet: Pip.greetAllowed(greetOver: greetOver, done: model.done))
+        return PipState(order: order, spot: spot, drawn: Pip.drawn(spot), text: spot.line.map { Pip.line(model.language, $0) } ?? "",
+                        calm: Pip.calm(reduceMotion: reduceMotion, saved: calmSaved))
+    }
+
+    private struct Announcement: Equatable { let key: String; let text: String }
+
+    private var pipAnnouncement: Announcement? {
+        guard let care = model.care else { return nil }
+        let s = pipState(layout(care))
+        return Announcement(key: "\(model.readingCount):\(Pip.announceKey(s.spot))", text: s.text)
+    }
+
+    /// Numbered and read in the order shown, so "step 3" is the third card a person sees.
+    private var shownItems: [VerifiedItem] {
+        guard let care = model.care else { return [] }
+        let l = layout(care)
+        return l.warnings + l.groups.flatMap(\.items)
+    }
+
+    /// `warning`: a pinned warning sign, which has no Pip slot at all (Pip is never on or beside them).
+    private func card(_ item: VerifiedItem, warning: Bool = false, pip: PipState? = nil) -> some View {
+        let check = model.check(for: item.id)
+        let here = pip?.drawn.card.flatMap { $0.id == item.id ? $0 : nil }
+        return CareItemCard(item: item, check: check, result: model.meaning.result(for: item.id),
+                            checking: model.meaning.status == .loading, errored: model.meaning.status == .error,
+                            pipSlot: !warning, pip: here, pipText: here?.line == nil ? "" : (pip?.text ?? ""),
+                            calm: pip?.calm ?? false, reading: model.readingCount,
+                            done: doneBinding(item.id)) {
+            // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
+            reminder = ReminderTarget(title: PaperFirst.bookTitle(kind: item.kind), quote: item.source_quote,
+                                      detail: PaperFirst.bookWhen(item, check: check))
+        } onRemove: {
+            model.removed[item.id] = true
+        }
     }
 
     private var readLines: [String] {
-        model.items.enumerated().flatMap { i, it in
+        shownItems.enumerated().flatMap { i, it in
             ["\(i + 1)."] + PaperFirst.lines(PaperFirst.careStep(it, check: model.check(for: it.id)))
         }
     }
 
+    /// Marking a step done also starts Pip's short cheer there (only on a non-quiet step, Pip.spot decides), and ends the
+    /// first-view greeting for good.
     private func doneBinding(_ id: String) -> Binding<Bool> {
-        Binding(get: { model.done[id] == true }, set: { model.done[id] = $0 })
+        Binding(get: { model.done[id] == true }, set: {
+            model.done[id] = $0
+            cheering = $0 ? id : nil
+            if $0 { greetOver = true }
+        })
+    }
+}
+
+/// A time group's heading (CareSteps.tsx): its label, how many steps, and its note when it has one.
+struct StepGroupHeader: View {
+    let title: String
+    let count: Int
+    var note: String?
+    var warning = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).font(.title3.weight(.heavy)).foregroundStyle(warning ? Palette.red : Palette.ink).wraps()
+                Spacer()
+                Text("\(count) \(count == 1 ? "step" : "steps")").font(.caption.weight(.bold)).foregroundStyle(Palette.inkSoft)
+            }
+            if let note { Text(note).font(.caption.weight(.semibold)).foregroundStyle(warning ? Palette.red : Palette.inkSoft).wraps() }
+        }
+        .padding(.top, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -135,13 +265,22 @@ struct CareItemCard: View {
     let checking: Bool
     /// The second check failed: the step still says "Checked once", as on the website.
     var errored = false
+    /// Pip's reserved spot on the trailing edge (every step card but a warning sign keeps it, so text never moves when he
+    /// hops), Pip himself when he is on this card, what he says here, and calm mode.
+    var pipSlot = false
+    var pip: Pip.Drawn.Card?
+    var pipText = ""
+    var calm = false
+    /// The reading this card belongs to, so Pip arrives again on a new reading even when step ids repeat.
+    var reading = 0
     @Binding var done: Bool
     let onRemind: () -> Void
     let onRemove: () -> Void
 
     var body: some View {
         let style = KindStyle.of(item.kind)
-        let warning = item.itemKind == .warning_sign
+        // Styled as a warning exactly when it is pinned as one: the model's kind or the paper's own words.
+        let warning = WarningPin.isWarning(item)
         let certified = check == .certified
         // The AI's title is only a label once it is certified; otherwise the card is named by its kind.
         let name = certified ? item.title : style.label
@@ -188,6 +327,14 @@ struct CareItemCard: View {
                             .accessibilityLabel("Remove \(name)")
                     }
                 }
+                if pipSlot {
+                    PipSlot {
+                        if let pip { PipMarker(mood: pip.mood, calm: calm).id("\(reading):\(pip.id):\(pip.mood.rawValue)") }
+                    }
+                }
+            }
+            if pip?.line != nil && !pipText.isEmpty {
+                HStack { Spacer(); PipBubble(text: pipText) }
             }
         }
     }

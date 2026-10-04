@@ -1,10 +1,12 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import type { PlanStep, ResourceCard } from "@/lib/plan";
 import { BARRIER_LABEL, type Barrier, formatHours, openNow, opensEvenings, opensWeekends } from "@/lib/resources";
 import { directionsHref, helpsLine, primaryAction, resourceName, telHref, type RankedResource } from "@/lib/planTop";
 import { resourceScript } from "@/lib/booking";
+import { pipLine } from "@/lib/pip";
+import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
 
 /**
  * The plan screen, "Start with 3 calls" (Akhil's concept A): the three verified places that help with the most of the
@@ -114,7 +116,7 @@ function Toggle({ open, controls, onClick, children, disabled, describedBy }: { 
 }
 
 /** One of the top three: name, the problems it helps with, ONE big button, and what to say when they answer. */
-function TopCard({ r, rank, chosen, language, off, offId }: { r: RankedResource; rank: number; chosen: Barrier[]; language: string; off?: string; offId?: string }) {
+function TopCard({ r, rank, chosen, language, off, offId, pip }: { r: RankedResource; rank: number; chosen: Barrier[]; language: string; off?: string; offId?: string; pip?: { text: string; calm: boolean } }) {
   const [say, setSay] = useState(false);
   const sayId = useId();
   const card = r.card;
@@ -123,14 +125,19 @@ function TopCard({ r, rank, chosen, language, off, offId }: { r: RankedResource;
   const script = resourceScript(name, r.barriers, language);
   const open = card.type === "clinic" ? openNow(card.clinic) : null;
   return (
-    <li className="grid content-start gap-2.5 rounded-[1.2rem] border-2 border-ink bg-paper p-4 shadow-[3px_4px_0_var(--ink)]">
+    <li className="grid content-start gap-2.5 rounded-[1.2rem] border-2 border-ink bg-paper p-4 shadow-[3px_4px_0_var(--ink)]" data-pip-here={pip ? "arrive" : undefined}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <span className={`chip ${card.type === "clinic" ? "bg-mint text-teal-deep" : "bg-sky text-sky-deep"}`}>{card.type === "clinic" ? "Health center" : "Program"}</span>
           <h5 className="mt-1.5 text-lg font-extrabold leading-tight break-words">{name}</h5>
         </div>
-        <span aria-hidden="true" className="display text-4xl text-teal">{rank}</span>
+        <span className="flex flex-none items-start gap-1">
+          <span aria-hidden="true" className="display text-4xl text-teal">{rank}</span>
+          {/* Pip's reserved spot on the first card's right edge (Akhil's "you are here"), never over the card's text. */}
+          {pip && <PipSlot className="-mt-1"><PipMarker mood="arrive" calm={pip.calm} /></PipSlot>}
+        </span>
       </div>
+      {pip && <div className="-mt-1 flex justify-end"><PipBubble text={pip.text} /></div>}
       <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-ink/70">
         {helpsLine(r, chosen)} <BarrierChips barriers={r.barriers.filter((b) => chosen.includes(b))} />
       </p>
@@ -164,15 +171,29 @@ function TopCard({ r, rank, chosen, language, off, offId }: { r: RankedResource;
 
 /** `chosen`: the barriers the person picked in step 2, the only "problems" a top card counts. */
 export function TopCalls({ top, chosen, language, off, offId }: { top: RankedResource[]; chosen: Barrier[]; language: string; off?: string; offId?: string }) {
+  const { calm } = usePipCalm();
+  // Pip marks the first place to start, with a fixed line in the person's language. Not while the plan is outdated:
+  // its calls are off then, so Pip does not point at one.
+  const pipText = top.length > 0 && !off ? pipLine(language, "start") : "";
+  const [pipSaid, setPipSaid] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setPipSaid(pipText), 300);
+    return () => clearTimeout(t);
+  }, [pipText]);
   if (top.length === 0) return null;
   return (
     <section aria-labelledby="plan-top-title" className="mt-6">
+      <p role="status" aria-live="polite" className="sr-only" data-pip-status="">{pipSaid}</p>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h4 id="plan-top-title" className="display text-2xl">{top.length === 1 ? "Start here" : `Start with these ${top.length}`}</h4>
-        <p className="text-xs font-bold text-ink/70">Ranked by how many of the problems you named each one helps with</p>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p className="text-xs font-bold text-ink/70">Ranked by how many of the problems you named each one helps with</p>
+          <CalmToggle />
+        </span>
       </div>
       <ol className="mt-3 grid gap-3 lg:grid-cols-3">
-        {top.map((r, i) => <TopCard key={r.id} r={r} rank={i + 1} chosen={chosen} language={language} off={off} offId={offId} />)}
+        {top.map((r, i) => <TopCard key={r.id} r={r} rank={i + 1} chosen={chosen} language={language} off={off} offId={offId}
+          pip={i === 0 && pipText ? { text: pipText, calm } : undefined} />)}
       </ol>
     </section>
   );

@@ -11,9 +11,14 @@
  * Time groups follow the same rule. A step is placed by the time words inside its own verified quote from the paper.
  * Only a certified step may fall back to the AI's "when" when its quote names no time. An uncertified step whose quote
  * names no time (or names two that disagree) goes under "Check the date on your paper". Nothing is guessed.
+ *
+ * One exception, also read from the paper only: a medicine the paper says to stop ("STOP taking these medications:",
+ * "Discontinue", "Do not take") goes under "Right away" even with no time words, because stopping starts now. The
+ * AI's title or "when" never decides it (stopNowFromPaper).
  */
 
 import { type Check } from "./paperFirst";
+import { BULLET_ANY, HEADING_ENDS, SAFETY_WORD_PATTERNS, stopNowMore } from "./safetyWords";
 
 export const WHEN_GROUPS = ["today", "soon", "daily", "later", "unclear"] as const;
 export type WhenGroup = (typeof WHEN_GROUPS)[number];
@@ -118,6 +123,73 @@ export function whenFromText(text: string): TextWhen {
   return { group: "unclear", words };
 }
 
+/** Stop words a paper uses for a medicine, English and Spanish. */
+const STOP = word(String.raw`stop|stopped|discontinue|discontinued|do${S}not${S}take|don['’]t${S}take|never${S}take|deje${S}de${S}tomar|dejar${S}de${S}tomar|suspenda|suspender|no${S}tome|no${S}tomar`);
+/**
+ * Words that make a stop NOT start now: a stop that is negated ("do not stop", "do not suddenly stop", "no deje de"),
+ * conditional ("if you vomit"), tied to a later event ("before your surgery"), a limit rather than a stop ("do not take
+ * more than"), or a rule about how to take it ("do not take it on an empty stomach", "with alcohol").
+ */
+const NOT_NOW = word(
+  String.raw`(?:do${S}not|don['’]t|never|not)(?:${S}\p{L}+){0,2}${S}(?:stop|discontinue)|no(?:${S}\p{L}+){0,2}${S}(?:deje|dejar|suspenda|suspender)|if|unless|when|before|after|si|cuando|antes${S}de|despu[eé]s${S}de|more${S}than|m[aá]s${S}de|exceed` +
+    // How to take it, not a stop: "Do not take it on an empty stomach", "...with alcohol", "...at the same time as".
+    // "Stop it without delay" is still a stop.
+    String.raw`|with(?!${S}(?:no${S})?delay)|without(?!${S}delay)|empty${S}stomach|same${S}time|together|con|sin(?!${S}demora)|en${S}ayunas`,
+);
+const BULLET = /^\s*(?:[-*•‣–]|\d{1,2}[.)])\s+/u;
+
+/**
+ * The paper's heading above a listed line: walking up from the line the item's span starts on, past the other list
+ * lines of the same list, to the first line that is not a list line, if it ends with ":". "STOP taking these
+ * medications:" above "- ibuprofen ..." is the classic after-visit summary layout. Anything else gives "".
+ */
+export function listHeading(paper: string, span: { start: number; end: number } | null | undefined): string {
+  return headingAbove(paper, span, BULLET, [":"]);
+}
+
+/**
+ * listHeading for the other app languages too (safetyWords.ts): "・" and "1、" list lines, and a heading that ends with
+ * ":", "：" or "፦". Used only by the added-languages stop rule, so the English/Spanish answer above never changes.
+ */
+export function listHeadingAny(paper: string, span: { start: number; end: number } | null | undefined): string {
+  return headingAbove(paper, span, BULLET_ANY, HEADING_ENDS);
+}
+
+function headingAbove(paper: string, span: { start: number; end: number } | null | undefined, bullet: RegExp, ends: readonly string[]): string {
+  if (!span || span.start < 0 || span.start > paper.length) return "";
+  const lines = paper.slice(0, span.start).split("\n");
+  const own = (lines.pop() ?? "") + paper.slice(span.start).split("\n")[0];
+  if (!bullet.test(own)) return "";
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line.trim()) return "";
+    if (bullet.test(line)) continue;
+    const t = line.trim();
+    return ends.some((e) => t.endsWith(e)) ? t : "";
+  }
+  return "";
+}
+
+/**
+ * True when the PAPER says to stop this medicine now: its own quote, or the list heading it sits under, has a stop
+ * word, and neither names anything that makes the stop not start now (NOT_NOW). Medicines only, and only from the
+ * paper's words: the AI's kind picks which steps may be read this way, never what they say.
+ */
+export function stopNowFromPaper(it: { kind?: string; source_quote: string; span?: { start: number; end: number } | null }, paper = ""): boolean {
+  if (it.kind !== "medication") return false;
+  // The other app languages (safetyWords.ts) can only add: their answer is OR'ed with the English/Spanish one.
+  return stopNowEnEs(it, paper) || stopNowMore(it.source_quote, listHeadingAny(paper, it.span));
+}
+
+/** The English and Spanish rule, exactly as before the other languages were added. */
+function stopNowEnEs(it: { source_quote: string; span?: { start: number; end: number } | null }, paper: string): boolean {
+  const texts = [it.source_quote, listHeading(paper, it.span)].map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+  if (OTHER_LATIN.test(texts.join(" "))) return false;
+  const reset = (re: RegExp) => { re.lastIndex = 0; return re; };
+  if (texts.some((t) => reset(NOT_NOW).test(t))) return false;
+  return texts.some((t) => reset(STOP).test(t));
+}
+
 export type StepWhen = TextWhen & {
   /** Where the group came from: the paper's own words, the AI's "when" (certified steps only), or nowhere. */
   from: "paper" | "explanation" | "none";
@@ -127,9 +199,16 @@ export type StepWhen = TextWhen & {
  * The time group for one care step. The paper's quote decides. Only a certified step may fall back to its AI "when",
  * and only when the quote names no time at all; an uncertified step is never placed by the AI's words.
  */
-export function stepWhen(it: { source_quote: string; when: string }, check: Check): StepWhen {
+export function stepWhen(
+  it: { source_quote: string; when: string; kind?: string; span?: { start: number; end: number } | null },
+  check: Check,
+  paperText = "",
+): StepWhen {
   const paper = whenFromText(it.source_quote);
   if (paper.group !== "unclear") return { ...paper, from: "paper" };
+  // A stop with no time words starts now. With time words that did not settle (negated, or two that disagree), the
+  // paper is not clear enough, so it stays under "Check the date on your paper".
+  if (paper.words.length === 0 && stopNowFromPaper(it, paperText)) return { group: "today", words: [], from: "paper" };
   if (check === "certified" && paper.words.length === 0 && it.when.trim()) {
     const ai = whenFromText(it.when);
     if (ai.group !== "unclear") return { group: ai.group, words: [], from: "explanation" };
@@ -148,6 +227,24 @@ export function shortQuote(quote: string, max = 72): string {
   const head = t.slice(0, at).replace(/[\s,;:.\-\u2013(]+$/u, "");
   return `${head}…`;
 }
+
+/**
+ * The patterns and tables above, exported only so mobile/shared/safety-vectors.json can carry their exact text: the
+ * iOS and Android ports keep the same patterns and their tests fail if it drifts from this file. WHEN_RULE_n is RULES[n];
+ * WHEN_RULE_GROUPS says which group each one gives ("count" is the rule that counts days or weeks ahead).
+ */
+export const STEPS_PATTERNS: Record<string, RegExp> = {
+  ...Object.fromEntries(RULES.map((r, i) => [`WHEN_RULE_${i}`, r.re])),
+  OTHER_LATIN,
+  NEGATION,
+  STOP,
+  NOT_NOW,
+  BULLET,
+  ...SAFETY_WORD_PATTERNS,
+};
+export { HEADING_ENDS };
+export const WHEN_RULE_GROUPS = RULES.map((r) => (typeof r.group === "function" ? "count" : r.group));
+export { NUM_WORDS };
 
 /** What a closed row shows. Only the certified kind carries any AI-written words. */
 export type ClosedRow =

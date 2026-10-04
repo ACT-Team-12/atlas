@@ -1,6 +1,7 @@
 import type { VerifiedItem } from "./schema";
 import type { PlanResponse } from "./plan";
 import { BARRIER_LABEL, type Barrier } from "./resources";
+import { isWarning } from "./warningPin";
 
 /**
  * "For helpers: session summary": a documentation draft a community health worker or navigator copies or prints
@@ -98,7 +99,7 @@ export function sessionSummary(state: SessionPlanState, helper: HelperEntry): Se
   const drivers = state.barriers.map((b) => `- ${BARRIER_LABEL[b] ?? b}`);
 
   const title = (i: VerifiedItem) => `${KIND_LABEL[i.kind] ?? i.kind}: ${maskNumbers(i.title)}${i.when.trim() ? ` (${maskNumbers(i.when.trim())})` : ""}`;
-  const action: string[] = grounded.map((i) => `- ${i.kind === "warning_sign" ? "" : `${tick(!!state.done[i.id])}: `}${title(i)}`);
+  const action: string[] = grounded.map((i) => `- ${isWarning(i) ? "" : `${tick(!!state.done[i.id])}: `}${title(i)}`);
   if (steps.length) {
     action.push("Goals suggested in the ATLAS plan (the paper wins if they differ):");
     steps.forEach((s, n) => action.push(`  ${n + 1}. ${maskNumbers(s.title)}`));
@@ -115,7 +116,7 @@ export function sessionSummary(state: SessionPlanState, helper: HelperEntry): Se
 
   const education: string[] = [];
   if (grounded.length) education.push(`- ${grounded.length} ${grounded.length === 1 ? "step" : "steps"} from the paper, explained in plain words by ATLAS (${state.language}, ${state.readingLevel} reading level).`);
-  const warnings = grounded.filter((i) => i.kind === "warning_sign");
+  const warnings = grounded.filter(isWarning);
   if (warnings.length) education.push(`- Warning signs on the paper: ${warnings.map((w) => maskNumbers(w.title)).join("; ")}.`);
   for (const s of steps) if (s.barrier) education.push(`- ${BARRIER_LABEL[s.barrier as Barrier] ?? s.barrier}: ${maskNumbers(s.title)}`);
   if (state.questions.length) {

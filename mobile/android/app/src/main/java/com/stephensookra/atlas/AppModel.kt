@@ -34,6 +34,7 @@ import com.stephensookra.atlas.data.Sample
 import com.stephensookra.atlas.data.SavedSession
 import com.stephensookra.atlas.data.SessionStore
 import com.stephensookra.atlas.data.VerifiedItem
+import com.stephensookra.atlas.data.WarningPin
 import com.stephensookra.atlas.services.Reminders
 import com.stephensookra.atlas.services.TextReader
 import kotlinx.coroutines.CancellationException
@@ -85,6 +86,12 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     /** What `care` was read from and what `plan` was built from (StaleGuard). Null when unknown. */
     private var readFp by mutableStateOf<String?>(null)
     private var planFp by mutableStateOf<String?>(null)
+    /**
+     * Counts the readings in this run of the app, so a screen can reset per-reading state (Pip's greeting and cheer) when
+     * "Read my paper again" replaces the steps in place, as the website does by keying its steps on the run. Not saved.
+     */
+    var readingCount by mutableStateOf(0)
+        private set
     /** When the steps or the plan last changed (SavedSession.savedAt). Input changes and helper links keep it. */
     private var planChangedAt: Long? = null
 
@@ -112,6 +119,10 @@ class AppModel(app: Application) : AndroidViewModel(app) {
 
     val items: List<VerifiedItem> get() = care?.items.orEmpty().filter { removed[it.id] != true }
     val removedItems: List<VerifiedItem> get() = care?.items.orEmpty().filter { removed[it.id] == true }
+    /** The shown steps the website pins as warning signs (WarningPin, isWarning in warningPin.ts). */
+    val warningItems: List<VerifiedItem> get() = items.filter { WarningPin.isWarning(it) }
+    /** The reading's warning flag, or any shown step the paper's own words pin as a warning (CareSteps.tsx). */
+    val hasWarnings: Boolean get() = care?.has_warning_signs == true || warningItems.isNotEmpty()
     val careById: Map<String, VerifiedItem> get() = care?.items.orEmpty().associateBy { it.id }
     val canRead: Boolean get() = text.trim().length > 20 && busy == null
     val canPlan: Boolean get() = busy == null && !(barriers.isEmpty() && items.isEmpty()) && !careOutdated
@@ -258,6 +269,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         planFp = null
         readFp = StaleGuard.readFingerprint(text, language, level)
         done.clear(); removed.clear()
+        readingCount++
         restoredAt = null
     }
 

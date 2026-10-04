@@ -5,14 +5,17 @@ import { bookSafe, careStepView, paperFirstLines, type Check } from "@/lib/paper
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { MeaningState } from "@/lib/meaningRun";
 import type { DeviceRun, DeviceStatus } from "@/lib/deviceRun";
+import { isWarning } from "@/lib/warningPin";
 import { closedRow, SEAL_SHORT, SEAL_TEXT, sealOf, shortQuote, stepWhen, WHEN_GROUP_LABEL, WHEN_GROUPS, type Seal, type WhenGroup } from "@/lib/stepsView";
 import { askPerson } from "@/lib/askPerson";
 import { readingGeneralQuestions, stepVisitQuestion, uniqueStepQuestions } from "@/lib/visitQuestions";
 import { buildIcs } from "@/lib/booking";
 import { dayOptions, formatTime, googleCalendarUrl, localStart, timeOptions } from "@/lib/calendarLinks";
 import { SPEECH_LANG } from "@/lib/speechLang";
+import { pipLine, pipSpot, type PipSpot } from "@/lib/pip";
 import { PaperFirst } from "./PaperFirst";
 import { ShowOnPaper } from "./ShowOnPaper";
+import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
 
 export const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -61,15 +64,48 @@ export function CareSteps(p: Props) {
   const [active, setActive] = useState<string | null>(null);
   const speech = useStepSpeech(p.language);
 
-  const warnings = items.filter((i) => i.kind === "warning_sign");
+  const warnings = items.filter(isWarning);
   const groups = useMemo(() => {
     const by = new Map<WhenGroup, VerifiedItem[]>(WHEN_GROUPS.map((g) => [g, []]));
-    for (const it of items) if (it.kind !== "warning_sign") by.get(stepWhen(it, checkFor(it.id)).group)!.push(it);
+    for (const it of items) if (!isWarning(it)) by.get(stepWhen(it, checkFor(it.id), care.source_text).group)!.push(it);
     return WHEN_GROUPS.map((g) => ({ g, list: by.get(g)! })).filter((x) => x.list.length > 0);
-  }, [items, checkFor]);
+  }, [items, checkFor, care.source_text]);
   // Numbered in the order shown, so "step 3" is the third row a person sees.
   const order = [...warnings, ...groups.flatMap((x) => x.list)];
   const numberOf = (id: string) => order.findIndex((i) => i.id === id) + 1;
+
+  // Pip (Akhil's "you are here" marker, lib/pip.ts): on the first step not done, earliest group first. Warning signs
+  // are never its spot. A step just marked done gets a quiet cheer for a moment (not medicine, labs or a flagged step),
+  // then Pip moves on. What it says is a fixed line, read once through the polite live region below.
+  const stepOrder = groups.flatMap((x) => x.list);
+  const [cheering, setCheering] = useState<string | null>(null);
+  useEffect(() => {
+    if (!cheering) return;
+    const t = setTimeout(() => setCheering(null), 1400);
+    return () => clearTimeout(t);
+  }, [cheering]);
+  // When the first current step is a quiet card (medicine, lab, warning-kind or flagged), Pip greets once at the
+  // "Your steps" heading instead, so a first-time person still hears it. Gone for good once any step is marked done,
+  // warning signs included (they are never Pip's spot, but a done one still means this is not a first view).
+  const [greetOver, setGreetOver] = useState(false);
+  // Any step ever marked done, including one since removed (its done mark stays in the saved record; Codex review).
+  const anyDoneAtAll = Object.values(p.done).some(Boolean);
+  const spot = pipSpot(stepOrder, p.done, checkFor, cheering, !greetOver && !anyDoneAtAll);
+  const { calm } = usePipCalm();
+  const pipText = spot.at !== "none" && spot.line ? pipLine(p.language, spot.line) : "";
+  // Keyed on where Pip is too, not only on the words: two steps cheered one after the other both say "Nice, that's
+  // done", and the second must still be read. Clearing first makes the repeated words a fresh change (Codex review).
+  // The greeting shares the key of the same step's own "Start here", so a late check that turns that step quiet (or
+  // back) moves the words between card and heading without reading them a second time (Codex review).
+  const pipKey = spot.at === "step" ? `${spot.id}:${spot.mood}` : spot.at === "greet" ? `${spot.id}:arrive` : spot.at;
+  // Pip is one character: during the heading greeting no card shows him (every card's slot stays reserved, empty).
+  const cardPip: Extract<PipSpot, { at: "step" }> | null = spot.at === "step" ? spot : null;
+  const [pipSaid, setPipSaid] = useState("");
+  useEffect(() => {
+    const clear = setTimeout(() => setPipSaid(""), 0);
+    const t = setTimeout(() => setPipSaid(pipText), 300);
+    return () => { clearTimeout(clear); clearTimeout(t); };
+  }, [pipText, pipKey]);
 
   const seals = items.map((i) => sealOf(checkFor(i.id)));
   const twice = seals.filter((s) => s === "twice").length;
@@ -95,7 +131,8 @@ export function CareSteps(p: Props) {
 
   const row = (it: VerifiedItem, warn = false) => (
     <StepRow key={it.id} it={it} n={numberOf(it.id)} warn={warn} check={checkFor(it.id)} open={isOpen(it.id)} onToggle={() => toggle(it.id)}
-      done={!!p.done[it.id]} onDone={(v) => p.onDone(it.id, v)} onRemove={() => p.onRemove(it.id)}
+      done={!!p.done[it.id]} onDone={(v) => { p.onDone(it.id, v); setCheering(v ? it.id : null); if (v) setGreetOver(true); }} onRemove={() => p.onRemove(it.id)}
+      pip={!warn && cardPip?.id === it.id ? cardPip : null} pipText={pipText} calm={calm}
       care={care} photo={p.photo} meaning={p.meaning} deviceRun={p.deviceRun} deviceStatus={p.deviceStatus}
       speaking={speech.speaking === it.id} onSpeak={() => speech.toggle(it.id, paperFirstLines(careStepView(it, checkFor(it.id))))}
       onHover={setActive} />
@@ -104,6 +141,7 @@ export function CareSteps(p: Props) {
   return (
     <div className="mt-8" data-steps="by-when">
       <p role="status" aria-live="polite" className="sr-only" data-flagged-status="">{spoken}</p>
+      <p role="status" aria-live="polite" className="sr-only" data-pip-status="">{pipSaid}</p>
       {(care.has_warning_signs || warnings.length > 0) && (
         <section aria-labelledby="warn-title" className="mb-5 rounded-2xl border-2 border-red bg-red-soft p-4 text-red" data-warnings="">
           <h3 id="warn-title" className="display text-xl">Warning signs from your paper</h3>
@@ -135,7 +173,19 @@ export function CareSteps(p: Props) {
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.15fr_1fr]">
         <div>
-          <h3 className="display text-2xl">Your steps</h3>
+          <div data-pip-heading-area="">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="display text-2xl">Your steps</h3>
+              <div className="flex items-center gap-2" data-pip-heading="">
+                <CalmToggle />
+                {/* Pip's heading spot (the first-view greeting, or every step done); reserved either way so the heading
+                    never shifts. */}
+                {stepOrder.length > 0 && <PipSlot>{(spot.at === "header" || spot.at === "greet") && <PipMarker key={spot.at} mood={spot.mood} calm={calm} />}</PipSlot>}
+              </div>
+            </div>
+            {spot.at === "header" && <div className="mt-1 flex justify-end" data-pip-done-all=""><PipBubble text={pipText} /></div>}
+            {spot.at === "greet" && <div className="mt-1 flex justify-end" data-pip-greet=""><PipBubble text={pipText} pointDown /></div>}
+          </div>
           <p className="text-xs font-semibold text-ink/70">Tap a step to see your paper&apos;s words, what they mean, and more. Times count from your visit, as your paper says them.</p>
           {groups.length === 0 && warnings.length === 0 && <p className="mt-3 text-sm font-semibold">No steps are left. Undo a removed step, or read your paper again.</p>}
           {groups.map(({ g, list }) => (
@@ -204,9 +254,11 @@ type RowProps = {
   done: boolean; onDone: (v: boolean) => void; onRemove: () => void;
   care: CarePlanResponse; photo: File | null; meaning: MeaningState; deviceRun: DeviceRun; deviceStatus: DeviceStatus;
   speaking: boolean; onSpeak: () => void; onHover: (id: string | null) => void;
+  /** Pip's spot when it is on this row (never on a warning sign), what it says, and calm mode. */
+  pip?: Extract<PipSpot, { at: "step" }> | null; pipText?: string; calm?: boolean;
 };
 
-function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, care, photo, meaning, deviceRun, deviceStatus, speaking, onSpeak, onHover }: RowProps) {
+function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, care, photo, meaning, deviceRun, deviceStatus, speaking, onSpeak, onHover, pip, pipText, calm = false }: RowProps) {
   const panelId = useId();
   const seal = sealOf(check);
   // Warning signs are never shortened: the part that says what to do ("call 911") must stay on the row.
@@ -217,7 +269,7 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
   const question = stepVisitQuestion(it, check) ?? "";
   const kind = KIND[it.kind];
   return (
-    <li onMouseEnter={() => onHover(it.id)} onMouseLeave={() => onHover(null)} data-step={it.id} data-seal={seal} data-open={open || undefined}
+    <li onMouseEnter={() => onHover(it.id)} onMouseLeave={() => onHover(null)} data-step={it.id} data-seal={seal} data-open={open || undefined} data-pip-here={pip?.mood}
       className={`rounded-2xl border-2 bg-paper ${warn ? "border-red" : open ? "border-ink" : "border-ink/20"}`}>
       <div className="flex items-start gap-3 p-3">
         <input type="checkbox" aria-label={`Mark step ${n} done`} className="mt-1 h-6 w-6 flex-none accent-[var(--teal)]"
@@ -247,7 +299,10 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
           <SealMark seal={seal} />
           <span aria-hidden="true" className="font-extrabold text-ink/70 transition-transform group-aria-expanded:rotate-90">›</span>
         </button>
+        {/* Pip's reserved spot on the card's right edge: every step row keeps it, so text never moves when Pip hops. */}
+        {!warn && <PipSlot className="-my-1">{pip && <PipMarker key={pip.mood} mood={pip.mood} calm={calm} />}</PipSlot>}
       </div>
+      {pip?.line && pipText && <div className="-mt-2 flex justify-end px-3 pb-2"><PipBubble text={pipText} /></div>}
       <div id={panelId} hidden={!open} className="space-y-2 px-3 pb-3 sm:pl-12">
         {device && device !== "match" && (
           <p role="note" className="rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep" data-device-check="differ">

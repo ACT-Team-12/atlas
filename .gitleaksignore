@@ -1,0 +1,4 @@
+# Hand-verified false positives (2026-10-04). Each is a feedback_token inside a recorded /api/plan response used as a test fixture:
+# a one-time rating ticket signed with FEEDBACK_SECRET that expires 6 hours after issue (web/src/lib/feedbackToken.ts). It reveals no secret.
+0a2fa75f7602a3d3d0546f8e1b6c7b58d58dd8ef:mobile/android/app/src/test/resources/fixtures/plan_sample_43215_live.json:generic-api-key:1
+99d12b9f7cfacf1ad619ad3623c9a78122e7cee4:mobile/ios/ATLASTests/Fixtures/plan_sample_43215_live.json:generic-api-key:1

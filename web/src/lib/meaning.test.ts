@@ -309,3 +309,51 @@ describe("a correct dose change in everyday words certifies; a wrong number, fre
     expect(combine("x", { ...base, source_quote: lisinopril, plain_language: "Take 2 pills (20 mg total) by mouth once a day." }, "different", "x").flagged).toBe(true);
   });
 });
+
+describe("PR 76 follow-ups: stricter only", () => {
+  const base = { id: "x", when: "" };
+  const certifies = (paper: string, plain: string) => combine("x", { ...base, source_quote: paper, plain_language: plain }, "same", "").certified;
+
+  describe("(a) an explanation that gives only the OLD dose is not certified", () => {
+    it.each([
+      "You previously took 10 mg.",
+      "You used to take 10 mg once a day.",
+      "Take 2 pills. You took 10 mg before.",
+    ])("refuses %s", (plain) => {
+      expect(certifies(lisinopril, plain)).toBe(false);
+    });
+    it.each([
+      "You used to take 10 mg once a day. Now take 2 pills (20 mg total).",
+      "Take 2 tablets (20 mg total) by mouth once daily.",
+    ])("still certifies a correct one: %s", (plain) => {
+      expect(certifies(lisinopril, plain)).toBe(true);
+    });
+  });
+
+  describe("(b) a number moved to a different medicine is not certified, even when its unit has one value", () => {
+    const paper = "Take aspirin 2 mg. Take warfarin 1 tablet daily.";
+    it.each([
+      "Take warfarin 2 mg daily.",
+      "Take aspirin 1 tablet. Take warfarin 2 mg daily.",
+      "Take 2 mg warfarin daily.", // the name after the number (Codex review)
+    ])("refuses %s", (plain) => {
+      expect(certifies(paper, plain)).toBe(false);
+    });
+    it.each([
+      "Take aspirin 2 mg. Take warfarin 1 tablet daily.",
+      "Take aspirin 2 mg.",
+      "Take warfarin 1 tablet each day.",
+      "Take aspirin 2 mg and warfarin 1 tablet daily.",
+      "Take 2 mg of aspirin.",
+    ])("still certifies a correct one: %s", (plain) => {
+      expect(certifies(paper, plain)).toBe(true);
+    });
+    it("a decimal point is not a sentence end (Codex review round 2)", () => {
+      expect(certifies("Take aspirin 2.5 mg. Take warfarin 1 tablet daily.", "Take 2.5 mg warfarin daily.")).toBe(false);
+      expect(certifies("Take aspirin 2.5 mg. Take warfarin 1 tablet daily.", "Take aspirin 2.5 mg.")).toBe(true);
+    });
+    it("a time is never read as a medicine's dose (the second half of the prep, 5 hours before)", () => {
+      expect(certifies("5 hours before your procedure, drink the second half of the bowel prep.", "Drink the second half of the prep 5 hours before.")).toBe(true);
+    });
+  });
+});

@@ -9,10 +9,10 @@ export const metadata: Metadata = {
 
 /** One record per published build. Update these together when a new build is uploaded. */
 const ANDROID = {
-  version: "1.2 (build 4)",
-  url: "https://f8xnfpxjjfmtpmft.public.blob.vercel-storage.com/downloads/atlas-android-1.2.apk",
+  version: "1.3 (build 5)",
+  url: "https://f8xnfpxjjfmtpmft.public.blob.vercel-storage.com/downloads/atlas-android-1.3.apk",
   sizeMb: 44.8,
-  sha256: "9bb119f329e9eed3e1796c7dff9e05f7f42a30c6640e78bdd8ae2d1bbd494cb7",
+  sha256: "f7e5d120ba2106a216488c99d0fbb5e92b6249000df3fe6d8f6d68a0f29abc9e",
   signer: "CN=Stephen Sookra, OU=Team 12, O=ATLAS, Atlanta, Georgia, US",
   signerSha256: "13d702734dde7a7ff0a29fadad8dbb8c3b799c45dddfd9ce83233c4c9d3a8dad",
   minAndroid: "Android 8.0 or newer",

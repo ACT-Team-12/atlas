@@ -11,7 +11,7 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     DEVELOPMENT_TEAM: Y8XVCMLQCZ
     MARKETING_VERSION: "1.2"
-    CURRENT_PROJECT_VERSION: "3"
+    CURRENT_PROJECT_VERSION: "4"
 targets:
   ATLAS:
     type: application
@@ -61,6 +61,12 @@ targets:
       - path: ATLASTests
       # The web reference vectors shared with Android (referenced, not copied): MissedLinesTests replays every case.
       - path: ../shared/missed-lines-vectors.json
+        buildPhase: resources
+      # The safety rules' web reference (warning pins, by-when groups, stop-now): SafetyVectorsTests replays it.
+      - path: ../shared/safety-vectors.json
+        buildPhase: resources
+      # Pip's web reference (web/src/lib/pip.ts: placement, the quiet rule, the fixed lines): PipTests replays it.
+      - path: ../shared/pip-vectors.json
         buildPhase: resources
     dependencies:
       - target: ATLAS

@@ -64,9 +64,9 @@ export function CareSteps(p: Props) {
   const warnings = items.filter((i) => i.kind === "warning_sign");
   const groups = useMemo(() => {
     const by = new Map<WhenGroup, VerifiedItem[]>(WHEN_GROUPS.map((g) => [g, []]));
-    for (const it of items) if (it.kind !== "warning_sign") by.get(stepWhen(it, checkFor(it.id)).group)!.push(it);
+    for (const it of items) if (it.kind !== "warning_sign") by.get(stepWhen(it, checkFor(it.id), care.source_text).group)!.push(it);
     return WHEN_GROUPS.map((g) => ({ g, list: by.get(g)! })).filter((x) => x.list.length > 0);
-  }, [items, checkFor]);
+  }, [items, checkFor, care.source_text]);
   // Numbered in the order shown, so "step 3" is the third row a person sees.
   const order = [...warnings, ...groups.flatMap((x) => x.list)];
   const numberOf = (id: string) => order.findIndex((i) => i.id === id) + 1;

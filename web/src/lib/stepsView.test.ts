@@ -163,3 +163,56 @@ describe("sealOf", () => {
     expect(sealOf("flagged")).toBe("recheck");
   });
 });
+
+describe("stepWhen: a medicine the PAPER says to stop goes under 'Right away'", () => {
+  const LINE = "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function.";
+  const at = SAMPLE_AVS.indexOf(LINE);
+  const ibuprofen = { kind: "medication", source_quote: LINE, when: "", span: { start: at, end: at + LINE.length } };
+
+  it("the sample paper's ibuprofen line, under 'STOP taking these medications:', whatever the check says", () => {
+    expect(at).toBeGreaterThan(0);
+    for (const check of ["certified", "unchecked", "flagged"] as const) {
+      expect(stepWhen(ibuprofen, check, SAMPLE_AVS)).toEqual({ group: "today", words: [], from: "paper" });
+    }
+  });
+
+  it("a stop word in the quote itself", () => {
+    for (const q of ["STOP taking these medications: ibuprofen (ADVIL) 200 mg tablet.", "Discontinue naproxen.", "Do not take aspirin.", "No tome ibuprofeno."]) {
+      expect(stepWhen({ kind: "medication", source_quote: q, when: "" }, "unchecked").group, q).toBe("today");
+    }
+  });
+
+  it("decides from the paper's words, never the AI's: no stop word on the paper, no 'Right away' even if the AI says stop", () => {
+    expect(stepWhen({ ...ibuprofen, span: null, when: "Stop now" }, "unchecked", SAMPLE_AVS).group).toBe("unclear");
+    // the START list's metformin line names its own time words, which still decide
+    const met = "metformin (GLUCOPHAGE) 500 mg tablet. Take 1 tablet by mouth 2 times a day with meals.";
+    const m = SAMPLE_AVS.indexOf(met);
+    expect(stepWhen({ kind: "medication", source_quote: met, when: "Stop now", span: { start: m, end: m + met.length } }, "unchecked", SAMPLE_AVS).group).toBe("daily");
+  });
+
+  it("only medicines: the same words on another kind change nothing", () => {
+    expect(stepWhen({ ...ibuprofen, kind: "self_care" }, "unchecked", SAMPLE_AVS).group).toBe("unclear");
+    expect(stepWhen({ kind: "lab_test", source_quote: "Do not take the test.", when: "" }, "unchecked").group).toBe("unclear");
+  });
+
+  it("not when the stop is negated, conditional, tied to a later event, or a limit", () => {
+    for (const q of [
+      "Do not stop taking metformin.",
+      "No deje de tomar metformina.",
+      "Stop taking metformin if you are vomiting.",
+      "Stop aspirin before your surgery.",
+      "Do not take more than 4 tablets.",
+    ]) {
+      expect(stepWhen({ kind: "medication", source_quote: q, when: "" }, "certified").group, q).not.toBe("today");
+    }
+    const paper = "STOP taking these medications if your kidney test is high:\n- ibuprofen 200 mg tablet.";
+    const s = paper.indexOf("ibuprofen");
+    expect(stepWhen({ kind: "medication", source_quote: "ibuprofen 200 mg tablet.", when: "", span: { start: s, end: paper.length } }, "unchecked", paper).group).toBe("unclear");
+  });
+
+  it("a heading counts only above a list the line belongs to", () => {
+    const paper = "STOP taking these medications:\n\nibuprofen 200 mg tablet.";
+    const s = paper.indexOf("ibuprofen");
+    expect(stepWhen({ kind: "medication", source_quote: "ibuprofen 200 mg tablet.", when: "", span: { start: s, end: paper.length } }, "unchecked", paper).group).toBe("unclear");
+  });
+});

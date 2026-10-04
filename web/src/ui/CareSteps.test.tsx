@@ -174,13 +174,14 @@ describe("closed rows: certified leads with the AI's words, everything else with
 describe("time groups come from the paper's words", () => {
   it("uncertified: placed by the quote only; no time words means 'Check the date on your paper'", () => {
     render();
-    expect(groupIds("today")).toEqual([]);
+    // ibuprofen sits under the paper's own "STOP taking these medications:" heading: a stop starts now (stopNowFromPaper).
+    expect(groupIds("today")).toEqual(["ibu"]);
     expect(groupIds("soon")).toEqual(["bmp"]);
     expect(groupIds("daily")).toEqual(["met", "lis", "walk"]);
     expect(groupIds("later")).toEqual(["a1c"]);
-    // ibuprofen's AI "Stop now" and soda's AI "Every day" do not place them.
+    // soda's AI "Every day" does not place it.
     // The referral's "in 10 days" sits after "If you have not heard": a negated clause is never placed.
-    expect(groupIds("unclear")).toEqual(["ibu", "eye", "soda"]);
+    expect(groupIds("unclear")).toEqual(["eye", "soda"]);
     expect(host.querySelector("#when-unclear")?.textContent).toContain("Check the date on your paper");
   });
 
@@ -439,7 +440,7 @@ describe("accessibility", () => {
     // The done box is its own control, not nested inside the disclosure button.
     expect(host.querySelectorAll("button input, button button")).toHaveLength(0);
     const h4 = [...host.querySelectorAll("[data-when-group] > h4")].map((h) => h.id);
-    expect(h4).toEqual(["when-soon", "when-daily", "when-later", "when-unclear"]);
+    expect(h4).toEqual(["when-today", "when-soon", "when-daily", "when-later", "when-unclear"]);
     for (const s of host.querySelectorAll("section[aria-labelledby]")) expect(document.getElementById(s.getAttribute("aria-labelledby")!)).not.toBeNull();
     // Step numbers follow the order on screen: warnings first, then the groups.
     const labels = [...host.querySelectorAll('input[type="checkbox"]')].map((c) => c.getAttribute("aria-label"));

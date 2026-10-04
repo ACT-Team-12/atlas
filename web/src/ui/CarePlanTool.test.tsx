@@ -273,6 +273,32 @@ describe("automatic scroll after a reply", () => {
     expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
   });
 
+  // Akhil, Oct 4 7:33 PM: an untouched phone did not open the plan. The "working" card changed height while the plan was
+  // built, the browser nudged the page 4 px to keep it steady, and that scroll arrived before the size report, so it
+  // counted as the person. A size report right after, at that position, now takes the mark back.
+  function withSizeReports() {
+    const fire: (() => void)[] = [];
+    vi.stubGlobal("ResizeObserver", class { constructor(cb: () => void) { fire.push(cb); } observe() {} disconnect() {} });
+    act(() => root.unmount());
+    root = createRoot(host);
+    act(() => root.render(<CarePlanTool />));
+    return () => fire.forEach((cb) => cb());
+  }
+
+  it("phone, untouched: the browser's own nudge while the plan is built does not stop it opening step 3", async () => {
+    const sizeReport = withSizeReports();
+    await planOnPhone(() => { setScrollY(4); window.dispatchEvent(new Event("scroll")); sizeReport(); });
+    expect(tabSelected(3)).toBe("true");
+    expect(scrolls).toContain("step-3");
+  });
+
+  it("phone: a scroll the size report does not explain (another position) still counts as the person", async () => {
+    const sizeReport = withSizeReports();
+    await planOnPhone(() => { setScrollY(4); window.dispatchEvent(new Event("scroll")); setScrollY(400); sizeReport(); });
+    expect(tabSelected(3)).toBe("false");
+    expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
+  });
+
   // Oct 4 watched tries: both testers scrolled away while the AI worked; one never found her plan.
   const cue = () => host.querySelector<HTMLElement>("[data-ready-cue]");
 

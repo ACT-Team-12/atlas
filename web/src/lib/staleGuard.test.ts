@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  anchorHolds, ANCHOR_MS, isEditable, LAYOUT_SCROLL_MS, NO_LAYOUT_SHIFT, OWN_SCROLL_SLACK_PX, ownScrollArrived, ownScrollEndedByPerson, photoId, rebaseOwnScroll, planFingerprint, planPlace,
+  anchorHolds, ANCHOR_MS, isEditable, LAYOUT_SCROLL_MS, laterShiftExplains, NO_LAYOUT_SHIFT, OWN_SCROLL_SLACK_PX, ownScrollArrived, ownScrollEndedByPerson, photoId, rebaseOwnScroll, planFingerprint, planPlace,
   readFingerprint, readFingerprintFor, scrollIsPersons, shouldAutoScroll,
 } from "./staleGuard";
 
@@ -114,6 +114,20 @@ describe("shouldAutoScroll", () => {
   it("scrolls when nothing happened since the button", () => expect(shouldAutoScroll({ submittedAt: 10, lastInteractionAt: 9, focusEditable: false })).toBe(true));
   it("does not scroll after they scrolled, tapped or typed", () => expect(shouldAutoScroll({ submittedAt: 10, lastInteractionAt: 11, focusEditable: false })).toBe(false));
   it("does not scroll while they are in a text box", () => expect(shouldAutoScroll({ submittedAt: 10, lastInteractionAt: 9, focusEditable: true })).toBe(false));
+});
+
+describe("laterShiftExplains (the browser's scroll arrives before the size report)", () => {
+  const scroll = { at: 10_000, y: 3_535 };
+  it("a size change right after the scroll, at that position, explains it", () => {
+    expect(laterShiftExplains(scroll, { at: 10_001, y: 3_535 })).toBe(true);
+    expect(laterShiftExplains(scroll, { at: 10_000 + LAYOUT_SCROLL_MS, y: 3_535 + OWN_SCROLL_SLACK_PX })).toBe(true);
+  });
+  it("not one before the scroll, too late, or at another position (the person scrolled while the page changed)", () => {
+    expect(laterShiftExplains(scroll, { at: 9_999, y: 3_535 })).toBe(false);
+    expect(laterShiftExplains(scroll, { at: 10_001 + LAYOUT_SCROLL_MS, y: 3_535 })).toBe(false);
+    expect(laterShiftExplains(scroll, { at: 10_001, y: 3_535 + OWN_SCROLL_SLACK_PX + 1 })).toBe(false);
+    expect(laterShiftExplains(scroll, NO_LAYOUT_SHIFT)).toBe(false);
+  });
 });
 
 describe("scrollIsPersons", () => {

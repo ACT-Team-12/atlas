@@ -41,7 +41,7 @@ import {
 import { SavedPlans } from "./SavedPlans";
 import {
   anchorHolds, isEditable, NO_LAYOUT_SHIFT, OWN_INSTANT_SCROLL_MS, ownScrollArrived, OWN_SCROLL_MS, ownScrollEndedByPerson, planFingerprint, planPlace, readFingerprint, readFingerprintFor, rebaseOwnScroll,
-  scrollIsPersons, shouldAutoScroll, type LayoutShift, type OwnScroll,
+  LAYOUT_SCROLL_MS, laterShiftExplains, scrollIsPersons, shouldAutoScroll, type LayoutShift, type OwnScroll,
 } from "@/lib/staleGuard";
 import { SPEECH_LANG } from "@/lib/speechLang";
 import { CareSteps, KIND } from "./CareSteps";
@@ -193,6 +193,9 @@ export function CarePlanTool() {
   const locGen = useRef(0);
   const [locating, setLocatingState] = useState(false);
   const layoutShift = useRef<LayoutShift>(NO_LAYOUT_SHIFT);
+  // The last scroll counted as the person's, and the mark it replaced, so a size change reported right after it can
+  // take it back (laterShiftExplains).
+  const scrollMark = useRef<{ at: number; y: number; prev: number } | null>(null);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const [planReadyNote, setPlanReadyNote] = useState<string | null>(null);
@@ -805,7 +808,9 @@ export function CarePlanTool() {
     // A scroll with none of those (dragging the scrollbar, find in page) counts too, unless it is the page's own.
     const onScroll = () => {
       const now = performance.now();
-      if (scrollIsPersons({ now, y: window.scrollY, own: ownScroll.current, layout: layoutShift.current })) lastInteraction.current = now;
+      if (!scrollIsPersons({ now, y: window.scrollY, own: ownScroll.current, layout: layoutShift.current })) return;
+      scrollMark.current = { at: now, y: window.scrollY, prev: lastInteraction.current };
+      lastInteraction.current = now;
     };
     // The page's own scroll is over. If it stopped short of (or past) its target, the person moved it.
     const onScrollEnd = () => {
@@ -824,6 +829,13 @@ export function CarePlanTool() {
     const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
       const now = performance.now();
       layoutShift.current = { at: now, y: window.scrollY };
+      // The browser's adjustment for this size change can arrive as a scroll just BEFORE this report: if the last mark
+      // was that scroll (and nothing the person did came after it), take it back.
+      const m = scrollMark.current;
+      if (m && lastInteraction.current === m.at && laterShiftExplains(m, layoutShift.current)) {
+        lastInteraction.current = m.prev;
+        scrollMark.current = null;
+      } else if (m && now - m.at > LAYOUT_SCROLL_MS) scrollMark.current = null;
       const own = ownScroll.current, el = ownScrollEl.current;
       if (own && el?.isConnected && now <= own.until) ownScroll.current = rebaseOwnScroll(own, { y: window.scrollY, to: scrollTargetY(el) });
     });

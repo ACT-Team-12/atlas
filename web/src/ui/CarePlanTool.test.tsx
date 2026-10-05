@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CarePlanResponse } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { CarePlanTool } from "./CarePlanTool";
-import { checksKey } from "@/lib/savedPlans";
+import { CHECK_POLICY, checksKey } from "@/lib/savedPlans";
 import { SAMPLE_AVS } from "@/lib/sample";
 import { TRY_SAMPLE_EVENT } from "@/lib/sampleStart";
 
@@ -850,15 +850,33 @@ describe("a plan saved before results were checked against answers", () => {
   it("verdicts saved with a plan come back on reopen, for exactly those steps", () => {
     const care = careFor(PAPER);
     const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
-    reopenWith({ matched: true, checks: { key: checksKey(care.items, care.language), byId } });
+    reopenWith({ matched: true, checks: { key: checksKey(care.items, care.language ?? "English"), policy: CHECK_POLICY, byId } });
     expect(sealCounts()["Checked twice"]).toBe(care.items.length);
   });
 
   it("verdicts saved for other steps are dropped: the steps show as checked once", () => {
     const care = careFor(PAPER);
     const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
-    reopenWith({ matched: true, checks: { key: checksKey([{ id: "item-1", source_quote: "a different paper" }], care.language), byId } });
+    reopenWith({ matched: true, checks: { key: checksKey([{ id: "item-1", source_quote: "a different paper" }], care.language ?? "English"), policy: CHECK_POLICY, byId } });
     expect(sealCounts()["Checked twice"] ?? 0).toBe(0);
+  });
+
+  it("an outdated save never gets its verdicts back", () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ checks: { key: checksKey(care.items, care.language ?? "English"), policy: CHECK_POLICY, byId } }); // no matched: outdated
+    expect(sealCounts()["Checked twice"] ?? 0).toBe(0);
+  });
+
+  it("an older non-English photo save, confirmed after reopening, is checked in the plan's language", async () => {
+    const { language: _drop, ...noLang } = { ...careFor(PAPER), source_kind: "image" as const };
+    void _drop;
+    reopenWith({ matched: true, language: "Spanish", care: noLang, photoChecked: false });
+    fetchCalls = [];
+    await act(async () => { byText("It matches my paper").click(); await drain(); });
+    const meaning = fetchCalls.filter((c) => c.url === "/api/meaning");
+    expect(meaning).toHaveLength(1);
+    expect((meaning[0].body as { language?: string }).language).toBe("Spanish");
   });
 
   it("a fresh read keeps its verdicts in the save, with the key for its steps", async () => {
@@ -877,7 +895,7 @@ describe("a plan saved before results were checked against answers", () => {
     await release(req, ready(care));
     await act(async () => { await drain(); await drain(); });
     const saved = JSON.parse(localStorage.getItem("atlas-plans-v2")!) as { plans: { checks?: { key: string; byId: Record<string, unknown> } }[] };
-    expect(saved.plans[0].checks?.key).toBe(checksKey(care.items, care.language));
+    expect(saved.plans[0].checks?.key).toBe(checksKey(care.items, care.language ?? "English"));
     expect(Object.keys(saved.plans[0].checks?.byId ?? {})).toHaveLength(care.items.length);
   });
 

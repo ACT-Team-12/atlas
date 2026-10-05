@@ -38,7 +38,13 @@ export type Session = {
   checks?: SavedChecks;
 };
 
-export type SavedChecks = { key: string; byId: Record<string, MeaningResult> };
+export type SavedChecks = { key: string; policy: string; byId: Record<string, MeaningResult> };
+
+/**
+ * The second check's rules (model, prompt, number checker, guards) as of this version. Bump it whenever any of them
+ * changes: saved verdicts made under other rules are not restored, and their steps show as checked once (Codex review).
+ */
+export const CHECK_POLICY = "2026-10-05";
 
 /**
  * The steps and language a set of check verdicts was made for: every field the check reads (id, title, explanation,
@@ -54,8 +60,8 @@ export function checksKey(items: { id: string; title?: string; plain_language?: 
 /** Saved verdicts only when every one has the shape the check returns; anything else is dropped, never trusted. */
 function pickChecks(c: unknown): SavedChecks | undefined {
   if (!c || typeof c !== "object") return undefined;
-  const { key, byId } = c as { key?: unknown; byId?: unknown };
-  if (typeof key !== "string" || !byId || typeof byId !== "object" || Array.isArray(byId)) return undefined;
+  const { key, policy, byId } = c as { key?: unknown; policy?: unknown; byId?: unknown };
+  if (typeof key !== "string" || policy !== CHECK_POLICY || !byId || typeof byId !== "object" || Array.isArray(byId)) return undefined;
   const out: Record<string, MeaningResult> = {};
   for (const [id, r] of Object.entries(byId as Record<string, unknown>)) {
     const m = r as Partial<MeaningResult> | null;
@@ -66,7 +72,7 @@ function pickChecks(c: unknown): SavedChecks | undefined {
     if (m.certified && (m.flagged || m.model_verdict !== "same" || !m.numbers_ok)) return undefined;
     out[id] = { id, flagged: m.flagged, certified: m.certified, numbers_ok: m.numbers_ok, unexpected_numbers: m.unexpected_numbers, model_verdict: m.model_verdict as MeaningResult["model_verdict"], what_differs: m.what_differs };
   }
-  return { key, byId: out };
+  return { key, policy, byId: out };
 }
 
 export type SavedPlan = Session & { id: string; name: string; createdAt: string; savedAt: string };
@@ -154,6 +160,8 @@ export function saveSession(store: Store, s: Session, now: string, newId: string
   if (JSON.stringify(pickSession(store.plans[at])) === JSON.stringify(data)) return store; // nothing changed: keep its date
   const plans = store.plans.slice();
   plans[at] = { ...plans[at], ...data, savedAt: now };
+  // Verdicts for steps that are no longer the plan's must not linger in the save (Codex review).
+  if (!data.checks) delete plans[at].checks;
   return { ...store, plans };
 }
 

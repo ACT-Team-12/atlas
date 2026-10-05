@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CarePlanResponse } from "./schema";
 import {
-  checksKey, cleanName, closePlan, deletePlan, DEFAULT_NAME, emptyStore, listPlans, loadStore, nextName, openPlan, pickSession,
+  CHECK_POLICY, checksKey, cleanName, closePlan, deletePlan, DEFAULT_NAME, emptyStore, listPlans, loadStore, nextName, openPlan, pickSession,
   progress, readStartsNewPlan, renamePlan, saveSession, type Session,
 } from "./savedPlans";
 
@@ -147,7 +147,7 @@ describe("saved check verdicts (kept on this device, never re-sent)", () => {
     expect(checksKey(care.items, care.language)).toBe(key);
   });
   it("well-formed verdicts are kept", () => {
-    const kept = pickSession({ ...session(), checks: { key, byId: { a: ok("a") } } } as unknown as Session);
+    const kept = pickSession({ ...session(), checks: { key, policy: CHECK_POLICY, byId: { a: ok("a") } } } as unknown as Session);
     expect(kept.checks?.byId.a.certified).toBe(true);
   });
   it("a malformed or impossible verdict drops the whole set: nothing is trusted that the check could not have said", () => {
@@ -158,7 +158,18 @@ describe("saved check verdicts (kept on this device, never re-sent)", () => {
       { a: { ...ok("a"), numbers_ok: false } },
       { a: { ...ok("a"), flagged: true } },
       { a: null },
-    ]) expect(pickSession({ ...session(), checks: { key, byId: bad } } as unknown as Session).checks).toBeUndefined();
+    ]) expect(pickSession({ ...session(), checks: { key, policy: CHECK_POLICY, byId: bad } } as unknown as Session).checks).toBeUndefined();
     expect(pickSession({ ...session(), checks: "x" } as unknown as Session).checks).toBeUndefined();
+  });
+  it("verdicts made under other checking rules are not restored", () => {
+    expect(pickSession({ ...session(), checks: { key, policy: "older", byId: { a: ok("a") } } } as unknown as Session).checks).toBeUndefined();
+    expect(pickSession({ ...session(), checks: { key, byId: { a: ok("a") } } } as unknown as Session).checks).toBeUndefined();
+  });
+  it("a save without verdicts removes the old ones, so nothing stale lingers", () => {
+    let store = saveSession(emptyStore(), session({ checks: { key, policy: CHECK_POLICY, byId: { a: ok("a") } } } as Partial<Session>), "t1", "p1");
+    expect(store.plans[0].checks).toBeDefined();
+    store = saveSession(store, session({ text: "a new paper" }), "t2", "p2");
+    expect(store.plans[0].checks).toBeUndefined();
+    expect(JSON.stringify(store)).not.toContain("\"certified\"");
   });
 });

@@ -247,9 +247,12 @@ struct MissedLinesTests {
     @Test func webWordingIsCopiedExactly() throws {
         let web = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("web/src/ui/MissedLines.tsx")
+        // The website's English now lives in lib/uiText.ts (the UI in 7 languages, PR 93); the component draws it from there.
+        let uiText = web.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("lib/uiText.ts")
         let src = try String(contentsOf: web, encoding: .utf8).replacingOccurrences(of: "&apos;", with: "'")
+            + (try String(contentsOf: uiText, encoding: .utf8))
         for text in [MissedLines.title, MissedLines.allInAStep, MissedLines.allInAStepNote, MissedLines.readThese, MissedLines.canMiss] {
-            #expect(src.contains(text), "not in MissedLines.tsx: \(text)")
+            #expect(src.contains(text), "not in MissedLines.tsx or uiText.ts: \(text)")
         }
         let lib = web.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("lib/missedLines.ts")
         let ts = try String(contentsOf: lib, encoding: .utf8)

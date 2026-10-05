@@ -51,10 +51,11 @@ fun BarriersScreen(model: AppModel) {
     val context = LocalContext.current
     val focus = LocalFocusManager.current
     val scope = rememberCoroutineScope()
-    var locating by remember { mutableStateOf(false) }
+    // Held by the model, so a plan already running is stopped when the place starts to change (as on the website).
+    val locating = model.locating
 
     fun locate() {
-        locating = true
+        model.updateLocating(true)
         scope.launch {
             try {
                 val fix = LocationProvider.current(context)
@@ -69,7 +70,7 @@ fun BarriersScreen(model: AppModel) {
                 }
                 model.useLocation(point)
             } finally {
-                locating = false
+                model.updateLocating(false)
             }
         }
     }

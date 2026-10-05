@@ -119,6 +119,20 @@ class StaleRepliesTest {
     @Test fun aPlanWhoseZipChangesAppliesNothing() = planWhile { it.updateZip("30310") }
     @Test fun aPlanWhoseNoteChangesAppliesNothing() = planWhile { it.updateNote("I work nights") }
     @Test fun aPlanWhoseStepsChangeAppliesNothing() = planWhile { it.remove(it.items.first().id) }
+    /** "Use my location" started: the new place is not known yet, and the old place's plan must not land as current. */
+    @Test fun aPlanWhoseLocationLookupStartsAppliesNothing() = planWhile { it.updateLocating(true) }
+
+    @Test fun noPlanStartsWhileTheLocationIsBeingFound() {
+        val api = HeldApi()
+        val m = model(api)
+        assertTrue(m.canPlan)
+        m.updateLocating(true)
+        assertTrue(!m.canPlan)
+        m.makePlan()
+        assertEquals(0, api.plans)
+        m.updateLocating(false)
+        assertTrue(m.canPlan)
+    }
 
     @Test fun aChangeTheReadDoesNotUseLeavesItRunningAndItLands() {
         val api = HeldApi()

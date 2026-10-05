@@ -81,6 +81,14 @@ class AppModel @JvmOverloads constructor(
         private set
     /** Device location for the plan request only. Never saved. */
     var location by mutableStateOf<LatLng?>(null)
+    /**
+     * A device location lookup is running (planPlace's "locating" on the website): the place is changing, so a plan sent
+     * before it is stopped, and no plan starts until the lookup ends. Never saved.
+     */
+    var locating by mutableStateOf(false)
+        private set
+
+    fun updateLocating(v: Boolean) { locating = v; stopStaleWork() }
 
     // Results
     var care by mutableStateOf<CarePlanResponse?>(null)
@@ -204,7 +212,7 @@ class AppModel @JvmOverloads constructor(
     val hasWarnings: Boolean get() = care?.has_warning_signs == true || warningItems.isNotEmpty()
     val careById: Map<String, VerifiedItem> get() = care?.items.orEmpty().associateBy { it.id }
     val canRead: Boolean get() = text.trim().length > 20 && busy == null
-    val canPlan: Boolean get() = busy == null && !(barriers.isEmpty() && items.isEmpty()) && !careOutdated
+    val canPlan: Boolean get() = busy == null && !locating && !(barriers.isEmpty() && items.isEmpty()) && !careOutdated
     fun checkFor(id: String): Check = meaning.checkFor(id)
 
     /** "Lines on your paper we didn't turn into steps", for the steps still kept: follows every Remove and Undo. */
@@ -230,7 +238,7 @@ class AppModel @JvmOverloads constructor(
     val planOutdated: Boolean get() = plan != null && (planFp == null || careOutdated || planFp != currentPlanFingerprint())
 
     private fun currentPlanFingerprint(): String = StaleGuard.planFingerprint(
-        items.map { it.id }, barriers.toList(), language, note, StaleGuard.place(location, validZip()), location,
+        items.map { it.id }, barriers.toList(), language, note, if (locating) "locating" else StaleGuard.place(location, validZip()), location,
     )
 
     private fun validZip(): String = if (Regex("^\\d{5}$").matches(zip)) zip else ""

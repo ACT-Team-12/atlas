@@ -268,7 +268,8 @@ export function CarePlanTool() {
   const [note, setNoteState] = useState("");
   const [planning, setPlanning] = useState(false);
   // Steps of the plan being built, for the current request only (cleared when it starts, ends or is replaced).
-  const [planPreview, setPlanPreview] = useState<PlanPreview | null>(null);
+  // `fp`: the answers it was built from; it is drawn only while the answers on screen still match (see the render).
+  const [planPreview, setPlanPreview] = useState<(PlanPreview & { fp: string }) | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
@@ -530,10 +531,15 @@ export function CarePlanTool() {
   const careOutdated = !!care && careFp !== null && readFingerprintFor({ text, photo, language, level }) !== careFp;
   // Not enough to read yet: "Read my paper" is off and a note says what to do first.
   const needsPaper = !photo && text.trim().length < 20;
-  const planOutdated = !!plan && planFp !== null && (careOutdated || planFingerprint({
+  // The answers on screen in this render, as a plan fingerprint.
+  const answersFp = planFingerprint({
     careIds: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id),
     barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc,
-  }) !== planFp);
+  });
+  const planOutdated = !!plan && planFp !== null && (careOutdated || answersFp !== planFp);
+  // A streamed step is drawn only in a render whose answers match the ones it was built from, so an answer changed
+  // before the stale-plan effect runs never paints an old step, not even for one frame (Codex round 2 of PR 105).
+  const shownPreview = planning && planPreview && planPreview.fp === answersFp && planPreview.steps.length > 0 ? planPreview : null;
   // The ready cue, only for the exact result that raised it and only while that result is current.
   const cueFor: Ready | null = !ready ? null
     : ready.what === "steps" ? (care === ready.ref && !careOutdated ? "steps" : null)
@@ -748,7 +754,7 @@ export function CarePlanTool() {
         // A step is shown only while this request still matches the answers on screen (Codex review of PR 105): an
         // answer changed before the stale-plan effect ran must not paint a step built from the old ones.
         const current = () => planRun.current === run && pendingPlan.current?.run === run && pendingPlan.current.fp === livePlanFp();
-        json = await streamPlanRequest(body, (p) => { if (current()) setPlanPreview(p); }, abort.signal);
+        json = await streamPlanRequest(body, (p) => { if (current()) setPlanPreview({ ...p, fp: pendingPlan.current!.fp }); }, abort.signal);
       } catch (e) {
         if (!(e instanceof StreamBroken) || abort.signal.aborted) throw e;
         if (planRun.current === run) setPlanPreview(null);
@@ -1324,7 +1330,7 @@ export function CarePlanTool() {
             </SquashButton>
             {needsPhotoCheck && <p className="mt-3 text-sm font-bold text-ink/70">First check how we read your photo in step 1.</p>}
             {planNote && <p role="status" className="mt-3 rounded-2xl border-2 border-sun bg-paper p-3 text-sm font-bold">{planNote}</p>}
-            {planning && (planPreview && planPreview.steps.length > 0 ? <StreamingPlanSteps preview={planPreview} /> : <WorkingCard kind="plan" />)}
+            {planning && (shownPreview ? <StreamingPlanSteps preview={shownPreview} /> : <WorkingCard kind="plan" />)}
           </div>
         </div>
 

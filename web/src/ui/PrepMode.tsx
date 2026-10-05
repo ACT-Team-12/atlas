@@ -10,7 +10,7 @@ import { SAMPLE_PREP, SAMPLE_PREP_LABEL } from "@/lib/samplePrep";
 import { defaultOpenSlot, explainState, meaningItems, NO_MEANING, prepAskText, prepClosedRow, prepMustSee, shownExplanation, type MeaningState } from "@/lib/prepView";
 import { createRequestGate, type Ticket } from "@/lib/requestGate";
 import { keyFor, LANGUAGE_NAME, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
-import { UiLangProvider, useUi } from "./UiLang";
+import { paperLangCode, safeLine, UiLangProvider, useUi, PaperWords } from "./UiLang";
 import { PREP_SHEET, printOrView } from "./printView";
 
 type Inputs = { text: string; language: string };
@@ -31,6 +31,7 @@ export function PrepMode() {
   const [language, setLanguage] = useState<Lang>("English");
   const t = (key: UiKey, vars?: Record<string, string | number>) => ui(language, key, vars);
   const tn = (key: UiPluralKey, n: number, vars?: Record<string, string | number>) => uiCount(language, key, n, vars);
+  const ts = (key: UiKey, vars?: Record<string, string | number>) => safeLine(language, key, vars);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [res, setRes] = useState<(PrepResponse & { language: Lang }) | null>(null);
@@ -138,7 +139,7 @@ export function PrepMode() {
   const placed = res ? res.timeline.reduce((n, g) => n + g.steps.length, 0) : 0;
 
   return (
-    <UiLangProvider language={language}>
+    <UiLangProvider language={language} paperLang={paperLangCode(text)}>
     <section id="prep" lang={UI_LANG_CODE[language]} className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="prep-title">
       <div className="section-card bg-lilac px-4 sm:px-10 py-16">
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -203,7 +204,7 @@ export function PrepMode() {
 
                 <PrepTimeline res={res} meaning={meaning} />
                 <p className="mt-4 text-xs text-ink/70">
-                  {t("prep.paperCounts")}
+                  {ts("prep.paperCounts")}
                 </p>
               </div>
             )}
@@ -301,15 +302,15 @@ function Step({ s, meaning }: { s: PrepStep; meaning: MeaningState }) {
   const closed = prepClosedRow(s);
   const [open, setOpen] = useState(false);
   const panelId = useId();
-  const { t } = useUi();
+  const { t, ts } = useUi();
   return (
     <li data-prep-step={s.id} data-must-see={closed.full || undefined} data-open={open || undefined}
       className={`min-w-0 rounded-2xl border-2 bg-paper ${closed.full ? "border-red" : open ? "border-ink" : "border-ink/20"}`}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId}
         className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl p-3 text-left">
         <span className="min-w-0" data-closed-row="quote">
-          <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">{closed.full ? <span className="text-red">{t("prep.dontMiss")}</span> : t("prep.paperSays")}</span>
-          <span className="block font-bold leading-snug [overflow-wrap:anywhere]" data-paper-quote="">&ldquo;{closed.quote}&rdquo;</span>
+          <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">{closed.full ? <span className="text-red">{ts("prep.dontMiss")}</span> : t("prep.paperSays")}</span>
+          <span className="block font-bold leading-snug [overflow-wrap:anywhere]" data-paper-quote="">&ldquo;<PaperWords>{closed.quote}</PaperWords>&rdquo;</span>
           <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-ink/70">
             <span className="chip bg-ink text-paper">{t(keyFor("prep.kind", s.kind, "prep.kind.other"))}</span>
             {closed.whenWords.length > 0 && <span>{closed.whenWords.map((w) => `“${w}”`).join(", ")}</span>}
@@ -319,7 +320,7 @@ function Step({ s, meaning }: { s: PrepStep; meaning: MeaningState }) {
       </button>
       <div id={panelId} hidden={!open} className="px-3 pb-3" data-prep-panel="">
         <p className="text-xs font-bold uppercase tracking-wide text-ink/70">{t("prep.inFull")}</p>
-        <p className="mt-1 border-l-4 border-sun pl-2 font-extrabold [overflow-wrap:anywhere]" data-paper-quote="">{s.source_quote}</p>
+        <p className="mt-1 border-l-4 border-sun pl-2 font-extrabold [overflow-wrap:anywhere]" data-paper-quote=""><PaperWords>{s.source_quote}</PaperWords></p>
         {s.slot && s.when_words.length > 0 && (
           <p className="mt-2 text-sm font-semibold">{t("prep.whenWords", { words: s.when_words.map((w) => `"${w}"`).join(", ") })}</p>
         )}
@@ -334,7 +335,7 @@ function Step({ s, meaning }: { s: PrepStep; meaning: MeaningState }) {
           </p>
         )}
         {state !== "certified" && state !== "none" && (
-          <p className="mt-2 text-xs font-semibold text-ink/70">{t(keyFor("prep.explain", state, "prep.explain.check_failed"))}</p>
+          <p className="mt-2 text-xs font-semibold text-ink/70">{ts(keyFor("prep.explain", state, "prep.explain.check_failed"))}</p>
         )}
       </div>
     </li>
@@ -344,7 +345,7 @@ function Step({ s, meaning }: { s: PrepStep; meaning: MeaningState }) {
 /** Large-type print copy of the timeline, rendered into <body> and shown only while printing it (globals.css). */
 function PrepSheet({ res, meaning }: { res: PrepResponse & { language: Lang }; meaning: MeaningState }) {
   const mounted = useSyncExternalStore(noop, () => true, () => false);
-  const { t, code } = useUi();
+  const { t, ts, code } = useUi();
   if (!mounted) return null;
   const line = (s: PrepStep) => (
     <li key={s.id}>
@@ -372,7 +373,7 @@ function PrepSheet({ res, meaning }: { res: PrepResponse & { language: Lang }; m
           <ol className="steps">{res.ask.map(line)}</ol>
         </section>
       )}
-      <p className="foot">{t("prep.sheetFoot")}</p>
+      <p className="foot">{ts("prep.sheetFoot")}</p>
     </div>,
     document.body,
   );

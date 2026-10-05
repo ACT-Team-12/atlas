@@ -6,7 +6,7 @@ import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { MeaningState } from "@/lib/meaningRun";
 import type { DeviceRun, DeviceStatus } from "@/lib/deviceRun";
 import { isWarning } from "@/lib/warningPin";
-import { closedRow, sealOf, shortQuote, stepWhen, WHEN_GROUPS, type Seal, type WhenGroup } from "@/lib/stepsView";
+import { closedRow, sealOf, shortQuote, stepWhen, WHEN_GROUPS, type Seal } from "@/lib/stepsView";
 import { askPerson, type AskPerson } from "@/lib/askPerson";
 import { readingGeneralQuestions, stepVisitQuestion, uniqueStepQuestions } from "@/lib/visitQuestions";
 import { buildIcs } from "@/lib/booking";
@@ -19,7 +19,7 @@ import { PaperFirst } from "./PaperFirst";
 import { ShowOnPaper } from "./ShowOnPaper";
 import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
 import { keyFor } from "@/lib/uiText";
-import { useUi } from "./UiLang";
+import { useUi, PaperWords } from "./UiLang";
 
 export const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -63,7 +63,7 @@ export function CareSteps(p: Props) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string | null>(null);
   const speech = useStepSpeech(p.language);
-  const { t, tn } = useUi();
+  const { t, ts, tn } = useUi();
 
   const warnings = items.filter(isWarning);
   // Every step in the order shown (lib/walkThrough.ts): warning signs, then each time group. The list and "Walk me
@@ -208,8 +208,8 @@ export function CareSteps(p: Props) {
       <div className={walking ? "walk-away" : undefined} data-walk-away={walking || undefined}>
       {(care.has_warning_signs || warnings.length > 0) && (
         <section aria-labelledby="warn-title" className="mb-5 rounded-2xl border-2 border-red bg-red-soft p-4 text-red" data-warnings="">
-          <h3 id="warn-title" tabIndex={-1} className="display text-xl scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{t("steps.warnTitle")}</h3>
-          <p className="text-sm font-semibold">{t("steps.warnBody")}</p>
+          <h3 id="warn-title" tabIndex={-1} className="display text-xl scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{ts("steps.warnTitle")}</h3>
+          <p className="text-sm font-semibold">{ts("steps.warnBody")}</p>
           {warnings.length > 0 && <ul className="mt-3 space-y-2">{warnings.map((it) => row(it, true))}</ul>}
         </section>
       )}
@@ -267,7 +267,7 @@ export function CareSteps(p: Props) {
           {groups.map(({ g, list }) => (
             <section key={g} aria-labelledby={`when-${g}`} className="mt-4" data-when-group={g}>
               <h4 id={`when-${g}`} className="flex items-baseline justify-between gap-2 font-extrabold">
-                <span className="display text-lg">{t(keyFor("when", g, "when.unclear"))}</span>
+                <span className="display text-lg">{ts(keyFor("when", g, "when.unclear"))}</span>
                 <span className="text-xs font-bold text-ink/70">{tn("steps", list.length)}</span>
               </h4>
               {g === "unclear" && <p className="text-xs font-semibold text-ink/70">{t("when.unclearNote")}</p>}
@@ -297,7 +297,7 @@ export function CareSteps(p: Props) {
               <ul className="mt-2 space-y-1">
                 {p.removedItems.map((r) => (
                   <li key={r.id} className="flex items-center justify-between gap-2">
-                    <span data-paper-quote="">{t("steps.removedSays", { kind: t(keyFor("kind", r.kind, "kind.step")) })} &ldquo;{r.source_quote}&rdquo;</span>
+                    <span data-paper-quote="">{t("steps.removedSays", { kind: t(keyFor("kind", r.kind, "kind.step")) })} &ldquo;<PaperWords>{r.source_quote}</PaperWords>&rdquo;</span>
                     <button type="button" className="font-bold underline" onClick={() => p.onUndoRemove(r.id)}>{t("common.undo")}</button>
                   </li>
                 ))}
@@ -345,7 +345,7 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
   // Not certified: the "Ask your clinic" box below already carries the paper-words question, so no second copy here.
   const question = stepVisitQuestion(it, check) ?? "";
   const kind = KIND[it.kind];
-  const { t } = useUi();
+  const { t, ts } = useUi();
   return (
     <li id={`step-${it.id}`} onMouseEnter={() => onHover(it.id)} onMouseLeave={() => onHover(null)} data-step={it.id} data-seal={seal} data-open={open || undefined} data-pip-here={pip?.mood}
       className={`scroll-mt-44 md:scroll-mt-24 rounded-2xl border-2 bg-paper ${warn ? "border-red" : open ? "border-ink" : "border-ink/20"}`}>
@@ -360,15 +360,15 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
               // Open, the panel shows the paper's whole line first; the row does not repeat it on screen (no duplicate
               // quote). The button keeps the line's start in its name, so focus that lands here (a "Go to this step"
               // link) still says which step it is (Codex review). Always shortened, so the full line is still shown only once.
-              : open ? <span className="sr-only" data-open-name="">{t("steps.fromYourPaper")}: &ldquo;{shortQuote(it.source_quote, Math.min(40, Math.floor(it.source_quote.length * 0.6)))}&rdquo;</span>
+              : open ? <span className="sr-only" data-open-name="">{t("steps.fromYourPaper")}: &ldquo;<PaperWords>{shortQuote(it.source_quote, Math.min(40, Math.floor(it.source_quote.length * 0.6)))}</PaperWords>&rdquo;</span>
               : (
                 <span className={`block leading-snug ${done ? "line-through text-ink/70" : ""}`} data-paper-quote="">
                   <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">{t("steps.fromYourPaper")}</span>
-                  <span className="font-bold">&ldquo;{closed.quote}&rdquo;</span>
+                  <span className="font-bold">&ldquo;<PaperWords>{closed.quote}</PaperWords>&rdquo;</span>
                 </span>
               )}
             <span className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-ink/70 ${closed.lead === "quote" && open ? "" : "mt-1"}`}>
-              {kind && <span className={`chip ${kind.cls}`}>{t(keyFor("kind", it.kind, "kind.step"))}</span>}
+              {kind && <span className={`chip ${kind.cls}`}>{ts(keyFor("kind", it.kind, "kind.step"))}</span>}
               {closed.lead === "explanation" && closed.when && <span>{closed.when}</span>}
               {closed.lead === "quote" && closed.paperWhen.length > 0 && <span>{closed.paperWhen.map((w) => `“${w}”`).join(", ")}</span>}
               {question && <span className="rounded-full bg-peach px-2 text-[11px] font-extrabold text-peach-deep">{t("steps.ask")}</span>}
@@ -406,7 +406,7 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
               <span className="underline">{t("steps.why")}</span>
             </summary>
             <p className="mt-1 pl-8 font-semibold">
-              {t(keyFor("seal", `${seal}.text`, "seal.once.text"))}
+              {ts(keyFor("seal", `${seal}.text`, "seal.once.text"))}
               {device === "match" && <span data-device-check="match">{t("steps.deviceMatch")}</span>}
               {m && !m.flagged && !m.certified && t("steps.notConfirmed")}
             </p>
@@ -415,7 +415,7 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
           <p className={`flex items-start gap-2 text-xs font-bold ${seal === "twice" ? "text-teal-deep" : "text-peach-deep"}`} data-seal-text={seal}>
             <SealMark seal={seal} />
             <span>
-              {t(keyFor("seal", `${seal}.text`, "seal.once.text"))}
+              {ts(keyFor("seal", `${seal}.text`, "seal.once.text"))}
               {device === "match" && <span data-device-check="match">{t("steps.deviceMatch")}</span>}
               {meaning.status === "loading" && t("steps.doubleCheckingThis")}
               {m && !m.flagged && !m.certified && t("steps.notConfirmed")}
@@ -532,7 +532,7 @@ function WalkCard({ step, index, total, done, check, tl, heading, pip, pipText, 
   const question = stepVisitQuestion(it, check);
   const seal = sealOf(check);
   const kind = KIND[it.kind];
-  const { t } = useUi();
+  const { t, ts } = useUi();
   const big = "min-h-[56px] rounded-2xl border-2 border-ink px-4 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep";
   return (
     <div className={`walk-card mt-5 ${warn ? "rounded-2xl border-4 border-red p-3 sm:p-4" : ""}`} data-calm={calm || undefined} data-walk-step={it.id} data-walk-group={group} data-seal={seal}>
@@ -548,9 +548,9 @@ function WalkCard({ step, index, total, done, check, tl, heading, pip, pipText, 
       <div aria-hidden="true" className="mt-3 h-2 overflow-hidden rounded-full bg-ink/10"><div className="h-full rounded-full bg-teal" style={{ width: `${((index + 1) / total) * 100}%` }} /></div>
       {!warn && group === "unclear" && <p className="mt-2 text-base font-semibold text-ink/70">{t("when.unclearNote")}</p>}
       <p className="mt-3 flex flex-wrap items-center gap-2 text-sm font-bold text-ink/70">
-        {kind && <span className={`chip ${kind.cls}`}>{t(keyFor("kind", it.kind, "kind.step"))}</span>}
+        {kind && <span className={`chip ${kind.cls}`}>{ts(keyFor("kind", it.kind, "kind.step"))}</span>}
         <SealMark seal={seal} />
-        <span data-seal-label="" className={seal === "recheck" ? "text-peach-deep" : ""}>{t(keyFor("seal", seal, "seal.once"))}</span>
+        <span data-seal-label="" className={seal === "recheck" ? "text-peach-deep" : ""}>{ts(keyFor("seal", seal, "seal.once"))}</span>
       </p>
       {/* The paper's words, by the same rule as the list (PaperFirst), only bigger (globals.css, .walk-paper). */}
       <div className="walk-paper mt-2 text-2xl leading-snug sm:text-3xl"><PaperFirst v={careStepView(it, check)} /></div>
@@ -607,7 +607,7 @@ function AskClinic({ stepQuestions, general }: { stepQuestions: { it: VerifiedIt
         {stepQuestions.map(({ it, q }) => (
           <li key={it.id}>
             {q}
-            <span className="block text-xs font-semibold text-ink/70" data-paper-quote="">{t("askClinic.aboutLine")} &ldquo;{shortQuote(it.source_quote, 60)}&rdquo;</span>
+            <span className="block text-xs font-semibold text-ink/70" data-paper-quote="">{t("askClinic.aboutLine")} &ldquo;<PaperWords>{shortQuote(it.source_quote, 60)}</PaperWords>&rdquo;</span>
           </li>
         ))}
       </ol>

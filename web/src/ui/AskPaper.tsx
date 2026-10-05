@@ -1,5 +1,7 @@
 "use client";
 
+import { PaperWords } from "./UiLang";
+
 import { useEffect, useId, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { AskResponse } from "@/lib/ask";
@@ -89,7 +91,7 @@ export function AskPaper({ care, items, language, photo = null }: Props) {
       </form>
 
       <div aria-live="polite">
-        {state.kind === "done" && <p className="mt-4 text-sm font-bold" data-ask-asked="">&ldquo;{state.question}&rdquo;</p>}
+        {state.kind === "done" && <p className="mt-4 text-sm font-bold" data-ask-asked="">&ldquo;<PaperWords>{state.question}</PaperWords>&rdquo;</p>}
         {state.kind === "loading" && <p className="mt-4 font-semibold text-ink/70">{t.asking}</p>}
         {state.kind === "error" && <p role="alert" className="mt-4 rounded-xl bg-red-soft p-3 font-semibold text-red">{state.message}</p>}
 
@@ -101,7 +103,7 @@ export function AskPaper({ care, items, language, photo = null }: Props) {
               <div className="mt-3">
                 <p className="text-sm font-bold">{t.urgentPaper}</p>
                 <ul className="mt-1 space-y-1">
-                  {warnings.map((w) => <li key={w.id} data-paper-quote="" className="border-l-4 border-sun pl-2 text-sm font-semibold">&ldquo;{w.source_quote}&rdquo;</li>)}
+                  {warnings.map((w) => <li key={w.id} data-paper-quote="" className="border-l-4 border-sun pl-2 text-sm font-semibold">&ldquo;<PaperWords>{w.source_quote}</PaperWords>&rdquo;</li>)}
                 </ul>
               </div>
             )}
@@ -117,7 +119,7 @@ export function AskPaper({ care, items, language, photo = null }: Props) {
               <ul className="space-y-2">
                 {res.quotes.map((q, i) => (
                   <li key={`${q.span.start}-${q.span.end}`}>
-                    <p className="font-semibold">&ldquo;{q.text}&rdquo;</p>
+                    <p className="font-semibold">&ldquo;<PaperWords>{q.text}</PaperWords>&rdquo;</p>
                     <ShowOnPaper care={care} photo={care.source_kind === "image" ? photo : null} check="unchecked"
                       item={{ id: `ask-${i}`, kind: "self_care", title: "", plain_language: "", why: "", when: "", source_quote: q.text, needs_clarification: false, question_for_clinic: "", grounded: true, span: q.span }} />
                   </li>

@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CarePlanResponse } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { LANGUAGES } from "@/lib/schema";
-import { ui, UI_LANG_CODE, UI_PLURAL, UI_TEXT, type Lang } from "@/lib/uiText";
+import { ui, UI_LANG_CODE, UI_PLURAL, UI_SAFETY_KEYS, UI_TEXT, type Lang, type UiKey } from "@/lib/uiText";
 import { CarePlanTool } from "./CarePlanTool";
 import { LabRows, UncheckedLines } from "./LabResults";
 import { UiLangProvider } from "./UiLang";
@@ -73,6 +73,17 @@ afterEach(() => {
 });
 
 const drain = () => new Promise((r) => setTimeout(r, 0));
+
+/**
+ * The text a reader of this language meets as the app's own words: without the English placed beside safety lines on
+ * purpose (data-english-beside, lang="en"), which the tests below check separately.
+ */
+function ownText(el: Element): string {
+  const copy = el.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll("textarea[readonly], [data-english-beside]").forEach((x) => x.remove());
+  return copy.textContent ?? "";
+}
+const besideTexts = (el: Element) => [...el.querySelectorAll('[data-english-beside][lang="en"]')].map((x) => x.textContent ?? "");
 function setValue(el: HTMLTextAreaElement | HTMLSelectElement, value: string, event: string) {
   // The element's own prototype (its own window), so this never mixes realms when files share a worker.
   Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), "value")!.set!.call(el, value);
@@ -119,9 +130,7 @@ describe("the steps and plan screens show no English of their own in another lan
       expect(sheet).not.toBeNull();
       // Left out on purpose: the helper's session summary is an English record draft for a case note (its read-only
       // box), and the AI's own words in the sample reading (made in English) are never translated by the app.
-      const page = host.cloneNode(true) as HTMLElement;
-      page.querySelectorAll("textarea[readonly]").forEach((el) => el.remove());
-      const text = `${page.textContent}\n${sheet!.textContent}`;
+      const text = `${ownText(host)}\n${ownText(sheet!)}`;
       const aiWords = SAMPLE.items.flatMap((it) => [it.title, it.when, it.plain_language, it.why ?? ""]).join("\n");
       // Every line translated in this language must not appear in English.
       const left = englishPieces(PAGE).filter((p) => text.includes(p) && !aiWords.includes(p) && !Object.values(UI_TEXT).some((row) => (row as Record<Lang, string>)[lang].includes(p)));
@@ -133,6 +142,20 @@ describe("the steps and plan screens show no English of their own in another lan
       // Screen readers get the right language for the app's own words.
       expect(host.querySelector("#try")!.getAttribute("lang")).toBe(UI_LANG_CODE[lang]);
       expect(sheet!.getAttribute("lang")).toBe(UI_LANG_CODE[lang]);
+
+      // Safety lines are machine drafts: every one shown in this language has its English right beside it, marked as
+      // English (Codex review of PR 93). The sample has warning signs, a medicine card and a plan, so many are on screen.
+      const beside = [...besideTexts(host), ...besideTexts(sheet!)].join("\n");
+      // A safety line counts as shown when its translation is on the page and no other line shares that translation.
+      const sharedWithOther = (k: UiKey) => (Object.keys(UI_TEXT) as UiKey[]).some((o) => o !== k && !UI_SAFETY_KEYS.has(o) && ui(lang, o) === ui(lang, k));
+      const shown = [...UI_SAFETY_KEYS].filter((k) => !/^(labs|prep)\./.test(k) && !/\{/.test(UI_TEXT[k].English) && !sharedWithOther(k) && text.includes(ui(lang, k)));
+      expect(shown.length).toBeGreaterThan(5);
+      for (const k of shown) expect(beside, k).toContain(ui("English", k as UiKey));
+
+      // The paper's own words carry the paper's language (English here), not the app's.
+      const quotes = [...host.querySelectorAll("[data-paper-quote] span[lang]")];
+      expect(quotes.length).toBeGreaterThan(5);
+      for (const q of quotes) expect(q.getAttribute("lang")).toBe("en");
     });
   }
 
@@ -155,11 +178,15 @@ describe("lab results show no English of their own in another language", () => {
   for (const lang of LANGUAGES.filter((l) => l !== "English")) {
     it(lang, () => {
       act(() => root.render(<UiLangProvider language={lang}><LabRows rows={rows} /><UncheckedLines coverage={{ checked: 3, candidates: 5, unchecked: ["CRITICAL K 7.0"] }} /></UiLangProvider>));
-      const text = host.textContent ?? "";
+      const text = ownText(host);
       const left = englishPieces(/^(labs|askClinic|common|pf)\./).filter((p) => text.includes(p) && !Object.values(UI_TEXT).some((row) => (row as Record<Lang, string>)[lang].includes(p)));
       expect(left).toEqual([]);
       expect(text).toContain(ui(lang, "labs.chip.high"));
       expect(text).toContain(ui(lang, "labs.reason.above", { value: "130", range: "70-99" }));
+      // The flag and its reason keep their English beside them until reviewed.
+      const beside = besideTexts(host).join("\n");
+      expect(beside).toContain("High");
+      expect(beside).toContain("130 is above the range printed on your report (70-99).");
     });
   }
 });

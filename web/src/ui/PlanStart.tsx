@@ -8,7 +8,7 @@ import { resourceScript } from "@/lib/booking";
 import { pipLine } from "@/lib/pip";
 import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
 import { keyFor } from "@/lib/uiText";
-import { useUi } from "./UiLang";
+import { useUi, PaperWords } from "./UiLang";
 
 /**
  * The plan screen, "Start with 3 calls" (Akhil's concept A): the three verified places that help with the most of the
@@ -72,7 +72,7 @@ export function Resource({ r, off, proof = true }: { r: ResourceCard; off?: stri
         {hours && c.hours_source_id === "clinic-site" && (
           <>
             <p className="text-sm mt-1">🕘 {t("plan.hours", { hours })}</p>
-            <p className="text-xs italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{c.hours_quote}&rdquo;</p>
+            <p className="text-xs italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;<PaperWords>{c.hours_quote}</PaperWords>&rdquo;</p>
           </>
         )}
         {hours && c.hours_source_id !== "clinic-site" && <p className="text-sm mt-1">🕘 {t("plan.listedHours", { hours })} <span className="text-ink/70">{t("plan.callToConfirm")}</span></p>}
@@ -99,7 +99,7 @@ export function Resource({ r, off, proof = true }: { r: ResourceCard; off?: stri
       </span>
       <p className="font-extrabold mt-2">{p.name}</p>
       {/* The quote and the how-to text can hold a number to call or text: not offered while the plan is outdated. */}
-      {proof && !off && <p className="text-sm italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{p.evidence_quote}&rdquo;</p>}
+      {proof && !off && <p className="text-sm italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;<PaperWords>{p.evidence_quote}</PaperWords>&rdquo;</p>}
       {off ? <ResourceLinksOff off={off} /> : <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
         {p.access.phone && <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={telHref(p.access.phone)}>{t("plan.callPhone", { phone: p.access.phone })}</a>}
         {p.access.url && <a className="rounded-full border-2 border-ink px-3 py-1" href={p.access.url} target="_blank" rel="noreferrer">{t("plan.open")}</a>}
@@ -196,7 +196,7 @@ function TopCard({ r, rank, chosen, language, off, offId, pip }: { r: RankedReso
 /** `chosen`: the barriers the person picked in step 2, the only "problems" a top card counts. */
 export function TopCalls({ top, chosen, language, off, offId }: { top: RankedResource[]; chosen: Barrier[]; language: string; off?: string; offId?: string }) {
   const { calm } = usePipCalm();
-  const { t } = useUi();
+  const { t, ts } = useUi();
   // Pip marks the first place to start, with a fixed line in the person's language. Not while the plan is outdated:
   // its calls are off then, so Pip does not point at one.
   const pipText = top.length > 0 && !off ? pipLine(language, "start") : "";
@@ -217,7 +217,7 @@ export function TopCalls({ top, chosen, language, off, offId }: { top: RankedRes
         </span>
       </div>
       {/* Who picked these: ATLAS. A caregiver could not tell (Oct 4 try). */}
-      <p className="mt-1 max-w-3xl text-sm font-semibold text-ink/80" data-places-note="">{t("prov.placesNote")}</p>
+      <p className="mt-1 max-w-3xl text-sm font-semibold text-ink/80" data-places-note="">{ts("prov.placesNote")}</p>
       <ol className="mt-3 grid gap-3 lg:grid-cols-3">
         {top.map((r, i) => <TopCard key={r.id} r={r} rank={i + 1} chosen={chosen} language={language} off={off} offId={offId}
           pip={i === 0 && pipText ? { text: pipText, calm } : undefined} />)}
@@ -271,7 +271,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
         <p className="font-semibold">{step.action}</p>
         {/* The plan step is a suggestion, never certified: the paper's own words for its steps stay right next to it. */}
         {quotes.map((q, k) => (
-          <p key={k} data-paper-quote="" className="mt-2 border-l-4 border-sun pl-2 text-sm font-semibold">📄 {t("pf.says.paper")} &ldquo;{q}&rdquo;</p>
+          <p key={k} data-paper-quote="" className="mt-2 border-l-4 border-sun pl-2 text-sm font-semibold">📄 {t("pf.says.paper")} &ldquo;<PaperWords>{q}</PaperWords>&rdquo;</p>
         ))}
         {best && (
           <div className="mt-4">
@@ -301,7 +301,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
                 <p className="flex flex-wrap items-center gap-1.5 text-sm font-extrabold">{c.program.name}
                   <span className="chip border border-ink/40 bg-paper text-ink" data-by-atlas="">{t("prov.byAtlas")}</span></p>
                 {/* Can hold a number to call or text: not shown while the plan is outdated. */}
-                {!off && <p className="mt-1 border-l-4 border-sun pl-2 text-sm italic text-ink/75">&ldquo;{c.program.evidence_quote}&rdquo;</p>}
+                {!off && <p className="mt-1 border-l-4 border-sun pl-2 text-sm italic text-ink/75">&ldquo;<PaperWords>{c.program.evidence_quote}</PaperWords>&rdquo;</p>}
                 <div className="mt-1.5"><VerifiedSeal url={c.program.source_url} off={off} /></div>
               </div>
             ))}

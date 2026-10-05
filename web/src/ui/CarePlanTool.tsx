@@ -1,17 +1,17 @@
 "use client";
 
 import { bookSafe, careStepView, checkOf, type Check } from "@/lib/paperFirst";
-import { readingGeneralQuestions, visitQuestions } from "@/lib/visitQuestions";
+import { readingGeneralQuestions, visitQuestionsTagged } from "@/lib/visitQuestions";
 import { PaperFirst } from "./PaperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
-import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { landingTop, readyTarget, ReadyCue, type Ready } from "./ReadyCue";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
 import { mayFillSample, TRY_SAMPLE_EVENT, TRY_SAMPLE_HASH } from "@/lib/sampleStart";
-import { BARRIERS, BARRIER_LABEL, type Barrier } from "@/lib/resources";
+import { BARRIERS, type Barrier } from "@/lib/resources";
 import type { PlanResponse } from "@/lib/plan";
 import { topResources } from "@/lib/planTop";
 import { ProblemRow, TopCalls } from "./PlanStart";
@@ -59,8 +59,8 @@ import { autosaveStore } from "@/lib/autosave";
 import { fetchMeaning, IDLE_MEANING, RunFence, runMeaningCheck, type MeaningState } from "@/lib/meaningRun";
 import { consumeHelperSession, entryHeaders } from "@/lib/helperLink";
 import { HelperBanner, useHelperArrival } from "./HelperArrival";
-import { keyFor, LANGUAGE_NAME, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
-import { UiLangProvider, useUi } from "./UiLang";
+import { keyFor, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
+import { paperLangCode, safeLine, UiLangProvider, useUi } from "./UiLang";
 
 /** Id for a saved plan. randomUUID needs a secure page; the fallback is fine for a local key. */
 function newPlanId() {
@@ -120,7 +120,7 @@ async function streamExtract(body: Record<string, unknown>, onItem: (it: Verifie
  * paper's own words, so a mislabeled "call 911" line is red here too.
  */
 export function StreamingSteps({ items }: { items: VerifiedItem[] }) {
-  const { t, tn } = useUi();
+  const { t, ts, tn } = useUi();
   return (
     <div className="mt-8" aria-busy="true">
       <p className="display text-2xl">{t("paper.stillReading")}<span className="working-dots" aria-hidden="true" /></p>
@@ -131,7 +131,7 @@ export function StreamingSteps({ items }: { items: VerifiedItem[] }) {
         {items.map((it) => (
           <li key={it.id} data-warning={isWarning(it) ? "" : undefined} className={`step-in rounded-2xl border-2 p-4 ${isWarning(it) ? "border-red bg-red-soft/50" : "border-ink/70 bg-paper"}`}>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`chip ${KIND[it.kind]?.cls}`}>{t(keyFor("kind", it.kind, "kind.step"))}</span>
+              <span className={`chip ${KIND[it.kind]?.cls}`}>{ts(keyFor("kind", it.kind, "kind.step"))}</span>
             </div>
             {/* Not checked yet while streaming, so the paper's words lead (lib/paperFirst.ts). */}
             <PaperFirst v={careStepView(it, "unchecked")} />
@@ -173,6 +173,8 @@ export function CarePlanTool() {
   // The app's own words in the chosen language (lib/uiText.ts); children read it from UiLangProvider below.
   const t = (key: UiKey, vars?: Record<string, string | number>) => ui(language, key, vars);
   const tn = (key: UiPluralKey, n: number, vars?: Record<string, string | number>) => uiCount(language, key, n, vars);
+  // A safety line with its English beside it until reviewed (UiLang.tsx, ts).
+  const ts = (key: UiKey, vars?: Record<string, string | number>): ReactNode => safeLine(language, key, vars);
   const [level, setLevelState] = useState<(typeof READING_LEVELS)[number]>("simple");
   // The level the steps on screen were read at (the select can change after a read).
   const [readLevel, setReadLevel] = useState<(typeof READING_LEVELS)[number] | null>(null);
@@ -915,6 +917,8 @@ export function CarePlanTool() {
     if (!r || r.run !== readRun.current) return;
     if (readFingerprintFor({ text, photo, language, level }) === r.fp) return;
     stopStaleRead();
+    // stopStale* reads only this render's t, whose language is already a dependency here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, photo, language, level]);
 
   useEffect(() => {
@@ -923,6 +927,8 @@ export function CarePlanTool() {
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
     if (planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc }) === p.fp) return;
     stopStalePlan();
+    // stopStale* reads only this render's t, whose language is already a dependency here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [care, removed, barriers, language, note, loc, zip, locating]);
 
   // Runs after every render; does nothing unless a tab change or a reply asked for a scroll.
@@ -1063,7 +1069,8 @@ export function CarePlanTool() {
   // Questions for the next visit, paper first (lib/visitQuestions.ts): a step's own question only when certified.
   // General questions with every step's own question taken out, held-back steps included, before any surface uses them.
   const generalQuestions = care ? readingGeneralQuestions(care) : [];
-  const nextVisit = care ? visitQuestions({ items: items.filter((i) => i.grounded), general: generalQuestions, also: care.items, checkFor }) : [];
+  const nextVisitTagged = care ? visitQuestionsTagged({ items: items.filter((i) => i.grounded), general: generalQuestions, also: care.items, checkFor }) : [];
+  const nextVisit = nextVisitTagged.map((q) => q.text);
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
@@ -1085,7 +1092,7 @@ export function CarePlanTool() {
   const onPhone = (t: Tab) => (t === shown ? "" : "max-md:hidden");
 
   return (
-    <UiLangProvider language={language}>
+    <UiLangProvider language={language} paperLang={paperLangCode(care?.source_text ?? text)}>
     <section id="try" lang={UI_LANG_CODE[language]} className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="try-title">
       <div className="section-card bg-mint-soft px-4 sm:px-10 py-20">
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -1263,7 +1270,7 @@ export function CarePlanTool() {
                     </>}
               </div>
             )}
-            <p className="mt-4 text-xs font-bold uppercase tracking-wide text-ink/70">{t("plan.suggestions")}</p>
+            <p className="mt-4 text-xs font-bold uppercase tracking-wide text-ink/70">{ts("plan.suggestions")}</p>
             <p className="mt-1 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
             {/* On the first screen at every width: right under the summary, before the actions and the three calls. */}
             {plan.ask_a_person && (
@@ -1315,7 +1322,7 @@ export function CarePlanTool() {
             {nextVisit.length > 0 && (
               <div className="mt-6 rounded-2xl border-2 border-ink/70 bg-paper p-5">
                 <p className="display text-2xl">{t("plan.nextVisitQuestions")}</p>
-                <ul className="mt-2 list-disc pl-5 space-y-1">{nextVisit.map((q, i) => <li key={i}>{q}</li>)}</ul>
+                <ul className="mt-2 list-disc pl-5 space-y-1">{nextVisitTagged.map((q, i) => <li key={i} lang={q.english ? "en" : undefined}>{q.text}</li>)}</ul>
               </div>
             )}
             {care && !planOutdated && <SessionSummary key={helperSessionKey(store.active, plan.summary)} barriers={barriers} items={items} done={done} plan={plan} questions={nextVisit} language={language} readingLevel={readLevel ?? level} />}

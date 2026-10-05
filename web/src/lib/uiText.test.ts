@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LANGUAGES } from "./schema";
-import { labReason, pluralCategory, ui, uiCount, UI_PLURAL, UI_REGISTER, UI_REVIEWED, UI_TEXT, type Lang } from "./uiText";
+import { englishBeside, labReason, pluralCategory, ui, uiCount, UI_PLURAL, UI_REGISTER, UI_REVIEWED, UI_SAFETY_KEYS, UI_SAFETY_REVIEWED, UI_TEXT, type Lang, type UiKey } from "./uiText";
 
 const OTHERS = LANGUAGES.filter((l) => l !== "English");
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
@@ -157,5 +157,32 @@ describe("lab reasons (our code's words, lib/results.ts) in the person's languag
     }
     expect(labReason("Chinese", "A reason we have never seen.")).toBe("A reason we have never seen.");
     expect(labReason("English", "Your report marks this line as high.")).toBe("Your report marks this line as high.");
+  });
+});
+
+describe("safety lines keep their English beside them until reviewed (Codex review of PR 93)", () => {
+  // Lines whose English mentions these words but tells nobody what to do about health: the read-aloud Stop button,
+  // a bus stop, a section heading or count, the "Ask your pharmacist" button label, lab intro and range wording.
+  const NOT_DIRECTIVE = new Set<string>([
+    "steps.stop", "dock.stop.short", "dock.stop.long", "prep.stopReading", "plan.busStop", "ask.pharmacist", "ask.showPharmacist",
+    "labs.intro1", "labs.intro2", "labs.rangesDiffer", "labs.noneChecked", "labs.partlyChecked", "labs.allClear", "labs.inRangeTitle",
+    "labs.range", "labs.chip.inside", "labs.askIntro", "prep.kind.food_drink", "prep.kind.call",
+    // Fragments of the dose line: MedicineChanges and the handoff sheet put the whole English sentence beside it.
+    "med.doseWas", "med.sheetDoseWas",
+  ]);
+  const DIRECTIVE = /911|emergenc|warning|\bstop\b|\bdose\b|follow (your|my|the) paper|critical|\bhigh\b|\blow\b|right away|don.t miss/i;
+
+  it("every line that sounds like a directive is on the safety list, or named here as not one", () => {
+    const missing = (Object.keys(UI_TEXT) as UiKey[]).filter((k) => DIRECTIVE.test(UI_TEXT[k].English) && !UI_SAFETY_KEYS.has(k) && !NOT_DIRECTIVE.has(k) && !k.startsWith("labs.reason."));
+    expect(missing).toEqual([]);
+  });
+
+  it("no safety line is marked reviewed yet, so every one shows its English in every other language", () => {
+    for (const l of LANGUAGES) expect(UI_SAFETY_REVIEWED[l].size, l).toBe(0);
+    for (const k of UI_SAFETY_KEYS) {
+      expect(englishBeside("English", k)).toBeNull();
+      for (const l of LANGUAGES.filter((x) => x !== "English")) expect(englishBeside(l, k), `${k} ${l}`).toBe(UI_TEXT[k].English.replace(/\{n\}/, "{n}"));
+    }
+    expect(englishBeside("Spanish", "steps.title")).toBeNull(); // not a safety line
   });
 });

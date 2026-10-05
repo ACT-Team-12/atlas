@@ -1,15 +1,15 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { VerifiedItem } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { careStepView, checkOf, paperFirstLines } from "@/lib/paperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
 import type { ShareMeaning } from "@/lib/shareText";
-import { visitQuestions } from "@/lib/visitQuestions";
-import { keyFor, LANGUAGE_NAME, uiLang } from "@/lib/uiText";
-import { useUi } from "./UiLang";
+import { visitQuestionsTagged } from "@/lib/visitQuestions";
+import { keyFor, LANGUAGE_NAME, ui, uiLang } from "@/lib/uiText";
+import { EnglishBeside, useUi, PaperWords } from "./UiLang";
 import { medicineChanges } from "@/lib/medicineChanges";
 
 const noop = () => () => {};
@@ -43,13 +43,13 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
   const resources = plan ? Object.values(plan.resources) : [];
   const used = new Set(plan?.steps.flatMap((s) => s.resource_ids) ?? []);
   // Each step's own question only when certified; otherwise the paper's words (lib/visitQuestions.ts).
-  const nextVisit = visitQuestions({ items, general: questions, also: planItems, checkFor: (id) => checkOf(meaning?.status === "done" ? meaning.byId[id] : undefined) });
-  const { t, code } = useUi();
+  const nextVisit = visitQuestionsTagged({ items, general: questions, also: planItems, checkFor: (id) => checkOf(meaning?.status === "done" ? meaning.byId[id] : undefined) });
+  const { t, ts, code, lang } = useUi();
   const today = new Date().toLocaleDateString(code, { year: "numeric", month: "long", day: "numeric" });
   // The sheet's own words in the person's language. lib/paperFirst.ts writes the lines in English; only their labels
   // change here, never the paper's words between the quotes.
   const says = "Your paper says:";
-  const localLine = (l: string) => l.startsWith(says) ? `${t("pf.says.paper")}${l.slice(says.length)}`
+  const localLine = (l: string): ReactNode => l.startsWith(says) ? <>{t("pf.says.paper")}<PaperWords>{l.slice(says.length)}</PaperWords></>
     : l.startsWith("(The plain-words explanation is left out here because it was not") ? t("sheet.leftOutUnchecked")
     : l.startsWith("(The plain-words explanation is left out here because a second") ? t("sheet.leftOutFlagged") : l;
   const kindLabel = (k: string) => t(keyFor("sheet.kind", k, keyFor("kind", k, "kind.step")));
@@ -62,16 +62,16 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
       {meds.length > 0 && (
         <>
           <h2>{t("med.sheetTitle")}</h2>
-          <p className="meta">{t("med.sheetNote")}</p>
+          <p className="meta">{ts("med.sheetNote")}</p>
           <ul className="meds" data-sheet-meds="">
             {meds.map(({ row, list }) => (
               <li key={row} data-med-row={row}>
-                <b>{t(keyFor("med.row", row, "med.row.ask"))}</b>
+                <b>{ts(keyFor("med.row", row, "med.row.ask"))}</b>
                 {list.map((c) => (
                   <div key={c.id}>
                     {c.name && <p><b>{c.name}</b></p>}
-                    {c.dose && <p>{t("med.sheetDoseWas")} <del>{c.dose.was}</del>, {t("med.doseNow")} <b>{c.dose.now}</b></p>}
-                    <p className="quote" data-paper-quote="">{t("pf.says.paper")} &ldquo;{c.quote}&rdquo;</p>
+                    {c.dose && <p>{t("med.sheetDoseWas")} <del>{c.dose.was}</del>, {t("med.doseNow")} <b>{c.dose.now}</b>{lang !== "English" && <EnglishBeside en={`${ui("English", "med.sheetDoseWas")} ${c.dose.was}, ${ui("English", "med.doseNow")} ${c.dose.now}`} />}</p>}
+                    <p className="quote" data-paper-quote="">{t("pf.says.paper")} &ldquo;<PaperWords>{c.quote}</PaperWords>&rdquo;</p>
                   </div>
                 ))}
               </li>
@@ -101,19 +101,19 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
         <>
           <h2>{t("sheet.alsoOnPaper")}</h2>
           <p className="meta">{t("sheet.alsoNote")}</p>
-          <ul>{alsoOnPaper.map((t, n) => <li key={n}>&ldquo;{t}&rdquo;</li>)}</ul>
+          <ul>{alsoOnPaper.map((t, n) => <li key={n}>&ldquo;<PaperWords>{t}</PaperWords>&rdquo;</li>)}</ul>
         </>
       )}
 
       {plan && plan.steps.length > 0 && (
         <>
-          <h2>{t("sheet.myPlan")}</h2>
+          <h2>{ts("sheet.myPlan")}</h2>
           <p>{plan.summary}</p>
           <ol className="plan">
             {plan.steps.map((s, n) => (
               <li key={n}>
                 <b>{s.title}.</b> {s.action}
-                {planStepQuotes(s, planItems ?? items).map((q, k) => <p key={k} className="quote" data-paper-quote="">{t("pf.says.paper")} &ldquo;{q}&rdquo;</p>)}
+                {planStepQuotes(s, planItems ?? items).map((q, k) => <p key={k} className="quote" data-paper-quote="">{t("pf.says.paper")} &ldquo;<PaperWords>{q}</PaperWords>&rdquo;</p>)}
               </li>
             ))}
           </ol>
@@ -122,7 +122,7 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
 
       {resources.some((r) => used.has(r.id)) && (
         <>
-          <h2>{t("prov.helpHeadingSheet")}</h2>
+          <h2>{ts("prov.helpHeadingSheet")}</h2>
           <ul className="help">
             {resources.filter((r) => used.has(r.id)).map((r) =>
               r.type === "clinic"
@@ -136,14 +136,14 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
       {nextVisit.length > 0 && (
         <>
           <h2>{t("sheet.questions")}</h2>
-          <ul>{nextVisit.map((q, n) => <li key={n}>{q}</li>)}</ul>
+          <ul>{nextVisit.map((q, n) => <li key={n} lang={q.english ? "en" : undefined}>{q.text}</li>)}</ul>
         </>
       )}
 
       <h2>{t("sheet.notes")}</h2>
       <div className="lines"><span /><span /><span /></div>
 
-      <p className="foot">{t("sheet.foot")}</p>
+      <p className="foot">{ts("sheet.foot")}</p>
     </div>
   );
 }

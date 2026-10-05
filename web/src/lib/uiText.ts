@@ -643,6 +643,36 @@ export const UI_TEXT = {
 
 export type UiKey = keyof typeof UI_TEXT;
 
+/**
+ * Lines that tell someone what to do about a warning, a medicine, a result or who said what (911, Stop, a dose, High,
+ * "follow your paper"). Every non-English entry above is a machine draft, so until a qualified native speaker has
+ * reviewed a line, the English is shown right beside it, marked lang="en", for the person and any bilingual helper
+ * (Codex review of PR 93). Add a key here whenever its English is a safety directive; a test checks the obvious ones.
+ */
+export const UI_SAFETY_KEYS: ReadonlySet<UiKey> = new Set<UiKey>([
+  "kind.warning_sign", "when.today", "seal.recheck", "seal.recheck.text", "pf.note.flagged",
+  "steps.warnTitle", "steps.warnBody",
+  "plan.suggestions", "sheet.myPlan", "sheet.foot", "prov.placesNote", "prov.helpHeadingSheet",
+  "med.note", "med.sheetNote", "med.row.stop", "med.row.change", "med.row.start", "med.row.keep", "med.row.ask", "med.askNote",
+  "labs.critTop", "labs.critOne", "labs.critRow", "labs.outTitle", "labs.chip.high", "labs.chip.low",
+  "prep.paperCounts", "prep.dontMiss", "prep.sheetFoot", "prep.explain.negation",
+]);
+
+/**
+ * Per language, the safety lines a qualified native speaker has checked line by line. A line listed here shows alone;
+ * every other safety line keeps its English beside it. None yet: Vietnamese had a tone-only check (UI_REVIEWED).
+ */
+export const UI_SAFETY_REVIEWED: Record<Lang, ReadonlySet<UiKey>> = {
+  English: new Set(), Spanish: new Set(), Vietnamese: new Set(), Korean: new Set(), Chinese: new Set(), Amharic: new Set(), French: new Set(),
+};
+
+/** The English to show beside a safety line in this language, or null when none is needed. */
+export function englishBeside(language: string, key: UiKey, vars?: Vars): string | null {
+  const lang = uiLang(language);
+  if (lang === "English" || !UI_SAFETY_KEYS.has(key) || UI_SAFETY_REVIEWED[lang].has(key)) return null;
+  return ui("English", key, vars);
+}
+
 type Forms = Partial<Record<Intl.LDMLPluralRule, string>> & { other: string };
 
 /**

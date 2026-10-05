@@ -5,7 +5,7 @@ import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { CheckedQuestion, UnderstandResponse } from "@/lib/understand";
 import { suggestOption } from "@/lib/answerMatch";
 import { SayAnswer } from "./SayAnswer";
-import { useUi } from "./UiLang";
+import { useUi, PaperWords } from "./UiLang";
 
 type Props = { care: CarePlanResponse; items: VerifiedItem[]; language: string };
 
@@ -155,7 +155,7 @@ export function Understand({ care, items, language }: Props) {
             {picked.length > 0 && (
               <div className={`mt-3 rounded-xl p-3 ${solved ? "bg-mint-soft" : "bg-peach"}`}>
                 <p className="font-bold">{solved ? t(picked.length === 1 ? "quiz.rightFirst" : "quiz.rightLater") : t("quiz.notQuite")}</p>
-                <p className="mt-1 border-l-4 border-sun pl-2 text-sm italic">&ldquo;{proof(q)}&rdquo;</p>
+                <p className="mt-1 border-l-4 border-sun pl-2 text-sm italic">&ldquo;<PaperWords>{proof(q)}</PaperWords>&rdquo;</p>
               </div>
             )}
             {solved && (
@@ -172,7 +172,7 @@ export function Understand({ care, items, language }: Props) {
             {lookAgain.length > 0 ? (
               <div className="mt-1 font-semibold">
                 <p>{t("quiz.lookAgain")}</p>
-                <ul className="mt-1 list-disc pl-5 text-sm">{lookAgain.map((x) => <li key={x.item_id} data-paper-quote="">{t("pf.says.paper")} &ldquo;{quoteOf(x.item_id)}&rdquo;</li>)}</ul>
+                <ul className="mt-1 list-disc pl-5 text-sm">{lookAgain.map((x) => <li key={x.item_id} data-paper-quote="">{t("pf.says.paper")} &ldquo;<PaperWords>{quoteOf(x.item_id)}</PaperWords>&rdquo;</li>)}</ul>
               </div>
             ) : (
               <p className="mt-1 font-semibold">{t("quiz.allRight")}</p>

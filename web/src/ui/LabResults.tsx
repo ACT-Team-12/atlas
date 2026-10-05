@@ -7,8 +7,8 @@ import { isCritical, labChip, labClosedRow, labGroups, labQuestions, labQuestion
 import { LANGUAGES } from "@/lib/schema";
 import type { ResultRow, ResultsResponse } from "@/lib/results";
 import { SAMPLE_LABS, SAMPLE_LABS_LABEL } from "@/lib/sampleLabs";
-import { keyFor, labReason, LANGUAGE_NAME, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
-import { UiLangProvider, useUi } from "./UiLang";
+import { keyFor, labReason, LANGUAGE_NAME, ui, uiCount, uiLang, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
+import { EnglishBeside, paperLangCode, UiLangProvider, useUi, PaperWords } from "./UiLang";
 
 type T = (key: UiKey, vars?: Record<string, string | number>) => string;
 type TN = (key: UiPluralKey, n: number, vars?: Record<string, string | number>) => string;
@@ -77,7 +77,7 @@ export function LabResults() {
   }
 
   return (
-    <UiLangProvider language={language}>
+    <UiLangProvider language={language} paperLang={paperLangCode(text)}>
     <section id="labs" lang={UI_LANG_CODE[language]} className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="labs-title">
       <div className="section-card bg-peach px-4 sm:px-10 py-16">
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -206,13 +206,13 @@ export function LabRows({ rows }: { rows: ResultRow[] }) {
   const foldId = useId();
   const { flagged, unsure, inRange } = labGroups(rows);
   const questions = labQuestions(rows);
-  const { t, tn } = useUi();
+  const { t, ts, tn } = useUi();
   return (
     <div className="mt-4 grid gap-5 lg:grid-cols-[1.15fr_1fr]" data-lab-rows="">
       <div className="min-w-0 space-y-5">
         {flagged.length > 0 && (
           <section aria-labelledby="labs-out-title" data-lab-group="outside">
-            <h3 id="labs-out-title" className="display text-xl">{t("labs.outTitle", { n: flagged.length })}</h3>
+            <h3 id="labs-out-title" className="display text-xl">{ts("labs.outTitle", { n: flagged.length })}</h3>
             <p className="text-xs font-semibold text-ink/70">{t("labs.outHint")}</p>
             <ul className="mt-2 space-y-2">{flagged.map((r, i) => <LabRow key={`o${i}`} r={r} />)}</ul>
           </section>
@@ -252,7 +252,7 @@ function LabRow({ r }: { r: ResultRow }) {
   // A line the report marks critical opens by itself and stays loud.
   const [open, setOpen] = useState(closed.critical);
   const outside = r.status === "outside";
-  const { t, lang } = useUi();
+  const { t, ts, lang } = useUi();
   return (
     <li data-lab-row={r.status} data-critical={closed.critical || undefined} data-open={open || undefined}
       className={`rounded-2xl border-2 ${closed.critical ? "border-red bg-red-soft" : outside ? "border-red/70 bg-paper" : open ? "border-ink bg-paper" : "border-ink/20 bg-paper"}`}>
@@ -264,15 +264,15 @@ function LabRow({ r }: { r: ResultRow }) {
             <span data-report-value="">{closed.value}{closed.unit ? ` ${closed.unit}` : ""}</span>
             {closed.range && <span className="text-xs text-ink/70">{t("labs.range")} <span data-report-range="">{closed.range}</span></span>}
           </span>
-          {closed.critical && <span className="mt-1 block text-xs font-extrabold text-red" data-critical-note="">{t("labs.critRow")}</span>}
+          {closed.critical && <span className="mt-1 block text-xs font-extrabold text-red" data-critical-note="">{ts("labs.critRow")}</span>}
         </span>
-        <span className={`chip ${CHIP_LOOK[chip.tone]}`} data-chip={chip.tone}>{t(keyFor("labs.chip", chip.tone, "labs.chip.unknown"))}</span>
+        <span className={`chip ${CHIP_LOOK[chip.tone]}`} data-chip={chip.tone}>{ts(keyFor("labs.chip", chip.tone, "labs.chip.unknown"))}</span>
         <span aria-hidden="true" className="font-extrabold text-ink/70 transition-transform group-aria-expanded:rotate-90">›</span>
       </button>
       <div id={panelId} hidden={!open} className="space-y-2 px-3 pb-3" data-lab-panel="">
         {/* Our code's reason, then paper first (lib/paperFirst.ts): the report's own line leads, and the AI's plain name
             for the test follows it, marked as not double-checked. The question comes after the line too. */}
-        <p className="text-sm font-semibold">{labReason(lang, r.reason)}</p>
+        <p className="text-sm font-semibold">{labReason(lang, r.reason)}{uiLang(lang) !== "English" && <EnglishBeside en={r.reason} />}</p>
         <div className="font-mono text-sm"><PaperFirst v={labRowView(r)} /></div>
         {r.ask.trim() && <p className="text-sm" data-lab-ask=""><span className="font-bold">{t("labs.askClinic")}</span> {r.ask}</p>}
       </div>
@@ -297,7 +297,7 @@ function LabAskClinic({ questions }: { questions: LabQuestion[] }) {
       <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm">
         {questions.map((q, i) => (
           <li key={i}>
-            <span className="block text-xs font-semibold text-ink/70 [overflow-wrap:anywhere]" data-paper-quote="">{t("pf.says.report")} &ldquo;{q.line}&rdquo;</span>
+            <span className="block text-xs font-semibold text-ink/70 [overflow-wrap:anywhere]" data-paper-quote="">{t("pf.says.report")} &ldquo;<PaperWords>{q.line}</PaperWords>&rdquo;</span>
             <span data-lab-ask="">{q.ask}</span>
           </li>
         ))}

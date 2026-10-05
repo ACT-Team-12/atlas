@@ -63,4 +63,5 @@ jobs:
               assert r and r[1] == r[2] and int(r[2]) >= least, f"the {label} vector replay did not report"
           replay("WalkThroughTest", "walk", 600)
           replay("AskPaperTest", "ask", 90)
+          replay("MedicineChangesTest", "medicine", 60)
           PY

@@ -28,6 +28,13 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -61,6 +68,12 @@ import com.stephensookra.atlas.services.Speaker
 import java.util.Locale
 import kotlinx.coroutines.delay
 
+/** Where "Go to this step" lands: the card's scroll position and its focus. */
+class GoTarget {
+    val view = BringIntoViewRequester()
+    val focus = FocusRequester()
+}
+
 /** What a "Remind me" button is about. */
 data class ReminderTarget(val title: String, val quote: String, val detail: String = "")
 
@@ -79,6 +92,9 @@ fun CareStepsScreen(model: AppModel) {
         if (cheering != null) { delay(Pip.CHEER_MILLIS); cheering = null }
     }
     var pipSaid by remember { mutableStateOf("") }
+    // "Go to this step" (the medicine card): each step card can be brought into view and focused.
+    val goTargets = remember(model.readingCount) { mutableMapOf<String, GoTarget>() }
+    val scope = rememberCoroutineScope()
     // "Walk me through it" (WalkThroughScreen): open while set, in place of the list. Its order is fixed when it starts.
     var walk by remember(model.readingCount) { mutableStateOf<WalkState?>(null) }
     val care = model.care
@@ -161,6 +177,8 @@ fun CareStepsScreen(model: AppModel) {
         // `warning`: a pinned warning sign, which has no Pip slot at all (Pip is never on or beside them).
         val card: @Composable (VerifiedItem, Boolean) -> Unit = { item, warning -> key(model.readingCount, item.id) {
             val check = model.checkFor(item.id)
+            val target = goTargets.getOrPut(item.id) { GoTarget() }
+            Box(Modifier.bringIntoViewRequester(target.view).focusRequester(target.focus).focusable()) {
             val here = drawn.card?.takeIf { it.id == item.id }
             CareItemCard(
                 item = item,
@@ -175,6 +193,7 @@ fun CareStepsScreen(model: AppModel) {
                 onRemove = { model.remove(item.id) },
                 pipSlot = !warning, pip = here, pipText = if (here?.line != null) pipText else "", calm = calm,
             )
+            }
         } }
         if (warnings.isNotEmpty()) {
             StepGroupHeader("Warning signs from your paper", warnings.size,
@@ -190,6 +209,15 @@ fun CareStepsScreen(model: AppModel) {
                     PipSlot { drawn.heading?.let { mood -> key(model.readingCount, Pip.announceKey(spot)) { PipMarker(mood, calm) } } }
                 }
                 if (drawn.heading != null && pipText.isNotEmpty()) PipBubble(pipText, pointDown = spot is Pip.Spot.Greet)
+            }
+        }
+        // Above the time groups, not inside "Right away": a change or a new medicine is often daily, and the card must not
+        // file it under a time the paper does not give it.
+        MedicineChangesCard(model.items, care.source_text) { id ->
+            val target = goTargets[id] ?: return@MedicineChangesCard
+            scope.launch {
+                target.view.bringIntoView()
+                runCatching { target.focus.requestFocus() }
             }
         }
         groups.forEach { g ->

@@ -43,11 +43,15 @@ function oneOf<T extends string>(allowed: readonly T[], v: unknown, fallback: T)
 
 /** Only the fields we mean to keep. Anything else (a location above all) is dropped. */
 export function pickSession(s: Session): Session {
+  const language = oneOf(LANGUAGES, s.language, "English");
+  const level = oneOf(READING_LEVELS, s.level, "simple");
+  // A replaced language or level means the saved results were made under other settings: never certify them as current.
+  const replaced = language !== s.language || level !== s.level;
   return {
-    text: s.text ?? "", language: oneOf(LANGUAGES, s.language, "English"), level: oneOf(READING_LEVELS, s.level, "simple"), care: s.care ?? null,
+    text: s.text ?? "", language, level, care: s.care ?? null,
     barriers: Array.isArray(s.barriers) ? s.barriers : [], zip: typeof s.zip === "string" ? s.zip : "", note: s.note ?? "",
     plan: s.plan ?? null, done: s.done ?? {}, removed: s.removed ?? {}, photoChecked: s.photoChecked ?? false,
-    matched: s.matched === true,
+    matched: s.matched === true && !replaced,
   };
 }
 

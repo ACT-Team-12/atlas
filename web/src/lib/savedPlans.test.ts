@@ -44,6 +44,12 @@ describe("pickSession", () => {
     expect(pickSession({ ...session(), language: "Amharic", level: "detailed" }).language).toBe("Amharic");
     expect(pickSession({ ...session(), language: "Amharic", level: "detailed" }).level).toBe("detailed");
   });
+
+  it("a replaced language or level un-certifies the saved results, so they show as out of date (Codex round 2)", () => {
+    expect(pickSession({ ...session(), level: "expert", matched: true } as unknown as Session).matched).toBe(false);
+    expect(pickSession({ ...session(), language: "Klingon", matched: true } as unknown as Session).matched).toBe(false);
+    expect(pickSession({ ...session(), language: "Spanish", level: "standard", matched: true }).matched).toBe(true);
+  });
 });
 
 describe("pickSession matched", () => {

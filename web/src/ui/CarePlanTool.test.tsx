@@ -834,6 +834,13 @@ describe("a plan saved before results were checked against answers", () => {
     expect(byText("Read it out loud").disabled).toBe(false);
   });
 
+  it("a saved level that is no longer a choice: no crash, defaults shown, plan outdated with actions off", () => {
+    reopenWith({ matched: true, level: "expert" });
+    expect(screenText()).toContain("Read your paper again first");
+    for (const t of ["Read it out loud", "Print for the next visit", "Print a handoff sheet", "Send to family"]) expect(byText(t).disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>('input[name="read-in-level"]:checked')!.value).toBe("simple");
+  });
+
   it("a plan saved with internal ids in its text comes back without them (the live 2026-10-03 sentence)", () => {
     localStorage.setItem("atlas-plans-v2", JSON.stringify({ v: 2, active: "p1", plans: [{
       id: "p1", name: "My plan", createdAt: "2026-10-01T10:00:00.000Z", savedAt: "2026-10-01T10:00:00.000Z",

@@ -26,6 +26,9 @@ final class AppModel {
     var note = "" { didSet { persist(); stopStaleWork() } }
     /// Device location for the plan request only. Never saved.
     var location: LatLng? { didSet { stopStaleWork() } }
+    /// A device location lookup is running (planPlace's "locating" on the website): the place is changing, so a plan sent
+    /// before it is stopped, and no plan starts until the lookup ends. Never saved.
+    var locating = false { didSet { stopStaleWork() } }
 
     // Results. A read, a plan, or a step done, removed or restored moves the saved time "Welcome back" shows.
     var care: CarePlanResponse? { didSet { persist(planChanged: true) } }
@@ -133,7 +136,7 @@ final class AppModel {
         Dictionary((care?.items ?? []).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
     }
     var canRead: Bool { text.trimmingCharacters(in: .whitespacesAndNewlines).count > 20 && busy == nil }
-    var canPlan: Bool { busy == nil && !(barriers.isEmpty && items.isEmpty) && !careOutdated }
+    var canPlan: Bool { busy == nil && !locating && !(barriers.isEmpty && items.isEmpty) && !careOutdated }
 
     func check(for id: String) -> Check { meaning.check(for: id) }
 
@@ -173,7 +176,7 @@ final class AppModel {
 
     private func currentPlanFingerprint() -> String {
         StaleGuard.planFingerprint(careIds: items.map(\.id), barriers: barriers, language: language, note: note,
-                                   place: StaleGuard.place(location: location, zip: zip), location: location)
+                                   place: locating ? "locating" : StaleGuard.place(location: location, zip: zip), location: location)
     }
 
     // MARK: Helper links

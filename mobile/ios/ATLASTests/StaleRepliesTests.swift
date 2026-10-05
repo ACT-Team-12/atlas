@@ -32,7 +32,7 @@ extension SessionFixesTests {
         #expect(model.readyCue == nil && model.error == nil)
     }
 
-    @Test(arguments: ["barriers", "zip", "note", "removed"])
+    @Test(arguments: ["barriers", "zip", "note", "removed", "locating"])
     func aPlanWhoseInputsChangeAppliesNothing(change: String) async throws {
         let model = AppModel(api: try Self.stubbedAPI(delay: 0.4), store: try Self.currentStore(withPlan: true))
         let plan = model.plan, care = model.care
@@ -45,6 +45,7 @@ extension SessionFixesTests {
         case "barriers": model.toggle(.food)
         case "zip": model.zip = "30310"
         case "note": model.note = "I work nights"
+        case "locating": model.locating = true // "Use my location" started; the new place is not known yet
         default: model.removed[try #require(care?.items.first?.id)] = true
         }
         #expect(model.busy == nil, "the plan stops as soon as an input changes")
@@ -63,5 +64,19 @@ extension SessionFixesTests {
         for _ in 0..<400 where model.busy != nil { try await Task.sleep(for: .milliseconds(25)) }
         #expect(model.notice == nil && model.readingCount == 1, "the read landed")
         #expect(model.readyCue == .steps, "and, looked around, it raised the cue")
+    }
+}
+
+extension SessionFixesTests {
+    @Test func noPlanStartsWhileTheLocationIsBeingFound() throws {
+        let model = AppModel(api: try Self.stubbedAPI(), store: try Self.currentStore())
+        model.barriers = [.cost]
+        #expect(model.canPlan)
+        model.locating = true
+        #expect(!model.canPlan)
+        model.makePlan()
+        #expect(model.busy == nil)
+        model.locating = false
+        #expect(model.canPlan)
     }
 }

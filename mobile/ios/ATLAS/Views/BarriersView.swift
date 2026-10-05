@@ -3,7 +3,6 @@ import SwiftUI
 struct BarriersView: View {
     @Environment(AppModel.self) private var model
     @State private var locator = LocationProvider()
-    @State private var locating = false
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -44,7 +43,7 @@ struct BarriersView: View {
                     .accessibilityLabel("Your ZIP code")
 
                     Button { useMyLocation() } label: {
-                        if locating {
+                        if model.locating {
                             Label("Finding you...", systemImage: "location")
                         } else if model.location != nil {
                             Label("Using your location (not saved)", systemImage: "checkmark.circle.fill")
@@ -54,7 +53,7 @@ struct BarriersView: View {
                     }
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(Palette.tealDeep)
-                    .disabled(locating)
+                    .disabled(model.locating)
                 }
 
                 Card {
@@ -90,9 +89,10 @@ struct BarriersView: View {
     }
 
     private func useMyLocation() {
-        locating = true
+        // Held by the model, so a plan already running is stopped when the place starts to change (as on the website).
+        model.locating = true
         Task {
-            defer { locating = false }
+            defer { model.locating = false }
             do {
                 let c = try await locator.currentLocation()
                 let point = LatLng(lat: c.latitude, lng: c.longitude)

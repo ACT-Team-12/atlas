@@ -15,21 +15,23 @@ enum TextSource: String, Codable, Sendable {
 @Observable
 final class AppModel {
     // Inputs
-    var text = "" { didSet { persist() } }
+    // Every input a read or a plan is built from also stops that read or plan when it changes while it runs
+    // (stopStaleWork), as the website does: its reply would no longer match what is on screen.
+    var text = "" { didSet { persist(); stopStaleWork() } }
     var textSource: TextSource = .typed
-    var language: Language = .English { didSet { persist() } }
-    var level: ReadingLevel = .simple { didSet { persist() } }
-    var barriers: [Barrier] = [] { didSet { persist() } }
-    var zip = "" { didSet { persist() } }
-    var note = "" { didSet { persist() } }
+    var language: Language = .English { didSet { persist(); stopStaleWork() } }
+    var level: ReadingLevel = .simple { didSet { persist(); stopStaleWork() } }
+    var barriers: [Barrier] = [] { didSet { persist(); stopStaleWork() } }
+    var zip = "" { didSet { persist(); stopStaleWork() } }
+    var note = "" { didSet { persist(); stopStaleWork() } }
     /// Device location for the plan request only. Never saved.
-    var location: LatLng?
+    var location: LatLng? { didSet { stopStaleWork() } }
 
     // Results. A read, a plan, or a step done, removed or restored moves the saved time "Welcome back" shows.
     var care: CarePlanResponse? { didSet { persist(planChanged: true) } }
     var plan: PlanResponse? { didSet { persist(planChanged: true) } }
     var done: [String: Bool] = [:] { didSet { persist(planChanged: true) } }
-    var removed: [String: Bool] = [:] { didSet { persist(planChanged: true) } }
+    var removed: [String: Bool] = [:] { didSet { persist(planChanged: true); stopStaleWork() } }
     var restoredAt: Date?
     /// The second-model double-check of `care` (paper first: only a certified explanation may lead).
     private(set) var meaning: MeaningState = .idle { didSet { persist() } }
@@ -55,6 +57,30 @@ final class AppModel {
     var path: [Route] = []
     var busy: Busy?
     var error: String?
+    /// Why a read or plan was stopped because its inputs changed while it ran (readNote / planNote on the website).
+    var notice: String?
+    /// The inputs the read or plan now running was sent with (StaleGuard fingerprints). Its reply is applied only while
+    /// the inputs on screen still give the same fingerprint.
+    @ObservationIgnored private var inFlightReadFingerprint: String?
+    @ObservationIgnored private var inFlightPlanFingerprint: String?
+
+    /// The words the website shows when it stops a read or plan whose inputs changed (stopStaleRead, stopStalePlan).
+    static let readStopped = "You changed your paper or settings, so we stopped reading. Press Read my paper again when ready."
+    static let planStopped = "You changed your answers, so we stopped building the plan. Press Make my plan again when ready."
+
+    /// A read or plan in flight whose inputs changed is stopped and its late reply ignored, with a short note why.
+    private func stopStaleWork() {
+        guard !restoring else { return }
+        if busy == .reading, let sent = inFlightReadFingerprint,
+           sent != StaleGuard.readFingerprint(text: text, language: language, level: level) {
+            cancel()
+            notice = Self.readStopped
+        } else if busy == .planning, let sent = inFlightPlanFingerprint, sent != currentPlanFingerprint() {
+            cancel()
+            notice = Self.planStopped
+        }
+    }
+
     /// The person chose to look around while a read or plan runs (the busy card is put away). When the result lands they
     /// are not moved; the ready cue offers the way there instead. Not saved.
     var lookingAround = false
@@ -222,13 +248,22 @@ final class AppModel {
         cancel()
         readyMark = nil
         error = nil
+        notice = nil
         busy = .reading
         let text = self.text, level = self.level, language = self.language
+        let sentFingerprint = StaleGuard.readFingerprint(text: text, language: language, level: level)
+        inFlightReadFingerprint = sentFingerprint
         let run = taskID
         task = Task {
             do {
                 var result = try await api.extract(text: text, level: level, language: language)
                 guard run == taskID else { return }
+                // Changed after sending: the reply is for inputs no longer on screen, so nothing of it is applied.
+                guard sentFingerprint == StaleGuard.readFingerprint(text: self.text, language: self.language, level: self.level) else {
+                    cancel()
+                    notice = Self.readStopped
+                    return
+                }
                 // An older server leaves out the language; the steps were still written in the one asked for.
                 if result.language == nil { result.language = language }
                 readFingerprint = StaleGuard.readFingerprint(text: text, language: language, level: level)
@@ -256,9 +291,11 @@ final class AppModel {
         cancel()
         readyMark = nil
         error = nil
+        notice = nil
         busy = .planning
         let validZip = zip.range(of: #"^\d{5}$"#, options: .regularExpression) != nil
         let fingerprint = currentPlanFingerprint()
+        inFlightPlanFingerprint = fingerprint
         let viaHelper = fromHelperLink
         let request = PlanRequest(
             care: items.map(PlanCareInput.init),
@@ -273,6 +310,12 @@ final class AppModel {
             do {
                 let result = try await api.plan(request, fromHelperLink: viaHelper)
                 guard run == taskID else { return }
+                // Changed after sending: the reply is for inputs no longer on screen, so nothing of it is applied.
+                guard fingerprint == currentPlanFingerprint() else {
+                    cancel()
+                    notice = Self.planStopped
+                    return
+                }
                 planFingerprint = fingerprint
                 plan = result
                 planCount += 1
@@ -331,6 +374,8 @@ final class AppModel {
         task = nil
         busy = nil
         lookingAround = false
+        inFlightReadFingerprint = nil
+        inFlightPlanFingerprint = nil
     }
 
     /// A read or plan landed. If the person stayed with it, take them there, as before. If they chose to look around,

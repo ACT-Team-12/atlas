@@ -49,6 +49,12 @@ struct RootView: View {
         } message: {
             Text(model.error ?? "")
         }
+        // A read or plan stopped because its inputs changed while it ran (the website's read and plan notes).
+        .alert("Stopped", isPresented: Binding(get: { model.notice != nil && model.error == nil }, set: { if !$0 { model.notice = nil } })) {
+            Button("OK", role: .cancel) { model.notice = nil }
+        } message: {
+            Text(model.notice ?? "")
+        }
     }
 }
 

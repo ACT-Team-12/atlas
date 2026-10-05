@@ -143,6 +143,8 @@ describe("the steps and plan screens show no English of their own in another lan
       const left = englishPieces(PAGE).filter((p) => text.includes(p) && !aiWords.includes(p) && !Object.values(UI_TEXT).some((row) => (row as Record<Lang, string>)[lang].includes(p)));
       expect(left).toEqual([]);
       // And the lines are really there in this language: headings, chips, seals, warning box, plan, dock.
+      // Where the plan was made for: the server's label is English, the screen shows this language's line (round 6).
+      expect(text).toContain(ui(lang, "plan.located.zip", { zip: "30340" }));
       for (const k of ["steps.title", "steps.warnTitle", "kind.medication", "when.today", "seal.twice", "pf.screen.paper", "plan.title", "dock.print.long", "sheet.title", "plan.needsPerson", "plan.call211"] as const) {
         expect(text, k).toContain(ui(lang, k));
       }

@@ -60,7 +60,7 @@ import { autosaveStore } from "@/lib/autosave";
 import { fetchMeaning, IDLE_MEANING, RunFence, runMeaningCheck, type MeaningState } from "@/lib/meaningRun";
 import { consumeHelperSession, entryHeaders } from "@/lib/helperLink";
 import { HelperBanner, useHelperArrival } from "./HelperArrival";
-import { keyFor, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
+import { keyFor, locatedLine, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
 import { paperLangCode, safeLine, UiLangProvider, useUi } from "./UiLang";
 
 /** Id for a saved plan. randomUUID needs a secure page; the fallback is fine for a local key. */
@@ -1283,7 +1283,7 @@ export function CarePlanTool() {
           <div {...panel(3)} ref={planCard} data-outdated={planOutdated || undefined} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 max-md:pb-36 scroll-mt-24 max-md:scroll-mt-44 ${planOutdated ? "plan-outdated" : ""} ${onPhone(3)}`}>
             {/* Printing from the browser menu while the plan is outdated prints only this, never the outdated plan. */}
             {planOutdated && <p className="outdated-print-note">{t("plan.outdatedPrint", { reason: actionsOffReason })}</p>}
-            <StepHeader n={3} id="plan-title" title={t("plan.title")} done note={plan.located.label} />
+            <StepHeader n={3} id="plan-title" title={t("plan.title")} done note={locatedLine(language, plan.located)} />
             {planOutdated && (
               <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-sun/30 p-3 text-sm font-bold">
                 {careOutdated

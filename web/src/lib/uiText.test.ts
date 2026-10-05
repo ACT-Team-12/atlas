@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LANGUAGES } from "./schema";
-import { englishBeside, labReason, pluralCategory, ui, uiCount, UI_PLURAL, UI_REGISTER, UI_REVIEWED, UI_SAFETY_KEYS, UI_SAFETY_REVIEWED, UI_TEXT, type Lang, type UiKey } from "./uiText";
+import { englishBeside, labReason, locatedLine, pluralCategory, ui, uiCount, UI_PLURAL, UI_REGISTER, UI_REVIEWED, UI_SAFETY_KEYS, UI_SAFETY_REVIEWED, UI_TEXT, type Lang, type UiKey } from "./uiText";
 
 const OTHERS = LANGUAGES.filter((l) => l !== "English");
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
@@ -195,5 +195,18 @@ describe("safety lines keep their English beside them until reviewed (Codex revi
       for (const l of LANGUAGES.filter((x) => x !== "English")) expect(englishBeside(l, k), `${k} ${l}`).toBe(UI_TEXT[k].English.replace(/\{n\}/, "{n}"));
     }
     expect(englishBeside("Spanish", "steps.title")).toBeNull(); // not a safety line
+  });
+});
+
+describe("where the plan was made for (Codex review of PR 93, round 6)", () => {
+  it("is in the person's language, keeping the ZIP, for every label the server writes", () => {
+    for (const l of LANGUAGES.filter((x) => x !== "English")) {
+      expect(locatedLine(l, { by: "device", label: "Near your current location" }), l).toBe(ui(l, "plan.located.device"));
+      expect(locatedLine(l, { by: "zip", label: "Near ZIP 30340" }), l).toBe(ui(l, "plan.located.zip", { zip: "30340" }));
+      expect(locatedLine(l, { by: "none", label: "ZIP 99999 is not in the Census ZIP list" }), l).toBe(ui(l, "plan.located.zipUnknown", { zip: "99999" }));
+      expect(locatedLine(l, { by: "none", label: "No location given" }), l).toBe(ui(l, "plan.located.none"));
+      expect(locatedLine(l, { by: "zip", label: "Near ZIP 30340" }), l).toContain("30340");
+    }
+    expect(locatedLine("English", { by: "zip", label: "Near ZIP 30340" })).toBe("Near ZIP 30340");
   });
 });

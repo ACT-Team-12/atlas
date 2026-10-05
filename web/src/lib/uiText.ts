@@ -659,6 +659,10 @@ export const UI_TEXT = {
   "session.title": { English: "For helpers: session summary (in English, for case notes)", Spanish: "Para quien ayuda: resumen de la sesión (en inglés, para las notas del caso)", Vietnamese: "Dành cho người hỗ trợ: tóm tắt buổi làm việc (bằng tiếng Anh, để ghi hồ sơ)", Korean: "도우미용: 상담 요약 (사례 기록용, 영어)", Chinese: "帮助者用：本次服务小结（英文，用于个案记录）", Amharic: "ለረዳቶች፦ የክፍለ ጊዜ ማጠቃለያ (በእንግሊዝኛ፣ ለጉዳይ ማስታወሻ)", French: "Pour les aidants : résumé de la séance (en anglais, pour les notes de dossier)" },
   "share.preview": { English: "What they will get (in English)", Spanish: "Lo que recibirán (en inglés)", Vietnamese: "Nội dung họ sẽ nhận (bằng tiếng Anh)", Korean: "받는 사람이 보게 될 내용 (영어)", Chinese: "对方会收到的内容（英文）", Amharic: "የሚደርሳቸው (በእንግሊዝኛ)", French: "Ce qu'ils recevront (en anglais)" },
   // ---- Codex review, round 4: a failed read or plan, in the person's language (the server's own words stay in the console) ----
+  "plan.located.device": { English: "Near your current location", Spanish: "Cerca de su ubicación actual", Vietnamese: "Gần vị trí hiện tại của quý vị", Korean: "현재 위치 근처", Chinese: "您当前位置附近", Amharic: "አሁን ባሉበት አካባቢ", French: "Près de votre position actuelle" },
+  "plan.located.zip": { English: "Near ZIP {zip}", Spanish: "Cerca del código postal {zip}", Vietnamese: "Gần mã ZIP {zip}", Korean: "ZIP {zip} 근처", Chinese: "邮编 {zip} 附近", Amharic: "በZIP {zip} አቅራቢያ", French: "Près du code postal {zip}" },
+  "plan.located.zipUnknown": { English: "ZIP {zip} is not in the Census ZIP list", Spanish: "El código postal {zip} no está en la lista de códigos postales del Censo", Vietnamese: "Mã ZIP {zip} không có trong danh sách ZIP của Cục Thống kê", Korean: "ZIP {zip}이(가) 인구조사 ZIP 목록에 없습니다", Chinese: "邮编 {zip} 不在人口普查邮编名单中", Amharic: "ZIP {zip} በሕዝብ ቆጠራ የZIP ዝርዝር ውስጥ የለም", French: "Le code postal {zip} ne figure pas dans la liste des codes postaux du recensement" },
+  "plan.located.none": { English: "No location given", Spanish: "No se dio una ubicación", Vietnamese: "Chưa cho biết vị trí", Korean: "위치를 알려 주지 않았습니다", Chinese: "未提供位置", Amharic: "ቦታ አልተሰጠም", French: "Aucun lieu indiqué" },
   "error.busy": { English: "Too many requests right now. Wait a few minutes and try again.", Spanish: "Demasiadas solicitudes por ahora. Espere unos minutos e inténtelo de nuevo.", Vietnamese: "Hiện có quá nhiều yêu cầu. Xin quý vị đợi vài phút rồi thử lại.", Korean: "지금은 요청이 너무 많습니다. 몇 분 뒤에 다시 시도하세요.", Chinese: "现在请求太多。请等几分钟再试。", Amharic: "አሁን በጣም ብዙ ጥያቄዎች አሉ። ጥቂት ደቂቃዎች ጠብቀው እንደገና ይሞክሩ።", French: "Trop de demandes en ce moment. Attendez quelques minutes et réessayez." },
   "error.unavailable": { English: "ATLAS can't do this right now. Try again later.", Spanish: "ATLAS no puede hacer esto ahora. Inténtelo más tarde.", Vietnamese: "Hiện ATLAS chưa làm được việc này. Xin quý vị thử lại sau.", Korean: "ATLAS가 지금은 이 작업을 할 수 없습니다. 나중에 다시 시도하세요.", Chinese: "ATLAS 现在无法完成这项操作。请稍后再试。", Amharic: "ATLAS አሁን ይህን ማድረግ አይችልም። ቆይተው እንደገና ይሞክሩ።", French: "ATLAS ne peut pas faire cela pour le moment. Réessayez plus tard." },
   "error.cantRead": { English: "We couldn't read that paper. Try a clearer photo, or paste the text.", Spanish: "No pudimos leer esa hoja. Pruebe con una foto más clara, o pegue el texto.", Vietnamese: "Chúng tôi không đọc được giấy tờ đó. Xin quý vị thử ảnh rõ hơn, hoặc dán chữ vào.", Korean: "그 안내문을 읽지 못했습니다. 더 선명한 사진을 쓰거나 글을 붙여 넣으세요.", Chinese: "我们读不出这份就诊单。请换一张更清楚的照片，或粘贴文字。", Amharic: "ያንን ሰነድ ማንበብ አልቻልንም። ይበልጥ ግልጽ የሆነ ፎቶ ይሞክሩ፣ ወይም ጽሑፉን ይለጥፉ።", French: "Nous n'avons pas pu lire ce document. Essayez une photo plus nette, ou collez le texte." },
@@ -973,4 +977,16 @@ export function labReason(language: string, reason: string): string {
 export function keyFor(prefix: string, id: string, fallback: UiKey): UiKey {
   const k = `${prefix}.${id}`;
   return (k in UI_TEXT ? k : fallback) as UiKey;
+}
+
+/**
+ * Where a plan was made for, in the person's language. The server's label (lib/plan.ts) is English, so it is read
+ * only for its ZIP; the words come from this table (Codex review of PR 93, round 6).
+ */
+export function locatedLine(language: string, located: { by: "zip" | "device" | "none"; label: string }): string {
+  const zip = /\b(\d{5})\b/.exec(located.label)?.[1];
+  if (located.by === "device") return ui(language, "plan.located.device");
+  if (located.by === "zip" && zip) return ui(language, "plan.located.zip", { zip });
+  if (zip) return ui(language, "plan.located.zipUnknown", { zip });
+  return ui(language, "plan.located.none");
 }

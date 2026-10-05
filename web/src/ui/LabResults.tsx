@@ -8,6 +8,7 @@ import { LANGUAGES } from "@/lib/schema";
 import type { ResultRow, ResultsResponse } from "@/lib/results";
 import { SAMPLE_LABS, SAMPLE_LABS_LABEL } from "@/lib/sampleLabs";
 import { keyFor, labReason, LANGUAGE_NAME, ui, uiCount, uiLang, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
+import { failureKey, logFailure, postJson } from "@/lib/requestError";
 import { EnglishBeside, paperLangCode, safeLine, UiLangProvider, useUi, PaperWords } from "./UiLang";
 
 type T = (key: UiKey, vars?: Record<string, string | number>) => string;
@@ -44,17 +45,18 @@ export function LabResults() {
 
   async function readPhoto(file: File) {
     setReading(true); setError(""); setRes(null); setFromPhoto(false); setChecked(false);
+    if (!file.type.startsWith("image/")) { setError(t("labs.notPhoto")); setReading(false); return; }
+    if (file.size > 25_000_000) { setError(t("labs.tooLarge")); setReading(false); return; }
+    let image_base64: string;
+    try { image_base64 = await fileToBase64(file); } catch { setError(t("labs.photoFailed")); setReading(false); return; }
     try {
-      if (!file.type.startsWith("image/")) throw new Error(t("labs.notPhoto"));
-      if (file.size > 25_000_000) throw new Error(t("labs.tooLarge"));
-      const image_base64 = await fileToBase64(file);
-      const r = await fetch("/api/results/read", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ image_base64, image_media_type: "image/jpeg" }) });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error ?? t("common.somethingWrong"));
+      const j = await postJson<{ text: string }>("/api/results/read", { image_base64, image_media_type: "image/jpeg" });
       setText(j.text);
       setFromPhoto(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("labs.photoFailed"));
+      // The route's words are English: logged, and the person reads a fixed line in their language (Codex round 5).
+      logFailure("lab photo read", e);
+      setError(t(failureKey(e, "read")));
     } finally {
       setReading(false);
     }
@@ -66,12 +68,10 @@ export function LabResults() {
   async function explain() {
     setBusy(true); setError(""); setRes(null);
     try {
-      const r = await fetch("/api/results", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, language }) });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error ?? t("common.somethingWrong"));
-      setRes(j);
+      setRes(await postJson<ResultsResponse>("/api/results", { text, language }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("common.somethingWrong"));
+      logFailure("lab results", e);
+      setError(t(failureKey(e, "other")));
     } finally {
       setBusy(false);
     }

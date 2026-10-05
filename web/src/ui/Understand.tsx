@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { CheckedQuestion, UnderstandResponse } from "@/lib/understand";
 import { suggestOption } from "@/lib/answerMatch";
+import { failureKey, logFailure, postJson } from "@/lib/requestError";
 import { SayAnswer } from "./SayAnswer";
 import { useUi, PaperWords } from "./UiLang";
 
@@ -41,22 +42,17 @@ export function Understand({ care, items, language }: Props) {
   async function start() {
     setStatus("loading"); setError(null); setTries({}); setAt(0); setSaid({}); setHint(null); setSuggested(null);
     try {
-      const res = await fetch("/api/understand", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source_text: care.source_text,
-          language,
-          items: items.slice(0, 20).map(({ id, kind, title, source_quote }) => ({ id, kind, title, source_quote })),
-        }),
+      const json = await postJson<UnderstandResponse>("/api/understand", {
+        source_text: care.source_text,
+        language,
+        items: items.slice(0, 20).map(({ id, kind, title, source_quote }) => ({ id, kind, title, source_quote })),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? t("common.somethingWrong"));
       setData(json);
       setStatus(json.questions.length ? "ready" : "error");
       if (!json.questions.length) setError(t("quiz.noQuestions"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("common.somethingWrong"));
+      logFailure("quiz", e);
+      setError(t(failureKey(e, "other")));
       setStatus("error");
     }
   }

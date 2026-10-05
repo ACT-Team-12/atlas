@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useUi } from "./UiLang";
+import { failureKey, logFailure, postJson } from "@/lib/requestError";
 
 const ROLES = [
   { v: "patient", label: "fb.role.patient" },
@@ -27,16 +28,11 @@ export function Feedback({ language, token }: { language: string; token: string 
     if (!role || !rating || !use) return;
     setState("sending"); setMsg(null);
     try {
-      const res = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, rating, would_use: use, language, token }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? t("common.somethingWrong"));
+      await postJson("/api/feedback", { role, rating, would_use: use, language, token });
       setState("done");
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("common.somethingWrong"));
+      logFailure("feedback", e);
+      setMsg(t(failureKey(e, "other")));
       setState("error");
     }
   }

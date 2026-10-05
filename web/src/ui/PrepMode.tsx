@@ -10,6 +10,7 @@ import { SAMPLE_PREP, SAMPLE_PREP_LABEL } from "@/lib/samplePrep";
 import { defaultOpenSlot, explainState, meaningItems, NO_MEANING, prepAskText, prepClosedRow, prepMustSee, shownExplanation, type MeaningState } from "@/lib/prepView";
 import { createRequestGate, type Ticket } from "@/lib/requestGate";
 import { keyFor, LANGUAGE_NAME, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
+import { failureKey, logFailure, postJson } from "@/lib/requestError";
 import { paperLangCode, safeLine, UiLangProvider, useUi, PaperWords } from "./UiLang";
 import { PREP_SHEET, printOrView } from "./printView";
 
@@ -69,15 +70,16 @@ export function PrepMode() {
     const ticket = gate.current.start(onScreen.current);
     const current = () => gate.current.isCurrent(ticket, onScreen.current);
     try {
-      const r = await fetch("/api/prep", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(ticket.inputs), signal: ticket.signal });
-      const j = await r.json();
+      const reply = await postJson<PrepResponse>("/api/prep", ticket.inputs, { signal: ticket.signal }).then((j) => ({ j }), (err: unknown) => ({ err }));
       if (!current()) return; // the paper or language changed while we waited: drop this answer
-      if (!r.ok) throw new Error(j.error ?? t("common.somethingWrong"));
+      if ("err" in reply) throw reply.err;
+      const j = reply.j;
       setRes({ ...j, language: ticket.inputs.language as Lang });
       void check(j, ticket);
     } catch (e) {
       if (!current()) return;
-      setError(e instanceof Error ? e.message : t("common.somethingWrong"));
+      logFailure("prep", e);
+      setError(t(failureKey(e, "other")));
     } finally {
       if (current()) setBusy(false);
     }

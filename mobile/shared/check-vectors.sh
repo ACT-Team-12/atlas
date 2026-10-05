@@ -46,6 +46,32 @@ fi
 (cd "$web" && pnpm exec vitest run src/lib/medicineChanges.vectors.test.ts) || { echo "::error::the web classifier (medicineChanges.ts) disagrees with mobile/shared/medicine-changes-vectors.json"; exit 1; }
 echo "medicine-changes vectors match the web reference ($(wc -c < "$med_vectors") bytes)"
 
+# Walk-through and Ask my paper vectors (mobile/shared/walk-vectors.json from web/src/lib/walkThrough.ts;
+# mobile/shared/ask-vectors.json from web/src/lib/askText.ts and onThisPaper in web/src/ui/AskPaper.tsx). Generated, so
+# each is regenerated here and must match the committed file byte for byte.
+regen() {
+  local name="$1" gen_src="$2" committed_file="$3"
+  local gen_dst="$web/src/lib/$(basename "$gen_src")"
+  local gen_out
+  gen_out="$(mktemp "${TMPDIR:-/tmp}/$name.XXXXXX")"
+  cp "$gen_src" "$gen_dst"
+  (cd "$web" && VECTORS_OUT="$gen_out" pnpm exec vitest run "src/lib/$(basename "$gen_src")") || { rm -f "$gen_dst" "$gen_out"; exit 1; }
+  rm -f "$gen_dst"
+  if [ ! -s "$gen_out" ]; then
+    echo "::error::the $name generator wrote no vectors"
+    rm -f "$gen_out"
+    exit 1
+  fi
+  if ! cmp -s "$gen_out" "$committed_file"; then
+    echo "::error::$committed_file is out of date with the web code. Regenerate it (mobile/shared/README.md) and commit the result."
+    rm -f "$gen_out"
+    exit 1
+  fi
+  echo "$name vectors match the web reference ($(wc -c < "$gen_out") bytes)"
+  rm -f "$gen_out"
+}
+regen walk "$root/mobile/shared/genWalkVectors.test.ts" "$root/mobile/shared/walk-vectors.json"
+
 # Pip vectors (where the "you are here" marker goes and what he says; mobile/shared/pip-vectors.json). The web reference,
 # web/src/lib/pip.ts, arrives with PR 82. Without it the check cannot run: it FAILS when ENFORCE=true (main and pull
 # requests into main) and otherwise warns, so the phone port can be reviewed before PR 82 lands.

@@ -13,6 +13,9 @@ struct CareStepsView: View {
     @State private var greetOver = false
     @AppStorage(Pip.calmKey) private var calmSaved = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// "Walk me through it" (WalkThroughView): open while set. Its order is fixed when it starts.
+    @State private var walk: WalkState?
+    @AccessibilityFocusState private var walkButtonFocused: Bool
 
     var body: some View {
         ScrollView {
@@ -47,6 +50,21 @@ struct CareStepsView: View {
                     // Unknown language (a plan saved by 1.0): no voice at all rather than a wrong one.
                     if let language = model.stepsLanguage {
                         ReadAloudBar(speaker: speaker, language: language, lines: readLines)
+                    }
+
+                    // "Walk me through it": the same steps, one at a time, in big type (web/src/lib/walkThrough.ts).
+                    if !shownItems.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Button { startWalk() } label: {
+                                Text(walkTagged(WalkThrough.line(model.language, .open)))
+                            }
+                            .buttonStyle(PillButtonStyle(fill: Palette.teal, text: Palette.paper))
+                            .accessibilityHint(Text(walkTagged(WalkThrough.line(model.language, .openHint))))
+                            .accessibilityFocused($walkButtonFocused)
+                            Text(walkTagged(WalkThrough.line(model.language, .openHint)))
+                                .font(.caption.weight(.semibold)).foregroundStyle(Palette.inkSoft)
+                                .accessibilityHidden(true)
+                        }
                     }
 
                     // As on the website (CareSteps.tsx): warning signs pinned on top, then every other step in a time
@@ -144,6 +162,15 @@ struct CareStepsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear { speaker.stop() }
         .sheet(item: $reminder) { ReminderSheet(target: $0) }
+        .fullScreenCover(isPresented: Binding(get: { walk != nil }, set: { if !$0 { walk = nil } })) {
+            if let care = model.care {
+                let pip = pipState(layout(care))
+                WalkThroughView(state: $walk, spot: pip.spot, calm: pip.calm, markDone: markDone)
+                    .environment(model)
+            }
+        }
+        // Back on the list: VoiceOver returns to the button that opened the walk-through.
+        .onChange(of: walk == nil) { _, closed in if closed { walkButtonFocused = true } }
         // A new reading ("Read my paper again" replaces the steps in place) is a new first view, as on the website, which
         // keys its steps on the run.
         .onChange(of: model.readingCount) { cheering = nil; greetOver = false }
@@ -228,11 +255,31 @@ struct CareStepsView: View {
     /// Marking a step done also starts Pip's short cheer there (only on a non-quiet step, Pip.spot decides), and ends the
     /// first-view greeting for good.
     private func doneBinding(_ id: String) -> Binding<Bool> {
-        Binding(get: { model.done[id] == true }, set: {
-            model.done[id] = $0
-            cheering = $0 ? id : nil
-            if $0 { greetOver = true }
-        })
+        Binding(get: { model.done[id] == true }, set: { markDone(id, $0) })
+    }
+
+    /// One way to mark a step done, for the list and the walk-through alike: the same saved record, Pip's cheer, the end
+    /// of the first-view greeting.
+    private func markDone(_ id: String, _ value: Bool) {
+        model.done[id] = value
+        cheering = value ? id : nil
+        if value { greetOver = true }
+    }
+
+    /// Starts on the first step not done (or the first step when all are), with the order fixed from here on.
+    private func startWalk() {
+        let ids = shownItems.map(\.id)
+        guard !ids.isEmpty else { return }
+        speaker.stop()
+        let at = WalkThrough.nextOpen(ids, done: model.done, from: 0)
+        walk = WalkState(ids: ids, at: ids[at < 0 ? 0 : at])
+    }
+
+    /// A walk-through line tagged with the person's language, so VoiceOver reads it in that voice.
+    private func walkTagged(_ s: String) -> AttributedString {
+        var a = AttributedString(s)
+        a.languageIdentifier = Speaker.code(for: model.language)
+        return a
     }
 }
 

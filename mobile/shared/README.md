@@ -52,6 +52,21 @@ one line, and a change with one dose versus two. Unlike the files above it is no
 (`web/src/lib/medicineChanges.vectors.test.ts`) and `check-vectors.sh` runs that test in web-ci. The phone apps should
 replay the same file when they port the card. The non-English lines need a native speaker's review.
 
+## Walk me through it (walk-vectors.json)
+
+`walk-vectors.json` is the website's own answer for "Walk me through it" (`web/src/lib/walkThrough.ts`): every fixed
+line in the seven app languages (`WALK_LINES`), lines with their numbers filled in (`walkLine`), the order the steps are
+shown and numbered (`walkSteps`), where Pip shows on the step on screen (`walkPip`, from 400 seeded `pipSpot` states) and
+the next open step (`nextOpen`). iOS replays it in `mobile/ios/ATLASTests/WalkThroughTests.swift` and Android in
+`mobile/android/app/src/test/java/com/stephensookra/atlas/WalkThroughTest.kt`. `check-vectors.sh` regenerates it in
+web-ci and fails on any drift. To regenerate by hand:
+
+```sh
+cp mobile/shared/genWalkVectors.test.ts web/src/lib/
+cd web && VECTORS_OUT=../mobile/shared/walk-vectors.json pnpm exec vitest run src/lib/genWalkVectors.test.ts
+rm src/lib/genWalkVectors.test.ts
+```
+
 ## Missed lines (missed-lines-vectors.json)
 
 `missed-lines-vectors.json` is the website's own answer for the "Lines on your paper we didn't turn into steps"

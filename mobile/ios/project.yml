@@ -68,6 +68,9 @@ targets:
       # Pip's web reference (web/src/lib/pip.ts: placement, the quiet rule, the fixed lines): PipTests replays it.
       - path: ../shared/pip-vectors.json
         buildPhase: resources
+      # "Walk me through it" web reference (web/src/lib/walkThrough.ts): WalkThroughTests replays it.
+      - path: ../shared/walk-vectors.json
+        buildPhase: resources
     dependencies:
       - target: ATLAS
     settings:

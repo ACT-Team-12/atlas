@@ -8,6 +8,8 @@
  * never returned, and nothing outside "items" is ever returned.
  */
 export class ItemScanner {
+  /** `key` is the top-level array whose objects are returned: "items" for a read, "steps" for a plan. */
+  constructor(private readonly arrayKey = "items") {}
   private buf = "";
   private at = 0;
   private depth = 0;
@@ -54,7 +56,7 @@ export class ItemScanner {
         case "{":
         case "[":
           this.depth++;
-          if (c === "[" && this.depth === 2 && this.key === "items") this.inItems = true;
+          if (c === "[" && this.depth === 2 && this.key === this.arrayKey) this.inItems = true;
           else if (c === "{" && this.inItems && this.depth === 3) this.itemStart = this.at;
           break;
         case "}":

@@ -55,22 +55,24 @@ fun BarriersScreen(model: AppModel) {
     val locating = model.locating
 
     fun locate() {
-        model.updateLocating(true)
+        // Numbered by the model, so a late result never overwrites a ZIP typed meanwhile.
+        val run = model.beginLocating()
         scope.launch {
+            var point: LatLng? = null
             try {
                 val fix = LocationProvider.current(context)
                 if (fix == null) {
                     model.error = LocationProvider.UNAVAILABLE
                     return@launch
                 }
-                val point = LatLng(fix.latitude, fix.longitude)
-                if (!point.isInServiceArea) {
+                val found = LatLng(fix.latitude, fix.longitude)
+                if (!found.isInServiceArea) {
                     model.error = LocationProvider.OUTSIDE
                     return@launch
                 }
-                model.useLocation(point)
+                point = found
             } finally {
-                model.updateLocating(false)
+                model.finishLocating(run, point)
             }
         }
     }

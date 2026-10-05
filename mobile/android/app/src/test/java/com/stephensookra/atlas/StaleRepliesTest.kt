@@ -134,6 +134,33 @@ class StaleRepliesTest {
         assertTrue(m.canPlan)
     }
 
+    /** A ZIP typed while "Use my location" runs wins: the late location result changes nothing. */
+    @Test fun aZipTypedDuringALookupWinsOverItsLateResult() {
+        val m = model(HeldApi())
+        val run = m.beginLocating()
+        assertTrue(m.locating)
+        m.updateZip("30310")
+        assertTrue("typing a ZIP ends the lookup", !m.locating)
+        m.finishLocating(run, com.stephensookra.atlas.data.LatLng(33.75, -84.39))
+        assertEquals("the late result did not overwrite the ZIP", "30310", m.zip)
+        assertNull(m.location)
+        assertTrue(!m.locating)
+    }
+
+    /** A newer lookup replaces an older one: only the newest result is applied. */
+    @Test fun onlyTheNewestLookupApplies() {
+        val m = model(HeldApi())
+        val first = m.beginLocating()
+        val second = m.beginLocating()
+        m.finishLocating(first, com.stephensookra.atlas.data.LatLng(33.0, -84.0))
+        assertNull(m.location)
+        assertTrue(m.locating)
+        m.finishLocating(second, com.stephensookra.atlas.data.LatLng(33.75, -84.39))
+        assertEquals(com.stephensookra.atlas.data.LatLng(33.75, -84.39), m.location)
+        assertEquals("", m.zip)
+        assertTrue(!m.locating)
+    }
+
     @Test fun aChangeTheReadDoesNotUseLeavesItRunningAndItLands() {
         val api = HeldApi()
         val m = model(api)

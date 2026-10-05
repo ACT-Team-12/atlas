@@ -88,7 +88,27 @@ class AppModel @JvmOverloads constructor(
     var locating by mutableStateOf(false)
         private set
 
+    /**
+     * Moved by every lookup started and by every other change of place (a ZIP typed, a helper link's ZIP, Clear), so a
+     * late lookup result never overwrites a newer choice.
+     */
+    private var locationRun = 0
+
     fun updateLocating(v: Boolean) { locating = v; stopStaleWork() }
+
+    /** "Use my location" started. Returns the lookup's number, to hand back with its result. */
+    fun beginLocating(): Int {
+        locationRun++
+        updateLocating(true)
+        return locationRun
+    }
+
+    /** A lookup ended, with a point in the service area or null. Applied only if no newer lookup or place replaced it. */
+    fun finishLocating(run: Int, point: LatLng?) {
+        if (run != locationRun) return
+        updateLocating(false)
+        if (point != null) useLocation(point)
+    }
 
     // Results
     var care by mutableStateOf<CarePlanResponse?>(null)
@@ -253,7 +273,7 @@ class AppModel @JvmOverloads constructor(
     fun applyHelperLink(p: HelperPresets) {
         p.language?.let { language = it }
         p.level?.let { level = it }
-        p.zip?.let { zip = it; location = null }
+        p.zip?.let { locationRun++; locating = false; zip = it; location = null }
         helperBanner = HelperLink.banner(p)
         fromHelperLink = true
         // Show the first screen, where the banner is. Nothing saved is touched; "Open it" still brings it back.
@@ -265,6 +285,9 @@ class AppModel @JvmOverloads constructor(
     fun dismissHelperBanner() { helperBanner = null }
 
     fun updateZip(v: String) {
+        // A ZIP typed replaces the device location and any lookup still running.
+        locationRun++
+        locating = false
         zip = v.filter { it.isDigit() }.take(5)
         location = null
         persist()
@@ -515,6 +538,8 @@ class AppModel @JvmOverloads constructor(
         text = ""; care = null; plan = null; barriers.clear(); zip = ""; note = ""; done.clear(); removed.clear()
         restoring = false
         location = null
+        locationRun++
+        locating = false
         restoredAt = null
         path.clear()
         Reminders.removeAll(getApplication())

@@ -777,7 +777,8 @@ describe("reopening a plan built from the device location", () => {
     expect(screenText()).toContain(LOCATION_AGAIN);
     expect(byText("Update plan").disabled).toBe(true);
     expect(byText("Read it out loud").disabled).toBe(true);
-    expect(byText("Print a handoff sheet").disabled).toBe(true);
+    // No paper was read, so there is no handoff sheet and no button for one (Codex review of PR 107, round 4).
+    expect(() => byText("Print a handoff sheet")).toThrow();
   });
 
   it("a fresh position, then Update plan, makes it current again", async () => {
@@ -1418,5 +1419,64 @@ describe("the plan streams in, step by step", () => {
     expect(screenText()).not.toContain("The AI declined to build this plan.");
     expect(screenText()).not.toContain("Shown then declined"); // a preview step never outlives a failed plan
     expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(0);
+  });
+});
+
+describe("a paper that is not a visit paper (nothing becomes a step)", () => {
+  const empty = (text: string, refused = 0): CarePlanResponse => ({
+    source_text: text, source_kind: "text", model: "test", has_warning_signs: false, items: [],
+    refused: refused ? [{ title: "Held", reason: "missing" } as unknown as CarePlanResponse["refused"][number]] : [],
+    questions_for_doctor: ["The text looks like a grocery list. Could you share the after-visit summary instead?"],
+    not_in_document: ["This document is not an after-visit summary."],
+    stats: { extracted: refused, grounded: 0, refused, ms: 10 },
+  });
+  const LIST = "Grocery list for Saturday: eggs, whole milk, bread, bananas, rice. Call Mom about Sunday dinner.";
+
+  it("says no care steps were found and offers the way back, with no checked banner or clinic questions", async () => {
+    act(() => typeInto(paperBox(), LIST));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(req, ready(empty(LIST)));
+
+    expect(screenText()).toContain(ui("English", "steps.noneFound.title"));
+    expect(screenText()).toContain(ui("English", "steps.noneFound.body"));
+    expect(screenText()).not.toContain("All 0 steps");
+    expect(screenText()).not.toContain(ui("English", "steps.noneLeft"));
+    expect(screenText()).not.toContain("grocery list. Could you share"); // the AI's question to the person is not filed under "Ask your clinic"
+    expect(host.querySelector("#steps-title")?.textContent).toBe(ui("English", "steps.noneFound.title")); // the ready cue lands here
+
+    // Step 1 is not marked done: its badge still shows the number, not a check.
+    const step1 = [...host.querySelectorAll("h3")].find((h) => h.textContent === ui("English", "paper.title"))!;
+    expect(step1.previousElementSibling?.textContent).toBe("1");
+
+    act(() => byText(ui("English", "steps.noneFound.paste")).click());
+    expect(document.activeElement).toBe(paperBox());
+  });
+
+  it("a plan made after a wrong paper exports nothing from that paper, as with no paper at all", async () => {
+    act(() => typeInto(paperBox(), LIST));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(empty(LIST)));
+
+    act(() => byText("Getting there").click());
+    const plan = hold("/api/plan");
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await release(plan, ready(planFor("Plan made from barriers only")));
+
+    expect(screenText()).toContain("Plan made from barriers only");
+    expect(host.querySelector("#atlas-sheet")).toBeNull(); // no handoff sheet built on the rejected paper
+    expect(host.innerHTML).not.toContain("Could you share the after-visit summary");
+    expect(fetchCalls.find((c) => c.url === "/api/plan")?.body.care).toEqual([]);
+    expect([...host.querySelectorAll("button")].some((b) => b.textContent?.includes(ui("English", "dock.handoff.short")))).toBe(false); // no button for a sheet that does not exist
+  });
+
+  it("a read whose steps were all held back still shows the held-back list, not the wrong-paper card", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(req, ready(empty(PAPER, 1)));
+    expect(screenText()).not.toContain(ui("English", "steps.noneFound.title"));
+    expect(screenText()).toContain("1 held back");
   });
 });

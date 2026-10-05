@@ -217,6 +217,12 @@ export function StreamingSteps({ items }: { items: VerifiedItem[] }) {
   );
 }
 
+/** A read where nothing became a step: no steps, none held back, no warning signs. The paper is probably not a visit
+ * paper, so it does not count as step 1 done (heading check, phone tab bar, the tab a saved plan reopens on). */
+function foundNothing(c: CarePlanResponse | null | undefined): boolean {
+  return !!c && c.items.length === 0 && c.stats.refused === 0 && !c.has_warning_signs;
+}
+
 function StepHeader({ n, title, done, note, id }: { n: number; title: string; done?: boolean; note?: string; id?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -458,7 +464,7 @@ export function CarePlanTool() {
       meaningFor.current = v.checks.key;
       setMeaning({ status: "done", byId: v.checks.byId, policy: v.checks.policy }); // the policy too, or the next save drops them (Codex round 4)
     }
-    setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan }));
+    setTab(restoredTab({ hasCare: !!v.care && !foundNothing(v.care), hasPlan: !!v.plan }));
   }
 
   /** Empties the tool for a new plan. Saved plans stay as they are. */
@@ -1207,15 +1213,24 @@ export function CarePlanTool() {
   };
   // Questions for the next visit, paper first (lib/visitQuestions.ts): a step's own question only when certified.
   // General questions with every step's own question taken out, held-back steps included, before any surface uses them.
-  const generalQuestions = care ? readingGeneralQuestions(care) : [];
+  // A wrong paper's questions are the model asking the person for the right paper, not questions for a clinic.
+  const generalQuestions = care && !foundNothing(care) ? readingGeneralQuestions(care) : [];
   const nextVisitTagged = care ? visitQuestionsTagged({ items: items.filter((i) => i.grounded), general: generalQuestions, also: care.items, checkFor }) : [];
   const nextVisit = nextVisitTagged.map((q) => q.text);
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
   const missed = useMissedLines(care, removed);
+  // A read that found nothing (no steps, none held back, no warning signs): the paper is probably not a visit paper.
+  const noStepsFound = foundNothing(care);
+  const pasteAgain = () => {
+    const box = document.querySelector<HTMLTextAreaElement>('#try textarea[data-paper-box]');
+    box?.scrollIntoView?.({ block: "center" });
+    box?.focus({ preventScroll: true });
+    box?.select();
+  };
   const deviceStatus = deviceStatusOf(care, needsPhotoCheck, deviceRun);
-  const flow = { hasCare: !!care, hasPlan: !!plan };
+  const flow = { hasCare: !!care && !noStepsFound, hasPlan: !!plan };
   const openName = store.plans.find((p) => p.id === store.active)?.name ?? null;
   // The person changed our reading of their photo. Accepting or re-reading the old text would silently drop their fix.
   const transcriptEdited = !!care && isTranscriptEdited(transcript, care.source_text);
@@ -1259,10 +1274,10 @@ export function CarePlanTool() {
 
         {/* Step 1 */}
         <div {...panel(1)} className={`card mt-10 max-md:mt-4 p-5 sm:p-8 max-md:scroll-mt-44 ${onPhone(1)}`}>
-          <StepHeader n={1} title={t("paper.title")} done={!!care} note={t("paper.titleNote")} />
+          <StepHeader n={1} title={t("paper.title")} done={!!care && !noStepsFound} note={t("paper.titleNote")} />
           <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_15rem]">
             <div>
-              <textarea data-lenis-prevent aria-label={t("paper.textLabel")} className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
+              <textarea data-lenis-prevent data-paper-box="" aria-label={t("paper.textLabel")} className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 placeholder={t("paper.placeholder")} value={text} onChange={(e) => { setText(e.target.value); setPhoto(null); }} />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={loadSample}>{t("paper.useSample")}</button>
@@ -1325,7 +1340,20 @@ export function CarePlanTool() {
             </div>
           )}
 
-          {care && !needsPhotoCheck && (
+          {care && !needsPhotoCheck && noStepsFound && (
+            // Nothing in the paper became a step (a wrong paper, like a shopping list): say so in the app's own words and
+            // offer the way back, instead of an empty list under a "checked" banner. The heading is the ready cue's landing spot.
+            <section aria-labelledby="steps-title" className="mt-8 rounded-2xl border-2 border-sun bg-paper p-4 sm:p-5" data-no-steps="">
+              <h3 id="steps-title" tabIndex={-1} className="display text-2xl scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{t("steps.noneFound.title")}</h3>
+              <p className="mt-2 text-sm font-semibold">{ts("steps.noneFound.body")}</p>
+              <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
+                <button type="button" className="rounded-full border-2 border-ink bg-sun px-4 py-2 shadow-[0_2px_0_var(--ink)]" onClick={pasteAgain}>{t("steps.noneFound.paste")}</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={loadSample}>{t("paper.useSample")}</button>
+              </div>
+            </section>
+          )}
+
+          {care && !needsPhotoCheck && !noStepsFound && (
             <div>
               {/* "Your steps", grouped by when (CareSteps.tsx). Every row follows the paper-first rule. */}
               <CareSteps key={runIdFor(care)} care={care} items={items} removedItems={removedItems} checkFor={checkFor} meaning={meaning}
@@ -1386,7 +1414,7 @@ export function CarePlanTool() {
           </div>
         </div>
 
-        {plan && care && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={generalQuestions} language={language} meaning={paperMeaning} planItems={planItems} alsoOnPaper={missedLineTexts(missed)} paper={care.source_text} />}
+        {plan && care && !noStepsFound && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={generalQuestions} language={language} meaning={paperMeaning} planItems={planItems} alsoOnPaper={missedLineTexts(missed)} paper={care.source_text} />}
 
         {/* Step 3 */}
         {plan && (
@@ -1433,9 +1461,10 @@ export function CarePlanTool() {
                   </button>}
               {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2"><DockLabel icon="✕" short={t("dock.cancel")} long={t("dock.cancel")} /></button>}
               {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} short={t("dock.callMe.short")} />}
-              {care && <ShareFamily items={items} plan={plan} questions={generalQuestions} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short={t("dock.send.short")} />}
+              {care && !noStepsFound && <ShareFamily items={items} plan={plan} questions={generalQuestions} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short={t("dock.send.short")} />}
               <button type="button" onClick={printPlan} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short={t("dock.print.short")} long={t("dock.print.long")} /></button>
-              <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short={t("dock.handoff.short")} long={t("dock.handoff.long")} /></button>
+              {/* Only when the handoff sheet exists: it is built from a usable paper (none, or a wrong one, has no sheet). */}
+              {care && !noStepsFound && <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short={t("dock.handoff.short")} long={t("dock.handoff.long")} /></button>}
               <span role="status" className={voiceNote ? "dock-note self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
             </div>
             <p className="mt-3 text-xs font-bold text-ink/70">{tn("planStats", plan.stats.steps, { c: plan.stats.candidates, d: plan.stats.dropped_refs })}</p>
@@ -1464,7 +1493,7 @@ export function CarePlanTool() {
                 <ul className="mt-2 list-disc pl-5 space-y-1">{nextVisitTagged.map((q, i) => <li key={i} lang={q.english ? "en" : undefined}>{q.text}</li>)}</ul>
               </div>
             )}
-            {care && !planOutdated && <SessionSummary key={helperSessionKey(store.active, plan.summary)} barriers={barriers} items={items} done={done} plan={plan} questions={nextVisit} language={language} readingLevel={readLevel ?? level} />}
+            {care && !noStepsFound && !planOutdated && <SessionSummary key={helperSessionKey(store.active, plan.summary)} barriers={barriers} items={items} done={done} plan={plan} questions={nextVisit} language={language} readingLevel={readLevel ?? level} />}
             <Feedback key={plan.summary} language={language} token={plan.feedback_token ?? null} />
             <p className="mt-6 text-xs text-ink/70">{t("common.notMedicalAdvice", { model: plan.model })}</p>
           </div>

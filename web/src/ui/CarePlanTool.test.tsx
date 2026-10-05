@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CarePlanResponse } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { CarePlanTool } from "./CarePlanTool";
+import { CHECK_POLICY, checksKey } from "@/lib/savedPlans";
 import { SAMPLE_AVS } from "@/lib/sample";
 import { TRY_SAMPLE_EVENT } from "@/lib/sampleStart";
 
@@ -51,7 +52,7 @@ function planFor(summary: string): PlanResponse {
 let root: Root;
 let host: HTMLDivElement;
 let pending: Record<string, Deferred[]>;
-let fetchCalls: { url: string; body: Record<string, unknown> }[];
+let fetchCalls: { url: string; body: Record<string, unknown>; method?: string; hasBody?: boolean }[];
 let geo: { lat: number; lng: number };
 let phone = false;
 let scrolls: string[];
@@ -68,7 +69,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    fetchCalls.push({ url, body: init?.body ? JSON.parse(String(init.body)) : {} });
+    fetchCalls.push({ url, body: init?.body ? JSON.parse(String(init.body)) : {}, method: init?.method ?? "GET", hasBody: init?.body != null });
     if (url === "/api/extract/stream") return Promise.resolve(new Response(null, { status: 404 })); // older deploy: use the plain route
     if (url === "/api/meaning") return Promise.resolve(json({ results: [] }));
     const queue = pending[url];
@@ -832,6 +833,108 @@ describe("a plan saved before results were checked against answers", () => {
     reopenWith({ matched: true });
     expect(screenText()).not.toContain("Read your paper again first");
     expect(byText("Read it out loud").disabled).toBe(false);
+  });
+
+  // Found Oct 5 on the live site: a reopened plan never ran the second check, so every step said "Checked once".
+  // Found Oct 5 on the live site: a reopened plan showed every step as checked once. Its verdicts now come back from
+  // the save itself; reopening never sends the paper anywhere (the privacy page's promise, Codex review of PR 104).
+  const certified = (id: string) => ({ id, flagged: false, numbers_ok: true, unexpected_numbers: [], model_verdict: "same" as const, what_differs: "", certified: true });
+  const sealCounts = () => [...host.querySelectorAll("[data-seal-label]")].map((e) => e.textContent?.trim() ?? "").reduce<Record<string, number>>((a, s) => ({ ...a, [s]: (a[s] ?? 0) + 1 }), {});
+
+  // The privacy page's promise is "Nothing is uploaded" on reopen: no request carries a body. Body-less GETs (what
+  // this device can do, like the call option's config) carry nothing of the paper or the plan (Codex round 3).
+  it("reopening a saved plan uploads nothing: no request carries a body, none goes to the double-check", () => {
+    fetchCalls = [];
+    reopenWith({ matched: true });
+    expect(fetchCalls.filter((c) => c.url === "/api/meaning")).toHaveLength(0);
+    expect(fetchCalls.filter((c) => c.hasBody || c.method !== "GET")).toEqual([]);
+  });
+
+  it("verdicts saved with a plan come back on reopen, for exactly those steps", () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ matched: true, checks: { key: checksKey(care.items, care.language ?? "English"), policy: CHECK_POLICY, byId } });
+    expect(sealCounts()["Checked twice"]).toBe(care.items.length);
+  });
+
+  it("restored verdicts stay saved: a second reopen still shows them checked twice (Codex round 4)", async () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ matched: true, checks: { key: checksKey(care.items, care.language ?? "English"), policy: CHECK_POLICY, byId } });
+    await act(async () => { await drain(); await drain(); }); // let the autosave run
+    expect(localStorage.getItem("atlas-plans-v2")).toContain('"checks"');
+    act(() => root.unmount());
+    root = createRoot(host);
+    act(() => root.render(<CarePlanTool />));
+    await act(async () => { await drain(); });
+    expect(sealCounts()["Checked twice"]).toBe(care.items.length);
+  });
+
+  it("verdicts saved for other steps are dropped: the steps show as checked once", () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ matched: true, checks: { key: checksKey([{ id: "item-1", source_quote: "a different paper" }], care.language ?? "English"), policy: CHECK_POLICY, byId } });
+    expect(sealCounts()["Checked twice"] ?? 0).toBe(0);
+  });
+
+  it("an outdated save never gets its verdicts back", () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ checks: { key: checksKey(care.items, care.language ?? "English"), policy: CHECK_POLICY, byId } }); // no matched: outdated
+    expect(sealCounts()["Checked twice"] ?? 0).toBe(0);
+  });
+
+  it("an older non-English photo save, confirmed after reopening, is checked in the plan's language", async () => {
+    const { language: _drop, ...noLang } = { ...careFor(PAPER), source_kind: "image" as const };
+    void _drop;
+    reopenWith({ matched: true, language: "Spanish", care: noLang, photoChecked: false });
+    fetchCalls = [];
+    await act(async () => { byText("It matches my paper").click(); await drain(); });
+    const meaning = fetchCalls.filter((c) => c.url === "/api/meaning");
+    expect(meaning).toHaveLength(1);
+    expect((meaning[0].body as { language?: string }).language).toBe("Spanish");
+  });
+
+  let serverPolicy = CHECK_POLICY;
+  it("a fresh read keeps its verdicts in the save, with the key for its steps", async () => {
+    serverPolicy = CHECK_POLICY;
+    const original = fetch;
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/meaning") {
+        const body = JSON.parse(String(init?.body)) as { items: { id: string }[] };
+        return Promise.resolve(json({ results: body.items.map((i) => certified(i.id)), flagged: 0, checker_model: "test", policy: serverPolicy, ms: 1 }));
+      }
+      return original(input, init);
+    });
+    act(() => typeInto(paperBox(), PAPER));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    const care = careFor(PAPER);
+    await release(req, ready(care));
+    await act(async () => { await drain(); await drain(); });
+    const saved = JSON.parse(localStorage.getItem("atlas-plans-v2")!) as { plans: { checks?: { key: string; byId: Record<string, unknown> } }[] };
+    expect(saved.plans[0].checks?.key).toBe(checksKey(care.items, care.language ?? "English"));
+    expect(Object.keys(saved.plans[0].checks?.byId ?? {})).toHaveLength(care.items.length);
+  });
+
+  it("verdicts the server made under another checker model are never saved", async () => {
+    serverPolicy = "2026-10-05:some-other-model";
+    const original = fetch;
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/meaning") {
+        const body = JSON.parse(String(init?.body)) as { items: { id: string }[] };
+        return Promise.resolve(json({ results: body.items.map((i) => certified(i.id)), flagged: 0, checker_model: "x", policy: serverPolicy, ms: 1 }));
+      }
+      return original(input, init);
+    });
+    act(() => typeInto(paperBox(), PAPER));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(req, ready(careFor(PAPER)));
+    await act(async () => { await drain(); await drain(); });
+    const saved = JSON.parse(localStorage.getItem("atlas-plans-v2")!) as { plans: { checks?: unknown }[] };
+    expect(sealCounts()["Checked twice"]).toBe(1); // shown now, for this read
+    expect(saved.plans[0].checks).toBeUndefined(); // but never kept for a reopen under this build
   });
 
   it("a saved level that is no longer a choice: no crash, defaults shown, plan outdated with actions off", () => {

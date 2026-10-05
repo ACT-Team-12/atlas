@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { checkPolicyFor, DEFAULT_CHECKER_MODEL } from "./checkPolicy";
 import { z } from "zod";
 import { ExtractError } from "./extract";
 import { LANGUAGES } from "./schema";
@@ -18,7 +19,7 @@ import { readable, unreadable } from "./textReading";
  * Either signal flags the step so the person double-checks it with their clinic.
  */
 
-export const CHECKER_MODEL = process.env.ATLAS_CHECKER_MODEL ?? "claude-sonnet-5-5";
+export const CHECKER_MODEL = process.env.ATLAS_CHECKER_MODEL || DEFAULT_CHECKER_MODEL;
 
 export const MeaningRequestSchema = z.object({
   /** The language the explanations are written in, so their number words can be read (numberWords.ts). */
@@ -47,7 +48,8 @@ export type MeaningResult = {
   /** True only when the second model said "same" AND every number checks out. Only this earns the green check. */
   certified: boolean;
 };
-export type MeaningResponse = { results: MeaningResult[]; flagged: number; checker_model: string; ms: number };
+/** `policy`: the rules and model these verdicts were made under (checkPolicy.ts). */
+export type MeaningResponse = { results: MeaningResult[]; flagged: number; checker_model: string; policy: string; ms: number };
 
 const WORD_NUM: Record<string, string> = { one: "1", two: "2", three: "3", four: "4", five: "5", six: "6", seven: "7", eight: "8", nine: "9", ten: "10", twice: "2", once: "1" };
 
@@ -504,5 +506,5 @@ export async function checkMeaning(req: MeaningRequest, signal?: AbortSignal): P
     const r = byId.get(i.id);
     return combine(i.id, i, r?.verdict ?? "unclear", r?.what_differs ?? "The checker did not return this step.", req.language);
   });
-  return { results, flagged: results.filter((r) => r.flagged).length, checker_model: CHECKER_MODEL, ms: Date.now() - t0 };
+  return { results, flagged: results.filter((r) => r.flagged).length, checker_model: CHECKER_MODEL, policy: checkPolicyFor(CHECKER_MODEL), ms: Date.now() - t0 };
 }

@@ -2,13 +2,13 @@
 
 import { labRowView } from "@/lib/paperFirst";
 import { PaperFirst } from "./PaperFirst";
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { isCritical, labChip, labClosedRow, labGroups, labQuestions, labQuestionsText, type LabChip, type LabQuestion } from "@/lib/labsView";
 import { LANGUAGES } from "@/lib/schema";
 import type { ResultRow, ResultsResponse } from "@/lib/results";
 import { SAMPLE_LABS, SAMPLE_LABS_LABEL } from "@/lib/sampleLabs";
 import { keyFor, labReason, LANGUAGE_NAME, ui, uiCount, uiLang, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
-import { EnglishBeside, paperLangCode, UiLangProvider, useUi, PaperWords } from "./UiLang";
+import { EnglishBeside, paperLangCode, safeLine, UiLangProvider, useUi, PaperWords } from "./UiLang";
 
 type T = (key: UiKey, vars?: Record<string, string | number>) => string;
 type TN = (key: UiPluralKey, n: number, vars?: Record<string, string | number>) => string;
@@ -143,7 +143,7 @@ export function LabResults() {
             {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
             {res && (
               <div className="mt-8">
-                <p className="font-extrabold text-lg">{headline(res, t, tn)}</p>
+                <p className="font-extrabold text-lg">{headline(res, t, tn, (k) => safeLine(language, k))}</p>
                 {res.rows.length > 0 && (
                   <p className="text-xs font-semibold text-ink/70 mt-1">
                     {tn("labsInside", res.counts.inside)}{res.counts.unknown ? tn("labsCouldntTell", res.counts.unknown) : ""}.
@@ -169,13 +169,13 @@ export function LabResults() {
  */
 export function UncheckedLines({ coverage }: { coverage: ResultsResponse["coverage"] }) {
   const { checked, candidates, unchecked } = coverage;
-  const { t, tn } = useUi();
+  const { t, ts, tn } = useUi();
   if (unchecked.length === 0) return null;
   const crit = unchecked.filter(isCritical);
   const more = candidates - checked - unchecked.length;
   return (
     <div className={`mt-4 rounded-2xl border-2 p-4 ${crit.length ? "border-red bg-red-soft" : "border-ink/30 bg-paper"}`} data-unchecked="">
-      {crit.length > 0 && <p className="font-extrabold text-red" data-unchecked-critical="">{t(crit.length === 1 ? "labs.critOne" : "labs.critTop")}</p>}
+      {crit.length > 0 && <p className="font-extrabold text-red" data-unchecked-critical="">{ts(crit.length === 1 ? "labs.critOne" : "labs.critTop")}</p>}
       <p className="font-bold">{t("labs.weChecked", { n: checked, m: candidates })}</p>
       <ul className="mt-2 space-y-1 font-mono text-xs">{unchecked.map((l, i) => (
         <li key={i} data-critical={isCritical(l) || undefined} className={`border-l-4 pl-2 ${isCritical(l) ? "border-red font-bold text-red" : "border-sun"}`}>{l}</li>
@@ -186,10 +186,10 @@ export function UncheckedLines({ coverage }: { coverage: ResultsResponse["covera
 }
 
 /** Never a report-wide all-clear unless every result line our code found was checked. */
-function headline(res: ResultsResponse, t: T, tn: TN) {
+function headline(res: ResultsResponse, t: T, tn: TN, ts: (key: UiKey) => ReactNode): ReactNode {
   const { outside, unknown } = res.counts;
   const { checked, candidates } = res.coverage;
-  if (res.rows.length === 0) return res.coverage.unchecked.length ? t("labs.noneChecked") : t("labs.noneRead");
+  if (res.rows.length === 0) return res.coverage.unchecked.length ? ts("labs.noneChecked") : ts("labs.noneRead");
   if (outside > 0) return tn("labsOutside", outside);
   if (checked < candidates) return t("labs.partlyChecked", { n: checked, m: candidates });
   if (unknown > 0) return tn("labsUnknownOnly", unknown);
@@ -220,7 +220,7 @@ export function LabRows({ rows }: { rows: ResultRow[] }) {
         {unsure.length > 0 && (
           <section aria-labelledby="labs-unsure-title" data-lab-group="unknown">
             <h3 id="labs-unsure-title" className="display text-xl">{t("labs.unsureTitle", { n: unsure.length })}</h3>
-            <p className="text-xs font-semibold text-ink/70">{t("labs.unsureHint")}</p>
+            <p className="text-xs font-semibold text-ink/70">{ts("labs.unsureHint")}</p>
             <ul className="mt-2 space-y-2">{unsure.map((r, i) => <LabRow key={`u${i}`} r={r} />)}</ul>
           </section>
         )}

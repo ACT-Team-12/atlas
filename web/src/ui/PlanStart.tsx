@@ -72,7 +72,7 @@ export function Resource({ r, off, proof = true }: { r: ResourceCard; off?: stri
         {hours && c.hours_source_id === "clinic-site" && (
           <>
             <p className="text-sm mt-1">🕘 {t("plan.hours", { hours })}</p>
-            <p className="text-xs italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;<PaperWords>{c.hours_quote}</PaperWords>&rdquo;</p>
+            <p className="text-xs italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{/* the place's own English web page, not the patient's paper */}<span lang="en">{c.hours_quote}</span>&rdquo;</p>
           </>
         )}
         {hours && c.hours_source_id !== "clinic-site" && <p className="text-sm mt-1">🕘 {t("plan.listedHours", { hours })} <span className="text-ink/70">{t("plan.callToConfirm")}</span></p>}
@@ -99,7 +99,7 @@ export function Resource({ r, off, proof = true }: { r: ResourceCard; off?: stri
       </span>
       <p className="font-extrabold mt-2">{p.name}</p>
       {/* The quote and the how-to text can hold a number to call or text: not offered while the plan is outdated. */}
-      {proof && !off && <p className="text-sm italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;<PaperWords>{p.evidence_quote}</PaperWords>&rdquo;</p>}
+      {proof && !off && <p className="text-sm italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;<span lang="en">{p.evidence_quote}</span>&rdquo;</p>}
       {off ? <ResourceLinksOff off={off} /> : <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
         {p.access.phone && <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={telHref(p.access.phone)}>{t("plan.callPhone", { phone: p.access.phone })}</a>}
         {p.access.url && <a className="rounded-full border-2 border-ink px-3 py-1" href={p.access.url} target="_blank" rel="noreferrer">{t("plan.open")}</a>}
@@ -301,7 +301,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
                 <p className="flex flex-wrap items-center gap-1.5 text-sm font-extrabold">{c.program.name}
                   <span className="chip border border-ink/40 bg-paper text-ink" data-by-atlas="">{t("prov.byAtlas")}</span></p>
                 {/* Can hold a number to call or text: not shown while the plan is outdated. */}
-                {!off && <p className="mt-1 border-l-4 border-sun pl-2 text-sm italic text-ink/75">&ldquo;<PaperWords>{c.program.evidence_quote}</PaperWords>&rdquo;</p>}
+                {!off && <p className="mt-1 border-l-4 border-sun pl-2 text-sm italic text-ink/75">&ldquo;<span lang="en">{c.program.evidence_quote}</span>&rdquo;</p>}
                 <div className="mt-1.5"><VerifiedSeal url={c.program.source_url} off={off} /></div>
               </div>
             ))}

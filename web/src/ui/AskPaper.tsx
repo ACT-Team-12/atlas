@@ -91,7 +91,7 @@ export function AskPaper({ care, items, language, photo = null }: Props) {
       </form>
 
       <div aria-live="polite">
-        {state.kind === "done" && <p className="mt-4 text-sm font-bold" data-ask-asked="">&ldquo;<PaperWords>{state.question}</PaperWords>&rdquo;</p>}
+        {state.kind === "done" && <p className="mt-4 text-sm font-bold" data-ask-asked="">&ldquo;{state.question}&rdquo;</p>}
         {state.kind === "loading" && <p className="mt-4 font-semibold text-ink/70">{t.asking}</p>}
         {state.kind === "error" && <p role="alert" className="mt-4 rounded-xl bg-red-soft p-3 font-semibold text-red">{state.message}</p>}
 

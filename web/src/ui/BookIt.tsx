@@ -4,7 +4,7 @@ import { useId, useMemo, useState } from "react";
 import type { Barrier } from "@/lib/resources";
 import { bookableItem, bookingTarget, buildIcs, callScript, eventDescription, type BookableItem } from "@/lib/booking";
 import { TIME_CHIPS, dayOptions, describeStart, formatTime, googleCalendarUrl, localStart, timeOptions } from "@/lib/calendarLinks";
-import { useUi } from "./UiLang";
+import { PaperWords, useUi } from "./UiLang";
 
 /** "Book it now" for one plan step: call script, call button, add-to-calendar file, and why it still matters. */
 /** `offReason` turns booking off (the plan is outdated, so its script and barriers may not fit) and says why. */
@@ -18,8 +18,8 @@ export function BookIt({ items, barriers, language, offReason }: { items: Bookab
   const panelId = useId();
   const otherDayId = useId();
   const otherTimeId = useId();
-  const days = useMemo(() => dayOptions(new Date(), 14), []);
-  const { t } = useUi();
+  const { t, ts, code } = useUi();
+  const days = useMemo(() => dayOptions(new Date(), 14, code), [code]);
   if (!item) return null;
   const start = localStart(day, time);
 
@@ -106,21 +106,21 @@ export function BookIt({ items, barriers, language, offReason }: { items: Bookab
               {TIME_CHIPS.map((t) => (
                 <button key={t} type="button" aria-pressed={time === t} onClick={() => setTime(t)}
                   className={`rounded-full border-2 px-3 py-1 text-sm font-bold ${time === t ? "border-ink bg-ink text-paper" : "border-ink/40 bg-paper hover:bg-mint-soft"}`}>
-                  {formatTime(t)}
+                  {formatTime(t, code)}
                 </button>
               ))}
               <label htmlFor={otherTimeId} className="sr-only">{t("book.otherTime")}</label>
               <select id={otherTimeId} value={(TIME_CHIPS as readonly string[]).includes(time) ? "" : time} onChange={(e) => setTime(e.target.value)}
                 className="rounded-full border-2 border-ink/40 bg-paper px-3 py-1 text-sm font-bold">
                 <option value="">{t("book.otherTime")}</option>
-                {timeOptions().map((t) => <option key={t} value={t}>{formatTime(t)}</option>)}
+                {timeOptions().map((t) => <option key={t} value={t}>{formatTime(t, code)}</option>)}
               </select>
             </div>
 
             <div className="mt-3 rounded-xl border-2 border-dashed border-ink/40 p-3" aria-live="polite">
               {start ? (
                 <>
-                  <p className="text-sm font-bold">{describeStart(start)}: {item.title}</p>
+                  <p className="text-sm font-bold">{describeStart(start, code)}: {item.title}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <a href={googleUrl()} target="_blank" rel="noreferrer" className="rounded-full bg-teal text-paper px-4 py-1.5 text-sm font-bold">{t("remind.google")}</a>
                     <button type="button" onClick={download} className="rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold">{t("remind.ics")}</button>
@@ -135,8 +135,8 @@ export function BookIt({ items, barriers, language, offReason }: { items: Bookab
 
           <div className="rounded-xl bg-peach/70 p-3">
             <p className="font-extrabold text-sm">{t("book.stillSays")}</p>
-            <p className="text-sm italic mt-1 border-l-4 border-sun pl-2">&ldquo;{item.source_quote}&rdquo;</p>
-            <p className="text-xs text-ink/70 mt-1">{t("book.skipNote")}</p>
+            <p className="text-sm italic mt-1 border-l-4 border-sun pl-2">&ldquo;<PaperWords>{item.source_quote}</PaperWords>&rdquo;</p>
+            <p className="text-xs text-ink/70 mt-1">{ts("book.skipNote")}</p>
           </div>
         </div>
       )}

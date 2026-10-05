@@ -185,7 +185,7 @@ export function PrepMode() {
               <div className="mt-8">
                 <p className="font-extrabold text-lg">
                   {placed + res.ask.length === 0
-                    ? t("prep.none")
+                    ? ts("prep.none")
                     : t("prep.summary", { steps: tn("steps", placed), n: res.ask.length })}
                 </p>
                 {res.held_back.count > 0 && (
@@ -275,7 +275,7 @@ export function PrepTimeline({ res, meaning }: { res: Pick<PrepResponse, "timeli
 /** "Ask your clinic when": one list, always open, with Copy. Each line is the paper's own sentence. */
 function AskWhen({ steps, meaning }: { steps: PrepStep[]; meaning: MeaningState }) {
   const [copied, setCopied] = useState("");
-  const { t } = useUi();
+  const { t, ts } = useUi();
   function copy() {
     // No clipboard, or permission denied: say so, so the button never fails silently (Codex review).
     Promise.resolve().then(() => navigator.clipboard.writeText(prepAskText(steps)))
@@ -285,7 +285,7 @@ function AskWhen({ steps, meaning }: { steps: PrepStep[]; meaning: MeaningState 
   return (
     <section aria-labelledby="prep-ask-title" className="mt-6 rounded-2xl border-2 border-dashed border-peach-deep bg-paper p-4" data-ask-when="">
       <h3 id="prep-ask-title" className="display text-xl">{t("prep.askWhen")} ({steps.length})</h3>
-      <p className="text-sm font-semibold text-ink/70">{t("prep.askWhenNote")}</p>
+      <p className="text-sm font-semibold text-ink/70">{ts("prep.askWhenNote")}</p>
       <ul className="mt-3 space-y-2">{steps.map((s) => <Step key={s.id} s={s} meaning={meaning} />)}</ul>
       <div className="mt-3 flex items-center gap-2">
         <button type="button" onClick={copy} className="rounded-full border-2 border-ink px-3 py-1 text-xs font-bold hover:bg-mint">{t("prep.copyThese")}</button>
@@ -351,7 +351,7 @@ function PrepSheet({ res, meaning }: { res: PrepResponse & { language: Lang }; m
     <li key={s.id}>
       <span className="box" />
       <div>
-        <p><b>{s.source_quote}</b></p>
+        <p><b><PaperWords>{s.source_quote}</PaperWords></b></p>
         {shownExplanation(s, meaning) && <p>{t("prep.sheetPlain", { text: shownExplanation(s, meaning) ?? "" })}</p>}
       </div>
     </li>

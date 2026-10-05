@@ -7,7 +7,7 @@ import { locateOnPhoto, progressMessage, UNSUPPORTED_MESSAGE, type Stage } from 
 import type { OcrPage } from "@/lib/paperOcr";
 import type { Check } from "@/lib/paperFirst";
 import { shortQuote } from "@/lib/stepsView";
-import { useUi } from "./UiLang";
+import { PaperWords, useUi } from "./UiLang";
 
 /**
  * "Show on my paper": one tap shows where a step's words are on the person's own paper.
@@ -131,7 +131,7 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
         </p>
         <PhotoPaper state={state} />
         <p className="mt-3 border-l-4 border-sun pl-2 text-sm italic text-ink/80">
-          &ldquo;{care.source_text.slice(item.span!.start, item.span!.end)}&rdquo;
+          &ldquo;<PaperWords>{care.source_text.slice(item.span!.start, item.span!.end)}</PaperWords>&rdquo;
         </p>
       </>
     );
@@ -155,16 +155,17 @@ function scrollBehavior(): ScrollBehavior {
 /** The whole paper, with the verified span (exact offsets) marked and scrolled into view with the lines around it. */
 function TextPaper({ text, span }: { text: string; span: { start: number; end: number } }) {
   const mark = useRef<HTMLElement>(null);
+  const { paperLang } = useUi();
   useEffect(() => { mark.current?.scrollIntoView({ block: "center", behavior: scrollBehavior() }); }, [span.start, span.end]);
   return (
     <div tabIndex={0} role="region" aria-label="Your paper" data-lenis-prevent
       className="max-h-[55dvh] overflow-auto rounded-2xl border-2 border-ink/70 bg-paper p-3">
-      <pre className="whitespace-pre-wrap font-sans text-sm leading-6 text-ink/80">
+      <pre lang={paperLang} className="whitespace-pre-wrap font-sans text-sm leading-6 text-ink/80">
         {text.slice(0, span.start)}
         <mark ref={mark} className="rounded bg-sun px-0.5 text-ink outline-2 outline-teal-deep">
-          <span className="sr-only">Quoted on your paper: </span>
+          <span className="sr-only" lang="en">Quoted on your paper: </span>
           {text.slice(span.start, span.end)}
-          <span className="sr-only"> (end of quote)</span>
+          <span className="sr-only" lang="en"> (end of quote)</span>
         </mark>
         {text.slice(span.end)}
       </pre>

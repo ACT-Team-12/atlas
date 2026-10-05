@@ -124,6 +124,13 @@ describe("the steps and plan screens show no English of their own in another lan
   for (const lang of LANGUAGES.filter((l) => l !== "English")) {
     it(`${lang}: steps, plan, dock and the printed handoff sheet`, { timeout: 30_000 }, async () => {
       await walkThrough(lang);
+      // Open one reminder picker: its days and times must be in this language too (Codex review, round 2).
+      const remind = [...host.querySelectorAll("button")].find((x) => x.textContent?.trim() === ui(lang, "remind.button"));
+      expect(remind).toBeTruthy();
+      act(() => remind!.click());
+      expect(remind!.getAttribute("aria-expanded")).toBe("true"); // the picker really opened
+      // No word edges: the hidden picker's text runs together ("DíaToday"), so \b would miss it in Latin scripts.
+      expect(ownText(host)).not.toMatch(/Today|Tomorrow|\d:\d\d (AM|PM)/);
       // The plan really rendered (its summary is the AI's, untranslated), and so did the sheet.
       expect(host.textContent).toContain("PLAN SUMMARY");
       const sheet = document.getElementById("atlas-sheet");
@@ -153,9 +160,10 @@ describe("the steps and plan screens show no English of their own in another lan
       for (const k of shown) expect(beside, k).toContain(ui("English", k as UiKey));
 
       // The paper's own words carry the paper's language (English here), not the app's.
-      const quotes = [...host.querySelectorAll("[data-paper-quote] span[lang]")];
+      // Every element marked as a paper quote, on screen and on the sheet, carries the paper's language inside it.
+      const quotes = [...host.querySelectorAll("[data-paper-quote]"), ...sheet!.querySelectorAll("[data-paper-quote]")];
       expect(quotes.length).toBeGreaterThan(5);
-      for (const q of quotes) expect(q.getAttribute("lang")).toBe("en");
+      for (const q of quotes) expect(q.querySelector('[lang="en"]') ?? (q.getAttribute("lang") === "en" ? q : null), q.textContent?.slice(0, 60)).not.toBeNull();
     });
   }
 

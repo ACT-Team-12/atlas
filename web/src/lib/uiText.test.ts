@@ -169,8 +169,10 @@ describe("safety lines keep their English beside them until reviewed (Codex revi
     "labs.range", "labs.chip.inside", "labs.askIntro", "prep.kind.food_drink", "prep.kind.call",
     // Fragments of the dose line: MedicineChanges and the handoff sheet put the whole English sentence beside it.
     "med.doseWas", "med.sheetDoseWas",
+    // Button labels, headings and counts that name a person to ask; the lines under them say what to do.
+    "ask.clinic", "askClinic.title", "labs.askClinic", "prep.summary", "prep.slot.hours_before", "prep.askWhen",
   ]);
-  const DIRECTIVE = /911|emergenc|warning|\bstop\b|\bdose\b|follow (your|my|the) paper|critical|\bhigh\b|\blow\b|right away|don.t miss/i;
+  const DIRECTIVE = /911|emergenc|warning|\bstop\b|\bdose\b|follow (your|my|the) paper|critical|\bhigh\b|\blow\b|right away|don.t miss|(ask|call) your (clinic|doctor|pharmacist)|before your procedure|\bskip/i;
 
   it("every line that sounds like a directive is on the safety list, or named here as not one", () => {
     const missing = (Object.keys(UI_TEXT) as UiKey[]).filter((k) => DIRECTIVE.test(UI_TEXT[k].English) && !UI_SAFETY_KEYS.has(k) && !NOT_DIRECTIVE.has(k) && !k.startsWith("labs.reason."));

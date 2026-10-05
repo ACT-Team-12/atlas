@@ -270,7 +270,7 @@ export function CareSteps(p: Props) {
                 <span className="display text-lg">{ts(keyFor("when", g, "when.unclear"))}</span>
                 <span className="text-xs font-bold text-ink/70">{tn("steps", list.length)}</span>
               </h4>
-              {g === "unclear" && <p className="text-xs font-semibold text-ink/70">{t("when.unclearNote")}</p>}
+              {g === "unclear" && <p className="text-xs font-semibold text-ink/70">{ts("when.unclearNote")}</p>}
               <ul className="mt-2 space-y-2">{list.map((it) => row(it))}</ul>
             </section>
           ))}
@@ -307,7 +307,7 @@ export function CareSteps(p: Props) {
           {care.refused.length > 0 && (
             <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4">
               <p className="font-extrabold">{tn("heldTitle", care.refused.length)}</p>
-              <p className="text-xs text-ink/70">{t("steps.heldNote")}</p>
+              <p className="text-xs text-ink/70">{ts("steps.heldNote")}</p>
               {/* Never the AI's title: a held-back step has no paper words to stand next to it (Codex round 13). */}
               <ul className="mt-2 list-disc pl-5 text-sm">{care.refused.map((r, n) => (
                 <li key={r.id}>{tn("heldItem", n + 1)} {t(r.held_reason === "sentence_too_long" ? "steps.held.sentence_too_long" : r.held_reason === "skips_across" ? "steps.held.skips_across" : "steps.held.missing")}</li>
@@ -546,7 +546,7 @@ function WalkCard({ step, index, total, done, check, tl, heading, pip, pipText, 
       </div>
       {pip?.line && pipText && <div className="mt-1 flex justify-end"><PipBubble text={pipText} /></div>}
       <div aria-hidden="true" className="mt-3 h-2 overflow-hidden rounded-full bg-ink/10"><div className="h-full rounded-full bg-teal" style={{ width: `${((index + 1) / total) * 100}%` }} /></div>
-      {!warn && group === "unclear" && <p className="mt-2 text-base font-semibold text-ink/70">{t("when.unclearNote")}</p>}
+      {!warn && group === "unclear" && <p className="mt-2 text-base font-semibold text-ink/70">{ts("when.unclearNote")}</p>}
       <p className="mt-3 flex flex-wrap items-center gap-2 text-sm font-bold text-ink/70">
         {kind && <span className={`chip ${kind.cls}`}>{ts(keyFor("kind", it.kind, "kind.step"))}</span>}
         <SealMark seal={seal} />
@@ -675,11 +675,11 @@ function AskPersonBody({ ask, big = false }: { ask: AskPerson; big?: boolean }) 
  */
 function RemindMe({ it, check }: { it: VerifiedItem; check: Check }) {
   const [open, setOpen] = useState(false);
-  const days = useMemo(() => dayOptions(new Date(), 14), []);
+  const { t, code } = useUi();
+  const days = useMemo(() => dayOptions(new Date(), 14, code), [code]);
   const [day, setDay] = useState(days[0].value);
   const [time, setTime] = useState("09:00");
   const panelId = useId();
-  const { t } = useUi();
   const start = localStart(day, time);
   const title = bookSafe(it, check).title;
   const details = [...paperFirstLines(careStepView(it, check)), "Made with ATLAS (atlas-team12.vercel.app). Not medical advice."].join("\n");
@@ -709,7 +709,7 @@ function RemindMe({ it, check }: { it: VerifiedItem; check: Check }) {
           </label>
           <label className="font-bold">{t("remind.time")}
             <select value={time} onChange={(e) => setTime(e.target.value)} className="ml-2 rounded-lg border-2 border-ink/40 bg-paper px-2 py-1">
-              {timeOptions().map((t) => <option key={t} value={t}>{formatTime(t)}</option>)}
+              {timeOptions().map((t) => <option key={t} value={t}>{formatTime(t, code)}</option>)}
             </select>
           </label>
         </div>

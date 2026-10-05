@@ -38,7 +38,7 @@ import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollElementToTop, scrollTargetY, scrollToPanel, tabId, useIsPhone, type PageScroll } from "./PhoneTabs";
 import { paidVoiceAllowed, speechLines } from "@/lib/speechText";
 import {
-  closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan,
+  CHECK_POLICY, checksKey, closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan,
   STORE_KEY, type Session, type Store,
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
@@ -281,6 +281,8 @@ export function CarePlanTool() {
   const [meaning, setMeaning] = useState<MeaningState>(IDLE_MEANING);
   // One check at a time, with its own id and abort: Clear, Delete, a new read and unmount cancel it (lib/meaningRun.ts).
   const [meaningFence] = useState(() => new RunFence());
+  // The steps and language the current verdicts were made for (savedPlans.ts checksKey); what a save may store.
+  const meaningFor = useRef<string | null>(null);
   // The same quote checker, run again on this device (WebAssembly, loaded only after a read). Per step: did the
   // browser find the same words in the same place as the server?
   // Stored with the id of the reading it belongs to (never the reading, which holds the paper), so a newer read
@@ -383,6 +385,17 @@ export function CarePlanTool() {
       careIds: (v.care?.items ?? []).filter((i) => !v.removed[i.id]).map((i) => i.id),
       barriers: v.barriers, language: v.language, note: v.note, place: fromDevice ? "device" : planPlace(false, v.zip), location: null,
     }) : null);
+    // The second check's verdicts come back from the save itself, never by sending the paper again (the privacy page:
+    // nothing is uploaded when a saved plan is reopened). Only when they were made for exactly these steps and this
+    // language; a save from before verdicts were kept shows its steps as checked once (found Oct 5 on the live site).
+    meaningFor.current = null;
+    // Only for a save that is current (matched) and read in the plan's own language: an outdated save never gets
+    // its verdicts back. (Saved data is the person's own; this guards against stale saves, not a person editing them.)
+    const careLang = v.care?.language ?? v.language;
+    if (v.care && v.checks && v.matched === true && careLang === v.language && v.checks.key === checksKey(v.care.items, careLang)) {
+      meaningFor.current = v.checks.key;
+      setMeaning({ status: "done", byId: v.checks.byId, policy: v.checks.policy }); // the policy too, or the next save drops them (Codex round 4)
+    }
     setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan }));
   }
 
@@ -502,12 +515,19 @@ export function CarePlanTool() {
     if (!resultsCurrent) return;
     const next = autosaveStore({
       loaded: loaded.current, epoch, currentEpoch: sessionEpoch.current, store: storeRef.current,
-      session: { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, matched: true }, now: new Date().toISOString(), newId: newPlanId(),
+      session: {
+        text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, matched: true,
+        // The check's verdicts, kept on this device with the steps they were made for (savedPlans.ts, checksKey).
+        // Only verdicts made for exactly these steps: ids like item-1 repeat between readings.
+        // Kept only when the server says it checked under this build's rules and model (checkPolicy.ts).
+        ...(care && meaning.status === "done" && meaning.policy === CHECK_POLICY && meaningFor.current === checksKey(care.items, care.language ?? language)
+          ? { checks: { key: meaningFor.current, policy: meaning.policy, byId: meaning.byId } } : {}),
+      }, now: new Date().toISOString(), newId: newPlanId(),
     });
     if (next) writeStore(next);
     // writeStore only touches refs, setters and localStorage; a new render's copy changes nothing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, resultsCurrent, epoch]);
+  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, meaning, resultsCurrent, epoch]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /**
@@ -569,7 +589,10 @@ export function CarePlanTool() {
   }
 
   function checkMeaningFor(c: CarePlanResponse) {
-    return runMeaningCheck(meaningFence, c.items, fetchMeaning, setMeaning, c.language);
+    // An older save has no language on its reading: use the plan's, so number words are read in the right language.
+    const lang = c.language ?? language;
+    meaningFor.current = checksKey(c.items, lang); // the steps these verdicts will belong to
+    return runMeaningCheck(meaningFence, c.items, fetchMeaning, setMeaning, lang);
   }
 
   // Leaving the page cancels a meaning check still in flight.

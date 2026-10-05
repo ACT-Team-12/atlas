@@ -230,6 +230,12 @@ fun CareStepsScreen(model: AppModel) {
         // Where the website puts it: after the steps and the removed, not-in-paper and held-back lists, before moving on.
         MissedLinesSection(model.missedLines)
 
+        // "Ask my paper": answers only in the paper's own words, checked, or "your paper doesn't say". Off while the text
+        // on screen differs from the one read: it would answer from the old text. A new reading or language starts it fresh.
+        if (!model.careOutdated) {
+            key(model.readingCount, model.language, care.source_text.length) { AskPaperSection(model, care, model.language) }
+        }
+
         if (model.careOutdated) {
             PillButton("Read my paper again", onClick = { speaker.stop(); model.readPaper() },
                 fill = Palette.ink, textColor = Palette.paper, shadow = Palette.mint)

@@ -61,6 +61,57 @@ class ApiClient(private val baseUrl: String = BASE_URL) {
     suspend fun results(text: String, language: Language): ResultsResponse =
         post("/api/results", AtlasJson.encodeToString(ResultsRequest.serializer(), ResultsRequest(text, language)), ResultsResponse.serializer())
 
+    /** What /api/ask gave back: an answer to show, or a refusal (rate limit, daily cap, no AI key, bad request). */
+    sealed interface AskOutcome {
+        data class Answer(val response: AskPaper.Response) : AskOutcome
+        data class Refused(val status: Int, val limit: String?) : AskOutcome
+    }
+
+    /**
+     * "Ask my paper" (web/src/app/api/ask): the same body the website sends. A refusal comes back as its status and its
+     * x-atlas-limit header, so the screen shows fixed words in the person's language instead of the server's English.
+     * Network failures throw, as for every other call.
+     */
+    suspend fun ask(sourceText: String, language: Language, question: String): AskOutcome = coroutineScope {
+        val conn = URL("$baseUrl/api/ask").openConnection() as HttpURLConnection
+        val body = AtlasJson.encodeToString(AskRequest.serializer(), AskRequest(sourceText, language, question))
+        val call = async(Dispatchers.IO) {
+            try {
+                conn.requestMethod = "POST"
+                conn.connectTimeout = 20_000
+                conn.readTimeout = 90_000
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.setRequestProperty("Accept", "application/json")
+                conn.setRequestProperty(SURFACE_HEADER, "android")
+                conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                val status = conn.responseCode
+                if (status !in 200..299) return@async AskOutcome.Refused(status, conn.getHeaderField("x-atlas-limit"))
+                val text = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                currentCoroutineContext().ensureActive()
+                AskOutcome.Answer(AskPaper.decode(text) ?: throw ApiException(ApiErrors.UNREADABLE))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ApiException) {
+                throw e
+            } catch (e: SocketTimeoutException) {
+                currentCoroutineContext().ensureActive()
+                throw ApiException(ApiErrors.TIMEOUT)
+            } catch (e: IOException) {
+                currentCoroutineContext().ensureActive()
+                throw ApiException(ApiErrors.OFFLINE)
+            } finally {
+                conn.disconnect()
+            }
+        }
+        try {
+            call.await()
+        } catch (e: CancellationException) {
+            conn.disconnect()
+            throw e
+        }
+    }
+
     private suspend fun <T> post(path: String, body: String, out: KSerializer<T>, headers: Map<String, String> = emptyMap()): T = coroutineScope {
         val conn = URL(baseUrl + path).openConnection() as HttpURLConnection
         val call = async(Dispatchers.IO) { send(conn, body, out, headers) }

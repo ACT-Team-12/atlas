@@ -308,6 +308,10 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** "Ask my paper" (AskPaperSection): one question about the paper on screen. Nothing is saved, not the question and not the answer. */
+    suspend fun askPaper(sourceText: String, language: Language, question: String): ApiClient.AskOutcome =
+        api.ask(sourceText, language, question)
+
     /** Runs the second check for `forCare`. Its reply is applied only while the run is current and `care` is still that read. */
     private fun startMeaningCheck(forCare: CarePlanResponse, language: Language?) {
         cancelMeaning()

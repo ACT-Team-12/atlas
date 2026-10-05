@@ -52,7 +52,7 @@ export function Preloader() {
     <div ref={root} className="fixed inset-0 z-[100] pointer-events-none" aria-hidden="true">
       <svg viewBox="0 0 1080 1080" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
         <path className="pl-path" d="M-160 140 C 240 -120, 520 420, 300 640 S 620 1180, 900 820 S 1260 380, 1240 1240"
-          fill="none" stroke="#bfe9dc" strokeWidth="75%" strokeLinecap="round" />
+          fill="none" stroke="var(--mint)" strokeWidth="75%" strokeLinecap="round" />
       </svg>
       <div className="absolute inset-0 grid place-items-center">
         <div className="relative flex flex-col items-center gap-3">

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Mark } from "./Mark";
+import { ThemeToggle } from "./ThemeToggle";
 
 const LINKS = [
   { href: "/#how", label: "How it works" },
@@ -28,7 +29,8 @@ export function Nav() {
           ATLAS
         </span>
       </Link>
-      <nav aria-label="Main" className="pointer-events-auto hidden md:flex items-center gap-1.5">
+      <div className="pointer-events-auto flex items-center gap-1.5">
+      <nav aria-label="Main" className="hidden md:flex items-center gap-1.5">
         {LINKS.map((l) => (
           <Link key={l.href} href={l.href}
             className="rounded-full bg-mint-soft border-2 border-ink px-4 py-2 font-bold text-sm hover:bg-mint transition-colors shadow-[0_2px_0_var(--ink)]">
@@ -36,7 +38,9 @@ export function Nav() {
           </Link>
         ))}
       </nav>
-      <Link href="/#try" className="pointer-events-auto md:hidden rounded-full bg-ink text-paper px-4 py-2.5 font-bold text-sm">Try it</Link>
+      <ThemeToggle />
+      <Link href="/#try" className="md:hidden whitespace-nowrap rounded-full bg-ink text-paper px-4 py-2.5 font-bold text-sm">Try it</Link>
+      </div>
     </header>
   );
 }

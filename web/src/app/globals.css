@@ -22,6 +22,10 @@
   --red: #b42828;
   --red-soft: #fbe3e3;
   --lilac: #e6defa;
+  --sun-line: #ffc94d;
+  --wave-1: #cdeee3;
+  --wave-2: #dbf3ea;
+  --wave-3: #e6f6f0;
 
   --ease-osmo: cubic-bezier(0.625, 0.05, 0, 1);
   --ease-soft-overshoot: cubic-bezier(0.59, 1, 0.88, 1.01);
@@ -78,6 +82,122 @@
   --font-hand: var(--font-hand);
 }
 
+/*
+ * Themes. The palette above is light. Dark is the same roles turned over: paper becomes a warm, paper-like dark (never
+ * pure black), ink becomes a warm off-white, the soft surfaces (mint, sky, peach, lilac, red-soft) become deep tints of
+ * the same hue, and the strong colors (teal, red, the -deep accents) become lighter so they still read as text and as
+ * fills under dark text. Red stays the warning hue and every warning also carries a word or an icon.
+ *
+ * Which theme: an inline script in app/layout.tsx sets data-theme="light" or "dark" on <html> before the first paint,
+ * from the saved choice (System / Light / Dark, in localStorage) or, for System, the phone's setting. The media-query
+ * copy below covers a browser with JavaScript off. theme-contrast.test.ts reads these blocks and checks every pair.
+ */
+:root { color-scheme: light; }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #1c1a16;
+  --ink: #f1eadf;
+  --ink-soft: #d3cabb;
+  --teal: #5cc4b8;
+  --teal-deep: #7fd4c9;
+  --mint: #22433b;
+  --mint-soft: #1f2d29;
+  --sky: #1e3346;
+  --sky-deep: #93c1f2;
+  --peach: #46301f;
+  --peach-deep: #f2b37c;
+  --sun: #544010;
+  --red: #ff9a90;
+  --red-soft: #431d1b;
+  --lilac: #2f2a45;
+  --sun-line: #e0ac2e;
+  --wave-1: #1f3d36;
+  --wave-2: #1d3530;
+  --wave-3: #1b2d29;
+  /* Pip (Akhil's dark colors), for the "you are here" marker. */
+  --pip-ink: #e4edf3;
+  --pip-pin: #ffad8a;
+  --pip-pin2: #f06a72;
+  --pip-deep: #ff8e6e;
+  --pip-leaf: #5dbb6f;
+  --pip-go: #45be88;
+  --pip-sky: #6fa3ee;
+  --pip-face: #fffdf7;
+  --pip-cheek: #f58c7a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --paper: #1c1a16;
+    --ink: #f1eadf;
+    --ink-soft: #d3cabb;
+    --teal: #5cc4b8;
+    --teal-deep: #7fd4c9;
+    --mint: #22433b;
+    --mint-soft: #1f2d29;
+    --sky: #1e3346;
+    --sky-deep: #93c1f2;
+    --peach: #46301f;
+    --peach-deep: #f2b37c;
+    --sun: #544010;
+    --red: #ff9a90;
+    --red-soft: #431d1b;
+    --lilac: #2f2a45;
+    --sun-line: #e0ac2e;
+    --wave-1: #1f3d36;
+    --wave-2: #1d3530;
+    --wave-3: #1b2d29;
+    --pip-ink: #e4edf3;
+    --pip-pin: #ffad8a;
+    --pip-pin2: #f06a72;
+    --pip-deep: #ff8e6e;
+    --pip-leaf: #5dbb6f;
+    --pip-go: #45be88;
+    --pip-sky: #6fa3ee;
+    --pip-face: #fffdf7;
+    --pip-cheek: #f58c7a;
+  }
+}
+/* Paper is printed light, always: plans and handoff sheets come out black on white whatever the screen shows. The
+   selector list matches every dark selector above at equal or higher specificity, and comes later, so it wins. */
+@media print {
+  :root, :root[data-theme="dark"], :root:not([data-theme]) {
+    color-scheme: light;
+    --paper: #fbf8f3;
+    --ink: #102a43;
+    --ink-soft: #334e68;
+    --teal: #0b7a75;
+    --teal-deep: #075e5a;
+    --mint: #bfe9dc;
+    --mint-soft: #e6f6f0;
+    --sky: #d6e9f8;
+    --sky-deep: #1d5fa8;
+    --peach: #ffe0c2;
+    --peach-deep: #9a4a0c;
+    --sun: #ffc94d;
+    --red: #b42828;
+    --red-soft: #fbe3e3;
+    --lilac: #e6defa;
+    --sun-line: #ffc94d;
+    --wave-1: #cdeee3;
+    --wave-2: #dbf3ea;
+    --wave-3: #e6f6f0;
+    --pip-ink: #14283a;
+    --pip-pin: #ffa47e;
+    --pip-pin2: #f0606a;
+    --pip-deep: #d2543f;
+    --pip-leaf: #3f9a52;
+    --pip-go: #24895d;
+    --pip-sky: #2f6fc9;
+    --pip-face: #fffdf7;
+    --pip-cheek: #f58c7a;
+  }
+}
+/* The quote rule (border-l-4 border-sun) and sun callout frames: a brighter amber line in dark. Decorative; the quote
+   itself is the text beside it. */
+:root[data-theme="dark"] .border-sun { border-color: var(--sun-line); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .border-sun { border-color: var(--sun-line); } }
+
 html {
   font-size: clamp(15px, calc(100vw / 92), 20px);
   background: var(--paper);
@@ -92,6 +212,26 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
+
+/* Highlighted lines of the patient's paper. The browser default for <mark> is black text, unreadable on dark amber. */
+mark {
+  color: var(--ink);
+}
+
+/* Placeholder text ("Paste the lab report here..."): Tailwind's default is ink at 50% (3.0:1); 70% reads at 4.5:1+. */
+::placeholder {
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+  opacity: 1;
+}
+
+/* Theme toggle (ui/ThemeToggle.tsx): the picked option is drawn from <html data-theme-pref>, so it is right before
+   hydration. No attribute yet (script blocked) means System. */
+.theme-opt { color: var(--ink); }
+@media (hover: hover) { .theme-opt:hover { background: var(--mint-soft); } }
+:root:not([data-theme-pref]) .theme-opt[data-theme-option="system"],
+:root[data-theme-pref="system"] .theme-opt[data-theme-option="system"],
+:root[data-theme-pref="light"] .theme-opt[data-theme-option="light"],
+:root[data-theme-pref="dark"] .theme-opt[data-theme-option="dark"] { background: var(--ink); color: var(--paper); }
 
 ::selection {
   background: var(--mint);
@@ -386,7 +526,7 @@ html.print-view.print-session .atlas-session-sheet {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; margin: 0;
     display: flex; flex-wrap: wrap; justify-content: space-around; align-items: start; gap: 4px 2px;
     padding: 8px 8px calc(10px + env(safe-area-inset-bottom));
-    background: var(--paper); border-top: 2px solid var(--ink); box-shadow: 0 -4px 14px rgb(16 42 67 / 0.12);
+    background: var(--paper); border-top: 2px solid var(--ink); box-shadow: 0 -4px 14px color-mix(in srgb, var(--ink) 12%, transparent);
     max-height: 75vh; overflow-y: auto; overscroll-behavior: contain;
   }
   .plan-dock[data-away] { display: none; }

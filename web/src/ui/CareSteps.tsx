@@ -697,12 +697,12 @@ function RemindMe({ it, check }: { it: VerifiedItem; check: Check }) {
       <div id={panelId} hidden={!open} className="basis-full rounded-xl border-2 border-dashed border-ink/40 p-3 text-sm">
         <div className="flex flex-wrap items-end gap-3">
           <label className="font-bold">Day
-            <select value={day} onChange={(e) => setDay(e.target.value)} className="ml-2 rounded-lg border-2 border-ink/40 bg-paper px-2 py-1">
+            <select value={day} onChange={(e) => setDay(e.target.value)} className="ml-2 rounded-lg border-2 border-ink/60 bg-paper px-2 py-1">
               {days.map((d) => <option key={d.value} value={d.value}>{d.label}, {d.sub}</option>)}
             </select>
           </label>
           <label className="font-bold">Time
-            <select value={time} onChange={(e) => setTime(e.target.value)} className="ml-2 rounded-lg border-2 border-ink/40 bg-paper px-2 py-1">
+            <select value={time} onChange={(e) => setTime(e.target.value)} className="ml-2 rounded-lg border-2 border-ink/60 bg-paper px-2 py-1">
               {timeOptions().map((t) => <option key={t} value={t}>{formatTime(t)}</option>)}
             </select>
           </label>

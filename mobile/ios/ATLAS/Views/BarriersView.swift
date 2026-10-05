@@ -94,17 +94,18 @@ struct BarriersView: View {
         let run = model.beginLocating()
         Task {
             var point: LatLng?
-            defer { model.finishLocating(run, point: point) }
+            var failure: String?
+            defer { model.finishLocating(run, point: point, failure: failure) }
             do {
                 let c = try await locator.currentLocation()
                 let found = LatLng(lat: c.latitude, lng: c.longitude)
                 guard found.isInServiceArea else {
-                    model.error = "Your location is outside the US, where ATLAS has verified clinics. Type a US ZIP instead."
+                    failure = "Your location is outside the US, where ATLAS has verified clinics. Type a US ZIP instead."
                     return
                 }
                 point = found
             } catch {
-                model.error = error.localizedDescription
+                failure = error.localizedDescription
             }
         }
     }

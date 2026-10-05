@@ -105,3 +105,20 @@ extension SessionFixesTests {
         #expect(model.location == LatLng(lat: 33.75, lng: -84.39) && model.zip.isEmpty && !model.locating)
     }
 }
+
+extension SessionFixesTests {
+    /// A replaced lookup's failure is not shown: the ZIP typed meanwhile (or a newer lookup) is what counts.
+    @Test func aReplacedLookupsFailureIsNotShown() throws {
+        let model = AppModel(api: try Self.stubbedAPI(), store: try Self.currentStore())
+        let old = model.beginLocating()
+        model.typeZip("30310")
+        model.finishLocating(old, point: nil, failure: "outside")
+        #expect(model.error == nil && model.zip == "30310")
+        let first = model.beginLocating()
+        let second = model.beginLocating()
+        model.finishLocating(first, point: nil, failure: "unavailable")
+        #expect(model.error == nil && model.locating)
+        model.finishLocating(second, point: nil, failure: "outside")
+        #expect(model.error == "outside" && !model.locating, "the current lookup's failure is shown")
+    }
+}

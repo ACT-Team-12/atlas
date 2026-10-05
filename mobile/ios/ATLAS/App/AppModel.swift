@@ -40,10 +40,12 @@ final class AppModel {
         return locationRun
     }
 
-    /// A lookup ended, with a point in the service area or nil. Applied only if no newer lookup or place replaced it.
-    func finishLocating(_ run: Int, point: LatLng?) {
+    /// A lookup ended, with a point in the service area, or nil and why not. Applied only if no newer lookup or place
+    /// replaced it: a replaced lookup's failure is not shown either.
+    func finishLocating(_ run: Int, point: LatLng?, failure: String? = nil) {
         guard run == locationRun else { return }
         locating = false
+        if let failure { error = failure }
         if let point {
             location = point
             zip = ""

@@ -1444,6 +1444,10 @@ describe("a paper that is not a visit paper (nothing becomes a step)", () => {
     expect(screenText()).not.toContain("grocery list. Could you share"); // the AI's question to the person is not filed under "Ask your clinic"
     expect(host.querySelector("#steps-title")?.textContent).toBe(ui("English", "steps.noneFound.title")); // the ready cue lands here
 
+    // Step 1 is not marked done: its badge still shows the number, not a check.
+    const step1 = [...host.querySelectorAll("h3")].find((h) => h.textContent === ui("English", "paper.title"))!;
+    expect(step1.previousElementSibling?.textContent).toBe("1");
+
     act(() => byText(ui("English", "steps.noneFound.paste")).click());
     expect(document.activeElement).toBe(paperBox());
   });

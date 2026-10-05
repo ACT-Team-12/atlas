@@ -217,6 +217,12 @@ export function StreamingSteps({ items }: { items: VerifiedItem[] }) {
   );
 }
 
+/** A read where nothing became a step: no steps, none held back, no warning signs. The paper is probably not a visit
+ * paper, so it does not count as step 1 done (heading check, phone tab bar, the tab a saved plan reopens on). */
+function foundNothing(c: CarePlanResponse | null | undefined): boolean {
+  return !!c && c.items.length === 0 && c.stats.refused === 0 && !c.has_warning_signs;
+}
+
 function StepHeader({ n, title, done, note, id }: { n: number; title: string; done?: boolean; note?: string; id?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -458,7 +464,7 @@ export function CarePlanTool() {
       meaningFor.current = v.checks.key;
       setMeaning({ status: "done", byId: v.checks.byId, policy: v.checks.policy }); // the policy too, or the next save drops them (Codex round 4)
     }
-    setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan }));
+    setTab(restoredTab({ hasCare: !!v.care && !foundNothing(v.care), hasPlan: !!v.plan }));
   }
 
   /** Empties the tool for a new plan. Saved plans stay as they are. */
@@ -1215,7 +1221,7 @@ export function CarePlanTool() {
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
   const missed = useMissedLines(care, removed);
   // A read that found nothing (no steps, none held back, no warning signs): the paper is probably not a visit paper.
-  const noStepsFound = !!care && care.items.length === 0 && care.stats.refused === 0 && !care.has_warning_signs;
+  const noStepsFound = foundNothing(care);
   const pasteAgain = () => {
     const box = document.querySelector<HTMLTextAreaElement>('#try textarea[data-paper-box]');
     box?.scrollIntoView?.({ block: "center" });
@@ -1223,7 +1229,7 @@ export function CarePlanTool() {
     box?.select();
   };
   const deviceStatus = deviceStatusOf(care, needsPhotoCheck, deviceRun);
-  const flow = { hasCare: !!care, hasPlan: !!plan };
+  const flow = { hasCare: !!care && !noStepsFound, hasPlan: !!plan };
   const openName = store.plans.find((p) => p.id === store.active)?.name ?? null;
   // The person changed our reading of their photo. Accepting or re-reading the old text would silently drop their fix.
   const transcriptEdited = !!care && isTranscriptEdited(transcript, care.source_text);
@@ -1267,7 +1273,7 @@ export function CarePlanTool() {
 
         {/* Step 1 */}
         <div {...panel(1)} className={`card mt-10 max-md:mt-4 p-5 sm:p-8 max-md:scroll-mt-44 ${onPhone(1)}`}>
-          <StepHeader n={1} title={t("paper.title")} done={!!care} note={t("paper.titleNote")} />
+          <StepHeader n={1} title={t("paper.title")} done={!!care && !noStepsFound} note={t("paper.titleNote")} />
           <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_15rem]">
             <div>
               <textarea data-lenis-prevent data-paper-box="" aria-label={t("paper.textLabel")} className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"

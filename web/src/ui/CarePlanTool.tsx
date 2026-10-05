@@ -722,10 +722,14 @@ export function CarePlanTool() {
       // fallback when the stream is missing or breaks (it builds the same plan in one answer).
       let json: PlanResponse & { error?: string }, ok = true;
       try {
-        json = await streamPlanRequest(body, (p) => { if (planRun.current === run) setPlanPreview(p); }, abort.signal);
+        // A step is shown only while this request still matches the answers on screen (Codex review of PR 105): an
+        // answer changed before the stale-plan effect ran must not paint a step built from the old ones.
+        const current = () => planRun.current === run && pendingPlan.current?.run === run && pendingPlan.current.fp === livePlanFp();
+        json = await streamPlanRequest(body, (p) => { if (current()) setPlanPreview(p); }, abort.signal);
       } catch (e) {
         if (!(e instanceof StreamBroken) || abort.signal.aborted) throw e;
         if (planRun.current === run) setPlanPreview(null);
+        if (pendingPlan.current?.run === run && pendingPlan.current.fp !== livePlanFp()) return stopStalePlan(); // no plain retry for old answers
         const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body), signal: abort.signal });
         json = await res.json(); ok = res.ok;
       }

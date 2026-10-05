@@ -1262,14 +1262,17 @@ describe("the plan streams in, step by step", () => {
     expect(screenText()).toContain("You changed your answers, so we stopped building the plan.");
   });
 
-  it("the server's own error is shown, not retried", async () => {
+  it("the server's own error is shown, not retried, and steps already shown leave the screen", async () => {
     const s = openStream();
     act(() => byText("Getting there").click());
     await act(async () => { byText("Make my plan").click(); await drain(); });
     await s.send({ type: "start", resources, located });
+    await s.send({ type: "step", step: step("Shown then declined", "Never part of a plan.") });
+    expect(screenText()).toContain("Shown then declined");
     await s.send({ type: "error", error: "The AI declined to build this plan.", status: 422 });
     await s.end();
     expect(screenText()).toContain("The AI declined to build this plan.");
+    expect(screenText()).not.toContain("Shown then declined"); // a preview step never outlives a failed plan
     expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(0);
   });
 });

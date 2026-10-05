@@ -370,7 +370,7 @@ export function CarePlanTool() {
     const careLang = v.care?.language ?? v.language;
     if (v.care && v.checks && v.matched === true && careLang === v.language && v.checks.key === checksKey(v.care.items, careLang)) {
       meaningFor.current = v.checks.key;
-      setMeaning({ status: "done", byId: v.checks.byId });
+      setMeaning({ status: "done", byId: v.checks.byId, policy: v.checks.policy }); // the policy too, or the next save drops them (Codex round 4)
     }
     setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan }));
   }

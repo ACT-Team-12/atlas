@@ -857,6 +857,19 @@ describe("a plan saved before results were checked against answers", () => {
     expect(sealCounts()["Checked twice"]).toBe(care.items.length);
   });
 
+  it("restored verdicts stay saved: a second reopen still shows them checked twice (Codex round 4)", async () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ matched: true, checks: { key: checksKey(care.items, care.language ?? "English"), policy: CHECK_POLICY, byId } });
+    await act(async () => { await drain(); await drain(); }); // let the autosave run
+    expect(localStorage.getItem("atlas-plans-v2")).toContain('"checks"');
+    act(() => root.unmount());
+    root = createRoot(host);
+    act(() => root.render(<CarePlanTool />));
+    await act(async () => { await drain(); });
+    expect(sealCounts()["Checked twice"]).toBe(care.items.length);
+  });
+
   it("verdicts saved for other steps are dropped: the steps show as checked once", () => {
     const care = careFor(PAPER);
     const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));

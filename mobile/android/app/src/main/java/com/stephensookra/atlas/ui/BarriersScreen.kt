@@ -59,20 +59,21 @@ fun BarriersScreen(model: AppModel) {
         val run = model.beginLocating()
         scope.launch {
             var point: LatLng? = null
+            var failure: String? = null
             try {
                 val fix = LocationProvider.current(context)
                 if (fix == null) {
-                    model.error = LocationProvider.UNAVAILABLE
+                    failure = LocationProvider.UNAVAILABLE
                     return@launch
                 }
                 val found = LatLng(fix.latitude, fix.longitude)
                 if (!found.isInServiceArea) {
-                    model.error = LocationProvider.OUTSIDE
+                    failure = LocationProvider.OUTSIDE
                     return@launch
                 }
                 point = found
             } finally {
-                model.finishLocating(run, point)
+                model.finishLocating(run, point, failure)
             }
         }
     }

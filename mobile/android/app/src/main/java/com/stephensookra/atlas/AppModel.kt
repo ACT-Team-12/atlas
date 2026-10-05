@@ -103,10 +103,14 @@ class AppModel @JvmOverloads constructor(
         return locationRun
     }
 
-    /** A lookup ended, with a point in the service area or null. Applied only if no newer lookup or place replaced it. */
-    fun finishLocating(run: Int, point: LatLng?) {
+    /**
+     * A lookup ended, with a point in the service area, or null and why not. Applied only if no newer lookup or place
+     * replaced it: a replaced lookup's failure is not shown either.
+     */
+    fun finishLocating(run: Int, point: LatLng?, failure: String? = null) {
         if (run != locationRun) return
         updateLocating(false)
+        if (failure != null) error = failure
         if (point != null) useLocation(point)
     }
 

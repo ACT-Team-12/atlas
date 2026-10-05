@@ -161,6 +161,24 @@ class StaleRepliesTest {
         assertTrue(!m.locating)
     }
 
+    /** A replaced lookup's failure is not shown: the ZIP typed meanwhile (or a newer lookup) is what counts. */
+    @Test fun aReplacedLookupsFailureIsNotShown() {
+        val m = model(HeldApi())
+        val old = m.beginLocating()
+        m.updateZip("30310")
+        m.finishLocating(old, null, "outside")
+        assertNull(m.error)
+        assertEquals("30310", m.zip)
+        val first = m.beginLocating()
+        val second = m.beginLocating()
+        m.finishLocating(first, null, "unavailable")
+        assertNull(m.error)
+        assertTrue(m.locating)
+        m.finishLocating(second, null, "outside")
+        assertEquals("the current lookup's failure is shown", "outside", m.error)
+        assertTrue(!m.locating)
+    }
+
     @Test fun aChangeTheReadDoesNotUseLeavesItRunningAndItLands() {
         val api = HeldApi()
         val m = model(api)

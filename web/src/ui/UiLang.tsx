@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import { englishBeside, ui, uiCount, uiLang, UI_LANG_CODE, type Lang, type UiKey, type UiPluralKey } from "@/lib/uiText";
-import { paperLanguages } from "@/lib/missedLines";
+import { detectPaperLang } from "@/lib/paperLang";
 
 /**
  * The language the app's own words are shown in (lib/uiText.ts). Each tool that has an "Explain it in" picker provides
@@ -15,10 +15,9 @@ export function UiLangProvider({ language, paperLang = "", children }: { languag
   return <UiLangContext.Provider value={{ lang: uiLang(language), paperLang }}>{children}</UiLangContext.Provider>;
 }
 
-/** The HTML lang of a paper's own words: "en" or "es" when the paper is plainly one of them, "" (unknown) otherwise. */
+/** The HTML lang of a paper's own words, in any of the app's 7 languages (lib/paperLang.ts); "" when it can't be told. */
 export function paperLangCode(source: string): string {
-  const langs = paperLanguages(source);
-  return langs && langs.length === 1 ? langs[0] : "";
+  return detectPaperLang(source);
 }
 
 /**

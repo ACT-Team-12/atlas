@@ -71,6 +71,7 @@ regen() {
   rm -f "$gen_out"
 }
 regen walk "$root/mobile/shared/genWalkVectors.test.ts" "$root/mobile/shared/walk-vectors.json"
+regen ask "$root/mobile/shared/genAskVectors.test.ts" "$root/mobile/shared/ask-vectors.json"
 
 # Pip vectors (where the "you are here" marker goes and what he says; mobile/shared/pip-vectors.json). The web reference,
 # web/src/lib/pip.ts, arrives with PR 82. Without it the check cannot run: it FAILS when ENFORCE=true (main and pull

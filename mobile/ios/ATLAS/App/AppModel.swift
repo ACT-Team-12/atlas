@@ -261,6 +261,12 @@ final class AppModel {
         }
     }
 
+    /// "Ask my paper" (AskPaperView): one question about the paper on screen. Nothing is saved, not the question and
+    /// not the answer.
+    func askPaper(sourceText: String, language: Language, question: String) async throws -> AskOutcome {
+        try await api.ask(sourceText: sourceText, language: language, question: question)
+    }
+
     /// Runs the second check for `forCare`. Its reply is applied only while the run is current and `care` is still
     /// that read.
     private func startMeaningCheck(for forCare: CarePlanResponse, language: Language?) {

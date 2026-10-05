@@ -67,6 +67,23 @@ cd web && VECTORS_OUT=../mobile/shared/walk-vectors.json pnpm exec vitest run sr
 rm src/lib/genWalkVectors.test.ts
 ```
 
+## Ask my paper (ask-vectors.json)
+
+`ask-vectors.json` is the website's own answer for the parts of "Ask my paper" the phones decide without any AI:
+every fixed string in the seven app languages (`ASK_TEXT` in `web/src/lib/askText.ts`, with the sentence-building ones
+filled in for fixed inputs), which questions are urgent and never sent (`isUrgentQuestion`), the ready question built
+only from the person's own words (`askAboutQuestion`), and which quotes survive `onThisPaper`
+(`web/src/ui/AskPaper.tsx`). The answer itself always comes from `POST /api/ask`. iOS replays it in
+`mobile/ios/ATLASTests/AskPaperTests.swift` and Android in
+`mobile/android/app/src/test/java/com/stephensookra/atlas/AskPaperTest.kt`. `check-vectors.sh` regenerates it in
+web-ci and fails on any drift. To regenerate by hand:
+
+```sh
+cp mobile/shared/genAskVectors.test.ts web/src/lib/
+cd web && VECTORS_OUT=../mobile/shared/ask-vectors.json pnpm exec vitest run src/lib/genAskVectors.test.ts
+rm src/lib/genAskVectors.test.ts
+```
+
 ## Missed lines (missed-lines-vectors.json)
 
 `missed-lines-vectors.json` is the website's own answer for the "Lines on your paper we didn't turn into steps"

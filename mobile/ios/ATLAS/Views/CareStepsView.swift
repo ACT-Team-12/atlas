@@ -137,6 +137,14 @@ struct CareStepsView: View {
                     // Where the website puts it: after the steps and the removed, not-in-paper and held-back lists, before moving on.
                     MissedLinesSection(view: model.missedLines)
 
+                    // "Ask my paper": answers only in the paper's own words, checked, or "your paper doesn't say". Off while
+                    // the text on screen differs from the one read: it would answer from the old text. A new reading or
+                    // language starts it fresh.
+                    if !model.careOutdated {
+                        AskPaperView(care: care, items: model.items, language: model.language)
+                            .id("\(model.readingCount):\(model.language.rawValue):\(care.source_text.count)")
+                    }
+
                     if model.careOutdated {
                         Button("Read my paper again") {
                             speaker.stop()

@@ -71,6 +71,9 @@ targets:
       # "Walk me through it" web reference (web/src/lib/walkThrough.ts): WalkThroughTests replays it.
       - path: ../shared/walk-vectors.json
         buildPhase: resources
+      # "Ask my paper" web reference (web/src/lib/askText.ts, onThisPaper): AskPaperTests replays it.
+      - path: ../shared/ask-vectors.json
+        buildPhase: resources
     dependencies:
       - target: ATLAS
     settings:

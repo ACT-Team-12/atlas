@@ -59,4 +59,7 @@ jobs:
           assert p and p[1] == p[2] and int(p[2]) > 600, 'the shared Pip vectors did not all run and pass'
           k = re.search(r'walk vectors: (\d+) of (\d+) equal to the web reference', log)
           print(k[0] if k else 'walk-through vector replay did not report')
-          assert k and k[1] == k[2] and int(k[2]) > 600, 'the shared walk-through vectors did not all run and pass'"
+          assert k and k[1] == k[2] and int(k[2]) > 600, 'the shared walk-through vectors did not all run and pass'
+          a = re.search(r'ask vectors: (\d+) of (\d+) equal to the web reference', log)
+          print(a[0] if a else 'Ask my paper vector replay did not report')
+          assert a and a[1] == a[2] and int(a[2]) > 90, 'the shared Ask my paper vectors did not all run and pass'"

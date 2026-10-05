@@ -23,6 +23,13 @@ const VIETNAMESE = /[ăđơưạảấầẩẫậắằẳẵặẹẻẽếề
 // Common words, lowercase, accents kept. Words shared by two languages ("de", "que", "a", "en") are left out.
 const EN = new Set("the and you your with for take if of to is this are be have has call day days daily each by at or from when every week weeks doctor medicine tablet mouth return before after".split(" "));
 const ES = new Set("el los las del usted su sus con para una y por cada día días tome llame médico medicina tableta boca semana semanas antes después cuando es este esta".split(" "));
+/**
+ * Common words of Latin-script languages the app does not offer (Portuguese, Italian, German). A paper that has them
+ * about as often as the best of English, Spanish or French is "", never a wrong guess: "Tome o medicamento por via
+ * oral." is Portuguese and must not read with a Spanish voice (Codex review, round 6). Words that are also common
+ * English, Spanish or French ("do", "die", "per", "das", "ou") are left out.
+ */
+const OTHER = new Set("o os da dos não você seu sua em um uma ao il gli della di che è prenda giorno volte der und mit nicht ist ein eine nehmen täglich".split(" "));
 const FR = new Set("le les des du vous votre vos est avec pour dans une et au aux ne pas sur prenez appelez médecin médicament comprimé bouche semaine semaines avant après quand jour jours chaque".split(" "));
 
 export function detectPaperLang(source: string): PaperLang {
@@ -48,7 +55,9 @@ export function detectPaperLang(source: string): PaperLang {
 
   const words = text.toLowerCase().match(/\p{L}+/gu) ?? [];
   const hits = { en: 0, es: 0, fr: 0 };
+  let other = 0;
   for (const w of words) {
+    if (OTHER.has(w)) other++;
     if (EN.has(w)) hits.en++;
     if (ES.has(w)) hits.es++;
     if (FR.has(w)) hits.fr++;
@@ -58,6 +67,6 @@ export function detectPaperLang(source: string): PaperLang {
   // A long paper needs three common words and a clear lead; a short line (the app takes 20 characters) is enough
   // with two common words of one language and none of the others ("Take metformin at noon.").
   const clear = (top >= 3 && top >= second * 2) || (top >= 2 && second === 0);
-  if (!clear) return "";
+  if (!clear || other * 2 >= top) return "";
   return best;
 }

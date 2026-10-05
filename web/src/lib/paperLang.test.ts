@@ -43,6 +43,11 @@ describe("the paper's own language, for its quotes' lang attribute (Codex review
     // English and Spanish evenly mixed: neither one is the paper's language.
     expect(detectPaperLang("Take 1 tablet with meals every day. Tome 1 tableta con las comidas cada día.")).toBe("");
     expect(detectPaperLang("Nehmen Sie täglich eine Tablette.")).toBe(""); // German: too few known words
+    // Other Latin-script languages must not be guessed as Spanish, French or English (Codex review, round 6).
+    expect(detectPaperLang("Tome o medicamento por via oral.")).toBe(""); // Portuguese
+    expect(detectPaperLang("Tome 1 comprimido por dia com comida. Ligue para o seu médico se você tiver febre. Não pare o remédio.")).toBe(""); // Portuguese
+    expect(detectPaperLang("Prenda 1 compressa per bocca due volte al giorno. Chiami il medico se ha la febbre.")).toBe(""); // Italian
+    expect(detectPaperLang("Nehmen Sie täglich eine Tablette mit Wasser und rufen Sie den Arzt, wenn es nicht besser ist.")).toBe(""); // German
   });
 
   it("Traditional Chinese is still Chinese", () => {

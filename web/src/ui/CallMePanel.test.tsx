@@ -24,7 +24,7 @@ beforeEach(async () => {
 afterEach(() => { act(() => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
 
 const toggle = () => host.querySelector<HTMLButtonElement>("button[aria-expanded]")!;
-const tap = (el: Element) => act(() => { el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); });
+const tap = (el: Element) => act(() => { el.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
 
 // Akhil, Oct 4 7:33 PM: the Call me window only closed from its own button.
 describe("Call me panel", () => {
@@ -36,6 +36,18 @@ describe("Call me panel", () => {
     expect(toggle().getAttribute("aria-expanded")).toBe("true");
     tap(document.body);
     expect(toggle().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("another control's own action runs once, then the panel folds away (also for a click with no pointer, as from a keyboard or screen reader)", () => {
+    const other = document.createElement("button");
+    let ran = 0;
+    other.addEventListener("click", () => { ran++; });
+    document.body.appendChild(other);
+    act(() => toggle().click());
+    act(() => other.click()); // click only, no pointer events: keyboard Enter/Space and assistive technology
+    expect(ran).toBe(1);
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    other.remove();
   });
 
   it("Escape folds it away and puts focus back on its button", () => {

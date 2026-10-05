@@ -81,11 +81,13 @@ export function CallMe({ plan, language, short }: { plan: PlanResponse; language
   const panelId = useId();
   const toggle = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
-  // A tap anywhere else, or Escape, folds the panel away (Akhil, Oct 4: it only closed from its own button). Only the
-  // panel hides: what was typed and a call in progress stay as they are.
+  // A tap or click anywhere else, or Escape, folds the panel away (Akhil, Oct 4: it only closed from its own button).
+  // Only the panel hides: what was typed and a call in progress stay as they are. It listens for the finished click,
+  // in the bubble phase, so the control that was tapped acts first and the bar does not shrink under the finger, and
+  // keyboard and screen-reader activation (a click with no pointer) closes it too (Codex review).
   useEffect(() => {
     if (!open) return;
-    const outside = (e: PointerEvent) => {
+    const outside = (e: MouseEvent) => {
       const t = e.target as Node | null;
       if (t && (panel.current?.contains(t) || toggle.current?.contains(t))) return;
       setOpen(false);
@@ -95,9 +97,9 @@ export function CallMe({ plan, language, short }: { plan: PlanResponse; language
       setOpen(false);
       toggle.current?.focus();
     };
-    document.addEventListener("pointerdown", outside, true);
+    document.addEventListener("click", outside);
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("pointerdown", outside, true); document.removeEventListener("keydown", esc); };
+    return () => { document.removeEventListener("click", outside); document.removeEventListener("keydown", esc); };
   }, [open]);
   const [poll, setPoll] = useState<PollState>(() => startPoll(0)); // restarted, timed from now, when a call is asked for
   const text = paidSpeechText(plan);

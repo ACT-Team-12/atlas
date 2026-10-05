@@ -200,6 +200,15 @@ describe("lab results show no English of their own in another language", () => {
     });
   }
 
+  it("closed lab rows carry the report's language on its own words (Codex round 9 of PR 93)", () => {
+    act(() => root.render(<UiLangProvider language="Spanish" paperLang="en"><LabRows rows={rows} /></UiLangProvider>));
+    for (const sel of ["[data-report-name]", "[data-report-value]", "[data-report-range]"]) {
+      const els = [...host.querySelectorAll(sel)];
+      expect(els.length, sel).toBeGreaterThan(0);
+      for (const e of els) expect(e.querySelector('[lang="en"]'), sel).not.toBeNull();
+    }
+  });
+
   it("unchecked report lines carry the report's language, not the app's (Codex final round of PR 93)", () => {
     act(() => root.render(<UiLangProvider language="Spanish" paperLang="en"><UncheckedLines coverage={{ checked: 3, candidates: 5, unchecked: ["CRITICAL K 7.0", "Hgb 9.1 L"] }} /></UiLangProvider>));
     const items = [...host.querySelectorAll("[data-unchecked] li")];

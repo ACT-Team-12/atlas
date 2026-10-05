@@ -12,6 +12,14 @@ import { createRequestGate, type Ticket } from "@/lib/requestGate";
 import { keyFor, LANGUAGE_NAME, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
 import { failureKey, logFailure, postJson } from "@/lib/requestError";
 import { paperLangCode, safeLine, UiLangProvider, useUi, PaperWords } from "./UiLang";
+
+/** Marks where the paper's timing words go in a translated sentence (Codex round 9 of PR 93). */
+const WORDS = "\u0001";
+/** A translated sentence with the paper's own words in it, those words marked with the paper's language. */
+function withPaperWords(sentence: string, words: string) {
+  const [before, after = ""] = sentence.split(WORDS);
+  return <>{before}<PaperWords>{words}</PaperWords>{after}</>;
+}
 import { PREP_SHEET, printOrView } from "./printView";
 
 type Inputs = { text: string; language: string };
@@ -315,7 +323,7 @@ function Step({ s, meaning }: { s: PrepStep; meaning: MeaningState }) {
           <span className="block font-bold leading-snug [overflow-wrap:anywhere]" data-paper-quote="">&ldquo;<PaperWords>{closed.quote}</PaperWords>&rdquo;</span>
           <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-ink/70">
             <span className="chip bg-ink text-paper">{t(keyFor("prep.kind", s.kind, "prep.kind.other"))}</span>
-            {closed.whenWords.length > 0 && <span>{closed.whenWords.map((w) => `“${w}”`).join(", ")}</span>}
+            {closed.whenWords.length > 0 && <span><PaperWords>{closed.whenWords.map((w) => `“${w}”`).join(", ")}</PaperWords></span>}
           </span>
         </span>
         <span aria-hidden="true" className="font-extrabold text-ink/70 transition-transform group-aria-expanded:rotate-90">›</span>
@@ -324,11 +332,11 @@ function Step({ s, meaning }: { s: PrepStep; meaning: MeaningState }) {
         <p className="text-xs font-bold uppercase tracking-wide text-ink/70">{t("prep.inFull")}</p>
         <p className="mt-1 border-l-4 border-sun pl-2 font-extrabold [overflow-wrap:anywhere]" data-paper-quote=""><PaperWords>{s.source_quote}</PaperWords></p>
         {s.slot && s.when_words.length > 0 && (
-          <p className="mt-2 text-sm font-semibold">{t("prep.whenWords", { words: s.when_words.map((w) => `"${w}"`).join(", ") })}</p>
+          <p className="mt-2 text-sm font-semibold">{withPaperWords(t("prep.whenWords", { words: WORDS }), s.when_words.map((w) => `"${w}"`).join(", "))}</p>
         )}
         {!s.slot && s.reason !== "placed" && (
           <p className="mt-2 text-sm font-semibold">
-            {t(keyFor("prep.reason", s.reason, "prep.reason.no_time_words"))}{s.when_words.length > 0 ? t("prep.itSays", { words: s.when_words.map((w) => `"${w}"`).join(", ") }) : ""}
+            {t(keyFor("prep.reason", s.reason, "prep.reason.no_time_words"))}{s.when_words.length > 0 ? withPaperWords(t("prep.itSays", { words: WORDS }), s.when_words.map((w) => `"${w}"`).join(", ")) : ""}
           </p>
         )}
         {shown && (

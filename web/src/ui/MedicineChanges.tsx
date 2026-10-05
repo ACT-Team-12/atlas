@@ -45,11 +45,11 @@ export function MedicineChanges({ items, paper, onGo }: { items: VerifiedItem[];
           <ul className="mt-2 space-y-2">
             {list.map((c) => (
               <li key={c.id} data-med={c.id} className="rounded-lg bg-paper p-2 text-ink">
-                {c.name && <p className="font-extrabold" data-med-name="">{c.name}</p>}
+                {c.name && <p className="font-extrabold" data-med-name=""><PaperWords>{c.name}</PaperWords></p>}
                 {c.dose && (
                   // The strike-through is never the only signal: the words "was" and "now" say it, on screen and aloud.
                   <p className="text-sm font-bold" data-med-dose="" data-dose-words={doseWords(c.dose)}>
-                    {t("med.doseWas")} <del className="decoration-2">{c.dose.was}</del>, {t("med.doseNow")} <strong>{c.dose.now}</strong>
+                    {t("med.doseWas")} <del className="decoration-2"><PaperWords>{c.dose.was}</PaperWords></del>, {t("med.doseNow")} <strong><PaperWords>{c.dose.now}</PaperWords></strong>
                     {lang !== "English" && <EnglishBeside en={`${ui("English", "med.doseWas")} ${c.dose.was}, ${ui("English", "med.doseNow")} ${c.dose.now}`} />}
                   </p>
                 )}

@@ -69,8 +69,8 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
                 <b>{ts(keyFor("med.row", row, "med.row.ask"))}</b>
                 {list.map((c) => (
                   <div key={c.id}>
-                    {c.name && <p><b>{c.name}</b></p>}
-                    {c.dose && <p>{t("med.sheetDoseWas")} <del>{c.dose.was}</del>, {t("med.doseNow")} <b>{c.dose.now}</b>{lang !== "English" && <EnglishBeside en={`${ui("English", "med.sheetDoseWas")} ${c.dose.was}, ${ui("English", "med.doseNow")} ${c.dose.now}`} />}</p>}
+                    {c.name && <p><b><PaperWords>{c.name}</PaperWords></b></p>}
+                    {c.dose && <p>{t("med.sheetDoseWas")} <del><PaperWords>{c.dose.was}</PaperWords></del>, {t("med.doseNow")} <b><PaperWords>{c.dose.now}</PaperWords></b>{lang !== "English" && <EnglishBeside en={`${ui("English", "med.sheetDoseWas")} ${c.dose.was}, ${ui("English", "med.doseNow")} ${c.dose.now}`} />}</p>}
                     <p className="quote" data-paper-quote="">{t("pf.says.paper")} &ldquo;<PaperWords>{c.quote}</PaperWords>&rdquo;</p>
                   </div>
                 ))}

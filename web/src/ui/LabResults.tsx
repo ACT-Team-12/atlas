@@ -260,10 +260,10 @@ function LabRow({ r }: { r: ResultRow }) {
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId}
         className="group grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-2xl p-3 text-left">
         <span className="min-w-0" data-closed-row="report">
-          <span className="block font-extrabold leading-snug [overflow-wrap:anywhere]" data-report-name="">{closed.name}</span>
+          <span className="block font-extrabold leading-snug [overflow-wrap:anywhere]" data-report-name=""><PaperWords>{closed.name}</PaperWords></span>
           <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-sm font-bold">
-            <span data-report-value="">{closed.value}{closed.unit ? ` ${closed.unit}` : ""}</span>
-            {closed.range && <span className="text-xs text-ink/70">{t("labs.range")} <span data-report-range="">{closed.range}</span></span>}
+            <span data-report-value=""><PaperWords>{closed.value}{closed.unit ? ` ${closed.unit}` : ""}</PaperWords></span>
+            {closed.range && <span className="text-xs text-ink/70">{t("labs.range")} <span data-report-range=""><PaperWords>{closed.range}</PaperWords></span></span>}
           </span>
           {closed.critical && <span className="mt-1 block text-xs font-extrabold text-red" data-critical-note="">{ts("labs.critRow")}</span>}
         </span>

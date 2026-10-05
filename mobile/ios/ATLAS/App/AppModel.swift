@@ -29,6 +29,34 @@ final class AppModel {
     /// A device location lookup is running (planPlace's "locating" on the website): the place is changing, so a plan sent
     /// before it is stopped, and no plan starts until the lookup ends. Never saved.
     var locating = false { didSet { stopStaleWork() } }
+    /// Moved by every lookup started and by every other change of place (a ZIP typed, a helper link's ZIP, Clear), so a
+    /// late lookup result never overwrites a newer choice.
+    @ObservationIgnored private var locationRun = 0
+
+    /// "Use my location" started. Returns the lookup's number, to hand back with its result.
+    func beginLocating() -> Int {
+        locationRun += 1
+        locating = true
+        return locationRun
+    }
+
+    /// A lookup ended, with a point in the service area or nil. Applied only if no newer lookup or place replaced it.
+    func finishLocating(_ run: Int, point: LatLng?) {
+        guard run == locationRun else { return }
+        locating = false
+        if let point {
+            location = point
+            zip = ""
+        }
+    }
+
+    /// The person typed a ZIP: it replaces the device location and any lookup still running.
+    func typeZip(_ value: String) {
+        locationRun += 1
+        locating = false
+        zip = String(value.filter(\.isNumber).prefix(5))
+        location = nil
+    }
 
     // Results. A read, a plan, or a step done, removed or restored moves the saved time "Welcome back" shows.
     var care: CarePlanResponse? { didSet { persist(planChanged: true) } }
@@ -192,7 +220,7 @@ final class AppModel {
     func applyHelperLink(_ p: HelperPresets) {
         if let l = p.language { language = l }
         if let l = p.level { level = l }
-        if let z = p.zip { zip = z; location = nil }
+        if let z = p.zip { locationRun += 1; locating = false; zip = z; location = nil }
         helperBanner = HelperLink.banner(p)
         fromHelperLink = true
         // Show the first screen, where the banner is.
@@ -445,6 +473,8 @@ final class AppModel {
         text = ""; care = nil; plan = nil; barriers = []; zip = ""; note = ""; done = [:]; removed = [:]
         restoring = false
         location = nil
+        locationRun += 1
+        locating = false
         restoredAt = nil
         path = []
         await Reminders.removeAll()

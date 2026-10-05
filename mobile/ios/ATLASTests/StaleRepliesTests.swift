@@ -80,3 +80,28 @@ extension SessionFixesTests {
         #expect(model.canPlan)
     }
 }
+
+extension SessionFixesTests {
+    /// A ZIP typed while "Use my location" runs wins: the late location result changes nothing.
+    @Test func aZipTypedDuringALookupWinsOverItsLateResult() throws {
+        let model = AppModel(api: try Self.stubbedAPI(), store: try Self.currentStore())
+        let run = model.beginLocating()
+        #expect(model.locating)
+        model.typeZip("30310")
+        #expect(!model.locating, "typing a ZIP ends the lookup")
+        model.finishLocating(run, point: LatLng(lat: 33.75, lng: -84.39))
+        #expect(model.zip == "30310" && model.location == nil, "the late result did not overwrite the ZIP")
+        #expect(!model.locating)
+    }
+
+    /// A newer lookup replaces an older one: only the newest result is applied.
+    @Test func onlyTheNewestLookupApplies() throws {
+        let model = AppModel(api: try Self.stubbedAPI(), store: try Self.currentStore())
+        let first = model.beginLocating()
+        let second = model.beginLocating()
+        model.finishLocating(first, point: LatLng(lat: 33.0, lng: -84.0))
+        #expect(model.location == nil && model.locating)
+        model.finishLocating(second, point: LatLng(lat: 33.75, lng: -84.39))
+        #expect(model.location == LatLng(lat: 33.75, lng: -84.39) && model.zip.isEmpty && !model.locating)
+    }
+}

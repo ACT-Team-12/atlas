@@ -1452,6 +1452,23 @@ describe("a paper that is not a visit paper (nothing becomes a step)", () => {
     expect(document.activeElement).toBe(paperBox());
   });
 
+  it("a plan made after a wrong paper exports nothing from that paper, as with no paper at all", async () => {
+    act(() => typeInto(paperBox(), LIST));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(empty(LIST)));
+
+    act(() => byText("Getting there").click());
+    const plan = hold("/api/plan");
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await release(plan, ready(planFor("Plan made from barriers only")));
+
+    expect(screenText()).toContain("Plan made from barriers only");
+    expect(host.querySelector("#atlas-sheet")).toBeNull(); // no handoff sheet built on the rejected paper
+    expect(host.innerHTML).not.toContain("Could you share the after-visit summary");
+    expect(fetchCalls.find((c) => c.url === "/api/plan")?.body.care).toEqual([]);
+  });
+
   it("a read whose steps were all held back still shows the held-back list, not the wrong-paper card", async () => {
     act(() => typeInto(paperBox(), PAPER));
     const req = hold("/api/extract");

@@ -1213,7 +1213,8 @@ export function CarePlanTool() {
   };
   // Questions for the next visit, paper first (lib/visitQuestions.ts): a step's own question only when certified.
   // General questions with every step's own question taken out, held-back steps included, before any surface uses them.
-  const generalQuestions = care ? readingGeneralQuestions(care) : [];
+  // A wrong paper's questions are the model asking the person for the right paper, not questions for a clinic.
+  const generalQuestions = care && !foundNothing(care) ? readingGeneralQuestions(care) : [];
   const nextVisitTagged = care ? visitQuestionsTagged({ items: items.filter((i) => i.grounded), general: generalQuestions, also: care.items, checkFor }) : [];
   const nextVisit = nextVisitTagged.map((q) => q.text);
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
@@ -1413,7 +1414,7 @@ export function CarePlanTool() {
           </div>
         </div>
 
-        {plan && care && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={generalQuestions} language={language} meaning={paperMeaning} planItems={planItems} alsoOnPaper={missedLineTexts(missed)} paper={care.source_text} />}
+        {plan && care && !noStepsFound && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={generalQuestions} language={language} meaning={paperMeaning} planItems={planItems} alsoOnPaper={missedLineTexts(missed)} paper={care.source_text} />}
 
         {/* Step 3 */}
         {plan && (
@@ -1460,7 +1461,7 @@ export function CarePlanTool() {
                   </button>}
               {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2"><DockLabel icon="✕" short={t("dock.cancel")} long={t("dock.cancel")} /></button>}
               {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} short={t("dock.callMe.short")} />}
-              {care && <ShareFamily items={items} plan={plan} questions={generalQuestions} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short={t("dock.send.short")} />}
+              {care && !noStepsFound && <ShareFamily items={items} plan={plan} questions={generalQuestions} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short={t("dock.send.short")} />}
               <button type="button" onClick={printPlan} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short={t("dock.print.short")} long={t("dock.print.long")} /></button>
               <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short={t("dock.handoff.short")} long={t("dock.handoff.long")} /></button>
               <span role="status" className={voiceNote ? "dock-note self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
@@ -1491,7 +1492,7 @@ export function CarePlanTool() {
                 <ul className="mt-2 list-disc pl-5 space-y-1">{nextVisitTagged.map((q, i) => <li key={i} lang={q.english ? "en" : undefined}>{q.text}</li>)}</ul>
               </div>
             )}
-            {care && !planOutdated && <SessionSummary key={helperSessionKey(store.active, plan.summary)} barriers={barriers} items={items} done={done} plan={plan} questions={nextVisit} language={language} readingLevel={readLevel ?? level} />}
+            {care && !noStepsFound && !planOutdated && <SessionSummary key={helperSessionKey(store.active, plan.summary)} barriers={barriers} items={items} done={done} plan={plan} questions={nextVisit} language={language} readingLevel={readLevel ?? level} />}
             <Feedback key={plan.summary} language={language} token={plan.feedback_token ?? null} />
             <p className="mt-6 text-xs text-ink/70">{t("common.notMedicalAdvice", { model: plan.model })}</p>
           </div>

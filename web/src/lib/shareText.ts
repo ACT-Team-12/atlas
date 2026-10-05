@@ -7,7 +7,8 @@ import { HELP_HEADING_SHARE } from "./provenance";
 import { visitQuestions } from "./visitQuestions";
 
 /** The second-model double-check, as the screen has it. "done" carries one result per item id. */
-export type ShareMeaning = { status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult> };
+/** `policy`: what the server said these verdicts were made under, when it said (checkPolicy.ts). */
+export type ShareMeaning = { status: "idle" | "loading" | "done" | "error"; byId: Record<string, MeaningResult>; policy?: string };
 
 const KIND_LABEL: Record<string, string> = {
   medication: "Medicine", lab_test: "Lab test", referral: "Referral", follow_up_visit: "Follow-up visit", self_care: "Self care", warning_sign: "Warning sign",

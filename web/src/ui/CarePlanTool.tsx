@@ -568,18 +568,21 @@ export function CarePlanTool() {
     careIds: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id),
     barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc,
   });
-  const planOutdated = !!plan && planFp !== null && (careOutdated || answersFp !== planFp);
+  // A plan built while the paper had no steps did not use the paper (its request sent no steps), so editing or replacing
+  // that paper does not make the plan out of date, the same as a plan made with no paper (Codex review of PR 107).
+  const planPaperOutdated = careOutdated && !foundNothing(care);
+  const planOutdated = !!plan && planFp !== null && (planPaperOutdated || answersFp !== planFp);
   // A streamed step is drawn only in a render whose answers match the ones it was built from, so an answer changed
   // before the stale-plan effect runs never paints an old step, not even for one frame (Codex round 2 of PR 105).
   // And never beside a paper or reading level that changed after the plan was asked for (Codex round 3).
-  const shownPreview = planning && !careOutdated && planPreview && planPreview.fp === answersFp && planPreview.steps.length > 0 ? planPreview : null;
+  const shownPreview = planning && !planPaperOutdated && planPreview && planPreview.fp === answersFp && planPreview.steps.length > 0 ? planPreview : null;
   // The ready cue, only for the exact result that raised it and only while that result is current.
   const cueFor: Ready | null = !ready ? null
     : ready.what === "steps" ? (care === ready.ref && !careOutdated ? "steps" : null)
     : ready.what === "photo" ? (care === ready.ref && !careOutdated && !photoChecked ? "photo" : null)
     : (plan === ready.ref && !planOutdated ? "plan" : null);
   const resultsCurrent = !careOutdated && !planOutdated;
-  const actionsOffReason = t(careOutdated ? "plan.offPaper" : "plan.offPlan");
+  const actionsOffReason = t(planPaperOutdated ? "plan.offPaper" : "plan.offPlan");
   // A plan made near the device's position, with no position or ZIP now: it needs a place before it can be updated.
   const needsPlace = !!plan && plan.located.by === "device" && !loc && !/^\d{5}$/.test(zip);
 
@@ -1424,7 +1427,7 @@ export function CarePlanTool() {
             <StepHeader n={3} id="plan-title" title={t("plan.title")} done note={locatedLine(language, plan.located)} />
             {planOutdated && (
               <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-sun/30 p-3 text-sm font-bold">
-                {careOutdated
+                {planPaperOutdated
                   ? <p>{t("plan.outdatedPaper")}</p>
                   : <>
                       <p className="flex-1 min-w-[14rem]">

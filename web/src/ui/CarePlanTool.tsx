@@ -1214,6 +1214,14 @@ export function CarePlanTool() {
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
   const missed = useMissedLines(care, removed);
+  // A read that found nothing (no steps, none held back, no warning signs): the paper is probably not a visit paper.
+  const noStepsFound = !!care && care.items.length === 0 && care.stats.refused === 0 && !care.has_warning_signs;
+  const pasteAgain = () => {
+    const box = document.querySelector<HTMLTextAreaElement>('#try textarea[data-paper-box]');
+    box?.scrollIntoView?.({ block: "center" });
+    box?.focus({ preventScroll: true });
+    box?.select();
+  };
   const deviceStatus = deviceStatusOf(care, needsPhotoCheck, deviceRun);
   const flow = { hasCare: !!care, hasPlan: !!plan };
   const openName = store.plans.find((p) => p.id === store.active)?.name ?? null;
@@ -1262,7 +1270,7 @@ export function CarePlanTool() {
           <StepHeader n={1} title={t("paper.title")} done={!!care} note={t("paper.titleNote")} />
           <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_15rem]">
             <div>
-              <textarea data-lenis-prevent aria-label={t("paper.textLabel")} className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
+              <textarea data-lenis-prevent data-paper-box="" aria-label={t("paper.textLabel")} className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 placeholder={t("paper.placeholder")} value={text} onChange={(e) => { setText(e.target.value); setPhoto(null); }} />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={loadSample}>{t("paper.useSample")}</button>
@@ -1325,7 +1333,20 @@ export function CarePlanTool() {
             </div>
           )}
 
-          {care && !needsPhotoCheck && (
+          {care && !needsPhotoCheck && noStepsFound && (
+            // Nothing in the paper became a step (a wrong paper, like a shopping list): say so in the app's own words and
+            // offer the way back, instead of an empty list under a "checked" banner. The heading is the ready cue's landing spot.
+            <section aria-labelledby="steps-title" className="mt-8 rounded-2xl border-2 border-sun bg-paper p-4 sm:p-5" data-no-steps="">
+              <h3 id="steps-title" tabIndex={-1} className="display text-2xl scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{t("steps.noneFound.title")}</h3>
+              <p className="mt-2 text-sm font-semibold">{ts("steps.noneFound.body")}</p>
+              <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
+                <button type="button" className="rounded-full border-2 border-ink bg-sun px-4 py-2 shadow-[0_2px_0_var(--ink)]" onClick={pasteAgain}>{t("steps.noneFound.paste")}</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={loadSample}>{t("paper.useSample")}</button>
+              </div>
+            </section>
+          )}
+
+          {care && !needsPhotoCheck && !noStepsFound && (
             <div>
               {/* "Your steps", grouped by when (CareSteps.tsx). Every row follows the paper-first rule. */}
               <CareSteps key={runIdFor(care)} care={care} items={items} removedItems={removedItems} checkFor={checkFor} meaning={meaning}

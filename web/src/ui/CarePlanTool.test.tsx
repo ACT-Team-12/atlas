@@ -1420,3 +1420,40 @@ describe("the plan streams in, step by step", () => {
     expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(0);
   });
 });
+
+describe("a paper that is not a visit paper (nothing becomes a step)", () => {
+  const empty = (text: string, refused = 0): CarePlanResponse => ({
+    source_text: text, source_kind: "text", model: "test", has_warning_signs: false, items: [],
+    refused: refused ? [{ title: "Held", reason: "missing" } as unknown as CarePlanResponse["refused"][number]] : [],
+    questions_for_doctor: ["The text looks like a grocery list. Could you share the after-visit summary instead?"],
+    not_in_document: ["This document is not an after-visit summary."],
+    stats: { extracted: refused, grounded: 0, refused, ms: 10 },
+  });
+  const LIST = "Grocery list for Saturday: eggs, whole milk, bread, bananas, rice. Call Mom about Sunday dinner.";
+
+  it("says no care steps were found and offers the way back, with no checked banner or clinic questions", async () => {
+    act(() => typeInto(paperBox(), LIST));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(req, ready(empty(LIST)));
+
+    expect(screenText()).toContain(ui("English", "steps.noneFound.title"));
+    expect(screenText()).toContain(ui("English", "steps.noneFound.body"));
+    expect(screenText()).not.toContain("All 0 steps");
+    expect(screenText()).not.toContain(ui("English", "steps.noneLeft"));
+    expect(screenText()).not.toContain("grocery list. Could you share"); // the AI's question to the person is not filed under "Ask your clinic"
+    expect(host.querySelector("#steps-title")?.textContent).toBe(ui("English", "steps.noneFound.title")); // the ready cue lands here
+
+    act(() => byText(ui("English", "steps.noneFound.paste")).click());
+    expect(document.activeElement).toBe(paperBox());
+  });
+
+  it("a read whose steps were all held back still shows the held-back list, not the wrong-paper card", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(req, ready(empty(PAPER, 1)));
+    expect(screenText()).not.toContain(ui("English", "steps.noneFound.title"));
+    expect(screenText()).toContain("1 held back");
+  });
+});

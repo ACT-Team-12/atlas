@@ -13,6 +13,7 @@ import { NO_DEVICE_RUN, type DeviceRun, type DeviceStatus } from "@/lib/deviceRu
 import { SAMPLE_AVS } from "@/lib/sample";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { CareSteps } from "./CareSteps";
+import { UiLangProvider } from "./UiLang";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -55,7 +56,7 @@ let host: HTMLDivElement;
 let root: Root;
 let calls: { done: [string, boolean][]; removed: string[] };
 
-type RenderOpts = { items?: VerifiedItem[]; meaning?: MeaningState; device?: DeviceRun; deviceStatus?: DeviceStatus; care?: CarePlanResponse };
+type RenderOpts = { items?: VerifiedItem[]; meaning?: MeaningState; device?: DeviceRun; deviceStatus?: DeviceStatus; care?: CarePlanResponse; ui?: { language: string; paperLang: string } };
 function render(o: RenderOpts = {}) {
   const items = o.items ?? ITEMS;
   const meaning = o.meaning ?? { status: "idle", byId: {} };
@@ -66,11 +67,12 @@ function render(o: RenderOpts = {}) {
     if (deviceStatus === "done" && device.byId[id] && device.byId[id] !== "match") return "flagged";
     return meaning.status === "done" ? checkOf(meaning.byId[id]) : "unchecked";
   };
-  act(() => root.render(
+  const steps = (
     <CareSteps care={o.care ?? careWith(items)} items={items} removedItems={[]} checkFor={checkFor} meaning={meaning} deviceRun={device}
       deviceStatus={deviceStatus} done={{}} language="English" photo={null} simpler={{ ok: false, onClick: () => {} }}
-      onDone={(id, v) => calls.done.push([id, v])} onRemove={(id) => calls.removed.push(id)} onUndoRemove={() => {}} />,
-  ));
+      onDone={(id, v) => calls.done.push([id, v])} onRemove={(id) => calls.removed.push(id)} onUndoRemove={() => {}} />
+  );
+  act(() => root.render(o.ui ? <UiLangProvider language={o.ui.language} paperLang={o.ui.paperLang}>{steps}</UiLangProvider> : steps));
 }
 
 const done = (ids: string[], r: Partial<MeaningResult>): MeaningState => ({ status: "done", byId: Object.fromEntries(ids.map((id) => [id, result(id, r)])) });
@@ -261,6 +263,18 @@ describe("one seal per step, and flagged steps open themselves", () => {
     expect(status.textContent).toContain("1 step needs a second look, opened below");
     expect(status.textContent).toContain("Basic metabolic panel");
     expect(status.textContent).not.toContain("AI-TITLE");
+  });
+
+  it("in another language, the announcement's quotes and the row's timing words carry the paper's language (Codex round 8 of PR 93)", async () => {
+    const ui = { language: "Spanish", paperLang: "en" };
+    render({ ui, meaning: { status: "loading", byId: {} } });
+    render({ ui, meaning: { status: "done", byId: { bmp: result("bmp", { flagged: true }) } } });
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+    const quoted = host.querySelector('[data-flagged-status] [lang="en"]');
+    expect(quoted?.textContent).toContain("Basic metabolic panel");
+    // A row led by the paper's words shows the paper's timing words, in the paper's language.
+    const timing = [...host.querySelectorAll('[lang="en"]')].map((e) => e.textContent ?? "").filter((t) => t.startsWith("\u201c"));
+    expect(timing.length).toBeGreaterThan(0);
   });
 
   it("a step this device disputes opens itself with the device's wording", () => {

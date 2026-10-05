@@ -21,6 +21,9 @@ import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
 import { englishBeside, keyFor } from "@/lib/uiText";
 import { useUi, PaperWords, withEnglish } from "./UiLang";
 
+/** Marks where the paper's quotes go in a translated sentence, so they can be drawn in the paper's language. */
+const QUOTES = "\u0001";
+
 export const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
   lab_test: { label: "Lab test", cls: "bg-lilac text-ink" },
@@ -139,13 +142,16 @@ export function CareSteps(p: Props) {
 
   // A check that disagrees can land after the steps are on screen. Opening the step is not an announcement, so a
   // polite live region (always mounted, text set a moment later) names each one by its paper words (Codex review).
-  const flaggedNote = recheck === 0 ? "" : tn("flaggedStatus", recheck, { quotes: items
-    .filter((i) => sealOf(checkFor(i.id)) === "recheck").map((i) => `"${shortQuote(i.source_quote, 60)}"`).join(", ") });
-  const [spoken, setSpoken] = useState("");
+  // The sentence is the app's language; the quotes are the paper's words, so they are spoken in the paper's language
+  // (PaperWords), not read with the app's voice (Codex round 8 of PR 93). QUOTES marks where they go in the sentence.
+  const flaggedSentence = recheck === 0 ? "" : tn("flaggedStatus", recheck, { quotes: QUOTES });
+  const flaggedQuotes = items.filter((i) => sealOf(checkFor(i.id)) === "recheck").map((i) => `"${shortQuote(i.source_quote, 60)}"`).join(", ");
+  const [spoken, setSpoken] = useState<[string, string]>(["", ""]);
   useEffect(() => {
-    const t = setTimeout(() => setSpoken(flaggedNote), 400);
+    const t = setTimeout(() => setSpoken([flaggedSentence, flaggedQuotes]), 400);
     return () => clearTimeout(t);
-  }, [flaggedNote]);
+  }, [flaggedSentence, flaggedQuotes]);
+  const [spokenBefore, spokenAfter = ""] = spoken[0].split(QUOTES);
 
   const isOpen = (id: string) => open[id] ?? sealOf(checkFor(id)) === "recheck";
   const toggle = (id: string) => setOpen((o) => ({ ...o, [id]: !isOpen(id) }));
@@ -201,7 +207,7 @@ export function CareSteps(p: Props) {
 
   return (
     <div className="mt-8" data-steps="by-when">
-      <p role="status" aria-live="polite" className="sr-only" data-flagged-status="">{spoken}</p>
+      <p role="status" aria-live="polite" className="sr-only" data-flagged-status="">{spoken[0] && <>{spokenBefore}<PaperWords>{spoken[1]}</PaperWords>{spokenAfter}</>}</p>
       <p role="status" aria-live="polite" className="sr-only" data-pip-status="">{pipSaid}</p>
       {walking && (
         <WalkThrough step={walkStep} index={walkIndex} steps={walkSeq} done={p.done} checkFor={checkFor} language={p.language}
@@ -375,7 +381,7 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
             <span className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-ink/70 ${closed.lead === "quote" && open ? "" : "mt-1"}`}>
               {kind && <span className={`chip ${kind.cls}`}>{ts(keyFor("kind", it.kind, "kind.step"))}</span>}
               {closed.lead === "explanation" && closed.when && <span>{closed.when}</span>}
-              {closed.lead === "quote" && closed.paperWhen.length > 0 && <span>{closed.paperWhen.map((w) => `“${w}”`).join(", ")}</span>}
+              {closed.lead === "quote" && closed.paperWhen.length > 0 && <span><PaperWords>{closed.paperWhen.map((w) => `“${w}”`).join(", ")}</PaperWords></span>}
               {question && <span className="rounded-full bg-peach px-2 text-[11px] font-extrabold text-peach-deep">{t("steps.ask")}</span>}
               {/* Only the "double-check" seal speaks up with words on the row; the quiet ones say theirs to screen readers. */}
               <span data-seal-label="" className={seal === "recheck" ? "rounded-full border border-peach-deep bg-peach px-2 text-[11px] font-extrabold text-peach-deep" : "sr-only"}>{ts(keyFor("seal", seal, "seal.once"))}</span>

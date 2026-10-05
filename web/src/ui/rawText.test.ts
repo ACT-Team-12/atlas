@@ -48,6 +48,10 @@ describe("no English typed straight into a component shown in another language",
     for (const name of IN_A_LANGUAGE_SECTION) {
       const src = readFileSync(join(__dirname, `${name}.tsx`), "utf8");
       for (const m of src.matchAll(/(?<![\w.])t\("([\w.]+)"/g)) if (UI_SAFETY_KEYS.has(m[1] as never)) bare.push(`${name}: ${m[1]}`);
+      // A key picked at run time (keyFor) whose prefix holds a safety line, e.g. when.today, seal.recheck, kind.warning_sign.
+      for (const m of src.matchAll(/(?<![\w.])t\((keyFor\([^\n;]*)/g)) {
+        for (const p of m[1].matchAll(/keyFor\("([\w.]+)"/g)) if ([...UI_SAFETY_KEYS].some((k) => k.startsWith(`${p[1]}.`))) bare.push(`${name}: keyFor("${p[1]}")`);
+      }
     }
     expect(bare).toEqual([]);
   });

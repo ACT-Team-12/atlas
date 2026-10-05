@@ -52,7 +52,7 @@ export function HandoffSheetBody({ items, plan, questions, language, meaning, pl
   const localLine = (l: string): ReactNode => l.startsWith(says) ? <>{t("pf.says.paper")}<PaperWords>{l.slice(says.length)}</PaperWords></>
     : l.startsWith("(The plain-words explanation is left out here because it was not") ? t("sheet.leftOutUnchecked")
     : l.startsWith("(The plain-words explanation is left out here because a second") ? t("sheet.leftOutFlagged") : l;
-  const kindLabel = (k: string) => t(keyFor("sheet.kind", k, keyFor("kind", k, "kind.step")));
+  const kindLabel = (k: string) => ts(keyFor("sheet.kind", k, keyFor("kind", k, "kind.step")));
 
   return (
     <div id="atlas-sheet" className="atlas-sheet" aria-hidden="true" lang={code}>

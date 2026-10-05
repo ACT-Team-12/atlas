@@ -18,6 +18,7 @@ import { QUIET_KINDS } from "@/lib/pip";
 import { isWarning } from "@/lib/warningPin";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { CareSteps } from "./CareSteps";
+import { UiLangProvider } from "./UiLang";
 import { WALK_LINES } from "@/lib/walkThrough";
 import { LANGUAGES } from "@/lib/schema";
 
@@ -438,6 +439,27 @@ describe("the walk-through's warning lines keep their English beside them until 
       expect(beside(q("[data-walk-ask-panel]"))).toContain(WALK_LINES.English.warningDo);
     });
   }
+
+  it("a step's time group that is a safety line (Right away) keeps its English on the walk-through card", () => {
+    // The paper's STOP list: a stop with no time words starts now, so this step is in the "Right away" group.
+    const stop = step("ibu", "medication", "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function.", "AI-TITLE Stop ibuprofen", "");
+    const items = [...ITEMS, stop];
+    // Inside the language section, as CarePlanTool renders it (the app's own words come from the provider).
+    act(() => root.render(<UiLangProvider language="Spanish">
+      <CareSteps care={{ ...care, items }} items={items} removedItems={[]} checkFor={() => "unchecked"} meaning={{ status: "idle", byId: {} }} deviceRun={NO_DEVICE_RUN}
+        deviceStatus="idle" done={{}} language="Spanish" photo={null} simpler={{ ok: false, onClick: () => {} }}
+        onDone={() => {}} onRemove={() => {}} onUndoRemove={() => {}} />
+    </UiLangProvider>));
+    open();
+    const seen: string[] = [];
+    for (let n = 0; n < items.length; n++) {
+      const when = q("[data-walk-when]");
+      if (card().getAttribute("data-walk-group") === "today") seen.push(beside(when));
+      click(q("[data-walk-not-yet]"));
+    }
+    expect(seen.length).toBeGreaterThan(0);
+    for (const b of seen) expect(b).toContain("Right away");
+  });
 
   it("English shows the warning line once, with nothing beside it", () => {
     render();

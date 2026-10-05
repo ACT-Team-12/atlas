@@ -18,7 +18,7 @@ import { MedicineChanges } from "./MedicineChanges";
 import { PaperFirst } from "./PaperFirst";
 import { ShowOnPaper } from "./ShowOnPaper";
 import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
-import { keyFor } from "@/lib/uiText";
+import { englishBeside, keyFor } from "@/lib/uiText";
 import { useUi, PaperWords, withEnglish } from "./UiLang";
 
 export const KIND: Record<string, { label: string; cls: string }> = {
@@ -63,7 +63,12 @@ export function CareSteps(p: Props) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string | null>(null);
   const speech = useStepSpeech(p.language);
-  const { t, ts, tn, paperLang } = useUi();
+  const { t, ts, tn, lang, paperLang } = useUi();
+  // A removed warning sign still names its kind with the English beside it (a safety label, Codex review round 4).
+  const removedSays = (kind: string) => {
+    const k = keyFor("kind", kind, "kind.step");
+    return withEnglish(t("steps.removedSays", { kind: t(k) }), englishBeside(lang, k));
+  };
 
   const warnings = items.filter(isWarning);
   // Every step in the order shown (lib/walkThrough.ts): warning signs, then each time group. The list and "Walk me
@@ -297,7 +302,7 @@ export function CareSteps(p: Props) {
               <ul className="mt-2 space-y-1">
                 {p.removedItems.map((r) => (
                   <li key={r.id} className="flex items-center justify-between gap-2">
-                    <span data-paper-quote="">{t("steps.removedSays", { kind: t(keyFor("kind", r.kind, "kind.step")) })} &ldquo;<PaperWords>{r.source_quote}</PaperWords>&rdquo;</span>
+                    <span data-paper-quote="">{removedSays(r.kind)} &ldquo;<PaperWords>{r.source_quote}</PaperWords>&rdquo;</span>
                     <button type="button" className="font-bold underline" onClick={() => p.onUndoRemove(r.id)}>{t("common.undo")}</button>
                   </li>
                 ))}
@@ -373,7 +378,7 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
               {closed.lead === "quote" && closed.paperWhen.length > 0 && <span>{closed.paperWhen.map((w) => `“${w}”`).join(", ")}</span>}
               {question && <span className="rounded-full bg-peach px-2 text-[11px] font-extrabold text-peach-deep">{t("steps.ask")}</span>}
               {/* Only the "double-check" seal speaks up with words on the row; the quiet ones say theirs to screen readers. */}
-              <span data-seal-label="" className={seal === "recheck" ? "rounded-full border border-peach-deep bg-peach px-2 text-[11px] font-extrabold text-peach-deep" : "sr-only"}>{t(keyFor("seal", seal, "seal.once"))}</span>
+              <span data-seal-label="" className={seal === "recheck" ? "rounded-full border border-peach-deep bg-peach px-2 text-[11px] font-extrabold text-peach-deep" : "sr-only"}>{ts(keyFor("seal", seal, "seal.once"))}</span>
             </span>
           </span>
           <SealMark seal={seal} />
@@ -402,7 +407,7 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
           <details className="text-xs font-bold text-ink/70" data-seal-text={seal}>
             <summary className="inline-flex cursor-pointer items-center gap-2 rounded-full focus-visible:outline-2 focus-visible:outline-teal-deep">
               <SealMark seal={seal} />
-              <span>{t(keyFor("seal", seal, "seal.once"))}{meaning.status === "loading" ? t("steps.doubleCheckingNow") : ""}</span>
+              <span>{ts(keyFor("seal", seal, "seal.once"))}{meaning.status === "loading" ? t("steps.doubleCheckingNow") : ""}</span>
               <span className="underline">{t("steps.why")}</span>
             </summary>
             <p className="mt-1 pl-8 font-semibold">
@@ -539,7 +544,7 @@ function WalkCard({ step, index, total, done, check, language, tl, heading, pip,
       <div className="flex items-start justify-between gap-3">
         <h3 ref={heading} tabIndex={-1} className="min-w-0 outline-none focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-teal-deep" data-walk-heading="">
           <span className="block text-base font-extrabold uppercase tracking-wide text-ink/70" data-walk-progress="">{tl("progress", { n: index + 1, total })}</span>
-          <span className={`display block text-2xl leading-tight sm:text-3xl ${warn ? "text-red" : ""}`} data-walk-when="">{warn ? withEnglish(tl("warningLabel"), walkEnglishBeside(language, "warningLabel")) : t(keyFor("when", group, "when.unclear"))}</span>
+          <span className={`display block text-2xl leading-tight sm:text-3xl ${warn ? "text-red" : ""}`} data-walk-when="">{warn ? withEnglish(tl("warningLabel"), walkEnglishBeside(language, "warningLabel")) : ts(keyFor("when", group, "when.unclear"))}</span>
         </h3>
         {/* Pip's reserved spot, as on a list row; never on a warning sign. */}
         {!warn && <PipSlot>{pip && <PipMarker key={pip.mood} mood={pip.mood} calm={calm} />}</PipSlot>}

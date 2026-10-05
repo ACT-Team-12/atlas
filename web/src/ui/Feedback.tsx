@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useUi } from "./UiLang";
-import { failureKey, logFailure, postJson } from "@/lib/requestError";
+import { failureKey, logFailure, postJson, RequestFailed } from "@/lib/requestError";
 
 const ROLES = [
   { v: "patient", label: "fb.role.patient" },
@@ -31,8 +31,12 @@ export function Feedback({ language, token }: { language: string; token: string 
       await postJson("/api/feedback", { role, rating, would_use: use, language, token });
       setState("done");
     } catch (e) {
+      // The feedback route's own outcomes (lib/feedback route): 409 means this plan's answer is already saved, so it is
+      // a thank-you, not an error; 403 is an expired link; 503 could not save (Codex review, round 6).
+      const status = e instanceof RequestFailed ? e.status : -1;
+      if (status === 409) { setState("done"); return; }
       logFailure("feedback", e);
-      setMsg(t(failureKey(e, "other")));
+      setMsg(t(status === 403 ? "fb.expired" : status === 503 ? "fb.notSaved" : failureKey(e, "other")));
       setState("error");
     }
   }

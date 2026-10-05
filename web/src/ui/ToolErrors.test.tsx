@@ -98,6 +98,27 @@ describe("tools outside the main flow show failures in the person's language", (
     });
   }
 
+  async function sendFeedback(reply: Reply) {
+    routes = { "/api/feedback": reply };
+    act(() => root.render(<UiLangProvider language="French"><Feedback language="French" token="tok" /></UiLangProvider>));
+    for (const k of ["fb.role.patient", "fb.rating.5", "fb.use.yes", "fb.send"] as const) await press(ui("French", k));
+  }
+
+  it("feedback already saved (409) is a thank-you, not an error (Codex review, round 6)", async () => {
+    await sendFeedback(() => Promise.resolve(json({ error: "We already have your answer for this plan. Thank you!" }, 409)));
+    expect(alertText()).toBe("");
+    expect(host.textContent).toContain(ui("French", "fb.thanks"));
+  });
+
+  it("an expired feedback link (403) says to make a new plan, and a save failure (503) says thank you anyway", async () => {
+    await sendFeedback(() => Promise.resolve(json({ error: "This feedback link has expired. Make a new plan to rate it." }, 403)));
+    expect(alertText()).toBe(ui("French", "fb.expired"));
+    act(() => root.unmount());
+    root = createRoot(host);
+    await sendFeedback(() => Promise.resolve(json({ error: "We couldn't save that right now. Thank you anyway." }, 503)));
+    expect(alertText()).toBe(ui("French", "fb.notSaved"));
+  });
+
   it("the server's own words go to the console", async () => {
     routes = { "/api/results": () => Promise.resolve(json({ error: SERVER }, 500)) };
     act(() => root.render(<LabResults />));

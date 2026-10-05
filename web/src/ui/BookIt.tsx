@@ -76,7 +76,7 @@ export function BookIt({ items, barriers, language, offReason }: { items: Bookab
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-extrabold">{t("book.whatToSay")}</p>
-              <button type="button" onClick={copy} className="rounded-full border border-ink/40 px-2.5 py-0.5 text-xs font-bold">{t(copied ? "common.copied" : "book.copy")}</button>
+              <button type="button" onClick={copy} className="rounded-full border border-ink/60 px-2.5 py-0.5 text-xs font-bold">{t(copied ? "common.copied" : "book.copy")}</button>
             </div>
             {language !== "English" && <p className="text-xs text-ink/70 mt-1">{t("book.frontDesk")}</p>}
             <ol lang="en" className="mt-2 space-y-1 text-sm list-decimal pl-5">{script.map((l, i) => <li key={i}>{l}</li>)}</ol>
@@ -90,7 +90,7 @@ export function BookIt({ items, barriers, language, offReason }: { items: Bookab
             <div role="group" aria-labelledby={`${panelId}-day`} className="mt-1 flex gap-2 overflow-x-auto pb-1" data-lenis-prevent>
               {days.map((d) => (
                 <button key={d.value} type="button" aria-pressed={day === d.value} onClick={() => setDay(d.value)}
-                  className={`shrink-0 rounded-xl border-2 px-3 py-1.5 text-left leading-tight ${day === d.value ? "border-ink bg-ink text-paper" : "border-ink/40 bg-paper hover:bg-mint-soft"}`}>
+                  className={`shrink-0 rounded-xl border-2 px-3 py-1.5 text-left leading-tight ${day === d.value ? "border-ink bg-ink text-paper" : "border-ink/60 bg-paper hover:bg-mint-soft"}`}>
                   <span className="block text-sm font-bold">{d.label}</span>
                   <span className={`block text-xs ${day === d.value ? "text-paper/90" : "text-ink/70"}`}>{d.sub}</span>
                 </button>
@@ -98,20 +98,20 @@ export function BookIt({ items, barriers, language, offReason }: { items: Bookab
             </div>
             <label htmlFor={otherDayId} className="mt-1 inline-flex items-center gap-2 text-xs font-semibold text-ink/70">{t("book.laterDate")}
               <input id={otherDayId} type="date" min={days[0].value} value={days.some((d) => d.value === day) ? "" : day}
-                onChange={(e) => setDay(e.target.value)} className="rounded-lg border-2 border-ink/40 bg-paper px-2 py-0.5 text-xs" />
+                onChange={(e) => setDay(e.target.value)} className="rounded-lg border-2 border-ink/60 bg-paper px-2 py-0.5 text-xs" />
             </label>
 
             <p className="mt-3 text-sm font-bold" id={`${panelId}-time`}>{t("remind.time")}</p>
             <div role="group" aria-labelledby={`${panelId}-time`} className="mt-1 flex flex-wrap gap-2">
               {TIME_CHIPS.map((t) => (
                 <button key={t} type="button" aria-pressed={time === t} onClick={() => setTime(t)}
-                  className={`rounded-full border-2 px-3 py-1 text-sm font-bold ${time === t ? "border-ink bg-ink text-paper" : "border-ink/40 bg-paper hover:bg-mint-soft"}`}>
+                  className={`rounded-full border-2 px-3 py-1 text-sm font-bold ${time === t ? "border-ink bg-ink text-paper" : "border-ink/60 bg-paper hover:bg-mint-soft"}`}>
                   {formatTime(t, code)}
                 </button>
               ))}
               <label htmlFor={otherTimeId} className="sr-only">{t("book.otherTime")}</label>
               <select id={otherTimeId} value={(TIME_CHIPS as readonly string[]).includes(time) ? "" : time} onChange={(e) => setTime(e.target.value)}
-                className="rounded-full border-2 border-ink/40 bg-paper px-3 py-1 text-sm font-bold">
+                className="rounded-full border-2 border-ink/60 bg-paper px-3 py-1 text-sm font-bold">
                 <option value="">{t("book.otherTime")}</option>
                 {timeOptions().map((t) => <option key={t} value={t}>{formatTime(t, code)}</option>)}
               </select>

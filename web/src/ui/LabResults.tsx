@@ -115,7 +115,7 @@ export function LabResults() {
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint"
                   onClick={() => { setText(SAMPLE_LABS); setFromPhoto(false); setChecked(false); setRes(null); }}>{t("labs.useSample")}</button>
-                <label className={`rounded-full border-2 border-ink px-4 py-2 hover:bg-mint focus-within:ring-4 focus-within:ring-teal/60 ${reading ? "opacity-50" : "cursor-pointer"}`}>
+                <label className={`rounded-full border-2 border-ink px-4 py-2 hover:bg-mint focus-within:ring-4 focus-within:ring-teal-deep ${reading ? "opacity-50" : "cursor-pointer"}`}>
                   📷 {t("labs.photoButton")}
                   <input type="file" accept="image/*" className="sr-only" disabled={reading}
                     onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void readPhoto(f); }} />
@@ -256,7 +256,7 @@ function LabRow({ r }: { r: ResultRow }) {
   const { t, ts, lang } = useUi();
   return (
     <li data-lab-row={r.status} data-critical={closed.critical || undefined} data-open={open || undefined}
-      className={`rounded-2xl border-2 ${closed.critical ? "border-red bg-red-soft" : outside ? "border-red/70 bg-paper" : open ? "border-ink bg-paper" : "border-ink/20 bg-paper"}`}>
+      className={`rounded-2xl border-2 ${closed.critical ? "border-red bg-red-soft" : outside ? "border-red bg-paper" : open ? "border-ink bg-paper" : "border-ink/20 bg-paper"}`}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId}
         className="group grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-2xl p-3 text-left">
         <span className="min-w-0" data-closed-row="report">

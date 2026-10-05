@@ -185,9 +185,11 @@ function PhotoPaper({ state }: { state: Extract<PhotoState, { kind: "found" }> }
       <div className="relative">
         {/* eslint-disable-next-line @next/next/no-img-element -- a local object URL of the person's own photo */}
         <img src={state.url} alt="Your photo, with the quoted words boxed" className="block h-auto w-full" />
+        {/* Boxes drawn on the photo of the paper. The photo is light in both themes, so these keep the light
+            theme's teal-deep and sun (7:1 against white) instead of following the page theme. */}
         {state.boxes.map((b, i) => (
           <div key={i} ref={i === 0 ? first : undefined} aria-hidden="true"
-            className="absolute rounded-sm border-2 border-teal-deep bg-sun/40 mix-blend-multiply"
+            className="absolute rounded-sm border-2 border-[#075e5a] bg-[#ffc94d]/40 mix-blend-multiply"
             style={{
               left: `${((b.x0 - pad) / W) * 100}%`, top: `${((b.y0 - pad) / H) * 100}%`,
               width: `${((b.x1 - b.x0 + 2 * pad) / W) * 100}%`, height: `${((b.y1 - b.y0 + 2 * pad) / H) * 100}%`,

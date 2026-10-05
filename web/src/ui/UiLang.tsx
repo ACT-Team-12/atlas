@@ -32,12 +32,13 @@ export function PaperWords({ children }: { children: ReactNode }) {
 
 /**
  * The English of a safety line, shown beside its machine-drafted translation and marked as English (englishBeside in
- * lib/uiText.ts). Short labels get it in brackets on the same line; sentences get their own line.
+ * lib/uiText.ts). Short labels get it in brackets on the same line; sentences get their own line. Full text color,
+ * never faded: at 80% opacity it fell under 4.5:1 on the warning, pharmacist and teal backgrounds it sits on.
  */
 export function EnglishBeside({ en }: { en: string }) {
   return en.length > 28
-    ? <span lang="en" data-english-beside="" className="mt-0.5 block text-[0.85em] font-semibold opacity-80">{en}</span>
-    : <span lang="en" data-english-beside="" className="text-[0.85em] font-semibold opacity-80"> ({en})</span>;
+    ? <span lang="en" data-english-beside="" className="mt-0.5 block text-[0.85em] font-semibold">{en}</span>
+    : <span lang="en" data-english-beside="" className="text-[0.85em] font-semibold"> ({en})</span>;
 }
 
 /** A safety line in this language, with its English beside it until reviewed (for components that hold the language). */

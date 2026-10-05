@@ -102,7 +102,7 @@ export function PhoneTabBar({ shown, state, onPick, notice }: { shown: Tab; stat
               tabIndex={on ? 0 : -1}
               onClick={() => { if (available) onPick(t); }}
               className={`relative rounded-full px-1.5 py-2 text-[0.9rem] font-extrabold leading-tight transition-colors focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep ${
-                on ? "bg-teal text-paper" : available ? "hover:bg-mint" : "cursor-not-allowed text-ink/60"}`}>
+                on ? "bg-teal text-paper" : available ? "hover:bg-mint" : "cursor-not-allowed text-ink/70"}`}>
               {t} · {tr(LABEL[t])}
               {done && (
                 <span aria-hidden="true" className={`absolute -top-1.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full border-2 border-ink text-[0.65rem] ${on ? "bg-paper text-teal-deep" : "bg-teal text-paper"}`}>✓</span>

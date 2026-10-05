@@ -187,6 +187,41 @@ describe("printPageOr", () => {
     act(() => { vi.advanceTimersByTime(PRINT_START_MS + 50); });
     expect(html().classList.contains("print-view")).toBe(true);
     expect(shown()).toBe(true);
+    // The print just did nothing here, so no Print button wired to it again (Codex round 3).
+    expect(bar().getAttribute("data-print-how")).toBe("open-browser");
+    expect(button("Print")).toBeUndefined();
+  });
+
+  it("two taps during the wait open one sheet, and Done still goes back to where the person was", () => {
+    as(SAFARI_IPHONE);
+    vi.useFakeTimers();
+    Object.defineProperty(window, "scrollY", { configurable: true, value: 4000 });
+    try {
+      act(() => printPageOr(HANDOFF_SHEET, trigger));
+      act(() => { vi.advanceTimersByTime(PRINT_START_MS / 2); });
+      act(() => printPageOr(HANDOFF_SHEET, trigger));
+      act(() => { vi.advanceTimersByTime(PRINT_START_MS + 50); });
+      expect(shown()).toBe(true);
+      Object.defineProperty(window, "scrollY", { configurable: true, value: 0 }); // the sheet view is at the top
+      act(() => { vi.advanceTimersByTime(PRINT_START_MS * 2); }); // no stale timer reopens it or resets the way back
+      act(() => button("Done")!.click());
+      expect(window.scrollTo).toHaveBeenLastCalledWith(0, 4000);
+      expect(html().classList.contains("print-view")).toBe(false);
+    } finally {
+      Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+    }
+  });
+
+  it("Handoff during the wait cancels the pending fallback, so Done isn't followed by a second sheet", () => {
+    as(SAFARI_IPHONE);
+    vi.useFakeTimers();
+    act(() => printPageOr(HANDOFF_SHEET, trigger));
+    act(() => { printOrView(HANDOFF_SHEET, trigger); });
+    expect(bar().getAttribute("data-print-how")).toBe("print");
+    act(() => button("Done")!.click());
+    act(() => { vi.advanceTimersByTime(PRINT_START_MS + 50); });
+    expect(html().classList.contains("print-view")).toBe(false);
+    expect(shown()).toBe(false);
   });
 
   it("a browser known not to print (Chrome on iPhone) gets the sheet straight away, no dead print call", () => {

@@ -27,9 +27,10 @@ export function canPrintFromPage(ua: string, maxTouchPoints = 0): boolean {
  */
 export type PrintHelp = { how: "print" | "ios-menu" | "open-browser"; text: string };
 
-export function printHelp(ua: string, maxTouchPoints = 0): PrintHelp {
+export function printHelp(ua: string, maxTouchPoints = 0, opts: { printFailed?: boolean } = {}): PrintHelp {
   const ios = isIOS(ua, maxTouchPoints);
-  if (IN_APP.test(ua) || (ios && !/Safari\//.test(ua))) {
+  // printFailed: this browser was just seen to ignore window.print, whatever its user agent says, so no Print button.
+  if (opts.printFailed || IN_APP.test(ua) || (ios && !/Safari\//.test(ua))) {
     return {
       how: "open-browser",
       text: ios

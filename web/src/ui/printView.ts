@@ -55,10 +55,13 @@ function focusWhenShown(el: HTMLElement) {
  * never a bare window.print: that does nothing in Chrome on iPhone and in apps' browsers, and no check can spot every
  * such browser (Codex review). The sheet's print class stays on while it is shown, so any print captures only it.
  */
-export function printOrView(t: PrintTarget, trigger?: Element | null): boolean {
+export function printOrView(t: PrintTarget, trigger?: Element | null, opts: { printFailed?: boolean } = {}): boolean {
+  cancelPendingPrint(); // a sheet is opening; an earlier Print still waiting to fall back must not open another
   // No sheet (the plan just went out of date): don't hide the app behind an empty view.
   if (!document.getElementById(t.sheetId)) return false;
   const root = document.documentElement;
+  // A sheet is already showing: keep where Done goes back to (Codex round 3).
+  if (root.classList.contains("print-view")) return false;
   returnY = window.scrollY;
   // The button that was tapped; a tap doesn't always focus it, so activeElement is only the fallback.
   const active = document.activeElement;
@@ -66,20 +69,29 @@ export function printOrView(t: PrintTarget, trigger?: Element | null): boolean {
   root.classList.add(t.cls, "print-view");
   document.getElementById(t.sheetId)?.removeAttribute("aria-hidden"); // it is the page now, so it is read too
   jumpTo(0);
-  window.dispatchEvent(new CustomEvent<PrintTarget>(PRINT_VIEW_EVENT, { detail: t }));
+  window.dispatchEvent(new CustomEvent<PrintViewDetail>(PRINT_VIEW_EVENT, { detail: { target: t, printFailed: !!opts.printFailed } }));
   return true;
 }
+
+/** What PrintViewBar is told: which sheet, and whether this browser was just seen not to print (so no Print button). */
+export type PrintViewDetail = { target: PrintTarget; printFailed: boolean };
 
 /** How long a print has to start before it counts as having done nothing. */
 export const PRINT_START_MS = 1000;
 
+// One print attempt at a time: a second tap, or Handoff during the wait, replaces the first (Codex round 3).
+let cancelPending: (() => void) | null = null;
+function cancelPendingPrint() { cancelPending?.(); cancelPending = null; }
+
 /**
  * Print the page as it is, and if the browser turns out not to print, show `fallback` on screen instead. A browser that
  * prints fires beforeprint; one that ignores window.print (an app's browser that looks like Safari or Chrome, which no
- * user-agent check can spot) fires nothing, so after PRINT_START_MS the sheet view opens with how to print from the
- * menu. Browsers already known not to print go straight to the sheet.
+ * user-agent check can spot) fires nothing, so after PRINT_START_MS the sheet view opens, marked as failed so it offers
+ * no Print button and says to open the page in the phone's browser. Browsers already known not to print go straight
+ * to the sheet.
  */
 export function printPageOr(fallback: PrintTarget, trigger?: Element | null) {
+  cancelPendingPrint();
   if (!canPrintHere()) { printOrView(fallback, trigger); return; }
   let started = false;
   const onStart = () => { started = true; };
@@ -91,10 +103,12 @@ export function printPageOr(fallback: PrintTarget, trigger?: Element | null) {
   // Where the dialog blocks the page (desktop Chrome), print() returns only after it closed: that was a print.
   // Elsewhere beforeprint can arrive a moment later (measured in Chromium: after print() returned), so wait for it.
   if (started || performance.now() - t0 > 250) { stopListening(); return; }
-  window.setTimeout(() => {
+  const timer = window.setTimeout(() => {
     stopListening();
-    if (!started) printOrView(fallback, trigger);
+    cancelPending = null;
+    if (!started) printOrView(fallback, trigger, { printFailed: true });
   }, PRINT_START_MS);
+  cancelPending = () => { window.clearTimeout(timer); stopListening(); };
 }
 
 /** Back to the app, where the person was, with focus back on the button they used. */

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { printHelp, type PrintHelp } from "@/lib/printSupport";
-import { closePrintView, PRINT_VIEW_EVENT, type PrintTarget } from "./printView";
+import { closePrintView, PRINT_VIEW_EVENT, type PrintTarget, type PrintViewDetail } from "./printView";
 
 /**
  * The bar over a sheet shown on screen (printView.ts): Print where the browser can print from a button, otherwise how to
@@ -16,8 +16,9 @@ export function PrintViewBar() {
 
   useEffect(() => {
     const on = (e: Event) => {
-      setTarget((e as CustomEvent<PrintTarget>).detail);
-      setHelp(printHelp(navigator.userAgent, navigator.maxTouchPoints ?? 0));
+      const d = (e as CustomEvent<PrintViewDetail>).detail;
+      setTarget(d.target);
+      setHelp(printHelp(navigator.userAgent, navigator.maxTouchPoints ?? 0, { printFailed: d.printFailed }));
     };
     window.addEventListener(PRINT_VIEW_EVENT, on);
     return () => window.removeEventListener(PRINT_VIEW_EVENT, on);

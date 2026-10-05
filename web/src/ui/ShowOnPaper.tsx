@@ -21,7 +21,8 @@ export function ShowOnPaper({ care, item, photo, check }: { care: CarePlanRespon
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const statusId = useId();
-  const { t } = useUi();
+  const labelId = useId();
+  const { t, code } = useUi();
 
   useEffect(() => {
     const d = ref.current;
@@ -30,11 +31,16 @@ export function ShowOnPaper({ care, item, photo, check }: { care: CarePlanRespon
 
   if (!spanContext(care.source_text, item.span)) return null;
   // Paper first (lib/paperFirst.ts): the AI's title names the step only when it was certified; otherwise the paper's words do.
-  const name = check === "certified" ? item.title : `“${shortQuote(item.source_quote, 48)}”`;
+  // A quote is the paper's own words, so it carries the paper's language, not the app's (Codex review, round 5).
+  const certified = check === "certified";
+  const name = certified ? item.title : <>“<PaperWords>{shortQuote(item.source_quote, 48)}</PaperWords>”</>;
+  const [labelBefore, labelAfter = ""] = t("show.buttonLabel").split("{name}");
   const readsPhoto = care.source_kind === "image" && photo !== null && guessOcrLang(care.source_text) !== null;
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} aria-label={t("show.buttonLabel", { name })} aria-haspopup="dialog"
+      {/* The button's name: the app's words around the step's name, each part in its own language. */}
+      <span id={labelId} hidden lang={code} data-show-label="">{labelBefore}{name}{labelAfter}</span>
+      <button type="button" onClick={() => setOpen(true)} aria-labelledby={labelId} aria-haspopup="dialog"
         className="mt-2 rounded-full border-2 border-ink bg-paper px-3 py-1 text-xs font-bold hover:bg-mint">
         {t("show.button")}
       </button>

@@ -80,6 +80,18 @@ describe("Show on my paper speaks the person's language", () => {
     });
   }
 
+  it("the step's quoted words carry the paper's language in the button's name and the dialog heading (Codex review, round 5)", async () => {
+    const care = { source_text: EN_TEXT, source_kind: "text" } as unknown as CarePlanResponse;
+    await act(async () => { root.render(<UiLangProvider language="Korean" paperLang="en"><ShowOnPaper care={care} item={item(EN_TEXT)} photo={null} check="unchecked" /></UiLangProvider>); });
+    const btn = host.querySelector("button")!;
+    expect(btn.hasAttribute("aria-label")).toBe(false);
+    const label = document.getElementById(btn.getAttribute("aria-labelledby")!)!;
+    expect(label.getAttribute("lang")).toBe("ko");
+    expect(label.querySelector('[lang="en"]')?.textContent).toBe(EN_TEXT.slice(0, 20).trim());
+    await act(async () => { btn.click(); });
+    expect(host.querySelector('dialog h2 + p [lang="en"]')?.textContent).toBe(EN_TEXT.slice(0, 20).trim());
+  });
+
   it("English keeps its words", async () => {
     await openFor("English", KO_TEXT);
     expect(status()).toBe("Highlighting on photos works for English and Spanish papers for now. Here is the quote on the text we read:");

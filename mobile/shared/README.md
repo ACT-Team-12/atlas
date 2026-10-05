@@ -49,8 +49,43 @@ with the row it must go in (`stop`, `change`, `start`, `keep`, or `ask` for "Ask
 is not a medicine), why, the medicine's name as the paper starts the line, and the old and new dose shown only when both
 are written in the line. Cases cover all seven app languages, negations, conditions, a hold then restart, two medicines on
 one line, and a change with one dose versus two. Unlike the files above it is not generated: the web suite replays it
-(`web/src/lib/medicineChanges.vectors.test.ts`) and `check-vectors.sh` runs that test in web-ci. The phone apps should
-replay the same file when they port the card. The non-English lines need a native speaker's review.
+(`web/src/lib/medicineChanges.vectors.test.ts`) and `check-vectors.sh` runs that test in web-ci. iOS replays the same file
+in `mobile/ios/ATLASTests/MedicineChangesTests.swift` and Android in
+`mobile/android/app/src/test/java/com/stephensookra/atlas/MedicineChangesTest.kt`, with the same checks as the web test
+(every Stop is also a "Right away" stop, the quote is the paper's, a dose shown is two pieces of that quote). The
+non-English lines need a native speaker's review.
+
+## Walk me through it (walk-vectors.json)
+
+`walk-vectors.json` is the website's own answer for "Walk me through it" (`web/src/lib/walkThrough.ts`): every fixed
+line in the seven app languages (`WALK_LINES`), lines with their numbers filled in (`walkLine`), the order the steps are
+shown and numbered (`walkSteps`), where Pip shows on the step on screen (`walkPip`, from 400 seeded `pipSpot` states) and
+the next open step (`nextOpen`). iOS replays it in `mobile/ios/ATLASTests/WalkThroughTests.swift` and Android in
+`mobile/android/app/src/test/java/com/stephensookra/atlas/WalkThroughTest.kt`. `check-vectors.sh` regenerates it in
+web-ci and fails on any drift. To regenerate by hand:
+
+```sh
+cp mobile/shared/genWalkVectors.test.ts web/src/lib/
+cd web && VECTORS_OUT=../mobile/shared/walk-vectors.json pnpm exec vitest run src/lib/genWalkVectors.test.ts
+rm src/lib/genWalkVectors.test.ts
+```
+
+## Ask my paper (ask-vectors.json)
+
+`ask-vectors.json` is the website's own answer for the parts of "Ask my paper" the phones decide without any AI:
+every fixed string in the seven app languages (`ASK_TEXT` in `web/src/lib/askText.ts`, with the sentence-building ones
+filled in for fixed inputs), which questions are urgent and never sent (`isUrgentQuestion`), the ready question built
+only from the person's own words (`askAboutQuestion`), and which quotes survive `onThisPaper`
+(`web/src/ui/AskPaper.tsx`). The answer itself always comes from `POST /api/ask`. iOS replays it in
+`mobile/ios/ATLASTests/AskPaperTests.swift` and Android in
+`mobile/android/app/src/test/java/com/stephensookra/atlas/AskPaperTest.kt`. `check-vectors.sh` regenerates it in
+web-ci and fails on any drift. To regenerate by hand:
+
+```sh
+cp mobile/shared/genAskVectors.test.ts web/src/lib/
+cd web && VECTORS_OUT=../mobile/shared/ask-vectors.json pnpm exec vitest run src/lib/genAskVectors.test.ts
+rm src/lib/genAskVectors.test.ts
+```
 
 ## Missed lines (missed-lines-vectors.json)
 

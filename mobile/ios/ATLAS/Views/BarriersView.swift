@@ -3,7 +3,6 @@ import SwiftUI
 struct BarriersView: View {
     @Environment(AppModel.self) private var model
     @State private var locator = LocationProvider()
-    @State private var locating = false
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -34,7 +33,7 @@ struct BarriersView: View {
                     Text("Your ZIP").font(.subheadline.weight(.bold))
                     TextField("e.g. 30340", text: Binding(
                         get: { model.zip },
-                        set: { v in model.zip = String(v.filter(\.isNumber).prefix(5)); model.location = nil }
+                        set: { v in model.typeZip(v) }
                     ))
                     .keyboardType(.numberPad)
                     .focused($focused)
@@ -44,7 +43,7 @@ struct BarriersView: View {
                     .accessibilityLabel("Your ZIP code")
 
                     Button { useMyLocation() } label: {
-                        if locating {
+                        if model.locating {
                             Label("Finding you...", systemImage: "location")
                         } else if model.location != nil {
                             Label("Using your location (not saved)", systemImage: "checkmark.circle.fill")
@@ -54,7 +53,7 @@ struct BarriersView: View {
                     }
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(Palette.tealDeep)
-                    .disabled(locating)
+                    .disabled(model.locating)
                 }
 
                 Card {
@@ -90,20 +89,23 @@ struct BarriersView: View {
     }
 
     private func useMyLocation() {
-        locating = true
+        // Held by the model, so a plan already running is stopped when the place starts to change (as on the website), and
+        // numbered, so a late result never overwrites a ZIP typed meanwhile.
+        let run = model.beginLocating()
         Task {
-            defer { locating = false }
+            var point: LatLng?
+            var failure: String?
+            defer { model.finishLocating(run, point: point, failure: failure) }
             do {
                 let c = try await locator.currentLocation()
-                let point = LatLng(lat: c.latitude, lng: c.longitude)
-                guard point.isInServiceArea else {
-                    model.error = "Your location is outside the US, where ATLAS has verified clinics. Type a US ZIP instead."
+                let found = LatLng(lat: c.latitude, lng: c.longitude)
+                guard found.isInServiceArea else {
+                    failure = "Your location is outside the US, where ATLAS has verified clinics. Type a US ZIP instead."
                     return
                 }
-                model.location = point
-                model.zip = ""
+                point = found
             } catch {
-                model.error = error.localizedDescription
+                failure = error.localizedDescription
             }
         }
     }

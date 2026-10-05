@@ -1,0 +1,980 @@
+{
+ "text": {
+  "English": {
+   "title": "Ask my paper",
+   "intro": "Ask a question. ATLAS answers only with your paper's own words, checked word for word. If your paper doesn't say, we tell you.",
+   "label": "Your question",
+   "placeholder": "e.g. When do I stop ibuprofen?",
+   "button": "Ask my paper",
+   "asking": "Looking in your paper and checking every word...",
+   "refusal": "Your paper doesn't say. Ask your clinic or pharmacist.",
+   "readyLabel": "A question ready to ask",
+   "readyHint": "Show or read this to your clinic or pharmacist. It uses only your own question.",
+   "copy": "Copy question",
+   "copied": "Copied",
+   "urgentTitle": "This may be an emergency",
+   "urgentBody": "If this is happening now, call 911 or go to the nearest emergency room. ATLAS does not answer emergency questions. For help that is not an emergency, call 211 (United Way of Greater Atlanta) or your clinic.",
+   "urgentPaper": "What your paper says about warning signs:",
+   "paperLabel": "Copied word for word from your paper",
+   "leadNote": "Plain words (not double-checked yet)",
+   "error": "Something went wrong. Try again.",
+   "busy": "Too many questions right now. Wait a few minutes and try again, or ask your clinic or pharmacist.",
+   "unavailable": "Ask my paper is not available right now. Ask your clinic or pharmacist.",
+   "today": "Ask my paper has answered as many questions as it can today. Try again tomorrow, or ask your clinic or pharmacist.",
+   "readyQuestion": "I couldn't find the answer to this in my visit paper: \"can I drive?\" Can you help me?",
+   "about": "Your paper says this about \"ibuprofen\":",
+   "held1": "1 quote from the AI held back because the words were not found on your paper.",
+   "held2": "2 quotes from the AI held back because the words were not found on your paper.",
+   "held5": "5 quotes from the AI held back because the words were not found on your paper."
+  },
+  "Spanish": {
+   "title": "Pregúntele a su papel",
+   "intro": "Haga una pregunta. ATLAS responde solo con las palabras de su papel, revisadas palabra por palabra. Si su papel no lo dice, se lo decimos.",
+   "label": "Su pregunta",
+   "placeholder": "p. ej. ¿Cuándo dejo el ibuprofeno?",
+   "button": "Preguntarle a mi papel",
+   "asking": "Buscando en su papel y revisando cada palabra...",
+   "refusal": "Su papel no lo dice. Pregunte en su clínica o a su farmacéutico.",
+   "readyLabel": "Una pregunta lista para hacer",
+   "readyHint": "Muestre o lea esto en su clínica o a su farmacéutico. Usa solo su propia pregunta.",
+   "copy": "Copiar pregunta",
+   "copied": "Copiada",
+   "urgentTitle": "Esto puede ser una emergencia",
+   "urgentBody": "Si esto está pasando ahora, llame al 911 o vaya a la sala de emergencias más cercana. ATLAS no responde preguntas de emergencia. Para ayuda que no es una emergencia, llame al 211 (United Way of Greater Atlanta) o a su clínica.",
+   "urgentPaper": "Lo que dice su papel sobre señales de alarma:",
+   "paperLabel": "Copiado palabra por palabra de su papel",
+   "leadNote": "En palabras sencillas (todavía sin doble revisión)",
+   "error": "Algo salió mal. Inténtelo de nuevo.",
+   "busy": "Demasiadas preguntas por ahora. Espere unos minutos e inténtelo de nuevo, o pregunte en su clínica o a su farmacéutico.",
+   "unavailable": "Preguntarle a su papel no está disponible ahora. Pregunte en su clínica o a su farmacéutico.",
+   "today": "Hoy ya se respondieron todas las preguntas que se pueden. Inténtelo mañana, o pregunte en su clínica o a su farmacéutico.",
+   "readyQuestion": "No encontré la respuesta a esto en mi papel de la visita: \"can I drive?\" ¿Me puede ayudar?",
+   "about": "Su papel dice esto sobre \"ibuprofen\":",
+   "held1": "1 cita de la IA no se mostraron porque esas palabras no están en su papel.",
+   "held2": "2 citas de la IA no se mostraron porque esas palabras no están en su papel.",
+   "held5": "5 citas de la IA no se mostraron porque esas palabras no están en su papel."
+  },
+  "Vietnamese": {
+   "title": "Hỏi giấy của tôi",
+   "intro": "Hãy đặt câu hỏi. ATLAS chỉ trả lời bằng chính lời trong giấy của bạn, được kiểm tra từng chữ. Nếu giấy không nói, chúng tôi sẽ cho bạn biết.",
+   "label": "Câu hỏi của bạn",
+   "placeholder": "vd. Khi nào tôi ngưng ibuprofen?",
+   "button": "Hỏi giấy của tôi",
+   "asking": "Đang tìm trong giấy của bạn và kiểm tra từng chữ...",
+   "refusal": "Giấy của bạn không nói về điều này. Hãy hỏi phòng khám hoặc dược sĩ của bạn.",
+   "readyLabel": "Câu hỏi soạn sẵn",
+   "readyHint": "Đưa hoặc đọc câu này cho phòng khám hoặc dược sĩ. Câu này chỉ dùng câu hỏi của chính bạn.",
+   "copy": "Sao chép câu hỏi",
+   "copied": "Đã sao chép",
+   "urgentTitle": "Đây có thể là trường hợp cấp cứu",
+   "urgentBody": "Nếu việc này đang xảy ra, hãy gọi 911 hoặc đến phòng cấp cứu gần nhất. ATLAS không trả lời câu hỏi cấp cứu. Để được giúp đỡ không khẩn cấp, hãy gọi 211 (United Way of Greater Atlanta) hoặc phòng khám của bạn.",
+   "urgentPaper": "Giấy của bạn nói gì về các dấu hiệu nguy hiểm:",
+   "paperLabel": "Chép nguyên văn từ giấy của bạn",
+   "leadNote": "Lời giải thích đơn giản (chưa được kiểm tra lại)",
+   "error": "Đã có lỗi. Hãy thử lại.",
+   "busy": "Hiện có quá nhiều câu hỏi. Hãy đợi vài phút rồi thử lại, hoặc hỏi phòng khám hay dược sĩ của bạn.",
+   "unavailable": "Hiện chưa thể hỏi giấy của bạn. Hãy hỏi phòng khám hoặc dược sĩ của bạn.",
+   "today": "Hôm nay đã trả lời hết số câu hỏi có thể. Hãy thử lại vào ngày mai, hoặc hỏi phòng khám hay dược sĩ của bạn.",
+   "readyQuestion": "Tôi không tìm thấy câu trả lời cho điều này trong giấy khám bệnh của tôi: \"can I drive?\" Bạn có thể giúp tôi không?",
+   "about": "Giấy của bạn nói điều này về \"ibuprofen\":",
+   "held1": "1 trích dẫn của AI đã bị giữ lại vì không tìm thấy những chữ đó trong giấy của bạn.",
+   "held2": "2 trích dẫn của AI đã bị giữ lại vì không tìm thấy những chữ đó trong giấy của bạn.",
+   "held5": "5 trích dẫn của AI đã bị giữ lại vì không tìm thấy những chữ đó trong giấy của bạn."
+  },
+  "Korean": {
+   "title": "내 서류에 물어보기",
+   "intro": "질문하세요. ATLAS는 서류에 있는 말 그대로만, 한 단어씩 확인해서 답합니다. 서류에 없으면 없다고 알려 드립니다.",
+   "label": "질문",
+   "placeholder": "예: 이부프로펜은 언제 끊나요?",
+   "button": "내 서류에 물어보기",
+   "asking": "서류에서 찾고 모든 단어를 확인하는 중...",
+   "refusal": "서류에 나와 있지 않습니다. 병원이나 약사에게 문의하세요.",
+   "readyLabel": "바로 쓸 수 있는 질문",
+   "readyHint": "병원이나 약사에게 보여 주거나 읽어 주세요. 본인의 질문만 사용합니다.",
+   "copy": "질문 복사",
+   "copied": "복사됨",
+   "urgentTitle": "응급 상황일 수 있습니다",
+   "urgentBody": "지금 일어나고 있다면 911에 전화하거나 가장 가까운 응급실로 가세요. ATLAS는 응급 질문에 답하지 않습니다. 응급이 아닌 도움은 211(United Way of Greater Atlanta)이나 병원에 전화하세요.",
+   "urgentPaper": "위험 신호에 대해 서류에 적힌 내용:",
+   "paperLabel": "서류에서 그대로 옮긴 말",
+   "leadNote": "쉬운 설명 (아직 다시 확인되지 않음)",
+   "error": "문제가 생겼습니다. 다시 시도하세요.",
+   "busy": "지금은 질문이 너무 많습니다. 몇 분 뒤에 다시 시도하거나 병원이나 약사에게 문의하세요.",
+   "unavailable": "지금은 서류에 물어볼 수 없습니다. 병원이나 약사에게 문의하세요.",
+   "today": "오늘 답할 수 있는 질문 수를 모두 채웠습니다. 내일 다시 시도하거나 병원이나 약사에게 문의하세요.",
+   "readyQuestion": "제 진료 서류에서 이 질문의 답을 찾지 못했습니다: \"can I drive?\" 도와주실 수 있나요?",
+   "about": "서류에 \"ibuprofen\"에 대해 이렇게 적혀 있습니다:",
+   "held1": "서류에서 찾을 수 없는 AI 인용 1개는 보여 드리지 않았습니다.",
+   "held2": "서류에서 찾을 수 없는 AI 인용 2개는 보여 드리지 않았습니다.",
+   "held5": "서류에서 찾을 수 없는 AI 인용 5개는 보여 드리지 않았습니다."
+  },
+  "Chinese": {
+   "title": "问我的文件",
+   "intro": "请提问。ATLAS 只用您文件里的原话回答，并逐字核对。如果文件里没有写，我们会告诉您。",
+   "label": "您的问题",
+   "placeholder": "例如：我什么时候停用布洛芬？",
+   "button": "问我的文件",
+   "asking": "正在文件中查找并逐字核对……",
+   "refusal": "您的文件里没有写。请询问您的诊所或药剂师。",
+   "readyLabel": "可以直接问的问题",
+   "readyHint": "把这句话给诊所或药剂师看或读给他们听。它只用了您自己的问题。",
+   "copy": "复制问题",
+   "copied": "已复制",
+   "urgentTitle": "这可能是紧急情况",
+   "urgentBody": "如果现在正在发生，请拨打 911 或去最近的急诊室。ATLAS 不回答紧急问题。非紧急的帮助，请拨打 211（United Way of Greater Atlanta）或联系您的诊所。",
+   "urgentPaper": "您的文件中关于危险信号的内容：",
+   "paperLabel": "逐字摘自您的文件",
+   "leadNote": "简单说明（尚未二次核对）",
+   "error": "出了点问题。请再试一次。",
+   "busy": "现在问题太多。请过几分钟再试，或询问您的诊所或药剂师。",
+   "unavailable": "现在无法询问您的文件。请询问您的诊所或药剂师。",
+   "today": "今天能回答的问题已经用完了。请明天再试，或询问您的诊所或药剂师。",
+   "readyQuestion": "我在就诊文件里没有找到这个问题的答案：\"can I drive?\" 您能帮我吗？",
+   "about": "您的文件关于\"ibuprofen\"是这样写的：",
+   "held1": "有 1 条 AI 引文因为在您的文件中找不到而未显示。",
+   "held2": "有 2 条 AI 引文因为在您的文件中找不到而未显示。",
+   "held5": "有 5 条 AI 引文因为在您的文件中找不到而未显示。"
+  },
+  "Amharic": {
+   "title": "ወረቀቴን ልጠይቅ",
+   "intro": "ጥያቄ ይጠይቁ። ATLAS የሚመልሰው በወረቀትዎ ቃላት ብቻ ነው፣ ቃል በቃል ተረጋግጦ። ወረቀትዎ ካልገለጸ እንነግርዎታለን።",
+   "label": "ጥያቄዎ",
+   "placeholder": "ለምሳሌ፦ ኢቡፕሮፌን መቼ ላቁም?",
+   "button": "ወረቀቴን ልጠይቅ",
+   "asking": "በወረቀትዎ ውስጥ እየፈለግን እያንዳንዱን ቃል እያረጋገጥን ነው...",
+   "refusal": "ወረቀትዎ ይህን አይገልጽም። ክሊኒክዎን ወይም ፋርማሲስትዎን ይጠይቁ።",
+   "readyLabel": "ለመጠየቅ የተዘጋጀ ጥያቄ",
+   "readyHint": "ይህን ለክሊኒክዎ ወይም ለፋርማሲስትዎ ያሳዩ ወይም ያንብቡ። የራስዎን ጥያቄ ብቻ ይጠቀማል።",
+   "copy": "ጥያቄውን ቅዳ",
+   "copied": "ተቀድቷል",
+   "urgentTitle": "ይህ ድንገተኛ ሊሆን ይችላል",
+   "urgentBody": "ይህ አሁን እየሆነ ከሆነ 911 ይደውሉ ወይም በአቅራቢያ ወዳለው ድንገተኛ ክፍል ይሂዱ። ATLAS የድንገተኛ ጥያቄዎችን አይመልስም። ድንገተኛ ላልሆነ እርዳታ 211 (United Way of Greater Atlanta) ወይም ክሊኒክዎን ይደውሉ።",
+   "urgentPaper": "ወረቀትዎ ስለ አደገኛ ምልክቶች የሚለው፦",
+   "paperLabel": "ከወረቀትዎ ቃል በቃል የተገለበጠ",
+   "leadNote": "ቀላል ማብራሪያ (ገና ድጋሚ አልተረጋገጠም)",
+   "error": "ችግር ተፈጥሯል። እንደገና ይሞክሩ።",
+   "busy": "አሁን በጣም ብዙ ጥያቄዎች አሉ። ጥቂት ደቂቃዎች ጠብቀው እንደገና ይሞክሩ፣ ወይም ክሊኒክዎን ወይም ፋርማሲስትዎን ይጠይቁ።",
+   "unavailable": "አሁን ወረቀትዎን መጠየቅ አይቻልም። ክሊኒክዎን ወይም ፋርማሲስትዎን ይጠይቁ።",
+   "today": "ዛሬ ሊመለሱ የሚችሉት ጥያቄዎች በሙሉ ተመልሰዋል። ነገ እንደገና ይሞክሩ፣ ወይም ክሊኒክዎን ወይም ፋርማሲስትዎን ይጠይቁ።",
+   "readyQuestion": "ለዚህ ጥያቄ መልሱን በጉብኝት ወረቀቴ ላይ ማግኘት አልቻልኩም፦ \"can I drive?\" ሊረዱኝ ይችላሉ?",
+   "about": "ወረቀትዎ ስለ \"ibuprofen\" ይህን ይላል፦",
+   "held1": "በወረቀትዎ ላይ ስላልተገኙ 1 የAI ጥቅሶች አልታዩም።",
+   "held2": "በወረቀትዎ ላይ ስላልተገኙ 2 የAI ጥቅሶች አልታዩም።",
+   "held5": "በወረቀትዎ ላይ ስላልተገኙ 5 የAI ጥቅሶች አልታዩም።"
+  },
+  "French": {
+   "title": "Interroger mon document",
+   "intro": "Posez une question. ATLAS répond uniquement avec les mots de votre document, vérifiés mot pour mot. Si votre document ne le dit pas, nous vous le disons.",
+   "label": "Votre question",
+   "placeholder": "ex. Quand dois-je arrêter l'ibuprofène ?",
+   "button": "Interroger mon document",
+   "asking": "Recherche dans votre document et vérification de chaque mot...",
+   "refusal": "Votre document ne le dit pas. Demandez à votre clinique ou à votre pharmacien.",
+   "readyLabel": "Une question prête à poser",
+   "readyHint": "Montrez ou lisez ceci à votre clinique ou à votre pharmacien. Elle reprend seulement votre propre question.",
+   "copy": "Copier la question",
+   "copied": "Copiée",
+   "urgentTitle": "Cela peut être une urgence",
+   "urgentBody": "Si cela se produit maintenant, appelez le 911 ou allez aux urgences les plus proches. ATLAS ne répond pas aux questions urgentes. Pour une aide qui n'est pas urgente, appelez le 211 (United Way of Greater Atlanta) ou votre clinique.",
+   "urgentPaper": "Ce que dit votre document sur les signes d'alerte :",
+   "paperLabel": "Copié mot pour mot de votre document",
+   "leadNote": "En mots simples (pas encore vérifié une seconde fois)",
+   "error": "Un problème est survenu. Réessayez.",
+   "busy": "Trop de questions en ce moment. Attendez quelques minutes et réessayez, ou demandez à votre clinique ou à votre pharmacien.",
+   "unavailable": "Interroger votre document n'est pas disponible pour le moment. Demandez à votre clinique ou à votre pharmacien.",
+   "today": "Le nombre de questions possibles pour aujourd'hui est atteint. Réessayez demain, ou demandez à votre clinique ou à votre pharmacien.",
+   "readyQuestion": "Je n'ai pas trouvé la réponse à ceci dans mon document de visite : \"can I drive?\" Pouvez-vous m'aider ?",
+   "about": "Votre document dit ceci sur \"ibuprofen\" :",
+   "held1": "1 citation de l'IA retenue car ces mots ne sont pas dans votre document.",
+   "held2": "2 citations de l'IA retenues car ces mots ne sont pas dans votre document.",
+   "held5": "5 citations de l'IA retenues car ces mots ne sont pas dans votre document."
+  }
+ },
+ "max_question": 300,
+ "urgent": [
+  {
+   "question": "I have chest pain right now",
+   "urgent": true
+  },
+  {
+   "question": "my chest hurts",
+   "urgent": true
+  },
+  {
+   "question": "I can't breathe",
+   "urgent": true
+  },
+  {
+   "question": "I think I took too many pills",
+   "urgent": true
+  },
+  {
+   "question": "I swallowed the whole bottle",
+   "urgent": true
+  },
+  {
+   "question": "my throat is closing",
+   "urgent": true
+  },
+  {
+   "question": "my throat is swelling up",
+   "urgent": true
+  },
+  {
+   "question": "I am coughing up blood",
+   "urgent": true
+  },
+  {
+   "question": "I'm vomiting blood",
+   "urgent": true
+  },
+  {
+   "question": "my face is drooping and my speech is slurred",
+   "urgent": true
+  },
+  {
+   "question": "I took 20 pills",
+   "urgent": true
+  },
+  {
+   "question": "I want to die",
+   "urgent": true
+  },
+  {
+   "question": "he is not breathing",
+   "urgent": true
+  },
+  {
+   "question": "she won't wake up",
+   "urgent": true
+  },
+  {
+   "question": "I think it's a heart attack",
+   "urgent": true
+  },
+  {
+   "question": "overdosed on tylenol",
+   "urgent": true
+  },
+  {
+   "question": "bleeding a lot from the cut",
+   "urgent": true
+  },
+  {
+   "question": "I want to kill myself",
+   "urgent": true
+  },
+  {
+   "question": "when should I call 911?",
+   "urgent": true
+  },
+  {
+   "question": "should I go to the emergency room?",
+   "urgent": true
+  },
+  {
+   "question": "Call 9-1-1?",
+   "urgent": true
+  },
+  {
+   "question": "se me cierra la garganta",
+   "urgent": true
+  },
+  {
+   "question": "estoy tosiendo sangre",
+   "urgent": true
+  },
+  {
+   "question": "quiero morir",
+   "urgent": true
+  },
+  {
+   "question": "tengo dolor en el pecho",
+   "urgent": true
+  },
+  {
+   "question": "no puedo respirar",
+   "urgent": true
+  },
+  {
+   "question": "me duele el pecho",
+   "urgent": true
+  },
+  {
+   "question": "creo que es una sobredosis",
+   "urgent": true
+  },
+  {
+   "question": "ma gorge se ferme",
+   "urgent": true
+  },
+  {
+   "question": "je crache du sang",
+   "urgent": true
+  },
+  {
+   "question": "j'ai une douleur thoracique",
+   "urgent": true
+  },
+  {
+   "question": "je ne peux pas respirer",
+   "urgent": true
+  },
+  {
+   "question": "je veux mourir",
+   "urgent": true
+  },
+  {
+   "question": "crise cardiaque ?",
+   "urgent": true
+  },
+  {
+   "question": "tôi ho ra máu",
+   "urgent": true
+  },
+  {
+   "question": "tôi bị đau ngực",
+   "urgent": true
+  },
+  {
+   "question": "tôi khó thở",
+   "urgent": true
+  },
+  {
+   "question": "tôi muốn chết",
+   "urgent": true
+  },
+  {
+   "question": "목이 붓고 숨이 막혀요",
+   "urgent": true
+  },
+  {
+   "question": "가슴 통증이 있어요",
+   "urgent": true
+  },
+  {
+   "question": "숨이 차요",
+   "urgent": true
+  },
+  {
+   "question": "죽고 싶어요",
+   "urgent": true
+  },
+  {
+   "question": "과다 복용했어요",
+   "urgent": true
+  },
+  {
+   "question": "我咳血",
+   "urgent": true
+  },
+  {
+   "question": "我胸痛",
+   "urgent": true
+  },
+  {
+   "question": "我呼吸困难",
+   "urgent": true
+  },
+  {
+   "question": "我想死",
+   "urgent": true
+  },
+  {
+   "question": "服药过量了",
+   "urgent": true
+  },
+  {
+   "question": "ደም እያስታወከኝ ነው",
+   "urgent": true
+  },
+  {
+   "question": "የደረት ህመም አለኝ",
+   "urgent": true
+  },
+  {
+   "question": "የመተንፈስ ችግር አለብኝ",
+   "urgent": true
+  },
+  {
+   "question": "መሞት እፈልጋለሁ",
+   "urgent": true
+  },
+  {
+   "question": "can I drive?",
+   "urgent": false
+  },
+  {
+   "question": "when do I stop ibuprofen?",
+   "urgent": false
+  },
+  {
+   "question": "how often do I take metformin?",
+   "urgent": false
+  },
+  {
+   "question": "¿cuándo dejo el ibuprofeno?",
+   "urgent": false
+  },
+  {
+   "question": "Quand dois-je revenir ?",
+   "urgent": false
+  },
+  {
+   "question": "메트포르민은 얼마나 자주 먹나요?",
+   "urgent": false
+  },
+  {
+   "question": "我什么时候复诊？",
+   "urgent": false
+  },
+  {
+   "question": "this is not an emergency: can I drive?",
+   "urgent": false
+  },
+  {
+   "question": "What does my chest x-ray say?",
+   "urgent": false
+  },
+  {
+   "question": "Can I take it with breakfast?",
+   "urgent": false
+  },
+  {
+   "question": "When is my next visit?",
+   "urgent": false
+  },
+  {
+   "question": "Where do I get my blood drawn?",
+   "urgent": false
+  },
+  {
+   "question": "Khi nào tôi tái khám?",
+   "urgent": false
+  },
+  {
+   "question": "Can I eat bread?",
+   "urgent": false
+  },
+  {
+   "question": "Is metformin a pill?",
+   "urgent": false
+  },
+  {
+   "question": "When do I see the eye doctor?",
+   "urgent": false
+  },
+  {
+   "question": "cuándo vuelvo a la clínica",
+   "urgent": false
+  },
+  {
+   "question": "ኢቡፕሮፌን መቼ ላቁም?",
+   "urgent": false
+  },
+  {
+   "question": "Do I need to fast before the lab?",
+   "urgent": false
+  },
+  {
+   "question": "How many tablets of lisinopril?",
+   "urgent": false
+  },
+  {
+   "question": "  I  \n have  \n chest  \n pain  \n right  \n now  ",
+   "urgent": true
+  },
+  {
+   "question": "  my  \n chest  \n hurts  ",
+   "urgent": true
+  },
+  {
+   "question": "  I  \n can't  \n breathe  ",
+   "urgent": true
+  },
+  {
+   "question": "  I  \n think  \n I  \n took  \n too  \n many  \n pills  ",
+   "urgent": true
+  },
+  {
+   "question": "  I  \n swallowed  \n the  \n whole  \n bottle  ",
+   "urgent": true
+  },
+  {
+   "question": "  my  \n throat  \n is  \n closing  ",
+   "urgent": true
+  },
+  {
+   "question": "  my  \n throat  \n is  \n swelling  \n up  ",
+   "urgent": true
+  },
+  {
+   "question": "  I  \n am  \n coughing  \n up  \n blood  ",
+   "urgent": true
+  },
+  {
+   "question": "  I'm  \n vomiting  \n blood  ",
+   "urgent": true
+  },
+  {
+   "question": "  my  \n face  \n is  \n drooping  \n and  \n my  \n speech  \n is  \n slurred  ",
+   "urgent": true
+  },
+  {
+   "question": "  I  \n took  \n 20  \n pills  ",
+   "urgent": true
+  },
+  {
+   "question": "  I  \n want  \n to  \n die  ",
+   "urgent": true
+  }
+ ],
+ "ready": [
+  {
+   "question": "  can I   drink alcohol? ",
+   "language": "English",
+   "expected": {
+    "who": "clinic",
+    "label": "A question ready to ask",
+    "question": "I couldn't find the answer to this in my visit paper: \"can I drink alcohol?\" Can you help me?"
+   }
+  },
+  {
+   "question": "¿puedo manejar?",
+   "language": "Spanish",
+   "expected": {
+    "who": "clinic",
+    "label": "Una pregunta lista para hacer",
+    "question": "No encontré la respuesta a esto en mi papel de la visita: \"¿puedo manejar?\" ¿Me puede ayudar?"
+   }
+  },
+  {
+   "question": "can I drive?",
+   "language": "Klingon",
+   "expected": {
+    "who": "clinic",
+    "label": "A question ready to ask",
+    "question": "I couldn't find the answer to this in my visit paper: \"can I drive?\" Can you help me?"
+   }
+  },
+  {
+   "question": "why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why ",
+   "language": "English",
+   "expected": {
+    "who": "clinic",
+    "label": "A question ready to ask",
+    "question": "I couldn't find the answer to this in my visit paper: \"why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why \" Can you help me?"
+   }
+  },
+  {
+   "question": "tôi có được lái xe không?",
+   "language": "Vietnamese",
+   "expected": {
+    "who": "clinic",
+    "label": "Câu hỏi soạn sẵn",
+    "question": "Tôi không tìm thấy câu trả lời cho điều này trong giấy khám bệnh của tôi: \"tôi có được lái xe không?\" Bạn có thể giúp tôi không?"
+   }
+  },
+  {
+   "question": "운전해도 되나요?",
+   "language": "Korean",
+   "expected": {
+    "who": "clinic",
+    "label": "바로 쓸 수 있는 질문",
+    "question": "제 진료 서류에서 이 질문의 답을 찾지 못했습니다: \"운전해도 되나요?\" 도와주실 수 있나요?"
+   }
+  },
+  {
+   "question": "我可以开车吗？",
+   "language": "Chinese",
+   "expected": {
+    "who": "clinic",
+    "label": "可以直接问的问题",
+    "question": "我在就诊文件里没有找到这个问题的答案：\"我可以开车吗？\" 您能帮我吗？"
+   }
+  },
+  {
+   "question": "መኪና መንዳት እችላለሁ?",
+   "language": "Amharic",
+   "expected": {
+    "who": "clinic",
+    "label": "ለመጠየቅ የተዘጋጀ ጥያቄ",
+    "question": "ለዚህ ጥያቄ መልሱን በጉብኝት ወረቀቴ ላይ ማግኘት አልቻልኩም፦ \"መኪና መንዳት እችላለሁ?\" ሊረዱኝ ይችላሉ?"
+   }
+  },
+  {
+   "question": "puis-je conduire ?",
+   "language": "French",
+   "expected": {
+    "who": "clinic",
+    "label": "Une question prête à poser",
+    "question": "Je n'ai pas trouvé la réponse à ceci dans mon document de visite : \"puis-je conduire ?\" Pouvez-vous m'aider ?"
+   }
+  },
+  {
+   "question": "line\none\ttwo",
+   "language": "English",
+   "expected": {
+    "who": "clinic",
+    "label": "A question ready to ask",
+    "question": "I couldn't find the answer to this in my visit paper: \"line one two\" Can you help me?"
+   }
+  }
+ ],
+ "on_this_paper": [
+  {
+   "name": "every quote on the paper",
+   "source": "Take metformin 500 mg twice a day.\nStop ibuprofen today.\nReturn to clinic in 3 months.",
+   "res": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "Take metformin 500 mg twice a day.",
+      "span": {
+       "start": 0,
+       "end": 34
+      }
+     },
+     {
+      "text": "Return to clinic in 3 months.",
+      "span": {
+       "start": 57,
+       "end": 86
+      }
+     }
+    ],
+    "topic": "metformin",
+    "topic_dropped": null,
+    "dropped": [],
+    "model": "m",
+    "ms": 1
+   },
+   "expected": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "Take metformin 500 mg twice a day.",
+      "span": {
+       "start": 0,
+       "end": 34
+      }
+     },
+     {
+      "text": "Return to clinic in 3 months.",
+      "span": {
+       "start": 57,
+       "end": 86
+      }
+     }
+    ],
+    "topic": "metformin",
+    "topic_dropped": null,
+    "dropped": [],
+    "model": "m",
+    "ms": 1
+   }
+  },
+  {
+   "name": "one quote off the paper: dropped, topic removed",
+   "source": "Take metformin 500 mg twice a day.\nStop ibuprofen today.\nReturn to clinic in 3 months.",
+   "res": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "Take metformin 500 mg twice a day.",
+      "span": {
+       "start": 0,
+       "end": 34
+      }
+     },
+     {
+      "text": "Take metformin daily.",
+      "span": {
+       "start": 0,
+       "end": 21
+      }
+     }
+    ],
+    "topic": "metformin",
+    "topic_dropped": null,
+    "dropped": [],
+    "model": "m",
+    "ms": 1
+   },
+   "expected": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "Take metformin 500 mg twice a day.",
+      "span": {
+       "start": 0,
+       "end": 34
+      }
+     }
+    ],
+    "topic": null,
+    "topic_dropped": null,
+    "dropped": [
+     "not_in_paper"
+    ],
+    "model": "m",
+    "ms": 1
+   }
+  },
+  {
+   "name": "words differ from the paper at the span",
+   "source": "Take metformin 500 mg twice a day.\nStop ibuprofen today.\nReturn to clinic in 3 months.",
+   "res": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "Stop ibuprofen now.",
+      "span": {
+       "start": 35,
+       "end": 54
+      }
+     }
+    ],
+    "topic": "metformin",
+    "topic_dropped": null,
+    "dropped": [],
+    "model": "m",
+    "ms": 1
+   },
+   "expected": {
+    "kind": "not_in_paper",
+    "dropped": [
+     "not_in_paper"
+    ],
+    "model": "m",
+    "ms": 1
+   }
+  },
+  {
+   "name": "span past the end",
+   "source": "Take metformin 500 mg twice a day.\nStop ibuprofen today.\nReturn to clinic in 3 months.",
+   "res": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "x",
+      "span": {
+       "start": 10,
+       "end": 9999
+      }
+     }
+    ],
+    "topic": "metformin",
+    "topic_dropped": null,
+    "dropped": [],
+    "model": "m",
+    "ms": 1
+   },
+   "expected": {
+    "kind": "not_in_paper",
+    "dropped": [
+     "not_in_paper"
+    ],
+    "model": "m",
+    "ms": 1
+   }
+  },
+  {
+   "name": "negative start",
+   "source": "Take metformin 500 mg twice a day.\nStop ibuprofen today.\nReturn to clinic in 3 months.",
+   "res": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "T",
+      "span": {
+       "start": -1,
+       "end": 0
+      }
+     }
+    ],
+    "topic": "metformin",
+    "topic_dropped": null,
+    "dropped": [],
+    "model": "m",
+    "ms": 1
+   },
+   "expected": {
+    "kind": "not_in_paper",
+    "dropped": [
+     "not_in_paper"
+    ],
+    "model": "m",
+    "ms": 1
+   }
+  },
+  {
+   "name": "empty span",
+   "source": "Take metformin 500 mg twice a day.\nStop ibuprofen today.\nReturn to clinic in 3 months.",
+   "res": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "",
+      "span": {
+       "start": 3,
+       "end": 3
+      }
+     }
+    ],
+    "topic": "metformin",
+    "topic_dropped": null,
+    "dropped": [],
+    "model": "m",
+    "ms": 1
+   },
+   "expected": {
+    "kind": "not_in_paper",
+    "dropped": [
+     "not_in_paper"
+    ],
+    "model": "m",
+    "ms": 1
+   }
+  },
+  {
+   "name": "fractional span",
+   "source": "Take metformin 500 mg twice a day.\nStop ibuprofen today.\nReturn to clinic in 3 months.",
+   "res": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "ake",
+      "span": {
+       "start": 1.5,
+       "end": 4
+      }
+     }
+    ],
+    "topic": "metformin",
+    "topic_dropped": null,
+    "dropped": [],
+    "model": "m",
+    "ms": 1
+   },
+   "expected": {
+    "kind": "not_in_paper",
+    "dropped": [
+     "not_in_paper"
+    ],
+    "model": "m",
+    "ms": 1
+   }
+  },
+  {
+   "name": "no topic",
+   "source": "Take metformin 500 mg twice a day.\nStop ibuprofen today.\nReturn to clinic in 3 months.",
+   "res": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "Stop ibuprofen today.",
+      "span": {
+       "start": 35,
+       "end": 56
+      }
+     }
+    ],
+    "topic": null,
+    "topic_dropped": null,
+    "dropped": [],
+    "model": "m",
+    "ms": 1
+   },
+   "expected": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "Stop ibuprofen today.",
+      "span": {
+       "start": 35,
+       "end": 56
+      }
+     }
+    ],
+    "topic": null,
+    "topic_dropped": null,
+    "dropped": [],
+    "model": "m",
+    "ms": 1
+   }
+  },
+  {
+   "name": "already refused",
+   "source": "Take metformin 500 mg twice a day.\nStop ibuprofen today.\nReturn to clinic in 3 months.",
+   "res": {
+    "kind": "not_in_paper",
+    "dropped": [
+     "too_short"
+    ],
+    "model": "m",
+    "ms": 1
+   },
+   "expected": {
+    "kind": "not_in_paper",
+    "dropped": [
+     "too_short"
+    ],
+    "model": "m",
+    "ms": 1
+   }
+  },
+  {
+   "name": "urgent",
+   "source": "Take metformin 500 mg twice a day.\nStop ibuprofen today.\nReturn to clinic in 3 months.",
+   "res": {
+    "kind": "urgent"
+   },
+   "expected": {
+    "kind": "urgent"
+   }
+  },
+  {
+   "name": "earlier drops kept",
+   "source": "Take metformin 500 mg twice a day.\nStop ibuprofen today.\nReturn to clinic in 3 months.",
+   "res": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "Stop ibuprofen today.",
+      "span": {
+       "start": 35,
+       "end": 56
+      }
+     }
+    ],
+    "topic": "metformin",
+    "topic_dropped": null,
+    "dropped": [
+     "ambiguous"
+    ],
+    "model": "m",
+    "ms": 1
+   },
+   "expected": {
+    "kind": "answer",
+    "quotes": [
+     {
+      "text": "Stop ibuprofen today.",
+      "span": {
+       "start": 35,
+       "end": 56
+      }
+     }
+    ],
+    "topic": "metformin",
+    "topic_dropped": null,
+    "dropped": [
+     "ambiguous"
+    ],
+    "model": "m",
+    "ms": 1
+   }
+  }
+ ]
+}

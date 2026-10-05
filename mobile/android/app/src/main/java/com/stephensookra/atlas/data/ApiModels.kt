@@ -220,6 +220,10 @@ data class PlanResponse(
 @Serializable
 data class ResultsRequest(val text: String, val language: Language)
 
+/** The body of POST /api/ask (AskRequestSchema in web/src/lib/ask.ts). */
+@Serializable
+data class AskRequest(val source_text: String, val language: Language, val question: String)
+
 /** One test on the report. status is decided by the server's code from the printed flag or range, never by the AI. */
 @Serializable
 data class ResultRow(

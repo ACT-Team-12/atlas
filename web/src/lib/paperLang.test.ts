@@ -22,6 +22,20 @@ describe("the paper's own language, for its quotes' lang attribute (Codex review
     });
   }
 
+  // Short lines, near the 20 characters the app accepts (Codex review, round 5).
+  const SHORT: Record<string, string> = {
+    en: "Take metformin at noon.",
+    es: "Tome la medicina ahora.",
+    fr: "Prenez le comprimé ce soir.",
+    vi: "Uống 1 viên metformin mỗi ngày.",
+    ko: "매일 아침 약을 드세요.",
+    zh: "每天早上吃一片药。",
+    am: "በየቀኑ ጠዋት መድኃኒት ይውሰዱ።",
+  };
+  for (const [code, line] of Object.entries(SHORT)) {
+    it(`a short line in ${code} is ${code}`, () => expect(detectPaperLang(line)).toBe(code));
+  }
+
   it("says nothing rather than something wrong", () => {
     expect(detectPaperLang("")).toBe("");
     expect(detectPaperLang("500 mg 2x")).toBe(""); // no words to tell from

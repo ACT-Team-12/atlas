@@ -1415,7 +1415,7 @@ export function CarePlanTool() {
             {plan.ask_a_person && (
               <div className="mt-4 rounded-2xl border-2 border-peach-deep bg-peach p-4 max-w-[50em]">
                 <p className="font-extrabold text-peach-deep">{t("plan.needsPerson")}</p>
-                <p className="text-sm font-semibold">{plan.ask_a_person_reason} {t("plan.call211")}</p>
+                <p className="text-sm font-semibold">{plan.ask_a_person_reason} {ts("plan.call211")}</p>
                 <p className="mt-2 text-xs font-semibold"><a className="underline decoration-2 underline-offset-4" href="/helper">{t("plan.helperLink")}</a></p>
               </div>
             )}

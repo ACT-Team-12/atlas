@@ -1175,7 +1175,7 @@ export function CarePlanTool() {
                   onClick={() => readPaper(transcript ?? care.source_text)}>{t("paper.useCorrected")}</button>
                 <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint disabled:opacity-40"
                   disabled={transcriptEdited} aria-describedby={transcriptEdited ? "photo-edited" : undefined}
-                  onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>{t("paper.itMatches")}</button>
+                  onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>{ts("paper.itMatches")}</button>
                 {transcriptEdited && (
                   <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => setTranscript(care.source_text)}>{t("paper.undoChanges")}</button>
                 )}

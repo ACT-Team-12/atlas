@@ -18,6 +18,8 @@ import { QUIET_KINDS } from "@/lib/pip";
 import { isWarning } from "@/lib/warningPin";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { CareSteps } from "./CareSteps";
+import { WALK_LINES } from "@/lib/walkThrough";
+import { LANGUAGES } from "@/lib/schema";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -418,5 +420,28 @@ describe("languages", () => {
     open();
     expect(q("[data-walk-progress]").textContent).toBe(`Paso 1 de ${ITEMS.length}`);
     expect(q("[data-walk-done]").textContent).toContain("Hecho");
+  });
+});
+
+describe("the walk-through's warning lines keep their English beside them until reviewed (Codex review of PR 93, round 4)", () => {
+  const beside = (el: Element) => [...el.querySelectorAll('[data-english-beside][lang="en"]')].map((x) => x.textContent?.trim() ?? "").join(" ");
+  for (const lang of LANGUAGES.filter((l) => l !== "English")) {
+    it(lang, () => {
+      render({ language: lang });
+      open();
+      expect(card().getAttribute("data-walk-group")).toBe("warning");
+      const warning = q("[data-walk-warning]");
+      expect(warning.textContent).toContain(WALK_LINES[lang].warningDo);
+      expect(beside(warning)).toContain(WALK_LINES.English.warningDo);
+      expect(beside(q("[data-walk-heading]"))).toContain(WALK_LINES.English.warningLabel);
+      // The same directive in the Ask a person panel.
+      expect(beside(q("[data-walk-ask-panel]"))).toContain(WALK_LINES.English.warningDo);
+    });
+  }
+
+  it("English shows the warning line once, with nothing beside it", () => {
+    render();
+    open();
+    expect(q("[data-walk-warning]").querySelector("[data-english-beside]")).toBeNull();
   });
 });

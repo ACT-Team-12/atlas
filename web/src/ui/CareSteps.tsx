@@ -13,13 +13,13 @@ import { buildIcs } from "@/lib/booking";
 import { dayOptions, formatTime, googleCalendarUrl, localStart, timeOptions } from "@/lib/calendarLinks";
 import { SPEECH_LANG } from "@/lib/speechLang";
 import { pipLine, pipSpot, type PipSpot } from "@/lib/pip";
-import { nextOpen, walkLine, walkPip, walkSteps, type WalkStep } from "@/lib/walkThrough";
+import { nextOpen, walkEnglishBeside, walkLine, walkPip, walkSteps, type WalkStep } from "@/lib/walkThrough";
 import { MedicineChanges } from "./MedicineChanges";
 import { PaperFirst } from "./PaperFirst";
 import { ShowOnPaper } from "./ShowOnPaper";
 import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
 import { keyFor } from "@/lib/uiText";
-import { useUi, PaperWords } from "./UiLang";
+import { useUi, PaperWords, withEnglish } from "./UiLang";
 
 export const KIND: Record<string, { label: string; cls: string }> = {
   medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
@@ -485,7 +485,7 @@ function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipTex
         <span aria-hidden="true">← </span>{tl("back")}
       </button>
       {step ? (
-        <WalkCard key={step.it.id} step={step} index={index} total={steps.length} done={!!done[step.it.id]} check={checkFor(step.it.id)} tl={tl}
+        <WalkCard key={step.it.id} step={step} index={index} total={steps.length} done={!!done[step.it.id]} check={checkFor(step.it.id)} tl={tl} language={language}
           heading={heading} pip={pip} pipText={pipText} calm={calm} speaking={speaking} onSpeak={onSpeak}
           onDone={() => { onDone(step.it.id, true); announce(t("doneAlready")); onGo(next); }}
           // The undo button goes away with the done state, so focus returns to the step's heading.
@@ -516,14 +516,14 @@ function WalkThrough({ step, index, steps, done, checkFor, language, pip, pipTex
 }
 
 type WalkCardProps = {
-  step: WalkStep<VerifiedItem>; index: number; total: number; done: boolean; check: Check;
+  step: WalkStep<VerifiedItem>; index: number; total: number; done: boolean; check: Check; language: string;
   tl: (line: Parameters<typeof walkLine>[1], values?: Record<string, number>) => React.ReactNode;
   heading: React.RefObject<HTMLHeadingElement | null>;
   pip: ReturnType<typeof walkPip>; pipText: string; calm: boolean; speaking: boolean; onSpeak: () => void;
   onDone: () => void; onUndo: () => void; onNotYet: () => void; onPrevious: (() => void) | null;
 };
 
-function WalkCard({ step, index, total, done, check, tl, heading, pip, pipText, calm, speaking, onSpeak, onDone, onUndo, onNotYet, onPrevious }: WalkCardProps) {
+function WalkCard({ step, index, total, done, check, language, tl, heading, pip, pipText, calm, speaking, onSpeak, onDone, onUndo, onNotYet, onPrevious }: WalkCardProps) {
   const { it, group } = step;
   const warn = group === "warning";
   const [asking, setAsking] = useState(false);
@@ -539,7 +539,7 @@ function WalkCard({ step, index, total, done, check, tl, heading, pip, pipText, 
       <div className="flex items-start justify-between gap-3">
         <h3 ref={heading} tabIndex={-1} className="min-w-0 outline-none focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-teal-deep" data-walk-heading="">
           <span className="block text-base font-extrabold uppercase tracking-wide text-ink/70" data-walk-progress="">{tl("progress", { n: index + 1, total })}</span>
-          <span className={`display block text-2xl leading-tight sm:text-3xl ${warn ? "text-red" : ""}`} data-walk-when="">{warn ? tl("warningLabel") : t(keyFor("when", group, "when.unclear"))}</span>
+          <span className={`display block text-2xl leading-tight sm:text-3xl ${warn ? "text-red" : ""}`} data-walk-when="">{warn ? withEnglish(tl("warningLabel"), walkEnglishBeside(language, "warningLabel")) : t(keyFor("when", group, "when.unclear"))}</span>
         </h3>
         {/* Pip's reserved spot, as on a list row; never on a warning sign. */}
         {!warn && <PipSlot>{pip && <PipMarker key={pip.mood} mood={pip.mood} calm={calm} />}</PipSlot>}
@@ -555,7 +555,7 @@ function WalkCard({ step, index, total, done, check, tl, heading, pip, pipText, 
       {/* The paper's words, by the same rule as the list (PaperFirst), only bigger (globals.css, .walk-paper). */}
       <div className="walk-paper mt-2 text-2xl leading-snug sm:text-3xl"><PaperFirst v={careStepView(it, check)} /></div>
       {/* After the paper's words, never before them: the paper says what to do; this line only points back to it. */}
-      {warn && <p role="note" className="mt-3 rounded-xl bg-red-soft p-3 text-lg font-bold text-red" data-walk-warning="">{tl("warningDo")}</p>}
+      {warn && <p role="note" className="mt-3 rounded-xl bg-red-soft p-3 text-lg font-bold text-red" data-walk-warning="">{withEnglish(tl("warningDo"), walkEnglishBeside(language, "warningDo"))}</p>}
       {question && check === "certified" && <p className="mt-3 rounded-xl bg-peach p-3 text-base font-semibold text-peach-deep">{t("steps.onQuestionsList")} {question}</p>}
       {done && (
         <p className="mt-4 flex flex-wrap items-center gap-3 text-lg font-extrabold text-teal-deep" data-walk-done-status="">
@@ -575,7 +575,7 @@ function WalkCard({ step, index, total, done, check, tl, heading, pip, pipText, 
       </div>
       <div id={askId} hidden={!asking} className="mt-3 rounded-xl border-2 border-dashed border-ink/40 p-3 text-base" data-walk-ask-panel="">
         <p className="font-extrabold">{tl("askTitle")}</p>
-        {warn ? <p className="mt-1 font-bold text-red">{tl("warningDo")}</p> : (
+        {warn ? <p className="mt-1 font-bold text-red">{withEnglish(tl("warningDo"), walkEnglishBeside(language, "warningDo"))}</p> : (
           <>
             {ask ? <div className="mt-1" data-ask-person-panel="" data-ask-person={ask.who}><AskPersonBody ask={ask} big /></div> : <p className="mt-1 font-semibold">{tl("askClinicCall")}</p>}
             <p className="mt-2 text-sm font-semibold text-ink/70" data-walk-211="">{tl("ask211")}</p>

@@ -108,7 +108,7 @@ export function LabResults() {
               {fromPhoto && (
                 <label className="mt-3 flex items-start gap-2 text-sm font-bold">
                   <input type="checkbox" className="mt-0.5 h-5 w-5 accent-teal" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
-                  {t("labs.checkedNumbers")}
+                  {ts("labs.checkedNumbers")}
                 </label>
               )}
               {unreadable && <p className="mt-2 text-sm font-bold text-red">{t("labs.unreadable")}</p>}

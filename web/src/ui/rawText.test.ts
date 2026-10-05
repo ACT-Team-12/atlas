@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { UI_SAFETY_KEYS } from "@/lib/uiText";
 
 /**
  * The per-language page test only knows the English lines in lib/uiText.ts, so English written straight into a
@@ -39,6 +40,15 @@ describe("no English typed straight into a component shown in another language",
     expect(rawEnglish(`<p>{t("k")}</p>`)).toEqual([]);
     expect(rawEnglish("const chip = (on: boolean) => `rounded-full border-2 ${on ? \"a\" : \"b\"}`;")).toEqual([]); // an arrow, not a tag
     expect(rawEnglish(`<p className="x">\n          Source: health center data{c.a ? " (b)" : ""}\n</p>`)).toEqual(["Source: health center data"]);
+  });
+
+  it("no safety line is shown through plain t(), which drops its English (Codex review, round 4)", () => {
+    const bare: string[] = [];
+    for (const name of IN_A_LANGUAGE_SECTION) {
+      const src = readFileSync(join(__dirname, `${name}.tsx`), "utf8");
+      for (const m of src.matchAll(/(?<![\w.])t\("([\w.]+)"/g)) if (UI_SAFETY_KEYS.has(m[1] as never)) bare.push(`${name}: ${m[1]}`);
+    }
+    expect(bare).toEqual([]);
   });
 
   it("the files kept in English say so", () => {

@@ -41,6 +41,14 @@ export function EnglishBeside({ en }: { en: string }) {
     : <span lang="en" data-english-beside="" className="text-[0.85em] font-semibold"> ({en})</span>;
 }
 
+/**
+ * A safety line from a table outside lib/uiText.ts (Ask my paper, the walk-through), with its English beside it when
+ * `en` is given. `en` comes from that table's own typed helper (askEnglishBeside, walkEnglishBeside).
+ */
+export function withEnglish(text: ReactNode, en: string | null): ReactNode {
+  return en === null ? text : <>{text}<EnglishBeside en={en} /></>;
+}
+
 /** A safety line in this language, with its English beside it until reviewed (for components that hold the language). */
 export function safeLine(language: string, key: UiKey, vars?: Record<string, string | number>): ReactNode {
   const en = englishBeside(language, key, vars);

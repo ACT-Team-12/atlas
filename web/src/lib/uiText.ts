@@ -674,7 +674,7 @@ export const UI_SAFETY_KEYS: ReadonlySet<UiKey> = new Set<UiKey>([
   // Lines that send the person back to the paper or the clinic before acting (Codex review, round 2).
   "when.unclearNote", "steps.heldNote", "book.skipNote", "labs.noneChecked", "labs.noneRead", "labs.unsureHint", "prep.none", "prep.askWhenNote",
   // Checking the text read from a photo: a wrong word or number here becomes a wrong step (Codex review, round 3).
-  "paper.checkPhotoBody", "labs.photoCheckTitle", "labs.photoCheckBody", "labs.checkPhotoFirst", "labs.readPhotoCheck",
+  "paper.checkPhotoBody", "paper.itMatches", "labs.checkedNumbers", "labs.photoCheckTitle", "labs.photoCheckBody", "labs.checkPhotoFirst", "labs.readPhotoCheck",
 ]);
 
 /**

@@ -236,6 +236,19 @@ export function askText(language: string): AskStrings {
   return (ASK_TEXT as Record<string, AskStrings>)[language] ?? ASK_TEXT.English;
 }
 
+/**
+ * Lines that tell the person what to do in an emergency, or send them to a clinic or pharmacist. Every non-English
+ * entry above is a machine draft, so until a native speaker reviews it, the English is shown beside it (marked
+ * lang="en"), as for the safety lines in lib/uiText.ts (Codex review of PR 93, round 4).
+ */
+export const ASK_SAFETY = ["urgentTitle", "urgentBody", "urgentPaper", "refusal"] as const satisfies readonly (keyof AskStrings)[];
+export type AskSafetyLine = (typeof ASK_SAFETY)[number];
+
+/** The English to show beside an Ask my paper safety line in this language, or null for English. */
+export function askEnglishBeside(language: string, line: AskSafetyLine): string | null {
+  return askText(language) === ASK_TEXT.English ? null : ASK_TEXT.English[line];
+}
+
 /** The longest question the route accepts (characters). */
 export const MAX_QUESTION = 300;
 

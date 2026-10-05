@@ -32,6 +32,7 @@ import { callMeKey } from "@/lib/call/callKey";
 import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
+import { failureKey, RequestFailed } from "@/lib/requestError";
 import { restoredTab, scrollTargetAfter, shownTab, type Tab } from "@/lib/phoneTabs";
 import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollElementToTop, scrollTargetY, scrollToPanel, tabId, useIsPhone, type PageScroll } from "./PhoneTabs";
@@ -81,15 +82,30 @@ async function fileToBase64(file: File) {
 }
 
 async function postExtract(body: Record<string, unknown>, signal?: AbortSignal): Promise<CarePlanResponse> {
-  const res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
-  return json;
+  let res: Response;
+  try {
+    res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    throw new RequestFailed(0, "Network error");
+  }
+  return replyJson<CarePlanResponse>(res);
+}
+
+/**
+ * The JSON body of one of our routes, or a RequestFailed carrying its status and the server's own (English) words,
+ * which are logged, never shown. A reply that is not JSON at all counts as a server failure.
+ */
+async function replyJson<T>(res: Response): Promise<T> {
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new RequestFailed(res.status, json?.error ?? `HTTP ${res.status}`);
+  if (json === null) throw new RequestFailed(502, "Reply was not JSON");
+  return json as T;
 }
 
 /**
  * Reads a pasted paper over the streaming route. Throws StreamBroken when the caller should retry
- * with the plain route (connection cut, route missing, server error), or a plain Error to show.
+ * with the plain route (connection cut, route missing, server error), or a RequestFailed (failureKey says what to show).
  */
 async function streamExtract(body: Record<string, unknown>, onItem: (it: VerifiedItem) => void, signal?: AbortSignal): Promise<CarePlanResponse> {
   let res: Response;
@@ -102,13 +118,13 @@ async function streamExtract(body: Record<string, unknown>, onItem: (it: Verifie
   if (!res.ok || !res.body) {
     // 404: an older deploy without this route. 5xx: worth one try on the plain route. 503 means no AI key, so retrying won't help.
     if (!res.body || res.status === 404 || (res.status >= 500 && res.status !== 503)) throw new StreamBroken(`HTTP ${res.status}`);
-    const json = await res.json().catch(() => ({}));
-    throw new Error(json.error ?? "Something went wrong.");
+    const json = await res.json().catch(() => null);
+    throw new RequestFailed(res.status, json?.error ?? `HTTP ${res.status}`);
   }
   try {
     return await readExtractEvents(res.body, onItem);
   } catch (e) {
-    if (e instanceof StreamFailed && (e.status < 500 || e.status === 503)) throw new Error(e.message);
+    if (e instanceof StreamFailed && (e.status < 500 || e.status === 503)) throw new RequestFailed(e.status, e.message);
     if (e instanceof StreamFailed) throw new StreamBroken(e.message);
     throw e;
   }
@@ -622,7 +638,10 @@ export function CarePlanTool() {
       if (readRun.current !== run) return; // stopped or replaced: nothing to show
       if (pendingRead.current?.run === run && pendingRead.current.fp !== liveReadFp()) return stopStaleRead();
       pendingRead.current = null;
-      setPartial([]); setError(e instanceof Error ? e.message : t("common.somethingWrong"));
+      setPartial([]);
+      // The server's words are English: they go to the console, and the person reads a fixed line in their language.
+      console.error("read failed", e instanceof RequestFailed ? e.status : "", e instanceof Error ? e.message : e);
+      setError(t(failureKey(e, "read")));
     }
     finally { if (readRun.current === run) setReading(false); }
   }
@@ -667,14 +686,22 @@ export function CarePlanTool() {
         barriers, language, note,
         ...(loc ? { location: loc } : /^\d{5}$/.test(zip) ? { zip } : {}),
       };
-      const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body), signal: abort.signal });
-      const json = await res.json();
+      let res: Response;
+      try {
+        res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body), signal: abort.signal });
+      } catch (e) {
+        if (abort.signal.aborted) throw e;
+        throw new RequestFailed(0, "Network error");
+      }
+      // Read now, judged after the staleness checks below: a late failure for a changed plan is never shown.
+      const reply = await replyJson<PlanResponse>(res).then((json) => ({ json }), (err: unknown) => ({ err }));
       if (planRun.current !== run) return; // a new read, a clear, or a changed answer happened meanwhile
       const sent = pendingPlan.current;
       if (!sent || sent.run !== run) return;
       if (sent.fp !== livePlanFp()) return stopStalePlan(); // changed after sending; the change's effect may not have run yet
       pendingPlan.current = null;
-      if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
+      if ("err" in reply) throw reply.err;
+      const json = reply.json;
       setPlan(json);
       setDone(dropPlanTicks); // ticks belong to the plan's steps; a new plan starts with none
       setPlanFp(sent.fp);
@@ -684,7 +711,9 @@ export function CarePlanTool() {
     } catch (e) {
       if (planRun.current !== run) return;
       if (pendingPlan.current?.run === run && pendingPlan.current.fp !== livePlanFp()) return stopStalePlan();
-      pendingPlan.current = null; setError(e instanceof Error ? e.message : t("common.somethingWrong"));
+      pendingPlan.current = null;
+      console.error("plan failed", e instanceof RequestFailed ? e.status : "", e instanceof Error ? e.message : e);
+      setError(t(failureKey(e, "plan")));
     }
     finally { if (planRun.current === run) setPlanning(false); }
   }

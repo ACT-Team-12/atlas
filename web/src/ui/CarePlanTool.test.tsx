@@ -1380,6 +1380,20 @@ describe("the plan streams in, step by step", () => {
     expect(screenText()).not.toContain("Old paper step");
   });
 
+  it("the paper is edited, then the stream breaks: no retry on the old paper (Codex round 4)", async () => {
+    const s = openStream();
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    act(() => typeInto(paperBox(), PAPER + " Also check your feet daily."));
+    await s.cut();
+    expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(0);
+  });
+
   it("the server's own error is shown, not retried, and steps already shown leave the screen", async () => {
     const s = openStream();
     act(() => byText("Getting there").click());

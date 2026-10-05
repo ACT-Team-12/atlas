@@ -760,6 +760,9 @@ export function CarePlanTool() {
         if (!(e instanceof StreamBroken) || abort.signal.aborted) throw e;
         if (planRun.current === run) setPlanPreview(null);
         if (pendingPlan.current?.run === run && pendingPlan.current.fp !== livePlanFp()) return stopStalePlan(); // no plain retry for old answers
+        // Nor for a paper changed since (Codex round 4 of PR 105): the retry would spend a model call on the old paper.
+        const l = live.current;
+        if (careFp !== null && readFingerprintFor({ text: l.text, photo: l.photo, language: l.language, level: l.level }) !== careFp) return stopStalePlan();
         const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body), signal: abort.signal });
         json = await res.json(); ok = res.ok;
       }

@@ -359,6 +359,10 @@ export function CarePlanTool() {
       careIds: (v.care?.items ?? []).filter((i) => !v.removed[i.id]).map((i) => i.id),
       barriers: v.barriers, language: v.language, note: v.note, place: fromDevice ? "device" : planPlace(false, v.zip), location: null,
     }) : null);
+    // A save keeps the paper's words, not the second check's verdicts, so a reopened plan showed every step as checked
+    // only once, its explanations demoted under the quote (found Oct 5 on the live site). Run the check again, under the
+    // same rule as a fresh read: never on a photo's text the person has not confirmed.
+    if (v.care && !(v.care.source_kind === "image" && !v.photoChecked)) void checkMeaningFor(v.care);
     setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan }));
   }
 

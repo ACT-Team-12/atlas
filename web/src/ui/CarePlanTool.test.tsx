@@ -834,6 +834,24 @@ describe("a plan saved before results were checked against answers", () => {
     expect(byText("Read it out loud").disabled).toBe(false);
   });
 
+  // Found Oct 5 on the live site: a reopened plan never ran the second check, so every step said "Checked once".
+  it("a reopened plan runs the second check again on its steps", () => {
+    fetchCalls = [];
+    reopenWith({ matched: true });
+    const meaning = fetchCalls.filter((c) => c.url === "/api/meaning");
+    expect(meaning.length).toBe(1);
+    expect(JSON.stringify(meaning[0].body)).toContain(careFor(PAPER).items[0].source_quote);
+  });
+
+  it("a reopened plan from a photo the person never confirmed is not checked; a confirmed one is", () => {
+    fetchCalls = [];
+    reopenWith({ matched: true, care: { ...careFor(PAPER), source_kind: "image" }, photoChecked: false });
+    expect(fetchCalls.filter((c) => c.url === "/api/meaning")).toHaveLength(0);
+    fetchCalls = [];
+    reopenWith({ matched: true, care: { ...careFor(PAPER), source_kind: "image" }, photoChecked: true });
+    expect(fetchCalls.filter((c) => c.url === "/api/meaning")).toHaveLength(1);
+  });
+
   it("a saved level that is no longer a choice: no crash, defaults shown, plan outdated with actions off", () => {
     reopenWith({ matched: true, level: "expert" });
     expect(screenText()).toContain("Read your paper again first");

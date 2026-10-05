@@ -55,6 +55,7 @@ import com.stephensookra.atlas.data.PaperFirst
 import com.stephensookra.atlas.data.Pip
 import com.stephensookra.atlas.data.StepsWhen
 import com.stephensookra.atlas.data.VerifiedItem
+import com.stephensookra.atlas.data.WalkThrough
 import com.stephensookra.atlas.data.WarningPin
 import com.stephensookra.atlas.services.Speaker
 import java.util.Locale
@@ -78,9 +79,26 @@ fun CareStepsScreen(model: AppModel) {
         if (cheering != null) { delay(Pip.CHEER_MILLIS); cheering = null }
     }
     var pipSaid by remember { mutableStateOf("") }
+    // "Walk me through it" (WalkThroughScreen): open while set, in place of the list. Its order is fixed when it starts.
+    var walk by remember(model.readingCount) { mutableStateOf<WalkState?>(null) }
     val care = model.care
     if (care == null) {
         ScreenBody { Text("No steps yet. Go back and read your paper.", style = Type.body) }
+        return
+    }
+    // One way to mark a step done, for the list and the walk-through alike: the same saved record, Pip's cheer (only a
+    // non-quiet step, Pip.spot decides), and the end of the first-view greeting.
+    val markDone: (String, Boolean) -> Unit = { id, v ->
+        model.setDone(id, v)
+        cheering = if (v) id else null
+        if (v) greetOver = true
+    }
+    walk?.let { w ->
+        val (_, wGroups) = StepsWhen.grouped(model.items, { model.checkFor(it) }, care.source_text)
+        val wOrder = wGroups.flatMap { it.items }.map { Pip.Step(it.id, it.kind) }
+        val wDone = model.done.toMap()
+        val wSpot = Pip.spot(wOrder, wDone, { model.checkFor(it) }, cheering, Pip.greetAllowed(greetOver, wDone))
+        WalkThroughScreen(model, w, { walk = it }, wSpot, pipCalm.calm, markDone)
         return
     }
     ScreenBody {
@@ -124,6 +142,20 @@ fun CareStepsScreen(model: AppModel) {
                 listOf("${i + 1}.") + PaperFirst.lines(PaperFirst.careStep(it, model.checkFor(it.id)))
             })
         }
+        // "Walk me through it": the same steps, one at a time, in big type (web/src/lib/walkThrough.ts), starting on the
+        // first step not done.
+        if (items.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                PillButton(WalkThrough.line(model.language, WalkThrough.Line.open), onClick = {
+                    speaker.stop()
+                    val ids = items.map { it.id }
+                    val at = WalkThrough.nextOpen(ids, model.done.toMap(), 0)
+                    walk = WalkState(ids, ids[if (at < 0) 0 else at])
+                })
+                Text(tagged(WalkThrough.line(model.language, WalkThrough.Line.openHint), model.language),
+                    style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
+            }
+        }
 
         // Keyed by id, so a step's open "Why?" and "Ask your pharmacist" state never moves to the next step on Remove.
         // `warning`: a pinned warning sign, which has no Pip slot at all (Pip is never on or beside them).
@@ -137,13 +169,7 @@ fun CareStepsScreen(model: AppModel) {
                 checking = model.meaning.status == MeaningStatus.loading,
                 errored = model.meaning.status == MeaningStatus.error,
                 done = model.done[item.id] == true,
-                onToggleDone = {
-                    val v = model.done[item.id] != true
-                    model.setDone(item.id, v)
-                    // A done step gets Pip's short cheer (only a non-quiet one, Pip.spot decides) and ends the greeting.
-                    cheering = if (v) item.id else null
-                    if (v) greetOver = true
-                },
+                onToggleDone = { markDone(item.id, model.done[item.id] != true) },
                 // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
                 onRemind = { reminder = ReminderTarget(PaperFirst.bookTitle(item.kind), item.source_quote, PaperFirst.bookWhen(item, check)) },
                 onRemove = { model.remove(item.id) },

@@ -391,13 +391,14 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
       <div id={panelId} hidden={!open} className="space-y-2 px-3 pb-3 sm:pl-12">
         {device && device !== "match" && (
           <p role="note" className="rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep" data-device-check="differ">
-            {t(device === "missing" ? "steps.deviceDiffer.missing" : "steps.deviceDiffer.differ")}
+            {ts(device === "missing" ? "steps.deviceDiffer.missing" : "steps.deviceDiffer.differ")}
           </p>
         )}
         {m?.flagged && (
           <p role="note" className="rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep" data-meaning-check="flagged">
-            {t("steps.meaningFlagged")}
-            {m.what_differs ? ` ${m.what_differs.charAt(0).toUpperCase()}${m.what_differs.slice(1)}` : ""}
+            {ts("steps.meaningFlagged")}
+            {/* The checker's own note is written in English (lib/meaning.ts), so it is marked as English. */}
+            {m.what_differs ? <span lang="en" data-what-differs=""> {m.what_differs.charAt(0).toUpperCase()}{m.what_differs.slice(1)}</span> : ""}
             {m.unexpected_numbers.length > 0 ? t("steps.numberNotInPaper", { nums: m.unexpected_numbers.join(", ") }) : ""}
           </p>
         )}

@@ -179,9 +179,10 @@ describe("safety lines keep their English beside them until reviewed (Codex revi
     expect(missing).toEqual([]);
   });
 
-  it("confirming that the text read from a photo is right is a safety line (Codex review, round 4)", () => {
+  it("photo confirmations and may-not-match warnings are safety lines (Codex review, rounds 4 and 5)", () => {
     // Pressing these accepts the photo's text, and every step and every lab flag is built from it.
-    for (const k of ["paper.itMatches", "labs.checkedNumbers"] as const) {
+    for (const k of ["paper.itMatches", "labs.checkedNumbers", "steps.deviceDiffer.missing", "steps.deviceDiffer.differ", "steps.meaningFlagged",
+      "prep.explain.checking", "prep.explain.numbers", "prep.explain.flagged", "prep.explain.unclear", "prep.explain.check_failed"] as const) {
       expect(UI_SAFETY_KEYS.has(k), k).toBe(true);
       expect(englishBeside("Korean", k), k).toBe(UI_TEXT[k].English);
     }

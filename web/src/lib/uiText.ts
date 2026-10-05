@@ -685,6 +685,9 @@ export const UI_SAFETY_KEYS: ReadonlySet<UiKey> = new Set<UiKey>([
   "med.note", "med.sheetNote", "med.row.stop", "med.row.change", "med.row.start", "med.row.keep", "med.row.ask", "med.askNote",
   "labs.critTop", "labs.critOne", "labs.critRow", "labs.outTitle", "labs.chip.high", "labs.chip.low",
   "prep.paperCounts", "prep.dontMiss", "prep.sheetFoot", "prep.explain.negation",
+  // Warnings that a step's explanation may not match the paper, so read the paper's words (Codex review, round 5).
+  "steps.deviceDiffer.missing", "steps.deviceDiffer.differ", "steps.meaningFlagged",
+  "prep.explain.checking", "prep.explain.numbers", "prep.explain.flagged", "prep.explain.unclear", "prep.explain.check_failed",
   // Lines that send the person back to the paper or the clinic before acting (Codex review, round 2).
   "when.unclearNote", "steps.heldNote", "book.skipNote", "labs.noneChecked", "labs.noneRead", "labs.unsureHint", "prep.none", "prep.askWhenNote",
   // Checking the text read from a photo: a wrong word or number here becomes a wrong step (Codex review, round 3).

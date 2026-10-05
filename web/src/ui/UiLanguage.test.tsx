@@ -199,4 +199,17 @@ describe("lab results show no English of their own in another language", () => {
       expect(beside).toContain("130 is above the range printed on your report (70-99).");
     });
   }
+
+  it("unchecked report lines carry the report's language, not the app's (Codex final round of PR 93)", () => {
+    act(() => root.render(<UiLangProvider language="Spanish" paperLang="en"><UncheckedLines coverage={{ checked: 3, candidates: 5, unchecked: ["CRITICAL K 7.0", "Hgb 9.1 L"] }} /></UiLangProvider>));
+    const items = [...host.querySelectorAll("[data-unchecked] li")];
+    expect(items).toHaveLength(2);
+    for (const li of items) expect(li.querySelector('[lang="en"]'), li.textContent ?? "").not.toBeNull();
+  });
+});
+
+describe("the number-mismatch warning is a safety line", () => {
+  it("keeps its English beside every translation (Codex final round of PR 93)", () => {
+    expect(UI_SAFETY_KEYS.has("steps.numberNotInPaper")).toBe(true);
+  });
 });

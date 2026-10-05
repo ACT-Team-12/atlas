@@ -686,7 +686,7 @@ export type UiKey = keyof typeof UI_TEXT;
  */
 export const UI_SAFETY_KEYS: ReadonlySet<UiKey> = new Set<UiKey>([
   "kind.warning_sign", "when.today", "seal.recheck", "seal.recheck.text", "pf.note.flagged",
-  "steps.warnTitle", "steps.warnBody",
+  "steps.warnTitle", "steps.warnBody", "steps.numberNotInPaper",
   "plan.suggestions", "sheet.myPlan", "sheet.foot", "prov.placesNote", "prov.helpHeadingSheet",
   "med.note", "med.sheetNote", "med.row.stop", "med.row.change", "med.row.start", "med.row.keep", "med.row.ask", "med.askNote",
   "labs.critTop", "labs.critOne", "labs.critRow", "labs.outTitle", "labs.chip.high", "labs.chip.low",

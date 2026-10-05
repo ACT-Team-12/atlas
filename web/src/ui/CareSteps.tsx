@@ -399,7 +399,7 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
             {ts("steps.meaningFlagged")}
             {/* The checker's own note is written in English (lib/meaning.ts), so it is marked as English. */}
             {m.what_differs ? <span lang="en" data-what-differs=""> {m.what_differs.charAt(0).toUpperCase()}{m.what_differs.slice(1)}</span> : ""}
-            {m.unexpected_numbers.length > 0 ? t("steps.numberNotInPaper", { nums: m.unexpected_numbers.join(", ") }) : ""}
+            {m.unexpected_numbers.length > 0 ? ts("steps.numberNotInPaper", { nums: m.unexpected_numbers.join(", ") }) : ""}
           </p>
         )}
         <PaperFirst v={careStepView(it, check)} />

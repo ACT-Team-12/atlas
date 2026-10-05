@@ -179,7 +179,7 @@ export function UncheckedLines({ coverage }: { coverage: ResultsResponse["covera
       {crit.length > 0 && <p className="font-extrabold text-red" data-unchecked-critical="">{ts(crit.length === 1 ? "labs.critOne" : "labs.critTop")}</p>}
       <p className="font-bold">{t("labs.weChecked", { n: checked, m: candidates })}</p>
       <ul className="mt-2 space-y-1 font-mono text-xs">{unchecked.map((l, i) => (
-        <li key={i} data-critical={isCritical(l) || undefined} className={`border-l-4 pl-2 ${isCritical(l) ? "border-red font-bold text-red" : "border-sun"}`}>{l}</li>
+        <li key={i} data-critical={isCritical(l) || undefined} className={`border-l-4 pl-2 ${isCritical(l) ? "border-red font-bold text-red" : "border-sun"}`}><PaperWords>{l}</PaperWords></li>
       ))}</ul>
       {more > 0 && <p className="mt-2 text-xs font-bold">{tn("labsMoreLines", more)}</p>}
     </div>

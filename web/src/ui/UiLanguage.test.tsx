@@ -1,0 +1,224 @@
+// @vitest-environment jsdom
+/**
+ * The guard for a real finding: a teammate tried the site in Vietnamese and "the headings stay in english". The AI's
+ * words came back in Vietnamese; the app's own labels did not.
+ *
+ * For each app language, this renders the real tool with the team's sample paper (its saved live reading), checks the
+ * steps, makes a plan, and asserts that none of the app's own English lines (lib/uiText.ts) is anywhere on the page or
+ * the printed handoff sheet. The paper's words and the AI's words are not checked: those are never translated here.
+ */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { CarePlanResponse } from "@/lib/schema";
+import type { PlanResponse } from "@/lib/plan";
+import { LANGUAGES } from "@/lib/schema";
+import { ui, UI_LANG_CODE, UI_PLURAL, UI_SAFETY_KEYS, UI_TEXT, type Lang, type UiKey } from "@/lib/uiText";
+import { CarePlanTool } from "./CarePlanTool";
+import { LabRows, UncheckedLines } from "./LabResults";
+import { UiLangProvider } from "./UiLang";
+import type { ResultRow } from "@/lib/results";
+
+vi.mock("@/lib/deviceChecker", () => ({ loadDeviceChecker: () => Promise.reject(new Error("no wasm in tests")), sameSpan: () => false }));
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/** The sample paper as the live server read it on Oct 4 (12 steps, 2 warning signs), shared with the iOS tests. */
+const SAMPLE = JSON.parse(readFileSync(join(__dirname, "../../../mobile/ios/ATLASTests/Fixtures/extract_sample_live.json"), "utf8")) as CarePlanResponse;
+
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+function plan(): PlanResponse {
+  return {
+    summary: "PLAN SUMMARY", located: { by: "zip", label: "ZIP 30340" }, ask_a_person: true, ask_a_person_reason: "REASON.", model: "test",
+    stats: { steps: 2, candidates: 4, dropped_refs: 1 },
+    steps: [
+      { title: "PLAN STEP ONE", action: "ACTION ONE", why: "WHY ONE", barrier: "transport", care_ids: ["item-5"], resource_ids: ["k1", "g1"], dropped_refs: [] },
+      { title: "PLAN STEP TWO", action: "ACTION TWO", why: "", barrier: null, care_ids: ["item-3"], resource_ids: [], dropped_refs: [] },
+    ],
+    resources: {
+      k1: { type: "clinic", id: "k1", km: 2, clinic: { id: "k1", name: "CLINIC NAME", org: "", address: "1 Main St", city: "Atlanta", zip: "30303", county: "", phone: "404-555-0100", website: "https://clinic.example", lat: 0, lng: 0, hours_per_week: null, setting: "", health_center_type: "", nearest_rail: { name: "RAIL", stop_id: "r", meters: 900 }, nearest_bus: { name: "BUS", stop_id: "b", meters: 100 }, barriers: ["transport"], source_id: "hrsa", hours: [{ day: 1, open: "0800", close: "1700" }], hours_source_id: "clinic-site", hours_quote: "QUOTE", hours_url: "https://clinic.example/hours" } },
+      g1: { type: "program", id: "g1", program: { id: "g1", name: "PROGRAM NAME", barriers: ["transport"], access: { phone: "404-555-0199", url: "https://ride.example", text: "ACCESS TEXT" }, languages: [], evidence_quote: "EVIDENCE", source_url: "https://ride.example/about" } },
+    },
+    feedback_token: "tok",
+  } as unknown as PlanResponse;
+}
+
+let root: Root;
+let host: HTMLDivElement;
+
+beforeEach(() => {
+  localStorage.clear();
+  vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url === "/api/extract/stream") return Promise.resolve(new Response(null, { status: 404 }));
+    if (url === "/api/extract") return Promise.resolve(json(SAMPLE));
+    // One step certified, one flagged, the rest unchecked: every seal and every paper-first label is on screen.
+    if (url === "/api/meaning") return Promise.resolve(json({ results: SAMPLE.items.map((it, i) => ({ id: it.id, flagged: i === 1, certified: i === 0, numbers_ok: true, unexpected_numbers: [], model_verdict: i === 1 ? "different" : "same", what_differs: "" })) }));
+    if (url === "/api/plan") return Promise.resolve(json(plan()));
+    return Promise.reject(new Error(`no ${url} in this test`));
+  }));
+  vi.stubGlobal("matchMedia", (q: string) => ({ matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} }));
+  Element.prototype.scrollIntoView = () => {};
+  host = document.createElement("div");
+  document.body.appendChild(host);
+  root = createRoot(host);
+});
+
+afterEach(() => {
+  act(() => root.unmount());
+  host.remove();
+  vi.unstubAllGlobals();
+});
+
+const drain = () => new Promise((r) => setTimeout(r, 0));
+
+/**
+ * The text a reader of this language meets as the app's own words: without the English placed beside safety lines on
+ * purpose (data-english-beside, lang="en"), which the tests below check separately.
+ */
+function ownText(el: Element): string {
+  const copy = el.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll("textarea[readonly], [data-english-beside]").forEach((x) => x.remove());
+  return copy.textContent ?? "";
+}
+const besideTexts = (el: Element) => [...el.querySelectorAll('[data-english-beside][lang="en"]')].map((x) => x.textContent ?? "");
+function setValue(el: HTMLTextAreaElement | HTMLSelectElement, value: string, event: string) {
+  // The element's own prototype (its own window), so this never mixes realms when files share a worker.
+  Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), "value")!.set!.call(el, value);
+  el.dispatchEvent(new Event(event, { bubbles: true }));
+}
+const button = (label: string) => {
+  const b = [...host.querySelectorAll("button")].find((x) => x.textContent?.includes(label));
+  if (!b) throw new Error(`no button "${label}"`);
+  return b;
+};
+
+/** The longest fixed piece of an English line (between {placeholders}), long enough not to match by accident. */
+function englishPieces(prefixes: RegExp): string[] {
+  const out = new Set<string>();
+  const add = (s: string) => {
+    const piece = s.split(/\{\w+\}/).map((x) => x.trim()).sort((a, b) => b.length - a.length)[0];
+    if (piece && piece.length >= 10) out.add(piece);
+  };
+  for (const [k, row] of Object.entries(UI_TEXT)) if (prefixes.test(k)) add((row as Record<Lang, string>).English);
+  for (const byLang of Object.values(UI_PLURAL)) for (const f of Object.values((byLang as Record<Lang, Record<string, string>>).English)) add(f);
+  return [...out];
+}
+
+/** Lines the page shows for the steps and the plan (labs and prep have their own sections). */
+const PAGE = /^(common|paper|work|kind|when|seal|pf|steps|ask|askClinic|remind|show|pip|missed|needs|barrier|plan|dock|voice|tab|share|quiz|sheet|book|fb|saved)\./;
+
+async function walkThrough(lang: Lang) {
+  act(() => root.render(<CarePlanTool />));
+  // The language is a chip now (ReadIn), next to Read my paper.
+  act(() => host.querySelector<HTMLInputElement>(`input[name="read-in-language"][value="${lang}"]`)!.click());
+  act(() => setValue(host.querySelector<HTMLTextAreaElement>("#try textarea")!, SAMPLE.source_text, "input"));
+  await act(async () => { button(ui(lang, "paper.read")).click(); await drain(); await drain(); });
+  await act(async () => { button(ui(lang, "barrier.transport")).click(); await drain(); });
+  await act(async () => { button(ui(lang, "needs.makePlan")).click(); await drain(); await drain(); });
+}
+
+describe("the steps and plan screens show no English of their own in another language", () => {
+  for (const lang of LANGUAGES.filter((l) => l !== "English")) {
+    it(`${lang}: steps, plan, dock and the printed handoff sheet`, { timeout: 30_000 }, async () => {
+      await walkThrough(lang);
+      // Open one reminder picker: its days and times must be in this language too (Codex review, round 2).
+      const remind = [...host.querySelectorAll("button")].find((x) => x.textContent?.trim() === ui(lang, "remind.button"));
+      expect(remind).toBeTruthy();
+      act(() => remind!.click());
+      expect(remind!.getAttribute("aria-expanded")).toBe("true"); // the picker really opened
+      // No word edges: the hidden picker's text runs together ("DíaToday"), so \b would miss it in Latin scripts.
+      expect(ownText(host)).not.toMatch(/Today|Tomorrow|\d:\d\d (AM|PM)/);
+      // The plan really rendered (its summary is the AI's, untranslated), and so did the sheet.
+      expect(host.textContent).toContain("PLAN SUMMARY");
+      const sheet = document.getElementById("atlas-sheet");
+      expect(sheet).not.toBeNull();
+      // Left out on purpose: the helper's session summary is an English record draft for a case note (its read-only
+      // box), and the AI's own words in the sample reading (made in English) are never translated by the app.
+      const text = `${ownText(host)}\n${ownText(sheet!)}`;
+      const aiWords = SAMPLE.items.flatMap((it) => [it.title, it.when, it.plain_language, it.why ?? ""]).join("\n");
+      // Every line translated in this language must not appear in English.
+      const left = englishPieces(PAGE).filter((p) => text.includes(p) && !aiWords.includes(p) && !Object.values(UI_TEXT).some((row) => (row as Record<Lang, string>)[lang].includes(p)));
+      expect(left).toEqual([]);
+      // And the lines are really there in this language: headings, chips, seals, warning box, plan, dock.
+      // Where the plan was made for: the server's label is English, the screen shows this language's line (round 6).
+      expect(text).toContain(ui(lang, "plan.located.zip", { zip: "30340" }));
+      for (const k of ["steps.title", "steps.warnTitle", "kind.medication", "when.today", "seal.twice", "pf.screen.paper", "plan.title", "dock.print.long", "sheet.title", "plan.needsPerson", "plan.call211"] as const) {
+        expect(text, k).toContain(ui(lang, k));
+      }
+      // Screen readers get the right language for the app's own words.
+      expect(host.querySelector("#try")!.getAttribute("lang")).toBe(UI_LANG_CODE[lang]);
+      expect(sheet!.getAttribute("lang")).toBe(UI_LANG_CODE[lang]);
+
+      // Safety lines are machine drafts: every one shown in this language has its English right beside it, marked as
+      // English (Codex review of PR 93). The sample has warning signs, a medicine card and a plan, so many are on screen.
+      const beside = [...besideTexts(host), ...besideTexts(sheet!)].join("\n");
+      // A safety line counts as shown when its translation is on the page and no other line shares that translation.
+      const sharedWithOther = (k: UiKey) => (Object.keys(UI_TEXT) as UiKey[]).some((o) => o !== k && !UI_SAFETY_KEYS.has(o) && ui(lang, o) === ui(lang, k));
+      const shown = [...UI_SAFETY_KEYS].filter((k) => !/^(labs|prep)\./.test(k) && !/\{/.test(UI_TEXT[k].English) && !sharedWithOther(k) && text.includes(ui(lang, k)));
+      expect(shown.length).toBeGreaterThan(5);
+      for (const k of shown) expect(beside, k).toContain(ui("English", k as UiKey));
+
+      // The paper's own words carry the paper's language (English here), not the app's.
+      // Every element marked as a paper quote, on screen and on the sheet, carries the paper's language inside it.
+      const quotes = [...host.querySelectorAll("[data-paper-quote]"), ...sheet!.querySelectorAll("[data-paper-quote]")];
+      expect(quotes.length).toBeGreaterThan(5);
+      for (const q of quotes) expect(q.querySelector('[lang="en"]') ?? (q.getAttribute("lang") === "en" ? q : null), q.textContent?.slice(0, 60)).not.toBeNull();
+    });
+  }
+
+  it("English stays exactly as before, and the guard above really sees the English lines when they are there", { timeout: 30_000 }, async () => {
+    await walkThrough("English");
+    const text = host.textContent ?? "";
+    expect(englishPieces(PAGE).filter((p) => text.includes(p)).length).toBeGreaterThan(60);
+    expect(host.textContent).toContain("Your steps");
+    expect(host.textContent).toContain("Copied word for word from your paper");
+    expect(host.textContent).toContain("Start with these");
+  });
+});
+
+describe("lab results show no English of their own in another language", () => {
+  const rows = [
+    { test: "Glucose", value: "130", unit: "mg/dL", range_text: "70-99", quote: "Glucose 130 mg/dL 70-99 H", status: "outside", direction: "high", reason: "130 is above the range printed on your report (70-99).", plain_name: "Blood sugar", ask: "ASK ONE" },
+    { test: "Sodium", value: "140", unit: "mmol/L", range_text: "135-145", quote: "Sodium 140 mmol/L 135-145", status: "inside", direction: null, reason: "Inside the range printed on your report (135-145).", plain_name: "Salt", ask: "" },
+    { test: "Iron", value: "<5", unit: "", range_text: "0-10", quote: "Iron <5 0-10", status: "unknown", direction: null, reason: "Your report prints this as <5, so we can't tell where it falls against the range (0-10).", plain_name: "Iron", ask: "ASK TWO" },
+  ] as unknown as ResultRow[];
+  for (const lang of LANGUAGES.filter((l) => l !== "English")) {
+    it(lang, () => {
+      act(() => root.render(<UiLangProvider language={lang}><LabRows rows={rows} /><UncheckedLines coverage={{ checked: 3, candidates: 5, unchecked: ["CRITICAL K 7.0"] }} /></UiLangProvider>));
+      const text = ownText(host);
+      const left = englishPieces(/^(labs|askClinic|common|pf)\./).filter((p) => text.includes(p) && !Object.values(UI_TEXT).some((row) => (row as Record<Lang, string>)[lang].includes(p)));
+      expect(left).toEqual([]);
+      expect(text).toContain(ui(lang, "labs.chip.high"));
+      expect(text).toContain(ui(lang, "labs.reason.above", { value: "130", range: "70-99" }));
+      // The flag and its reason keep their English beside them until reviewed.
+      const beside = besideTexts(host).join("\n");
+      expect(beside).toContain("High");
+      expect(beside).toContain("130 is above the range printed on your report (70-99).");
+    });
+  }
+
+  it("closed lab rows carry the report's language on its own words (Codex round 9 of PR 93)", () => {
+    act(() => root.render(<UiLangProvider language="Spanish" paperLang="en"><LabRows rows={rows} /></UiLangProvider>));
+    for (const sel of ["[data-report-name]", "[data-report-value]", "[data-report-range]"]) {
+      const els = [...host.querySelectorAll(sel)];
+      expect(els.length, sel).toBeGreaterThan(0);
+      for (const e of els) expect(e.querySelector('[lang="en"]'), sel).not.toBeNull();
+    }
+  });
+
+  it("unchecked report lines carry the report's language, not the app's (Codex final round of PR 93)", () => {
+    act(() => root.render(<UiLangProvider language="Spanish" paperLang="en"><UncheckedLines coverage={{ checked: 3, candidates: 5, unchecked: ["CRITICAL K 7.0", "Hgb 9.1 L"] }} /></UiLangProvider>));
+    const items = [...host.querySelectorAll("[data-unchecked] li")];
+    expect(items).toHaveLength(2);
+    for (const li of items) expect(li.querySelector('[lang="en"]'), li.textContent ?? "").not.toBeNull();
+  });
+});
+
+describe("the number-mismatch warning is a safety line", () => {
+  it("keeps its English beside every translation (Codex final round of PR 93)", () => {
+    expect(UI_SAFETY_KEYS.has("steps.numberNotInPaper")).toBe(true);
+  });
+});

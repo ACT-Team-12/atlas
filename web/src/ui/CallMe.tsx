@@ -6,6 +6,8 @@ import type { LANGUAGES } from "@/lib/schema";
 import { paidSpeechText } from "@/lib/speechText";
 import { nextPoll, pollDelayMs, pollNotice, POLL_WINDOW_MS, startPoll, type PollState } from "@/lib/call/poll";
 import { DockLabel } from "./DockLabel";
+import { LANGUAGE_NAME } from "@/lib/uiText";
+import { useUi } from "./UiLang";
 
 /**
  * "Call me with my plan": ATLAS phones the person and reads the plan in its language. For someone who can't read or
@@ -67,6 +69,7 @@ export function line(s: Status, suffix: string, typed: string): string {
 
 /** `short`: a one-word label for phones (the plan's bottom bar); wider screens keep the full words. */
 export function CallMe({ plan, language, short }: { plan: PlanResponse; language: Language; short?: string }) {
+  const { t } = useUi();
   const [cfg, setCfg] = useState<{ enabled: boolean; languages: string[] } | null>(null);
   const [open, setOpen] = useState(false);
   const [phone, setPhone] = useState("");
@@ -182,6 +185,7 @@ export function CallMe({ plan, language, short }: { plan: PlanResponse; language
   const restart = () => { setId(null); setSt(null); setMsg(""); setConsent(false); };
 
   const callable = cfg.languages.includes(language);
+  const callLong = t("dock.callMe.long");
   const tooLong = text.length > MAX_CALL_CHARS;
   const showStart = !st || ["code_missed", "expired", "failed", "gone", "done"].includes(st.phase);
   const input = "mt-1 w-full max-w-xs rounded-xl border-2 border-ink bg-paper px-3 py-2 font-mono focus:outline-none focus:ring-4 focus:ring-sky-deep";
@@ -190,11 +194,16 @@ export function CallMe({ plan, language, short }: { plan: PlanResponse; language
   return (
     <>
       <button ref={toggle} type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId} className="rounded-full border-2 border-ink bg-paper px-4 py-2">
-        {short ? <DockLabel icon="📞" short={short} long="Call me with my plan" /> : "📞 Call me with my plan"}
+        {short ? <DockLabel icon="📞" short={short} long={callLong} /> : `📞 ${callLong}`}
       </button>
       {open && (
         <div ref={panel} id={panelId} className="basis-full mt-1 rounded-2xl border-2 border-ink bg-paper p-4 font-normal">
-          <p className="font-extrabold">ATLAS can call you and read this plan out loud, in {language}.</p>
+          <p className="font-extrabold">{t("call.intro", { language: LANGUAGE_NAME[language] })}</p>
+          {/* The rest of the panel (the consent, the code steps, what is stored and deleted) stays in English until a native
+              speaker reviews it: a machine-drafted consent is not one a person can rely on. Said in their language, and
+              marked lang="en" so a screen reader uses an English voice for it (Codex review of PR 93). */}
+          {language !== "English" && <p className="mt-1 text-sm font-bold">{t("call.inEnglish", { language: LANGUAGE_NAME[language] })}</p>}
+          <div lang="en">
           {!callable ? (
             <p className="mt-2 text-sm font-bold">Phone calls aren&apos;t available in {language} yet. Use Read it out loud or Print instead.</p>
           ) : tooLong ? (
@@ -239,6 +248,7 @@ export function CallMe({ plan, language, short }: { plan: PlanResponse; language
           )}
           {msg && <p role="alert" className="mt-2 text-sm font-bold text-peach-deep">{msg}</p>}
           <p className="mt-3 text-xs font-semibold text-ink/70">Your number and plan text are stored encrypted while your call is in progress and deleted from our database when it ends. ATLAS refuses to open them after 30 minutes, and if a delete fails, our cleanup (every 5 minutes) removes them later.</p>
+          </div>
         </div>
       )}
     </>

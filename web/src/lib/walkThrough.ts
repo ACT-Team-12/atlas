@@ -148,6 +148,20 @@ export const WALK_LINES: Record<Lang, Record<WalkLine, string>> = {
   },
 };
 
+/**
+ * Walk-through lines that say what to do about a warning sign (call your clinic, call 911). Machine drafts outside
+ * English, so the English is shown beside them until a native speaker reviews them (Codex review of PR 93, round 4).
+ */
+// Lines that warn or say who to call keep their English beside them (Codex round 11 of PR 93: clinic and 211).
+export const WALK_SAFETY = ["warningLabel", "warningDo", "askClinicCall", "ask211"] as const satisfies readonly WalkLine[];
+export type WalkSafetyLine = (typeof WALK_SAFETY)[number];
+
+/** The English to show beside a walk-through safety line in this language, or null for English. */
+export function walkEnglishBeside(language: string, line: WalkSafetyLine): string | null {
+  const own = (WALK_LINES as Record<string, Record<WalkLine, string>>)[language];
+  return !own || own === WALK_LINES.English ? null : WALK_LINES.English[line];
+}
+
 /** A walk-through line in the person's language (English when the language is not in the table), with values filled in. */
 export function walkLine(language: string, line: WalkLine, values: Record<string, number> = {}): string {
   const text = (WALK_LINES as Record<string, Record<WalkLine, string>>)[language]?.[line] ?? WALK_LINES.English[line];

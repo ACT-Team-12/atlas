@@ -17,6 +17,7 @@ import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { CareSteps } from "./CareSteps";
 import { HandoffSheetBody } from "./HandoffSheet";
 import { MedicineChanges } from "./MedicineChanges";
+import { UiLangProvider } from "./UiLang";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -181,5 +182,24 @@ describe("printed handoff sheet", () => {
     expect(meds.textContent).toContain("was 10 mg, now 20 mg");
     expect(meds.querySelector("del")!.textContent).toBe("10 mg");
     expect(meds.textContent).not.toMatch(/Stop ibuprofen \(Advil\)|Take more lisinopril|Start metformin/);
+  });
+});
+
+describe("in another language, medicine names and doses keep the paper's language (Codex round 9 of PR 93)", () => {
+  const inPaperLang = (el: Element | null) => !!el && (el.querySelector('[lang="en"]') !== null || el.closest('[lang="en"]') !== null);
+  it("on screen", () => {
+    act(() => root.render(<UiLangProvider language="Spanish" paperLang="en"><MedicineChanges items={LIVE.items} paper={LIVE.source_text} /></UiLangProvider>));
+    const names = [...host.querySelectorAll("[data-med-name]")];
+    expect(names.length).toBeGreaterThan(0);
+    for (const n of names) expect(inPaperLang(n), n.textContent ?? "").toBe(true);
+    const dose = host.querySelector("[data-med-dose]")!;
+    expect(dose.querySelector('del [lang="en"]')?.textContent).toBe("10 mg");
+    expect(dose.querySelector('strong [lang="en"]')?.textContent).toBe("20 mg");
+  });
+  it("on the printed sheet", () => {
+    const html = renderToStaticMarkup(<UiLangProvider language="Spanish" paperLang="en"><HandoffSheetBody items={LIVE.items} plan={null} questions={[]} language="Spanish" paper={LIVE.source_text} /></UiLangProvider>);
+    const meds = new DOMParser().parseFromString(html, "text/html").querySelector("[data-sheet-meds]")!;
+    expect(meds.querySelector('del [lang="en"]')?.textContent).toBe("10 mg");
+    expect([...meds.querySelectorAll("b")].some((b) => b.querySelector('[lang="en"]') !== null)).toBe(true);
   });
 });

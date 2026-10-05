@@ -1,9 +1,11 @@
 "use client";
 
+import { PaperWords, withEnglish } from "./UiLang";
+
 import { useEffect, useId, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import type { AskResponse } from "@/lib/ask";
-import { askAboutQuestion, askText, isUrgentQuestion, MAX_QUESTION } from "@/lib/askText";
+import { askAboutQuestion, askEnglishBeside, askText, isUrgentQuestion, MAX_QUESTION } from "@/lib/askText";
 import { warningFromPaper } from "@/lib/warningPin";
 import { ShowOnPaper } from "./ShowOnPaper";
 
@@ -95,13 +97,13 @@ export function AskPaper({ care, items, language, photo = null }: Props) {
 
         {res?.kind === "urgent" && (
           <div className="mt-4 rounded-2xl border-2 border-red bg-red-soft p-4" data-ask-result="urgent">
-            <p className="font-extrabold text-red">{t.urgentTitle}</p>
-            <p className="mt-1 font-semibold">{t.urgentBody}</p>
+            <p className="font-extrabold text-red" data-ask-urgent-title="">{withEnglish(t.urgentTitle, askEnglishBeside(language, "urgentTitle"))}</p>
+            <p className="mt-1 font-semibold" data-ask-urgent-body="">{withEnglish(t.urgentBody, askEnglishBeside(language, "urgentBody"))}</p>
             {warnings.length > 0 && (
               <div className="mt-3">
-                <p className="text-sm font-bold">{t.urgentPaper}</p>
+                <p className="text-sm font-bold">{withEnglish(t.urgentPaper, askEnglishBeside(language, "urgentPaper"))}</p>
                 <ul className="mt-1 space-y-1">
-                  {warnings.map((w) => <li key={w.id} data-paper-quote="" className="border-l-4 border-sun pl-2 text-sm font-semibold">&ldquo;{w.source_quote}&rdquo;</li>)}
+                  {warnings.map((w) => <li key={w.id} data-paper-quote="" className="border-l-4 border-sun pl-2 text-sm font-semibold">&ldquo;<PaperWords>{w.source_quote}</PaperWords>&rdquo;</li>)}
                 </ul>
               </div>
             )}
@@ -117,7 +119,7 @@ export function AskPaper({ care, items, language, photo = null }: Props) {
               <ul className="space-y-2">
                 {res.quotes.map((q, i) => (
                   <li key={`${q.span.start}-${q.span.end}`}>
-                    <p className="font-semibold">&ldquo;{q.text}&rdquo;</p>
+                    <p className="font-semibold">&ldquo;<PaperWords>{q.text}</PaperWords>&rdquo;</p>
                     <ShowOnPaper care={care} photo={care.source_kind === "image" ? photo : null} check="unchecked"
                       item={{ id: `ask-${i}`, kind: "self_care", title: "", plain_language: "", why: "", when: "", source_quote: q.text, needs_clarification: false, question_for_clinic: "", grounded: true, span: q.span }} />
                   </li>
@@ -149,7 +151,7 @@ function Refusal({ question, language }: { question: string; language: string })
   }
   return (
     <div className="mt-4 rounded-2xl border-2 border-peach-deep bg-peach p-4" data-ask-result="not_in_paper">
-      <p className="font-extrabold">{t.refusal}</p>
+      <p className="font-extrabold">{withEnglish(t.refusal, askEnglishBeside(language, "refusal"))}</p>
       <div className="mt-3 rounded-xl border-2 border-dashed border-ink/40 bg-paper p-3 text-sm">
         <p className="text-xs font-bold text-ink/70">{t.readyLabel}. {t.readyHint}</p>
         <p className="mt-1 font-semibold" data-ask-question="">{ready.question}</p>

@@ -56,18 +56,27 @@ export function uniqueStepQuestions<T extends Step>(items: T[], checkFor: (id: s
 }
 
 export function visitQuestions(input: { items: Step[]; general: string[]; checkFor: (id: string) => Check; also?: Step[] }): string[] {
-  const out: string[] = [];
+  return visitQuestionsTagged(input).map((q) => q.text);
+}
+
+/**
+ * The same list, each marked `english` when it is a fixed question from askPerson.ts (written in English for the
+ * pharmacist or front desk), so a screen in another language can mark it lang="en" (Codex review of PR 93).
+ */
+export function visitQuestionsTagged(input: { items: Step[]; general: string[]; checkFor: (id: string) => Check; also?: Step[] }): { text: string; english: boolean }[] {
+  const out: { text: string; english: boolean }[] = [];
   const seen = new Set<string>();
-  const add = (q: string) => {
+  const add = (q: string, english: boolean) => {
     const k = dedupeKey(q);
     if (!k || seen.has(k)) return;
     seen.add(k);
-    out.push(q.trim());
+    out.push({ text: q.trim(), english });
   };
   for (const it of input.items) {
-    const q = stepVisitQuestion(it, input.checkFor(it.id));
-    if (q) add(q);
+    const check = input.checkFor(it.id);
+    const q = stepVisitQuestion(it, check);
+    if (q) add(q, check !== "certified");
   }
-  for (const q of generalVisitQuestions(input.general, [...input.items, ...(input.also ?? [])])) add(q);
+  for (const q of generalVisitQuestions(input.general, [...input.items, ...(input.also ?? [])])) add(q, false);
   return out;
 }

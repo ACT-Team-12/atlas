@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import type { UiKey } from "@/lib/uiText";
+import { useUi } from "./UiLang";
 
 export type Ready = "steps" | "plan" | "photo";
 
@@ -20,7 +22,7 @@ export function readyTarget(r: Ready): HTMLElement | null {
   return document.getElementById(READY_TARGET[r]);
 }
 
-const LABEL: Record<Ready, string> = { steps: "Your steps are ready", plan: "Your plan is ready", photo: "Your photo is read" };
+const LABEL: Record<Ready, UiKey> = { steps: "ready.steps", plan: "ready.plan", photo: "ready.photo" };
 
 /**
  * Plainly on screen: the whole heading between 15% and 80% of the viewport's HEIGHT, clear of the sticky header and
@@ -64,6 +66,7 @@ export function landingTop(el: HTMLElement): number {
  * `announce` is false when another live region already says the same thing (the phone tab bar's plan note).
  */
 export function ReadyCue({ ready, announce, onGo, onSeen }: { ready: Ready | null; announce: boolean; onGo: (r: Ready) => void; onSeen: () => void }) {
+  const { t } = useUi();
   useEffect(() => {
     if (!ready) return;
     let frame = 0;
@@ -82,12 +85,12 @@ export function ReadyCue({ ready, announce, onGo, onSeen }: { ready: Ready | nul
   return (
     <>
       {/* Always mounted, so the arrival is announced once, politely. */}
-      <p className="sr-only" role="status" aria-live="polite">{ready && announce ? LABEL[ready] : ""}</p>
+      <p className="sr-only" role="status" aria-live="polite">{ready && announce ? t(LABEL[ready]) : ""}</p>
       {ready && (
         <div className="ready-cue fixed inset-x-0 bottom-24 z-40 flex justify-center px-4 print:hidden md:bottom-8" data-ready-cue={ready}>
           <button type="button" onClick={() => onGo(ready)}
             className="min-h-[52px] rounded-full border-2 border-ink bg-sun px-5 py-3 text-base font-extrabold shadow-[0_4px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-            <span aria-hidden="true">✓ </span>{LABEL[ready]}: <span className="underline decoration-2 underline-offset-4">show me</span>
+            <span aria-hidden="true">✓ </span>{t(LABEL[ready])}: <span className="underline decoration-2 underline-offset-4">{t("ready.showMe")}</span>
           </button>
         </div>
       )}

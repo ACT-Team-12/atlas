@@ -7,6 +7,8 @@ import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 const shown: { photo: File | null }[] = [];
 vi.mock("./ShowOnPaper", () => ({ ShowOnPaper: (p: { photo: File | null }) => { shown.push({ photo: p.photo }); return null; } }));
 import { AskPaper } from "./AskPaper";
+import { ASK_TEXT } from "@/lib/askText";
+import { LANGUAGES } from "@/lib/schema";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -140,5 +142,33 @@ describe("Ask my paper on screen", () => {
     expect(host.textContent).toContain("Su papel no lo dice.");
     const body = JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body));
     expect(body).toEqual({ source_text: text, language: "Spanish", question: "¿puedo manejar?" });
+  });
+});
+
+describe("Ask my paper's safety lines keep their English beside them until reviewed (Codex review of PR 93, round 4)", () => {
+  const beside = (el: Element) => [...el.querySelectorAll('[data-english-beside][lang="en"]')].map((x) => x.textContent?.trim() ?? "");
+  for (const lang of LANGUAGES.filter((l) => l !== "English")) {
+    it(`${lang}: the urgent card shows the 911 directive in ${lang} and in English`, async () => {
+      await askIt("I have chest pain right now", lang);
+      const r = host.querySelector("[data-ask-result=urgent]")!;
+      const title = r.querySelector("[data-ask-urgent-title]")!;
+      const body = r.querySelector("[data-ask-urgent-body]")!;
+      expect(title.textContent).toContain(ASK_TEXT[lang].urgentTitle);
+      expect(body.textContent).toContain(ASK_TEXT[lang].urgentBody);
+      expect(beside(title).join(" ")).toContain(ASK_TEXT.English.urgentTitle);
+      expect(beside(body).join(" ")).toContain(ASK_TEXT.English.urgentBody);
+      expect(beside(r).join(" ")).toContain(ASK_TEXT.English.urgentPaper);
+    });
+    it(`${lang}: the fixed refusal shows its English beside it`, async () => {
+      reply = { status: 200, body: { kind: "not_in_paper", dropped: [], model: "m", ms: 1 } };
+      await askIt("can I drive?", lang);
+      const r = host.querySelector("[data-ask-result=not_in_paper]")!;
+      expect(beside(r).join(" ")).toContain(ASK_TEXT.English.refusal);
+    });
+  }
+
+  it("English shows each line once, with nothing beside it", async () => {
+    await askIt("I have chest pain right now");
+    expect(host.querySelectorAll("[data-english-beside]")).toHaveLength(0);
   });
 });

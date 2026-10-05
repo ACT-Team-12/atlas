@@ -3,6 +3,7 @@
 import { useId, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { printOrView, SESSION_SHEET } from "./printView";
+import { useUi } from "./UiLang";
 import { ACTIVITIES, ACTIVITY_LABEL, type Activity, sessionSummary, SUMMARY_FOOT, SUMMARY_TITLE, type SessionPlanState } from "@/lib/sessionSummary";
 
 const noop = () => () => {};
@@ -31,6 +32,7 @@ export function SessionSummary(props: SessionPlanState) {
   const [consent, setConsent] = useState(false);
   const [msg, setMsg] = useState("");
   const id = useId();
+  const { t, code } = useUi();
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const s = sessionSummary(props, { minutes, notes, consentDiscussed: consent });
 
@@ -43,9 +45,11 @@ export function SessionSummary(props: SessionPlanState) {
   }
 
   return (
-    <details className="mt-6 rounded-2xl border-2 border-teal bg-paper p-4 sm:p-5 print:hidden">
-      <summary className="cursor-pointer font-extrabold text-teal-deep focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-        For helpers: session summary
+    // A helper's documentation draft for an English case note: the panel stays in English and says so in the page's
+    // language (Codex review of PR 93), like the questions written for a pharmacist.
+    <details lang="en" className="mt-6 rounded-2xl border-2 border-teal bg-paper p-4 sm:p-5 print:hidden">
+      <summary lang={code} className="cursor-pointer font-extrabold text-teal-deep focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+        {t("session.title")}
       </summary>
       <p className="mt-2 text-xs font-semibold text-ink/70">Stays on this device. A draft for your own notes; you and your clinic decide what goes in a record.</p>
 

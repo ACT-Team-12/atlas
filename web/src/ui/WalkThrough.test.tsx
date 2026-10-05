@@ -18,6 +18,9 @@ import { QUIET_KINDS } from "@/lib/pip";
 import { isWarning } from "@/lib/warningPin";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { CareSteps } from "./CareSteps";
+import { UiLangProvider } from "./UiLang";
+import { WALK_LINES } from "@/lib/walkThrough";
+import { LANGUAGES } from "@/lib/schema";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -418,5 +421,62 @@ describe("languages", () => {
     open();
     expect(q("[data-walk-progress]").textContent).toBe(`Paso 1 de ${ITEMS.length}`);
     expect(q("[data-walk-done]").textContent).toContain("Hecho");
+  });
+});
+
+describe("the walk-through's warning lines keep their English beside them until reviewed (Codex review of PR 93, round 4)", () => {
+  const beside = (el: Element) => [...el.querySelectorAll('[data-english-beside][lang="en"]')].map((x) => x.textContent?.trim() ?? "").join(" ");
+  for (const lang of LANGUAGES.filter((l) => l !== "English")) {
+    it(lang, () => {
+      render({ language: lang });
+      open();
+      expect(card().getAttribute("data-walk-group")).toBe("warning");
+      const warning = q("[data-walk-warning]");
+      expect(warning.textContent).toContain(WALK_LINES[lang].warningDo);
+      expect(beside(warning)).toContain(WALK_LINES.English.warningDo);
+      expect(beside(q("[data-walk-heading]"))).toContain(WALK_LINES.English.warningLabel);
+      // The same directive in the Ask a person panel.
+      expect(beside(q("[data-walk-ask-panel]"))).toContain(WALK_LINES.English.warningDo);
+    });
+  }
+
+  for (const lang of LANGUAGES.filter((l) => l !== "English")) {
+    it(`${lang}: Ask a person's clinic and 211 lines keep their English beside them (Codex round 11)`, () => {
+      render({ language: lang, meaning: { status: "done", byId: Object.fromEntries(ITEMS.map((i) => [i.id, result(i.id, { certified: true, model_verdict: "same" })])) } });
+      open();
+      while (shownId() !== "eye") click(q("[data-walk-not-yet]"));
+      click(q("[data-walk-ask]"));
+      const panel = q("[data-walk-ask-panel]");
+      expect(panel.textContent).toContain(WALK_LINES[lang].askClinicCall);
+      expect(beside(panel)).toContain(WALK_LINES.English.askClinicCall);
+      expect(beside(q("[data-walk-211]"))).toContain(WALK_LINES.English.ask211);
+    });
+  }
+
+  it("a step's time group that is a safety line (Right away) keeps its English on the walk-through card", () => {
+    // The paper's STOP list: a stop with no time words starts now, so this step is in the "Right away" group.
+    const stop = step("ibu", "medication", "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function.", "AI-TITLE Stop ibuprofen", "");
+    const items = [...ITEMS, stop];
+    // Inside the language section, as CarePlanTool renders it (the app's own words come from the provider).
+    act(() => root.render(<UiLangProvider language="Spanish">
+      <CareSteps care={{ ...care, items }} items={items} removedItems={[]} checkFor={() => "unchecked"} meaning={{ status: "idle", byId: {} }} deviceRun={NO_DEVICE_RUN}
+        deviceStatus="idle" done={{}} language="Spanish" photo={null} simpler={{ ok: false, onClick: () => {} }}
+        onDone={() => {}} onRemove={() => {}} onUndoRemove={() => {}} />
+    </UiLangProvider>));
+    open();
+    const seen: string[] = [];
+    for (let n = 0; n < items.length; n++) {
+      const when = q("[data-walk-when]");
+      if (card().getAttribute("data-walk-group") === "today") seen.push(beside(when));
+      click(q("[data-walk-not-yet]"));
+    }
+    expect(seen.length).toBeGreaterThan(0);
+    for (const b of seen) expect(b).toContain("Right away");
+  });
+
+  it("English shows the warning line once, with nothing beside it", () => {
+    render();
+    open();
+    expect(q("[data-walk-warning]").querySelector("[data-english-beside]")).toBeNull();
   });
 });

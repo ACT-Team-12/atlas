@@ -3,10 +3,11 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { guessOcrLang, spanContext, type Bbox } from "@/lib/paperMatch";
-import { locateOnPhoto, progressMessage, UNSUPPORTED_MESSAGE, type Stage } from "@/lib/photoLocate";
+import { locateOnPhoto, type Stage } from "@/lib/photoLocate";
 import type { OcrPage } from "@/lib/paperOcr";
 import type { Check } from "@/lib/paperFirst";
 import { shortQuote } from "@/lib/stepsView";
+import { PaperWords, useUi } from "./UiLang";
 
 /**
  * "Show on my paper": one tap shows where a step's words are on the person's own paper.
@@ -20,6 +21,8 @@ export function ShowOnPaper({ care, item, photo, check }: { care: CarePlanRespon
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const statusId = useId();
+  const labelId = useId();
+  const { t, code } = useUi();
 
   useEffect(() => {
     const d = ref.current;
@@ -28,13 +31,18 @@ export function ShowOnPaper({ care, item, photo, check }: { care: CarePlanRespon
 
   if (!spanContext(care.source_text, item.span)) return null;
   // Paper first (lib/paperFirst.ts): the AI's title names the step only when it was certified; otherwise the paper's words do.
-  const name = check === "certified" ? item.title : `“${shortQuote(item.source_quote, 48)}”`;
+  // A quote is the paper's own words, so it carries the paper's language, not the app's (Codex review, round 5).
+  const certified = check === "certified";
+  const name = certified ? item.title : <>“<PaperWords>{shortQuote(item.source_quote, 48)}</PaperWords>”</>;
+  const [labelBefore, labelAfter = ""] = t("show.buttonLabel").split("{name}");
   const readsPhoto = care.source_kind === "image" && photo !== null && guessOcrLang(care.source_text) !== null;
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} aria-label={`Show on my paper: ${name}`} aria-haspopup="dialog"
+      {/* The button's name: the app's words around the step's name, each part in its own language. */}
+      <span id={labelId} hidden lang={code} data-show-label="">{labelBefore}{name}{labelAfter}</span>
+      <button type="button" onClick={() => setOpen(true)} aria-labelledby={labelId} aria-haspopup="dialog"
         className="mt-2 rounded-full border-2 border-ink bg-paper px-3 py-1 text-xs font-bold hover:bg-mint">
-        📄 Show on my paper
+        {t("show.button")}
       </button>
       {open && (
         <dialog ref={ref} aria-labelledby={titleId} aria-describedby={statusId} onClose={() => setOpen(false)}
@@ -43,16 +51,16 @@ export function ShowOnPaper({ care, item, photo, check }: { care: CarePlanRespon
           <div className="flex max-h-[92dvh] flex-col">
             <div className="flex items-start gap-3 border-b-2 border-ink/20 p-4">
               <div className="flex-1">
-                <h2 id={titleId} className="display text-2xl">On your paper</h2>
+                <h2 id={titleId} className="display text-2xl">{t("show.title")}</h2>
                 <p className="mt-1 text-sm font-bold">{name}</p>
               </div>
               <button type="button" onClick={() => ref.current?.close()}
-                className="rounded-full border-2 border-ink px-4 py-2 text-sm font-bold hover:bg-mint">Close</button>
+                className="rounded-full border-2 border-ink px-4 py-2 text-sm font-bold hover:bg-mint">{t("common.close")}</button>
             </div>
             <div className="overflow-y-auto p-4" data-lenis-prevent>
               <Panel care={care} item={item} photo={care.source_kind === "image" ? photo : null} statusId={statusId} />
               <p className="mt-4 text-xs font-semibold text-ink/70">
-                🔒 Nothing new is sent to any server for this: it uses only what is already on this device{readsPhoto ? ", and your photo is read right here" : ""}.
+                {t(readsPhoto ? "show.localPhoto" : "show.local")}
               </p>
             </div>
           </div>
@@ -63,15 +71,16 @@ export function ShowOnPaper({ care, item, photo, check }: { care: CarePlanRespon
 }
 
 type PhotoState =
-  | { kind: "reading"; stage: Stage; pct: number; message: string }
+  | { kind: "reading"; stage: Stage; pct: number; said: number }
   | { kind: "found"; page: OcrPage; boxes: Bbox[]; matched: number; total: number; url: string }
   | { kind: "not_found" }
   | { kind: "error" };
 
 function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: VerifiedItem; photo: File | null; statusId: string }) {
-  const [state, setState] = useState<PhotoState>({ kind: "reading", stage: "loading", pct: 0, message: progressMessage("loading", 0) });
+  const [state, setState] = useState<PhotoState>({ kind: "reading", stage: "loading", pct: 0, said: 0 });
   // Decided from the text we already read, before any OCR code or data is fetched.
   const unsupported = photo !== null && guessOcrLang(care.source_text) === null;
+  const { t } = useUi();
 
   useEffect(() => {
     if (!photo || unsupported) return;
@@ -91,7 +100,7 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
   if (unsupported) {
     return (
       <>
-        <p id={statusId} role="status" className="mb-3 text-sm font-bold">{UNSUPPORTED_MESSAGE}</p>
+        <p id={statusId} role="status" className="mb-3 text-sm font-bold">{t("show.unsupported")}</p>
         <TextPaper text={care.source_text} span={item.span!} />
       </>
     );
@@ -101,8 +110,8 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
       <>
         <p id={statusId} role="status" className="mb-3 text-sm font-bold">
           {care.source_kind === "image"
-            ? "Your photo is no longer open on this page, so here is the quote in the text we read from it. Quoted on your paper:"
-            : "Quoted on your paper, highlighted below."}
+            ? t("show.photoGone")
+            : t("show.textQuoted")}
         </p>
         <TextPaper text={care.source_text} span={item.span!} />
       </>
@@ -112,7 +121,7 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
     return (
       <div aria-busy="true">
         <p id={statusId} role="status" className="text-sm font-bold">
-          {state.message}
+          {state.stage === "loading" ? t("show.loadingReader") : t("show.readingPhoto", { pct: state.said })}
         </p>
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-mint-soft" aria-hidden="true">
           <div className="h-full bg-teal" style={{ width: `${state.stage === "reading" ? state.pct : 5}%` }} />
@@ -124,11 +133,11 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
     return (
       <>
         <p id={statusId} role="status" className="mb-3 text-sm font-bold">
-          Quoted on your paper: highlighted on your photo ({state.matched} of {state.total} words matched).
+          {t("show.found", { m: state.matched, n: state.total })}
         </p>
         <PhotoPaper state={state} />
         <p className="mt-3 border-l-4 border-sun pl-2 text-sm italic text-ink/80">
-          &ldquo;{care.source_text.slice(item.span!.start, item.span!.end)}&rdquo;
+          &ldquo;<PaperWords>{care.source_text.slice(item.span!.start, item.span!.end)}</PaperWords>&rdquo;
         </p>
       </>
     );
@@ -137,8 +146,8 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
     <>
       <p id={statusId} role="status" className="mb-3 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">
         {state.kind === "error"
-          ? "This device could not read your photo. Here is the quote from the text we read:"
-          : "We could not find this exact spot on your photo. Here is the quote from the text we read:"}
+          ? t("show.photoError")
+          : t("show.notFound")}
       </p>
       <TextPaper text={care.source_text} span={item.span!} />
     </>
@@ -152,16 +161,17 @@ function scrollBehavior(): ScrollBehavior {
 /** The whole paper, with the verified span (exact offsets) marked and scrolled into view with the lines around it. */
 function TextPaper({ text, span }: { text: string; span: { start: number; end: number } }) {
   const mark = useRef<HTMLElement>(null);
+  const { t, code, paperLang } = useUi();
   useEffect(() => { mark.current?.scrollIntoView({ block: "center", behavior: scrollBehavior() }); }, [span.start, span.end]);
   return (
-    <div tabIndex={0} role="region" aria-label="Your paper" data-lenis-prevent
+    <div tabIndex={0} role="region" aria-label={t("show.paperRegion")} data-lenis-prevent
       className="max-h-[55dvh] overflow-auto rounded-2xl border-2 border-ink/70 bg-paper p-3">
-      <pre className="whitespace-pre-wrap font-sans text-sm leading-6 text-ink/80">
+      <pre lang={paperLang} className="whitespace-pre-wrap font-sans text-sm leading-6 text-ink/80">
         {text.slice(0, span.start)}
         <mark ref={mark} className="rounded bg-sun px-0.5 text-ink outline-2 outline-teal-deep">
-          <span className="sr-only">Quoted on your paper: </span>
+          <span className="sr-only" lang={code}>{t("show.quoteStart")} </span>
           {text.slice(span.start, span.end)}
-          <span className="sr-only"> (end of quote)</span>
+          <span className="sr-only" lang={code}> {t("show.quoteEnd")}</span>
         </mark>
         {text.slice(span.end)}
       </pre>
@@ -173,13 +183,14 @@ function TextPaper({ text, span }: { text: string; span: { start: number; end: n
 function PhotoPaper({ state }: { state: Extract<PhotoState, { kind: "found" }> }) {
   const first = useRef<HTMLDivElement>(null);
   useEffect(() => { first.current?.scrollIntoView({ block: "center", behavior: scrollBehavior() }); }, [state]);
+  const { t } = useUi();
   const { width: W, height: H } = state.page;
   const pad = Math.max(2, Math.round(W / 400));
   return (
-    <div tabIndex={0} role="region" aria-label="Your photo" data-lenis-prevent className="max-h-[60dvh] overflow-auto rounded-2xl border-2 border-ink/70 bg-paper">
+    <div tabIndex={0} role="region" aria-label={t("show.photoRegion")} data-lenis-prevent className="max-h-[60dvh] overflow-auto rounded-2xl border-2 border-ink/70 bg-paper">
       <div className="relative">
         {/* eslint-disable-next-line @next/next/no-img-element -- a local object URL of the person's own photo */}
-        <img src={state.url} alt="Your photo, with the quoted words boxed" className="block h-auto w-full" />
+        <img src={state.url} alt={t("show.photoAlt")} className="block h-auto w-full" />
         {/* Boxes drawn on the photo of the paper. The photo is light in both themes, so these keep the light
             theme's teal-deep and sun (7:1 against white) instead of following the page theme. */}
         {state.boxes.map((b, i) => (

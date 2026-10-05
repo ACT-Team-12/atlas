@@ -6,14 +6,27 @@
 const pad = (n: number) => String(n).padStart(2, "0");
 export const isoDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
+/**
+ * `locale` is the page language's HTML code (lib/uiText.ts UI_LANG_CODE); English keeps its exact wording. Other
+ * languages use the browser's own words for "today", "tomorrow", weekdays, dates and times (Intl), so no line here
+ * needs a machine draft (Codex review of PR 93).
+ */
+const isEnglish = (locale: string) => locale === "en" || locale === "en-US";
+const relDay = (locale: string, n: number) => {
+  const s = new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(n, "day");
+  return s.charAt(0).toLocaleUpperCase(locale) + s.slice(1);
+};
+
 /** Today and the next n-1 days, labeled the way people say them. */
-export function dayOptions(now: Date, n = 14): { value: string; label: string; sub: string }[] {
+export function dayOptions(now: Date, n = 14, locale = "en-US"): { value: string; label: string; sub: string }[] {
   const out = [];
+  const loc = isEnglish(locale) ? "en-US" : locale;
   for (let i = 0; i < n; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-    const weekday = d.toLocaleDateString("en-US", { weekday: "short" });
-    const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    out.push({ value: isoDay(d), label: i === 0 ? "Today" : i === 1 ? "Tomorrow" : weekday, sub: date });
+    const weekday = d.toLocaleDateString(loc, { weekday: "short" });
+    const date = d.toLocaleDateString(loc, { month: "short", day: "numeric" });
+    const label = i > 1 ? weekday : isEnglish(locale) ? (i === 0 ? "Today" : "Tomorrow") : relDay(loc, i);
+    out.push({ value: isoDay(d), label, sub: date });
   }
   return out;
 }
@@ -28,8 +41,9 @@ export function timeOptions(): string[] {
   return out;
 }
 
-export function formatTime(hhmm: string) {
+export function formatTime(hhmm: string, locale = "en-US") {
   const [h, m] = hhmm.split(":").map(Number);
+  if (!isEnglish(locale)) return new Date(2000, 0, 1, h, m).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
   return `${h % 12 || 12}:${pad(m)} ${h < 12 ? "AM" : "PM"}`;
 }
 
@@ -41,7 +55,8 @@ export function localStart(day: string, time: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-export function describeStart(d: Date) {
+export function describeStart(d: Date, locale = "en-US") {
+  if (!isEnglish(locale)) return d.toLocaleString(locale, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at ${formatTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`)}`;
 }
 

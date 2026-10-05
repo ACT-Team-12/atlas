@@ -11,6 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CarePlanResponse } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { CarePlanTool } from "./CarePlanTool";
+import { ui, type UiKey } from "@/lib/uiText";
+import { failureKey, RequestFailed } from "@/lib/requestError";
 import { CHECK_POLICY, checksKey } from "@/lib/savedPlans";
 import { SAMPLE_AVS } from "@/lib/sample";
 import { TRY_SAMPLE_EVENT } from "@/lib/sampleStart";
@@ -645,7 +647,12 @@ describe("an outdated plan cannot be acted on", () => {
   /** Every link out of the plan's place cards: calls, websites, directions, and their source pages. Scoped to the plan
    *  card (step 3), since each care step now has its own "Remind me" calendar link. */
   const placeLinks = () => [...host.querySelectorAll<HTMLAnchorElement>("#step-3 li a")].map((a) => a.getAttribute("href") ?? "");
-  const enabled = () => Object.fromEntries(ACTIONS.map((t) => [t, !byText(t).disabled]));
+  /** The same five actions, by their label in `lang` (the app's own words follow the chosen language, lib/uiText.ts). */
+  const LABEL_KEY: Record<string, UiKey> = {
+    "Read it out loud": "dock.listen.long", "Print for the next visit": "dock.print.long", "Print a handoff sheet": "dock.handoff.long",
+    "Send to family": "dock.send.long", "Book it now": "book.open",
+  };
+  const enabled = (lang = "English") => Object.fromEntries(ACTIONS.map((t) => [t, !byText(ui(lang, LABEL_KEY[t])).disabled]));
   const all = (v: boolean) => Object.fromEntries(ACTIONS.map((t) => [t, v]));
   let speech: { speak: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> };
 
@@ -686,12 +693,15 @@ describe("an outdated plan cannot be acted on", () => {
       expect(screenText()).toContain("Text RIDE to 404-555-0177");
       expect(screenText()).toContain("call 404-555-0188");
       act(change);
-      expect(enabled()).toEqual(all(false));
+      // Changing the language changes the app's own words too, so the actions are found by their Spanish labels.
+      const lang = what === "language" ? "Spanish" : "English";
+      expect(enabled(lang)).toEqual(all(false));
       expect(placeLinks()).toEqual([]);
       for (const n of ["404-555-0100", "404-555-0199", "404-555-0177", "404-555-0188"]) expect(screenText()).not.toContain(n); // no number to call or text
       expect(screenText()).toContain("Old Place Clinic"); // the place is still shown, only not offered
       expect(screenText()).toContain("Plan with the A1c test"); // still shown, labelled
-      expect(screenText()).toMatch(/Update the plan first|Read your paper again first/);
+      const reason = [ui(lang, "plan.offPlan"), ui(lang, "plan.offPaper")];
+      expect(reason.some((r) => screenText().includes(r))).toBe(true);
     });
   }
 
@@ -1403,7 +1413,9 @@ describe("the plan streams in, step by step", () => {
     expect(screenText()).toContain("Shown then declined");
     await s.send({ type: "error", error: "The AI declined to build this plan.", status: 422 });
     await s.end();
-    expect(screenText()).toContain("The AI declined to build this plan.");
+    // The person sees the app's own line for a refused plan (PR 93); the server's English words are only logged.
+    expect(screenText()).toContain(ui("English", failureKey(new RequestFailed(422, ""), "plan")));
+    expect(screenText()).not.toContain("The AI declined to build this plan.");
     expect(screenText()).not.toContain("Shown then declined"); // a preview step never outlives a failed plan
     expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(0);
   });

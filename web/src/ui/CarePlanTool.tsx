@@ -539,7 +539,8 @@ export function CarePlanTool() {
   const planOutdated = !!plan && planFp !== null && (careOutdated || answersFp !== planFp);
   // A streamed step is drawn only in a render whose answers match the ones it was built from, so an answer changed
   // before the stale-plan effect runs never paints an old step, not even for one frame (Codex round 2 of PR 105).
-  const shownPreview = planning && planPreview && planPreview.fp === answersFp && planPreview.steps.length > 0 ? planPreview : null;
+  // And never beside a paper or reading level that changed after the plan was asked for (Codex round 3).
+  const shownPreview = planning && !careOutdated && planPreview && planPreview.fp === answersFp && planPreview.steps.length > 0 ? planPreview : null;
   // The ready cue, only for the exact result that raised it and only while that result is current.
   const cueFor: Ready | null = !ready ? null
     : ready.what === "steps" ? (care === ready.ref && !careOutdated ? "steps" : null)

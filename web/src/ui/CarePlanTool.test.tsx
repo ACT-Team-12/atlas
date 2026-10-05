@@ -1365,6 +1365,21 @@ describe("the plan streams in, step by step", () => {
     expect(screenText()).toContain("You changed your answers, so we stopped building the plan.");
   });
 
+  it("the paper is edited while the plan streams: steps from the old paper leave the screen (Codex round 3)", async () => {
+    const s = openStream();
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    await s.send({ type: "step", step: step("Old paper step", "From the paper before the edit.") });
+    expect(screenText()).toContain("Old paper step");
+    act(() => typeInto(paperBox(), PAPER + " Also check your feet daily."));
+    expect(screenText()).not.toContain("Old paper step");
+  });
+
   it("the server's own error is shown, not retried, and steps already shown leave the screen", async () => {
     const s = openStream();
     act(() => byText("Getting there").click());

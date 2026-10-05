@@ -55,6 +55,29 @@ final class AppModel {
     var path: [Route] = []
     var busy: Busy?
     var error: String?
+    /// The person chose to look around while a read or plan runs (the busy card is put away). When the result lands they
+    /// are not moved; the ready cue offers the way there instead. Not saved.
+    var lookingAround = false
+    /// The result that raised the ready cue (ReadyCue), if any. Not saved.
+    private(set) var readyMark: ReadyCue.Mark?
+    /// Counts the plans built in this run of the app, so the cue belongs to one exact plan. Not saved.
+    private(set) var planCount = 0
+
+    /// The ready cue to float on screen now (cueFor on the website), or nil.
+    var readyCue: ReadyCue.What? {
+        ReadyCue.shown(readyMark, readingCount: readingCount, planCount: planCount, careCurrent: care != nil && !careOutdated,
+                       planCurrent: plan != nil && !planOutdated, top: path.last)
+    }
+
+    /// "Show me" on the ready cue.
+    func showReady() {
+        guard let what = readyCue else { return }
+        readyMark = nil
+        path = ReadyCue.path(showing: what, from: path)
+    }
+
+    /// The person opened the result themselves: the cue is no longer needed.
+    func clearReady() { readyMark = nil }
 
     enum Busy: Equatable { case recognizing, reading, planning }
 
@@ -197,6 +220,7 @@ final class AppModel {
     func readPaper() {
         guard canRead else { return }
         cancel()
+        readyMark = nil
         error = nil
         busy = .reading
         let text = self.text, level = self.level, language = self.language
@@ -217,10 +241,11 @@ final class AppModel {
                 restoredAt = nil
                 busy = nil
                 startMeaningCheck(for: result, language: result.language ?? language)
-                if path.last != .steps { path.append(.steps) }
+                arrived(.steps, run: readingCount)
             } catch {
                 guard run == taskID else { return }
                 busy = nil
+                lookingAround = false
                 if (error as? APIError) != .cancelled { self.error = error.localizedDescription }
             }
         }
@@ -229,6 +254,7 @@ final class AppModel {
     func makePlan() {
         guard canPlan else { return }
         cancel()
+        readyMark = nil
         error = nil
         busy = .planning
         let validZip = zip.range(of: #"^\d{5}$"#, options: .regularExpression) != nil
@@ -249,13 +275,15 @@ final class AppModel {
                 guard run == taskID else { return }
                 planFingerprint = fingerprint
                 plan = result
+                planCount += 1
                 // One link counts at most one plan (helperLink.ts consumeHelperSession).
                 if viaHelper { fromHelperLink = false }
                 busy = nil
-                if path.last != .plan { path.append(.plan) }
+                arrived(.plan, run: planCount)
             } catch {
                 guard run == taskID else { return }
                 busy = nil
+                lookingAround = false
                 if (error as? APIError) != .cancelled { self.error = error.localizedDescription }
             }
         }
@@ -302,6 +330,20 @@ final class AppModel {
         task?.cancel()
         task = nil
         busy = nil
+        lookingAround = false
+    }
+
+    /// A read or plan landed. If the person stayed with it, take them there, as before. If they chose to look around,
+    /// leave them where they are and raise the ready cue for this exact result instead.
+    private func arrived(_ what: ReadyCue.What, run: Int) {
+        let route = ReadyCue.route(what)
+        if lookingAround && path.last != route {
+            readyMark = ReadyCue.Mark(what: what, run: run)
+        } else {
+            readyMark = nil
+            if path.last != route { path.append(route) }
+        }
+        lookingAround = false
     }
 
     func toggle(_ barrier: Barrier) {
@@ -348,6 +390,7 @@ final class AppModel {
         cancel()
         cancelMeaning()
         helperBanner = nil; fromHelperLink = false
+        readyMark = nil
         store.clear()
         restoring = true
         meaning = .idle; readFingerprint = nil; planFingerprint = nil; planChangedAt = nil

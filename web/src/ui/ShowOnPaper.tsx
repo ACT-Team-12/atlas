@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { guessOcrLang, spanContext, type Bbox } from "@/lib/paperMatch";
-import { locateOnPhoto, progressMessage, UNSUPPORTED_MESSAGE, type Stage } from "@/lib/photoLocate";
+import { locateOnPhoto, type Stage } from "@/lib/photoLocate";
 import type { OcrPage } from "@/lib/paperOcr";
 import type { Check } from "@/lib/paperFirst";
 import { shortQuote } from "@/lib/stepsView";
@@ -65,13 +65,13 @@ export function ShowOnPaper({ care, item, photo, check }: { care: CarePlanRespon
 }
 
 type PhotoState =
-  | { kind: "reading"; stage: Stage; pct: number; message: string }
+  | { kind: "reading"; stage: Stage; pct: number; said: number }
   | { kind: "found"; page: OcrPage; boxes: Bbox[]; matched: number; total: number; url: string }
   | { kind: "not_found" }
   | { kind: "error" };
 
 function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: VerifiedItem; photo: File | null; statusId: string }) {
-  const [state, setState] = useState<PhotoState>({ kind: "reading", stage: "loading", pct: 0, message: progressMessage("loading", 0) });
+  const [state, setState] = useState<PhotoState>({ kind: "reading", stage: "loading", pct: 0, said: 0 });
   // Decided from the text we already read, before any OCR code or data is fetched.
   const unsupported = photo !== null && guessOcrLang(care.source_text) === null;
   const { t } = useUi();
@@ -94,7 +94,7 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
   if (unsupported) {
     return (
       <>
-        <p id={statusId} role="status" className="mb-3 text-sm font-bold">{UNSUPPORTED_MESSAGE}</p>
+        <p id={statusId} role="status" className="mb-3 text-sm font-bold">{t("show.unsupported")}</p>
         <TextPaper text={care.source_text} span={item.span!} />
       </>
     );
@@ -115,7 +115,7 @@ function Panel({ care, item, photo, statusId }: { care: CarePlanResponse; item: 
     return (
       <div aria-busy="true">
         <p id={statusId} role="status" className="text-sm font-bold">
-          {state.message}
+          {state.stage === "loading" ? t("show.loadingReader") : t("show.readingPhoto", { pct: state.said })}
         </p>
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-mint-soft" aria-hidden="true">
           <div className="h-full bg-teal" style={{ width: `${state.stage === "reading" ? state.pct : 5}%` }} />
@@ -184,7 +184,7 @@ function PhotoPaper({ state }: { state: Extract<PhotoState, { kind: "found" }> }
     <div tabIndex={0} role="region" aria-label={t("show.photoRegion")} data-lenis-prevent className="max-h-[60dvh] overflow-auto rounded-2xl border-2 border-ink/70 bg-paper">
       <div className="relative">
         {/* eslint-disable-next-line @next/next/no-img-element -- a local object URL of the person's own photo */}
-        <img src={state.url} alt="Your photo, with the quoted words boxed" className="block h-auto w-full" />
+        <img src={state.url} alt={t("show.photoAlt")} className="block h-auto w-full" />
         {/* Boxes drawn on the photo of the paper. The photo is light in both themes, so these keep the light
             theme's teal-deep and sun (7:1 against white) instead of following the page theme. */}
         {state.boxes.map((b, i) => (

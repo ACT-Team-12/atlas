@@ -35,6 +35,15 @@ describe("pickSession", () => {
     expect(kept.location).toBeUndefined();
     expect(JSON.stringify(kept)).not.toContain("33.7");
   });
+
+  it("an old or edited save with a language or level that is no longer a choice gets the default, not a crash", () => {
+    const odd = { ...session(), language: "Klingon", level: "expert" } as unknown as Session;
+    const kept = pickSession(odd);
+    expect(kept.language).toBe("English");
+    expect(kept.level).toBe("simple");
+    expect(pickSession({ ...session(), language: "Amharic", level: "detailed" }).language).toBe("Amharic");
+    expect(pickSession({ ...session(), language: "Amharic", level: "detailed" }).level).toBe("detailed");
+  });
 });
 
 describe("pickSession matched", () => {

@@ -30,6 +30,8 @@ describe("ReadIn", () => {
     act(() => root.render(<ReadIn language="Vietnamese" level="standard" onLanguage={onLanguage} onLevel={onLevel} />));
     expect(radios("read-in-language").find((r) => r.checked)!.value).toBe("Vietnamese");
     expect(radios("read-in-level").find((r) => r.checked)!.value).toBe("standard");
+    // Not only color: exactly the chosen chips carry a visible tick.
+    expect([...host.querySelectorAll("[data-tick]")].map((t) => t.closest("label")!.querySelector("input")!.value)).toEqual(["Vietnamese", "standard"]);
     act(() => radios("read-in-language").find((r) => r.value === "Amharic")!.click());
     act(() => radios("read-in-level").find((r) => r.value === "detailed")!.click());
     expect(onLanguage).toHaveBeenCalledWith("Amharic");

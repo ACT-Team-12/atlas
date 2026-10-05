@@ -2,7 +2,7 @@
  * "My saved plans": several plans on this device only (localStorage). Nothing goes to our server,
  * and a location is never saved. Pure functions here; the page reads and writes localStorage.
  */
-import type { CarePlanResponse, LANGUAGES, READING_LEVELS } from "./schema";
+import { LANGUAGES, READING_LEVELS, type CarePlanResponse } from "./schema";
 import type { Barrier } from "./resources";
 import type { PlanResponse } from "./plan";
 
@@ -36,10 +36,15 @@ export type Store = { v: 2; active: string | null; plans: SavedPlan[] };
 
 export const emptyStore = (): Store => ({ v: 2, active: null, plans: [] });
 
+/** A saved value only if it is still one of the choices (an old or edited save can hold anything), else the default. */
+function oneOf<T extends string>(allowed: readonly T[], v: unknown, fallback: T): T {
+  return (allowed as readonly unknown[]).includes(v) ? (v as T) : fallback;
+}
+
 /** Only the fields we mean to keep. Anything else (a location above all) is dropped. */
 export function pickSession(s: Session): Session {
   return {
-    text: s.text ?? "", language: s.language ?? "English", level: s.level ?? "simple", care: s.care ?? null,
+    text: s.text ?? "", language: oneOf(LANGUAGES, s.language, "English"), level: oneOf(READING_LEVELS, s.level, "simple"), care: s.care ?? null,
     barriers: Array.isArray(s.barriers) ? s.barriers : [], zip: typeof s.zip === "string" ? s.zip : "", note: s.note ?? "",
     plan: s.plan ?? null, done: s.done ?? {}, removed: s.removed ?? {}, photoChecked: s.photoChecked ?? false,
     matched: s.matched === true,

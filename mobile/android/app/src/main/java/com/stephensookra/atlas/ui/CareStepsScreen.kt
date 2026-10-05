@@ -28,6 +28,13 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -55,10 +62,17 @@ import com.stephensookra.atlas.data.PaperFirst
 import com.stephensookra.atlas.data.Pip
 import com.stephensookra.atlas.data.StepsWhen
 import com.stephensookra.atlas.data.VerifiedItem
+import com.stephensookra.atlas.data.WalkThrough
 import com.stephensookra.atlas.data.WarningPin
 import com.stephensookra.atlas.services.Speaker
 import java.util.Locale
 import kotlinx.coroutines.delay
+
+/** Where "Go to this step" lands: the card's scroll position and its focus. */
+class GoTarget {
+    val view = BringIntoViewRequester()
+    val focus = FocusRequester()
+}
 
 /** What a "Remind me" button is about. */
 data class ReminderTarget(val title: String, val quote: String, val detail: String = "")
@@ -78,9 +92,29 @@ fun CareStepsScreen(model: AppModel) {
         if (cheering != null) { delay(Pip.CHEER_MILLIS); cheering = null }
     }
     var pipSaid by remember { mutableStateOf("") }
+    // "Go to this step" (the medicine card): each step card can be brought into view and focused.
+    val goTargets = remember(model.readingCount) { mutableMapOf<String, GoTarget>() }
+    val scope = rememberCoroutineScope()
+    // "Walk me through it" (WalkThroughScreen): open while set, in place of the list. Its order is fixed when it starts.
+    var walk by remember(model.readingCount) { mutableStateOf<WalkState?>(null) }
     val care = model.care
     if (care == null) {
         ScreenBody { Text("No steps yet. Go back and read your paper.", style = Type.body) }
+        return
+    }
+    // One way to mark a step done, for the list and the walk-through alike: the same saved record, Pip's cheer (only a
+    // non-quiet step, Pip.spot decides), and the end of the first-view greeting.
+    val markDone: (String, Boolean) -> Unit = { id, v ->
+        model.setDone(id, v)
+        cheering = if (v) id else null
+        if (v) greetOver = true
+    }
+    walk?.let { w ->
+        val (_, wGroups) = StepsWhen.grouped(model.items, { model.checkFor(it) }, care.source_text)
+        val wOrder = wGroups.flatMap { it.items }.map { Pip.Step(it.id, it.kind) }
+        val wDone = model.done.toMap()
+        val wSpot = Pip.spot(wOrder, wDone, { model.checkFor(it) }, cheering, Pip.greetAllowed(greetOver, wDone))
+        WalkThroughScreen(model, w, { walk = it }, wSpot, pipCalm.calm, markDone)
         return
     }
     ScreenBody {
@@ -124,11 +158,27 @@ fun CareStepsScreen(model: AppModel) {
                 listOf("${i + 1}.") + PaperFirst.lines(PaperFirst.careStep(it, model.checkFor(it.id)))
             })
         }
+        // "Walk me through it": the same steps, one at a time, in big type (web/src/lib/walkThrough.ts), starting on the
+        // first step not done.
+        if (items.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                PillButton(WalkThrough.line(model.language, WalkThrough.Line.open), onClick = {
+                    speaker.stop()
+                    val ids = items.map { it.id }
+                    val at = WalkThrough.nextOpen(ids, model.done.toMap(), 0)
+                    walk = WalkState(ids, ids[if (at < 0) 0 else at])
+                })
+                Text(tagged(WalkThrough.line(model.language, WalkThrough.Line.openHint), model.language),
+                    style = Type.caption.copy(fontWeight = FontWeight.SemiBold))
+            }
+        }
 
         // Keyed by id, so a step's open "Why?" and "Ask your pharmacist" state never moves to the next step on Remove.
         // `warning`: a pinned warning sign, which has no Pip slot at all (Pip is never on or beside them).
         val card: @Composable (VerifiedItem, Boolean) -> Unit = { item, warning -> key(model.readingCount, item.id) {
             val check = model.checkFor(item.id)
+            val target = goTargets.getOrPut(item.id) { GoTarget() }
+            Box(Modifier.bringIntoViewRequester(target.view).focusRequester(target.focus).focusable()) {
             val here = drawn.card?.takeIf { it.id == item.id }
             CareItemCard(
                 item = item,
@@ -137,18 +187,13 @@ fun CareStepsScreen(model: AppModel) {
                 checking = model.meaning.status == MeaningStatus.loading,
                 errored = model.meaning.status == MeaningStatus.error,
                 done = model.done[item.id] == true,
-                onToggleDone = {
-                    val v = model.done[item.id] != true
-                    model.setDone(item.id, v)
-                    // A done step gets Pip's short cheer (only a non-quiet one, Pip.spot decides) and ends the greeting.
-                    cheering = if (v) item.id else null
-                    if (v) greetOver = true
-                },
+                onToggleDone = { markDone(item.id, model.done[item.id] != true) },
                 // A reminder never carries the AI's title; its "when" only when certified (bookSafe in paperFirst.ts).
                 onRemind = { reminder = ReminderTarget(PaperFirst.bookTitle(item.kind), item.source_quote, PaperFirst.bookWhen(item, check)) },
                 onRemove = { model.remove(item.id) },
                 pipSlot = !warning, pip = here, pipText = if (here?.line != null) pipText else "", calm = calm,
             )
+            }
         } }
         if (warnings.isNotEmpty()) {
             StepGroupHeader("Warning signs from your paper", warnings.size,
@@ -164,6 +209,15 @@ fun CareStepsScreen(model: AppModel) {
                     PipSlot { drawn.heading?.let { mood -> key(model.readingCount, Pip.announceKey(spot)) { PipMarker(mood, calm) } } }
                 }
                 if (drawn.heading != null && pipText.isNotEmpty()) PipBubble(pipText, pointDown = spot is Pip.Spot.Greet)
+            }
+        }
+        // Above the time groups, not inside "Right away": a change or a new medicine is often daily, and the card must not
+        // file it under a time the paper does not give it.
+        MedicineChangesCard(model.items, care.source_text) { id ->
+            val target = goTargets[id] ?: return@MedicineChangesCard
+            scope.launch {
+                target.view.bringIntoView()
+                runCatching { target.focus.requestFocus() }
             }
         }
         groups.forEach { g ->
@@ -203,6 +257,12 @@ fun CareStepsScreen(model: AppModel) {
 
         // Where the website puts it: after the steps and the removed, not-in-paper and held-back lists, before moving on.
         MissedLinesSection(model.missedLines)
+
+        // "Ask my paper": answers only in the paper's own words, checked, or "your paper doesn't say". Off while the text
+        // on screen differs from the one read: it would answer from the old text. A new reading or language starts it fresh.
+        if (!model.careOutdated) {
+            key(model.readingCount, model.language, care.source_text.length) { AskPaperSection(model, care, model.language) }
+        }
 
         if (model.careOutdated) {
             PillButton("Read my paper again", onClick = { speaker.stop(); model.readPaper() },

@@ -33,6 +33,7 @@ import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
 import { failureKey, RequestFailed } from "@/lib/requestError";
+import { readPlanEvents, type PlanPreview } from "@/lib/planEvents";
 import { restoredTab, scrollTargetAfter, shownTab, type Tab } from "@/lib/phoneTabs";
 import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollElementToTop, scrollTargetY, scrollToPanel, tabId, useIsPhone, type PageScroll } from "./PhoneTabs";
@@ -128,6 +129,64 @@ async function streamExtract(body: Record<string, unknown>, onItem: (it: Verifie
     if (e instanceof StreamFailed) throw new StreamBroken(e.message);
     throw e;
   }
+}
+
+/**
+ * Builds the plan over the streaming route, calling onPreview with the checked steps so far. Throws StreamBroken when
+ * the caller should retry with the plain route (connection cut, route missing, server error), or RequestFailed, whose
+ * status picks the translated line to show (the server's own words are logged, never shown).
+ */
+async function streamPlanRequest(body: Record<string, unknown>, onPreview: (p: PlanPreview) => void, signal: AbortSignal): Promise<PlanResponse> {
+  let res: Response;
+  try {
+    res = await fetch("/api/plan/stream", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body), signal });
+  } catch (e) {
+    if (signal.aborted) throw e; // stopped on purpose: do not retry on the plain route
+    throw new StreamBroken("Network error");
+  }
+  if (!res.ok || !res.body) {
+    // 404: an older deploy without this route. 5xx: worth one try on the plain route. 503 means no AI key, so retrying won't help.
+    if (!res.body || res.status === 404 || (res.status >= 500 && res.status !== 503)) throw new StreamBroken(`HTTP ${res.status}`);
+    const json = await res.json().catch(() => null);
+    throw new RequestFailed(res.status, json?.error ?? `HTTP ${res.status}`);
+  }
+  try {
+    return await readPlanEvents(res.body, onPreview);
+  } catch (e) {
+    if (e instanceof StreamFailed && (e.status < 500 || e.status === 503)) throw new RequestFailed(e.status, e.message);
+    if (e instanceof StreamFailed) throw new StreamBroken(e.message);
+    throw e;
+  }
+}
+
+/**
+ * Plan steps shown while the plan is still being built. Each one's links were already checked against the paper's
+ * steps and the verified list. Not final: no ticks, no actions, nothing saved, nothing read aloud or printed from it.
+ */
+export function StreamingPlanSteps({ preview }: { preview: PlanPreview }) {
+  const { t, tn } = useUi();
+  const n = preview.steps.length;
+  const name = (id: string) => {
+    const r = preview.resources[id];
+    return !r ? null : r.type === "clinic" ? r.clinic.name : r.program.name;
+  };
+  return (
+    <div className="mt-6" aria-busy="true">
+      <p className="display text-2xl">{t("plan.stillBuilding")}<span className="working-dots" aria-hidden="true" /></p>
+      <p className="text-sm font-bold text-ink/70 mt-1">{tn("planStepsReady", n)} {t("plan.readyMore")}</p>
+      <ol className="mt-4 space-y-3">
+        {preview.steps.map((st, i) => (
+          <li key={i} className="step-in rounded-2xl border-2 border-ink/70 bg-paper p-4">
+            <p className="font-extrabold">{i + 1}. {st.title}</p>
+            <p className="mt-1">{st.action}</p>
+            {st.resource_ids.length > 0 && (
+              <p className="mt-2 text-sm font-bold text-ink/70">{st.resource_ids.map(name).filter(Boolean).join(" · ")}</p>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 /**
@@ -234,6 +293,9 @@ export function CarePlanTool() {
   const [loc, setLocState] = useState<{ lat: number; lng: number } | null>(null);
   const [note, setNoteState] = useState("");
   const [planning, setPlanning] = useState(false);
+  // Steps of the plan being built, for the current request only (cleared when it starts, ends or is replaced).
+  // `fp`: the answers it was built from; it is drawn only while the answers on screen still match (see the render).
+  const [planPreview, setPlanPreview] = useState<(PlanPreview & { fp: string }) | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
@@ -495,10 +557,16 @@ export function CarePlanTool() {
   const careOutdated = !!care && careFp !== null && readFingerprintFor({ text, photo, language, level }) !== careFp;
   // Not enough to read yet: "Read my paper" is off and a note says what to do first.
   const needsPaper = !photo && text.trim().length < 20;
-  const planOutdated = !!plan && planFp !== null && (careOutdated || planFingerprint({
+  // The answers on screen in this render, as a plan fingerprint.
+  const answersFp = planFingerprint({
     careIds: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id),
     barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc,
-  }) !== planFp);
+  });
+  const planOutdated = !!plan && planFp !== null && (careOutdated || answersFp !== planFp);
+  // A streamed step is drawn only in a render whose answers match the ones it was built from, so an answer changed
+  // before the stale-plan effect runs never paints an old step, not even for one frame (Codex round 2 of PR 105).
+  // And never beside a paper or reading level that changed after the plan was asked for (Codex round 3).
+  const shownPreview = planning && !careOutdated && planPreview && planPreview.fp === answersFp && planPreview.steps.length > 0 ? planPreview : null;
   // The ready cue, only for the exact result that raised it and only while that result is current.
   const cueFor: Ready | null = !ready ? null
     : ready.what === "steps" ? (care === ready.ref && !careOutdated ? "steps" : null)
@@ -702,22 +770,41 @@ export function CarePlanTool() {
     const abort = new AbortController();
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
     pendingPlan.current = { run, abort, at: performance.now(), fp: planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc }) };
-    setPlanning(true); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
+    setPlanning(true); setPlanPreview(null); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     try {
       const body = {
         care: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => ({ id: i.id, kind: i.kind, title: i.title, plain_language: i.plain_language, when: i.when, source_quote: i.source_quote })),
         barriers, language, note,
         ...(loc ? { location: loc } : /^\d{5}$/.test(zip) ? { zip } : {}),
       };
-      let res: Response;
+      // Each step is shown as soon as it is checked; only the final answer becomes the plan. The plain route is the
+      // fallback when the stream is missing or breaks (it builds the same plan in one answer). A failure is read now
+      // and judged after the staleness checks below, so a late failure for a changed plan is never shown.
+      let reply: { json: PlanResponse } | { err: unknown };
       try {
-        res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body), signal: abort.signal });
+        // A step is shown only while this request still matches the answers on screen (Codex review of PR 105): an
+        // answer changed before the stale-plan effect ran must not paint a step built from the old ones.
+        const current = () => planRun.current === run && pendingPlan.current?.run === run && pendingPlan.current.fp === livePlanFp();
+        reply = { json: await streamPlanRequest(body, (p) => { if (current()) setPlanPreview({ ...p, fp: pendingPlan.current!.fp }); }, abort.signal) };
       } catch (e) {
         if (abort.signal.aborted) throw e;
-        throw new RequestFailed(0, "Network error");
+        if (!(e instanceof StreamBroken)) reply = { err: e };
+        else {
+          if (planRun.current === run) setPlanPreview(null);
+          if (pendingPlan.current?.run === run && pendingPlan.current.fp !== livePlanFp()) return stopStalePlan(); // no plain retry for old answers
+          // Nor for a paper changed since (Codex round 4 of PR 105): the retry would spend a model call on the old paper.
+          const l = live.current;
+          if (careFp !== null && readFingerprintFor({ text: l.text, photo: l.photo, language: l.language, level: l.level }) !== careFp) return stopStalePlan();
+          let res: Response;
+          try {
+            res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body), signal: abort.signal });
+          } catch (err) {
+            if (abort.signal.aborted) throw err;
+            throw new RequestFailed(0, "Network error");
+          }
+          reply = await replyJson<PlanResponse>(res).then((json) => ({ json }), (err: unknown) => ({ err }));
+        }
       }
-      // Read now, judged after the staleness checks below: a late failure for a changed plan is never shown.
-      const reply = await replyJson<PlanResponse>(res).then((json) => ({ json }), (err: unknown) => ({ err }));
       if (planRun.current !== run) return; // a new read, a clear, or a changed answer happened meanwhile
       const sent = pendingPlan.current;
       if (!sent || sent.run !== run) return;
@@ -738,7 +825,7 @@ export function CarePlanTool() {
       console.error("plan failed", e instanceof RequestFailed ? e.status : "", e instanceof Error ? e.message : e);
       setError(t(failureKey(e, "plan")));
     }
-    finally { if (planRun.current === run) setPlanning(false); }
+    finally { if (planRun.current === run) { setPlanning(false); setPlanPreview(null); } }
   }
 
   // Asking again drops the old position at once: a plan built from it is outdated until this request answers.
@@ -1295,7 +1382,7 @@ export function CarePlanTool() {
             </SquashButton>
             {needsPhotoCheck && <p className="mt-3 text-sm font-bold text-ink/70">{t("needs.checkPhotoFirst")}</p>}
             {planNote && <p role="status" className="mt-3 rounded-2xl border-2 border-sun bg-paper p-3 text-sm font-bold">{planNote}</p>}
-            {planning && <WorkingCard kind="plan" />}
+            {planning && (shownPreview ? <StreamingPlanSteps preview={shownPreview} /> : <WorkingCard kind="plan" />)}
           </div>
         </div>
 

@@ -12,6 +12,7 @@ import type { CarePlanResponse } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { CarePlanTool } from "./CarePlanTool";
 import { ui, type UiKey } from "@/lib/uiText";
+import { failureKey, RequestFailed } from "@/lib/requestError";
 import { CHECK_POLICY, checksKey } from "@/lib/savedPlans";
 import { SAMPLE_AVS } from "@/lib/sample";
 import { TRY_SAMPLE_EVENT } from "@/lib/sampleStart";
@@ -72,6 +73,7 @@ beforeEach(() => {
     const url = String(input);
     fetchCalls.push({ url, body: init?.body ? JSON.parse(String(init.body)) : {}, method: init?.method ?? "GET", hasBody: init?.body != null });
     if (url === "/api/extract/stream") return Promise.resolve(new Response(null, { status: 404 })); // older deploy: use the plain route
+    if (url === "/api/plan/stream") return Promise.resolve(new Response(null, { status: 404 })); // older deploy: use the plain route
     if (url === "/api/meaning") return Promise.resolve(json({ results: [] }));
     const queue = pending[url];
     if (queue?.length) return queue.shift()!.promise;
@@ -1299,5 +1301,122 @@ describe("Try it with a sample lands with the sample in and Read my paper in vie
       expect(scrolls).not.toContain("read-my-paper");
       expect(document.activeElement).toBe(paperBox());
     });
+  });
+});
+
+describe("the plan streams in, step by step", () => {
+  const step = (title: string, action: string) => ({ title, action, why: "", barrier: "transport", care_ids: [], resource_ids: ["g1"], dropped_refs: [] });
+  const resources = { g1: { type: "program", id: "g1", program: { id: "g1", name: "Ride Program", barriers: [], access: {}, languages: [], evidence_quote: "", source_url: "" } } };
+  const located = { by: "none", label: "No location given" };
+  const line = (e: unknown) => new TextEncoder().encode(JSON.stringify(e) + "\n");
+
+  /** Answers /api/plan/stream with a body the test writes to, line by line. */
+  function openStream() {
+    let ctl!: ReadableStreamDefaultController<Uint8Array>;
+    const body = new ReadableStream<Uint8Array>({ start(c) { ctl = c; } });
+    const base = fetch;
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) !== "/api/plan/stream") return base(input, init);
+      fetchCalls.push({ url: "/api/plan/stream", body: JSON.parse(String(init?.body)) });
+      return Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "application/x-ndjson" } }));
+    });
+    return {
+      send: async (e: unknown) => { await act(async () => { ctl.enqueue(line(e)); await drain(); }); },
+      cut: async () => { await act(async () => { ctl.error(new Error("connection reset")); await drain(); }); },
+      end: async () => { await act(async () => { try { ctl.close(); } catch { /* the page already let go of it */ } await drain(); }); },
+    };
+  }
+
+  it("shows each checked step as it comes, with its verified place, and only the final answer becomes the plan", async () => {
+    const s = openStream();
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    expect(screenText()).not.toContain("Still building your plan"); // nothing to show yet: the working card stays
+    await s.send({ type: "step", step: step("Get a ride", "Call the ride program the day before.") });
+    expect(screenText()).toContain("Still building your plan");
+    expect(screenText()).toContain("1 step ready so far");
+    expect(screenText()).toContain("Get a ride");
+    expect(screenText()).toContain("Ride Program");
+    await s.send({ type: "step", step: step("Book the lab", "Ask for an early slot.") });
+    expect(screenText()).toContain("2 steps ready so far");
+    // Nothing is saved or offered from the preview.
+    expect(Object.values({ ...localStorage }).join("")).not.toContain("Get a ride");
+    const final = { ...planFor("Your streamed plan"), steps: [step("Get a ride", "Call the ride program the day before."), step("Book the lab", "Ask for an early slot.")], resources };
+    await s.send({ type: "done", plan: final });
+    await s.end();
+    expect(screenText()).not.toContain("Still building your plan");
+    expect(screenText()).toContain("Your streamed plan");
+    expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(0);
+  });
+
+  it("a stream cut mid-plan drops the preview and builds the plan on the plain route", async () => {
+    const s = openStream();
+    act(() => byText("Getting there").click());
+    const plain = hold("/api/plan");
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    await s.send({ type: "step", step: step("Half a plan", "Never finished.") });
+    await s.cut();
+    expect(screenText()).not.toContain("Half a plan");
+    expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(1);
+    await release(plain, ready(planFor("Plan from the plain route")));
+    expect(screenText()).toContain("Plan from the plain route");
+  });
+
+  it("an answer changed while it streams: the old steps leave the screen and nothing from them lands", async () => {
+    const s = openStream();
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    await s.send({ type: "step", step: step("Old answers step", "From before the change.") });
+    act(() => byText("Paying for the visit").click()); // a changed answer stops the plan
+    expect(screenText()).not.toContain("Old answers step");
+    expect(screenText()).toContain("You changed your answers, so we stopped building the plan.");
+  });
+
+  it("the paper is edited while the plan streams: steps from the old paper leave the screen (Codex round 3)", async () => {
+    const s = openStream();
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    await s.send({ type: "step", step: step("Old paper step", "From the paper before the edit.") });
+    expect(screenText()).toContain("Old paper step");
+    act(() => typeInto(paperBox(), PAPER + " Also check your feet daily."));
+    expect(screenText()).not.toContain("Old paper step");
+  });
+
+  it("the paper is edited, then the stream breaks: no retry on the old paper (Codex round 4)", async () => {
+    const s = openStream();
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    act(() => typeInto(paperBox(), PAPER + " Also check your feet daily."));
+    await s.cut();
+    expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(0);
+  });
+
+  it("the server's own error is shown, not retried, and steps already shown leave the screen", async () => {
+    const s = openStream();
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    await s.send({ type: "step", step: step("Shown then declined", "Never part of a plan.") });
+    expect(screenText()).toContain("Shown then declined");
+    await s.send({ type: "error", error: "The AI declined to build this plan.", status: 422 });
+    await s.end();
+    // The person sees the app's own line for a refused plan (PR 93); the server's English words are only logged.
+    expect(screenText()).toContain(ui("English", failureKey(new RequestFailed(422, ""), "plan")));
+    expect(screenText()).not.toContain("The AI declined to build this plan.");
+    expect(screenText()).not.toContain("Shown then declined"); // a preview step never outlives a failed plan
+    expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(0);
   });
 });

@@ -36,6 +36,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
     const url = String(input);
     if (url === "/api/extract/stream") return Promise.resolve(new Response(null, { status: 404 }));
+    if (url === "/api/plan/stream") return Promise.resolve(new Response(null, { status: 404 })); // older deploy: use the plain route
     if (url === "/api/extract") return Promise.resolve(ready(fresh(CARE)));
     if (url === "/api/meaning") return Promise.resolve(ready({ results: [] }));
     if (url === "/api/plan") return Promise.resolve(ready(fresh(PLAN)));

@@ -51,25 +51,29 @@ fun BarriersScreen(model: AppModel) {
     val context = LocalContext.current
     val focus = LocalFocusManager.current
     val scope = rememberCoroutineScope()
-    var locating by remember { mutableStateOf(false) }
+    // Held by the model, so a plan already running is stopped when the place starts to change (as on the website).
+    val locating = model.locating
 
     fun locate() {
-        locating = true
+        // Numbered by the model, so a late result never overwrites a ZIP typed meanwhile.
+        val run = model.beginLocating()
         scope.launch {
+            var point: LatLng? = null
+            var failure: String? = null
             try {
                 val fix = LocationProvider.current(context)
                 if (fix == null) {
-                    model.error = LocationProvider.UNAVAILABLE
+                    failure = LocationProvider.UNAVAILABLE
                     return@launch
                 }
-                val point = LatLng(fix.latitude, fix.longitude)
-                if (!point.isInServiceArea) {
-                    model.error = LocationProvider.OUTSIDE
+                val found = LatLng(fix.latitude, fix.longitude)
+                if (!found.isInServiceArea) {
+                    failure = LocationProvider.OUTSIDE
                     return@launch
                 }
-                model.useLocation(point)
+                point = found
             } finally {
-                locating = false
+                model.finishLocating(run, point, failure)
             }
         }
     }

@@ -29,6 +29,29 @@ struct APIClient: Sendable {
         try await post("/api/results", body: ResultsRequest(text: text, language: language))
     }
 
+    /// "Ask my paper" (web/src/app/api/ask): the same body the website sends. The answer is read here; a refusal by the
+    /// server comes back as its status and its x-atlas-limit header, so the screen can show fixed words in the person's
+    /// language instead of the server's English. Network failures throw, as for every other call.
+    func ask(sourceText: String, language: Language, question: String) async throws -> AskOutcome {
+        let req = try request("/api/ask", body: AskRequest(source_text: sourceText, language: language, question: question))
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: req)
+        } catch is CancellationError {
+            throw APIError.cancelled
+        } catch let error as URLError {
+            if error.code == .cancelled { throw APIError.cancelled }
+            throw APIError.message("We could not reach ATLAS. Check your internet connection and try again.")
+        }
+        guard let http = response as? HTTPURLResponse else { throw APIError.message("Something went wrong. Try again.") }
+        guard (200..<300).contains(http.statusCode) else {
+            return .refused(status: http.statusCode, limit: http.value(forHTTPHeaderField: "x-atlas-limit"))
+        }
+        guard let answer = AskPaper.decode(data) else { throw APIError.message("bad answer") }
+        return .answer(answer)
+    }
+
     /// The request as sent: JSON body, the surface header on every call, plus any extra headers.
     func request<Body: Encodable>(_ path: String, body: Body, headers: [String: String] = [:]) throws -> URLRequest {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))
@@ -67,6 +90,19 @@ struct APIClient: Sendable {
             throw APIError.message("ATLAS sent back something this app could not read. Try again.")
         }
     }
+}
+
+/// The body of POST /api/ask (AskRequestSchema in web/src/lib/ask.ts).
+struct AskRequest: Encodable, Sendable {
+    let source_text: String
+    let language: Language
+    let question: String
+}
+
+/// What /api/ask gave back: an answer to show, or a refusal (rate limit, daily cap, no AI key, bad request).
+enum AskOutcome: Equatable, Sendable {
+    case answer(AskPaper.Response)
+    case refused(status: Int, limit: String?)
 }
 
 enum APIError: Error, Equatable, LocalizedError {

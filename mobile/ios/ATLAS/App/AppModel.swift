@@ -15,21 +15,56 @@ enum TextSource: String, Codable, Sendable {
 @Observable
 final class AppModel {
     // Inputs
-    var text = "" { didSet { persist() } }
+    // Every input a read or a plan is built from also stops that read or plan when it changes while it runs
+    // (stopStaleWork), as the website does: its reply would no longer match what is on screen.
+    var text = "" { didSet { persist(); stopStaleWork() } }
     var textSource: TextSource = .typed
-    var language: Language = .English { didSet { persist() } }
-    var level: ReadingLevel = .simple { didSet { persist() } }
-    var barriers: [Barrier] = [] { didSet { persist() } }
-    var zip = "" { didSet { persist() } }
-    var note = "" { didSet { persist() } }
+    var language: Language = .English { didSet { persist(); stopStaleWork() } }
+    var level: ReadingLevel = .simple { didSet { persist(); stopStaleWork() } }
+    var barriers: [Barrier] = [] { didSet { persist(); stopStaleWork() } }
+    var zip = "" { didSet { persist(); stopStaleWork() } }
+    var note = "" { didSet { persist(); stopStaleWork() } }
     /// Device location for the plan request only. Never saved.
-    var location: LatLng?
+    var location: LatLng? { didSet { stopStaleWork() } }
+    /// A device location lookup is running (planPlace's "locating" on the website): the place is changing, so a plan sent
+    /// before it is stopped, and no plan starts until the lookup ends. Never saved.
+    var locating = false { didSet { stopStaleWork() } }
+    /// Moved by every lookup started and by every other change of place (a ZIP typed, a helper link's ZIP, Clear), so a
+    /// late lookup result never overwrites a newer choice.
+    @ObservationIgnored private var locationRun = 0
+
+    /// "Use my location" started. Returns the lookup's number, to hand back with its result.
+    func beginLocating() -> Int {
+        locationRun += 1
+        locating = true
+        return locationRun
+    }
+
+    /// A lookup ended, with a point in the service area, or nil and why not. Applied only if no newer lookup or place
+    /// replaced it: a replaced lookup's failure is not shown either.
+    func finishLocating(_ run: Int, point: LatLng?, failure: String? = nil) {
+        guard run == locationRun else { return }
+        locating = false
+        if let failure { error = failure }
+        if let point {
+            location = point
+            zip = ""
+        }
+    }
+
+    /// The person typed a ZIP: it replaces the device location and any lookup still running.
+    func typeZip(_ value: String) {
+        locationRun += 1
+        locating = false
+        zip = String(value.filter(\.isNumber).prefix(5))
+        location = nil
+    }
 
     // Results. A read, a plan, or a step done, removed or restored moves the saved time "Welcome back" shows.
     var care: CarePlanResponse? { didSet { persist(planChanged: true) } }
     var plan: PlanResponse? { didSet { persist(planChanged: true) } }
     var done: [String: Bool] = [:] { didSet { persist(planChanged: true) } }
-    var removed: [String: Bool] = [:] { didSet { persist(planChanged: true) } }
+    var removed: [String: Bool] = [:] { didSet { persist(planChanged: true); stopStaleWork() } }
     var restoredAt: Date?
     /// The second-model double-check of `care` (paper first: only a certified explanation may lead).
     private(set) var meaning: MeaningState = .idle { didSet { persist() } }
@@ -55,6 +90,53 @@ final class AppModel {
     var path: [Route] = []
     var busy: Busy?
     var error: String?
+    /// Why a read or plan was stopped because its inputs changed while it ran (readNote / planNote on the website).
+    var notice: String?
+    /// The inputs the read or plan now running was sent with (StaleGuard fingerprints). Its reply is applied only while
+    /// the inputs on screen still give the same fingerprint.
+    @ObservationIgnored private var inFlightReadFingerprint: String?
+    @ObservationIgnored private var inFlightPlanFingerprint: String?
+
+    /// The words the website shows when it stops a read or plan whose inputs changed (stopStaleRead, stopStalePlan).
+    static let readStopped = "You changed your paper or settings, so we stopped reading. Press Read my paper again when ready."
+    static let planStopped = "You changed your answers, so we stopped building the plan. Press Make my plan again when ready."
+
+    /// A read or plan in flight whose inputs changed is stopped and its late reply ignored, with a short note why.
+    private func stopStaleWork() {
+        guard !restoring else { return }
+        if busy == .reading, let sent = inFlightReadFingerprint,
+           sent != StaleGuard.readFingerprint(text: text, language: language, level: level) {
+            cancel()
+            notice = Self.readStopped
+        } else if busy == .planning, let sent = inFlightPlanFingerprint, sent != currentPlanFingerprint() {
+            cancel()
+            notice = Self.planStopped
+        }
+    }
+
+    /// The person chose to look around while a read or plan runs (the busy card is put away). When the result lands they
+    /// are not moved; the ready cue offers the way there instead. Not saved.
+    var lookingAround = false
+    /// The result that raised the ready cue (ReadyCue), if any. Not saved.
+    private(set) var readyMark: ReadyCue.Mark?
+    /// Counts the plans built in this run of the app, so the cue belongs to one exact plan. Not saved.
+    private(set) var planCount = 0
+
+    /// The ready cue to float on screen now (cueFor on the website), or nil.
+    var readyCue: ReadyCue.What? {
+        ReadyCue.shown(readyMark, readingCount: readingCount, planCount: planCount, careCurrent: care != nil && !careOutdated,
+                       planCurrent: plan != nil && !planOutdated, top: path.last)
+    }
+
+    /// "Show me" on the ready cue.
+    func showReady() {
+        guard let what = readyCue else { return }
+        readyMark = nil
+        path = ReadyCue.path(showing: what, from: path)
+    }
+
+    /// The person opened the result themselves: the cue is no longer needed.
+    func clearReady() { readyMark = nil }
 
     enum Busy: Equatable { case recognizing, reading, planning }
 
@@ -84,7 +166,7 @@ final class AppModel {
         Dictionary((care?.items ?? []).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
     }
     var canRead: Bool { text.trimmingCharacters(in: .whitespacesAndNewlines).count > 20 && busy == nil }
-    var canPlan: Bool { busy == nil && !(barriers.isEmpty && items.isEmpty) && !careOutdated }
+    var canPlan: Bool { busy == nil && !locating && !(barriers.isEmpty && items.isEmpty) && !careOutdated }
 
     func check(for id: String) -> Check { meaning.check(for: id) }
 
@@ -124,7 +206,7 @@ final class AppModel {
 
     private func currentPlanFingerprint() -> String {
         StaleGuard.planFingerprint(careIds: items.map(\.id), barriers: barriers, language: language, note: note,
-                                   place: StaleGuard.place(location: location, zip: zip), location: location)
+                                   place: locating ? "locating" : StaleGuard.place(location: location, zip: zip), location: location)
     }
 
     // MARK: Helper links
@@ -140,7 +222,7 @@ final class AppModel {
     func applyHelperLink(_ p: HelperPresets) {
         if let l = p.language { language = l }
         if let l = p.level { level = l }
-        if let z = p.zip { zip = z; location = nil }
+        if let z = p.zip { locationRun += 1; locating = false; zip = z; location = nil }
         helperBanner = HelperLink.banner(p)
         fromHelperLink = true
         // Show the first screen, where the banner is.
@@ -197,14 +279,24 @@ final class AppModel {
     func readPaper() {
         guard canRead else { return }
         cancel()
+        readyMark = nil
         error = nil
+        notice = nil
         busy = .reading
         let text = self.text, level = self.level, language = self.language
+        let sentFingerprint = StaleGuard.readFingerprint(text: text, language: language, level: level)
+        inFlightReadFingerprint = sentFingerprint
         let run = taskID
         task = Task {
             do {
                 var result = try await api.extract(text: text, level: level, language: language)
                 guard run == taskID else { return }
+                // Changed after sending: the reply is for inputs no longer on screen, so nothing of it is applied.
+                guard sentFingerprint == StaleGuard.readFingerprint(text: self.text, language: self.language, level: self.level) else {
+                    cancel()
+                    notice = Self.readStopped
+                    return
+                }
                 // An older server leaves out the language; the steps were still written in the one asked for.
                 if result.language == nil { result.language = language }
                 readFingerprint = StaleGuard.readFingerprint(text: text, language: language, level: level)
@@ -217,10 +309,11 @@ final class AppModel {
                 restoredAt = nil
                 busy = nil
                 startMeaningCheck(for: result, language: result.language ?? language)
-                if path.last != .steps { path.append(.steps) }
+                arrived(.steps, run: readingCount)
             } catch {
                 guard run == taskID else { return }
                 busy = nil
+                lookingAround = false
                 if (error as? APIError) != .cancelled { self.error = error.localizedDescription }
             }
         }
@@ -229,10 +322,13 @@ final class AppModel {
     func makePlan() {
         guard canPlan else { return }
         cancel()
+        readyMark = nil
         error = nil
+        notice = nil
         busy = .planning
         let validZip = zip.range(of: #"^\d{5}$"#, options: .regularExpression) != nil
         let fingerprint = currentPlanFingerprint()
+        inFlightPlanFingerprint = fingerprint
         let viaHelper = fromHelperLink
         let request = PlanRequest(
             care: items.map(PlanCareInput.init),
@@ -247,18 +343,32 @@ final class AppModel {
             do {
                 let result = try await api.plan(request, fromHelperLink: viaHelper)
                 guard run == taskID else { return }
+                // Changed after sending: the reply is for inputs no longer on screen, so nothing of it is applied.
+                guard fingerprint == currentPlanFingerprint() else {
+                    cancel()
+                    notice = Self.planStopped
+                    return
+                }
                 planFingerprint = fingerprint
                 plan = result
+                planCount += 1
                 // One link counts at most one plan (helperLink.ts consumeHelperSession).
                 if viaHelper { fromHelperLink = false }
                 busy = nil
-                if path.last != .plan { path.append(.plan) }
+                arrived(.plan, run: planCount)
             } catch {
                 guard run == taskID else { return }
                 busy = nil
+                lookingAround = false
                 if (error as? APIError) != .cancelled { self.error = error.localizedDescription }
             }
         }
+    }
+
+    /// "Ask my paper" (AskPaperView): one question about the paper on screen. Nothing is saved, not the question and
+    /// not the answer.
+    func askPaper(sourceText: String, language: Language, question: String) async throws -> AskOutcome {
+        try await api.ask(sourceText: sourceText, language: language, question: question)
     }
 
     /// Runs the second check for `forCare`. Its reply is applied only while the run is current and `care` is still
@@ -296,6 +406,22 @@ final class AppModel {
         task?.cancel()
         task = nil
         busy = nil
+        lookingAround = false
+        inFlightReadFingerprint = nil
+        inFlightPlanFingerprint = nil
+    }
+
+    /// A read or plan landed. If the person stayed with it, take them there, as before. If they chose to look around,
+    /// leave them where they are and raise the ready cue for this exact result instead.
+    private func arrived(_ what: ReadyCue.What, run: Int) {
+        let route = ReadyCue.route(what)
+        if lookingAround && path.last != route {
+            readyMark = ReadyCue.Mark(what: what, run: run)
+        } else {
+            readyMark = nil
+            if path.last != route { path.append(route) }
+        }
+        lookingAround = false
     }
 
     func toggle(_ barrier: Barrier) {
@@ -342,12 +468,15 @@ final class AppModel {
         cancel()
         cancelMeaning()
         helperBanner = nil; fromHelperLink = false
+        readyMark = nil
         store.clear()
         restoring = true
         meaning = .idle; readFingerprint = nil; planFingerprint = nil; planChangedAt = nil
         text = ""; care = nil; plan = nil; barriers = []; zip = ""; note = ""; done = [:]; removed = [:]
         restoring = false
         location = nil
+        locationRun += 1
+        locating = false
         restoredAt = nil
         path = []
         await Reminders.removeAll()

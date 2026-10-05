@@ -85,11 +85,27 @@ export function mergeNearest<T extends { clinic: Clinic; km: number }>(list: T[]
   }).slice(0, n);
 }
 
-export async function buildPlan(req: PlanRequest): Promise<PlanResponse> {
+/** Everything decided before the model is asked: the verified resources and where they are for. */
+export type PlanContext = {
+  req: PlanRequest;
+  t0: number;
+  located: PlanResponse["located"];
+  resources: Record<string, ResourceCard>;
+  careIds: Set<string>;
+  resourceIds: Set<string>;
+  /** The ids we sent the model (care steps and verified resources): the only ones cleanPlanText trusts. */
+  allIds: string[];
+  catalog: Record<string, unknown>[];
+};
+
+export function makePlanClient(): Anthropic {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
-  const t0 = Date.now();
+  return new Anthropic({ apiKey });
+}
 
+/** Locates the person and picks the verified resources. No AI is involved; the model only chooses among these. */
+export function preparePlan(req: PlanRequest, t0 = Date.now()): PlanContext {
   let loc: { lat: number; lng: number } | null = null;
   let located: PlanResponse["located"] = { by: "none", label: "No location given" };
   // No location at all: ATLAS is Atlanta-first, so metro programs stay on the list.
@@ -132,57 +148,74 @@ export async function buildPlan(req: PlanRequest): Promise<PlanResponse> {
       : { id: r.id, type: "program", name: r.program.name, helps_with: r.program.barriers, verified_quote: r.program.evidence_quote,
           languages: r.program.languages },
   );
+  // The ids are for linking only. Only ids we sent count (the request's care steps and the verified resources), never
+  // ids the model made up: a made-up "A1c" would otherwise wipe that word from the plan (planText.ts).
+  return { req, t0, located, resources, careIds, resourceIds, allIds: [...careIds, ...resourceIds], catalog };
+}
 
-  const client = new Anthropic({ apiKey });
-  const msg = await client.messages.parse({
+/** The request to the model, the same for the plain and the streaming route. */
+export function planParams(ctx: PlanContext) {
+  const { req } = ctx;
+  return {
     model: MODEL,
     max_tokens: 8000,
     system: SYSTEM,
-    output_config: { effort: "low", format: zodOutputFormat(ModelPlan) },
+    output_config: { effort: "low" as const, format: zodOutputFormat(ModelPlan) },
     messages: [
       {
-        role: "user",
+        role: "user" as const,
         content: JSON.stringify({
           language: req.language,
           barriers: req.barriers.map((b) => ({ id: b, label: BARRIER_LABEL[b] })),
           note_from_person: req.note,
-          location: located.label,
+          location: ctx.located.label,
           care_steps_from_paper: req.care.map((c) => ({ id: c.id, kind: c.kind, title: c.title, what: c.plain_language, when: c.when, quote: c.source_quote })),
-          verified_resources: catalog,
+          verified_resources: ctx.catalog,
         }),
       },
     ],
-  });
-  if (msg.stop_reason === "refusal") throw new ExtractError("The AI declined to build this plan.", 422);
-  const parsed = ModelPlan.safeParse(msg.parsed_output);
+  };
+}
+
+export const ModelStep = ModelPlan.shape.steps.element;
+
+/**
+ * One step from the model, checked: every id must exist in what we sent (unknown ids are dropped and counted, never
+ * shown), the barrier label must be one the person picked, and a step left linking nothing is dropped (null). The
+ * person's text never carries an id: this runs before /api/plan signs the read-aloud text, so the screen, the voice,
+ * the call, share, print and the handoff sheet all get the clean words. The streaming route shows exactly this.
+ */
+export function groundStep(ctx: PlanContext, s: z.infer<typeof ModelStep>): PlanStep | null {
+  const bad = [...s.care_ids.filter((id) => !ctx.careIds.has(id)), ...s.resource_ids.filter((id) => !ctx.resourceIds.has(id))];
+  const barrier = (ctx.req.barriers as string[]).includes(s.barrier) ? s.barrier : "";
+  const step: PlanStep = { ...s, barrier, care_ids: s.care_ids.filter((id) => ctx.careIds.has(id)), resource_ids: s.resource_ids.filter((id) => ctx.resourceIds.has(id)), dropped_refs: bad };
+  if (step.care_ids.length + step.resource_ids.length === 0) return null;
+  return cleanPlanText({ summary: "", ask_a_person_reason: "", steps: [step] }, ctx.allIds).steps[0];
+}
+
+/** Checks the model's finished output and builds the plan. Both routes return exactly this. */
+export function finishPlan(ctx: PlanContext, output: unknown, stopReason: string | null | undefined): PlanResponse {
+  if (stopReason === "refusal") throw new ExtractError("The AI declined to build this plan.", 422);
+  const parsed = ModelPlan.safeParse(output);
   if (!parsed.success) throw new ExtractError("The AI returned a malformed plan. Try again.", 502);
-
-  // Grounding check: every id must exist in what we sent. Unknown ids are dropped and counted, never shown.
-  let dropped = 0;
-  const steps: PlanStep[] = parsed.data.steps
-    .map((s) => {
-      const bad = [...s.care_ids.filter((id) => !careIds.has(id)), ...s.resource_ids.filter((id) => !resourceIds.has(id))];
-      dropped += bad.length;
-      // The barrier label must be one the person actually picked; anything else (or blank) is cleared.
-      const barrier = (req.barriers as string[]).includes(s.barrier) ? s.barrier : "";
-      return { ...s, barrier, care_ids: s.care_ids.filter((id) => careIds.has(id)), resource_ids: s.resource_ids.filter((id) => resourceIds.has(id)), dropped_refs: bad };
-    })
-    .filter((s) => s.care_ids.length + s.resource_ids.length > 0);
-
-  // The ids are for linking only. Whatever the prompt says, none reaches the person's text (planText.ts): this runs
-  // before /api/plan signs the read-aloud text, so the screen, the voice, the call, share, print and the handoff sheet
-  // all get the clean words. Only ids we sent count (the request's care steps and the verified resources), never ids
-  // the model made up: a made-up "A1c" would otherwise wipe that word from the plan. Made-up item-N ids are still
-  // caught by their shape.
-  const allIds = [...careIds, ...resourceIds];
+  // Dropped refs count every unknown id, including those of a step that was then dropped for linking nothing.
+  const dropped = parsed.data.steps.reduce((n, s) => n + s.care_ids.filter((id) => !ctx.careIds.has(id)).length + s.resource_ids.filter((id) => !ctx.resourceIds.has(id)).length, 0);
+  const steps = parsed.data.steps.map((s) => groundStep(ctx, s)).filter((s): s is PlanStep => s !== null);
   return cleanPlanText({
     summary: parsed.data.summary,
     steps,
-    resources,
+    resources: ctx.resources,
     ask_a_person: parsed.data.ask_a_person,
     ask_a_person_reason: parsed.data.ask_a_person_reason,
-    located,
-    stats: { candidates: resourceIds.size, steps: steps.length, dropped_refs: dropped, ms: Date.now() - t0 },
+    located: ctx.located,
+    stats: { candidates: ctx.resourceIds.size, steps: steps.length, dropped_refs: dropped, ms: Date.now() - ctx.t0 },
     model: MODEL,
-  }, allIds);
+  }, ctx.allIds);
+}
+
+export async function buildPlan(req: PlanRequest): Promise<PlanResponse> {
+  const client = makePlanClient();
+  const ctx = preparePlan(req);
+  const msg = await client.messages.parse(planParams(ctx));
+  return finishPlan(ctx, msg.parsed_output, msg.stop_reason);
 }

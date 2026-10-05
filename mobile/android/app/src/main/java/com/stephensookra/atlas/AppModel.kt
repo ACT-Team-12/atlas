@@ -30,6 +30,7 @@ import com.stephensookra.atlas.data.PlanCareInput
 import com.stephensookra.atlas.data.PlanRequest
 import com.stephensookra.atlas.data.PlanResponse
 import com.stephensookra.atlas.data.ReadingLevel
+import com.stephensookra.atlas.data.ReadyCue
 import com.stephensookra.atlas.data.Sample
 import com.stephensookra.atlas.data.SavedSession
 import com.stephensookra.atlas.data.SessionStore
@@ -37,7 +38,9 @@ import com.stephensookra.atlas.data.VerifiedItem
 import com.stephensookra.atlas.data.WarningPin
 import com.stephensookra.atlas.services.Reminders
 import com.stephensookra.atlas.services.TextReader
+import com.stephensookra.atlas.data.AtlasApi
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -48,8 +51,16 @@ enum class TextSource { Scan, Photo, Typed, Sample }
 
 enum class Busy { Recognizing, Reading, Planning }
 
-class AppModel(app: Application) : AndroidViewModel(app) {
-    private val api = ApiClient()
+/**
+ * `api` and `workScope` are for tests only (a stand-in server and a scope that runs without Android's main thread); the
+ * app uses the live server and viewModelScope.
+ */
+class AppModel @JvmOverloads constructor(
+    app: Application,
+    private val api: AtlasApi = ApiClient(),
+    private val workScope: CoroutineScope? = null,
+) : AndroidViewModel(app) {
+    private val scope: CoroutineScope get() = workScope ?: viewModelScope
     private val store = SessionStore(app.filesDir)
     private var restoring = false
     private var task: Job? = null
@@ -70,6 +81,38 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         private set
     /** Device location for the plan request only. Never saved. */
     var location by mutableStateOf<LatLng?>(null)
+    /**
+     * A device location lookup is running (planPlace's "locating" on the website): the place is changing, so a plan sent
+     * before it is stopped, and no plan starts until the lookup ends. Never saved.
+     */
+    var locating by mutableStateOf(false)
+        private set
+
+    /**
+     * Moved by every lookup started and by every other change of place (a ZIP typed, a helper link's ZIP, Clear), so a
+     * late lookup result never overwrites a newer choice.
+     */
+    private var locationRun = 0
+
+    fun updateLocating(v: Boolean) { locating = v; stopStaleWork() }
+
+    /** "Use my location" started. Returns the lookup's number, to hand back with its result. */
+    fun beginLocating(): Int {
+        locationRun++
+        updateLocating(true)
+        return locationRun
+    }
+
+    /**
+     * A lookup ended, with a point in the service area, or null and why not. Applied only if no newer lookup or place
+     * replaced it: a replaced lookup's failure is not shown either.
+     */
+    fun finishLocating(run: Int, point: LatLng?, failure: String? = null) {
+        if (run != locationRun) return
+        updateLocating(false)
+        if (failure != null) error = failure
+        if (point != null) useLocation(point)
+    }
 
     // Results
     var care by mutableStateOf<CarePlanResponse?>(null)
@@ -110,6 +153,74 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     var busy by mutableStateOf<Busy?>(null)
         private set
     var error by mutableStateOf<String?>(null)
+    /** Why a read or plan was stopped because its inputs changed while it ran (readNote / planNote on the website). */
+    var notice by mutableStateOf<String?>(null)
+    /**
+     * The inputs the read or plan now running was sent with (StaleGuard fingerprints). Its reply is applied only while
+     * the inputs on screen still give the same fingerprint.
+     */
+    private var inFlightReadFp: String? = null
+    private var inFlightPlanFp: String? = null
+
+    companion object {
+        /** The words the website shows when it stops a read or plan whose inputs changed (stopStaleRead, stopStalePlan). */
+        const val READ_STOPPED = "You changed your paper or settings, so we stopped reading. Press Read my paper again when ready."
+        const val PLAN_STOPPED = "You changed your answers, so we stopped building the plan. Press Make my plan again when ready."
+    }
+
+    /** A read or plan in flight whose inputs changed is stopped and its late reply ignored, with a short note why. */
+    private fun stopStaleWork() {
+        if (restoring) return
+        val read = inFlightReadFp
+        val planFpSent = inFlightPlanFp
+        if (busy == Busy.Reading && read != null && read != StaleGuard.readFingerprint(text, language, level)) {
+            cancel(); notice = READ_STOPPED
+        } else if (busy == Busy.Planning && planFpSent != null && planFpSent != currentPlanFingerprint()) {
+            cancel(); notice = PLAN_STOPPED
+        }
+    }
+
+    /**
+     * The person chose to look around while a read or plan runs (the busy card is put away). When the result lands they
+     * are not moved; the ready cue offers the way there instead. Not saved.
+     */
+    var lookingAround by mutableStateOf(false)
+    /** The result that raised the ready cue (ReadyCue), if any. Not saved. */
+    var readyMark by mutableStateOf<ReadyCue.Mark?>(null)
+        private set
+    /** Counts the plans built in this run of the app, so the cue belongs to one exact plan. Not saved. */
+    var planCount by mutableStateOf(0)
+        private set
+
+    /** The ready cue to float on screen now (cueFor on the website), or null. */
+    val readyCue: ReadyCue.What?
+        get() = ReadyCue.shown(readyMark, readingCount, planCount, care != null && !careOutdated, plan != null && !planOutdated, path.lastOrNull())
+
+    /** "Show me" on the ready cue. */
+    fun showReady() {
+        val what = readyCue ?: return
+        readyMark = null
+        val next = ReadyCue.path(what, path.toList())
+        path.clear(); path.addAll(next)
+    }
+
+    /** The person opened the result themselves: the cue is no longer needed. */
+    fun clearReady() { readyMark = null }
+
+    /**
+     * A read or plan landed. If the person stayed with it, take them there, as before. If they chose to look around,
+     * leave them where they are and raise the ready cue for this exact result instead.
+     */
+    private fun arrived(what: ReadyCue.What, run: Int) {
+        val route = ReadyCue.route(what)
+        if (lookingAround && path.lastOrNull() != route) {
+            readyMark = ReadyCue.Mark(what, run)
+        } else {
+            readyMark = null
+            push(route)
+        }
+        lookingAround = false
+    }
 
     init {
         restore()
@@ -125,7 +236,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     val hasWarnings: Boolean get() = care?.has_warning_signs == true || warningItems.isNotEmpty()
     val careById: Map<String, VerifiedItem> get() = care?.items.orEmpty().associateBy { it.id }
     val canRead: Boolean get() = text.trim().length > 20 && busy == null
-    val canPlan: Boolean get() = busy == null && !(barriers.isEmpty() && items.isEmpty()) && !careOutdated
+    val canPlan: Boolean get() = busy == null && !locating && !(barriers.isEmpty() && items.isEmpty()) && !careOutdated
     fun checkFor(id: String): Check = meaning.checkFor(id)
 
     /** "Lines on your paper we didn't turn into steps", for the steps still kept: follows every Remove and Undo. */
@@ -151,44 +262,50 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     val planOutdated: Boolean get() = plan != null && (planFp == null || careOutdated || planFp != currentPlanFingerprint())
 
     private fun currentPlanFingerprint(): String = StaleGuard.planFingerprint(
-        items.map { it.id }, barriers.toList(), language, note, StaleGuard.place(location, validZip()), location,
+        items.map { it.id }, barriers.toList(), language, note, if (locating) "locating" else StaleGuard.place(location, validZip()), location,
     )
 
     private fun validZip(): String = if (Regex("^\\d{5}$").matches(zip)) zip else ""
 
     // ---- Setters that save
 
-    fun updateText(v: String) { text = v; persist() }
-    fun updateLanguage(v: Language) { language = v; persist() }
-    fun updateLevel(v: ReadingLevel) { level = v; persist() }
-    fun updateNote(v: String) { note = v; persist() }
+    fun updateText(v: String) { text = v; persist(); stopStaleWork() }
+    fun updateLanguage(v: Language) { language = v; persist(); stopStaleWork() }
+    fun updateLevel(v: ReadingLevel) { level = v; persist(); stopStaleWork() }
+    fun updateNote(v: String) { note = v; persist(); stopStaleWork() }
     /** Opened from a helper link: apply the presets (each one is optional) and show the banner. Nothing is sent. */
     fun applyHelperLink(p: HelperPresets) {
         p.language?.let { language = it }
         p.level?.let { level = it }
-        p.zip?.let { zip = it; location = null }
+        p.zip?.let { locationRun++; locating = false; zip = it; location = null }
         helperBanner = HelperLink.banner(p)
         fromHelperLink = true
         // Show the first screen, where the banner is. Nothing saved is touched; "Open it" still brings it back.
         if (busy == null) path.clear()
         persist()
+        stopStaleWork()
     }
 
     fun dismissHelperBanner() { helperBanner = null }
 
     fun updateZip(v: String) {
+        // A ZIP typed replaces the device location and any lookup still running.
+        locationRun++
+        locating = false
         zip = v.filter { it.isDigit() }.take(5)
         location = null
         persist()
+        stopStaleWork()
     }
-    fun useLocation(point: LatLng) { location = point; zip = ""; persist() }
+    fun useLocation(point: LatLng) { location = point; zip = ""; persist(); stopStaleWork() }
     fun toggle(b: Barrier) {
         if (barriers.contains(b)) barriers.remove(b) else barriers.add(b)
         persist()
+        stopStaleWork()
     }
     fun setDone(id: String, value: Boolean) { done[id] = value; persist(planChanged = true) }
-    fun remove(id: String) { removed[id] = true; persist(planChanged = true) }
-    fun undoRemove(id: String) { removed.remove(id); persist(planChanged = true) }
+    fun remove(id: String) { removed[id] = true; persist(planChanged = true); stopStaleWork() }
+    fun undoRemove(id: String) { removed.remove(id); persist(planChanged = true); stopStaleWork() }
 
     // ---- Navigation
 
@@ -214,7 +331,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         cancel()
         error = null
         busy = Busy.Recognizing
-        task = viewModelScope.launch {
+        task = scope.launch {
             try {
                 val result = TextReader.read(getApplication(), pages)
                 busy = null
@@ -240,22 +357,32 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     fun readPaper() {
         if (!canRead) return
         cancel()
+        readyMark = null
         error = null
+        notice = null
         busy = Busy.Reading
         val text = text; val level = level; val language = language
-        task = viewModelScope.launch {
+        val sentFp = StaleGuard.readFingerprint(text, language, level)
+        inFlightReadFp = sentFp
+        task = scope.launch {
             try {
                 // An older server leaves out the language; the steps were still written in the one asked for.
                 val result = api.extract(text, level, language)
+                // Changed after sending: the reply is for inputs no longer on screen, so nothing of it is applied.
+                if (sentFp != StaleGuard.readFingerprint(this@AppModel.text, this@AppModel.language, this@AppModel.level)) {
+                    cancel(); notice = READ_STOPPED
+                    return@launch
+                }
                 applyRead(result, text, language, level)
                 busy = null
                 startMeaningCheck(care ?: result, language)
                 persist(planChanged = true)
-                push(Route.Steps)
+                arrived(ReadyCue.What.steps, readingCount)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ApiException) {
                 busy = null
+                lookingAround = false
                 error = e.message
             }
         }
@@ -276,10 +403,13 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     fun makePlan() {
         if (!canPlan) return
         cancel()
+        readyMark = null
         error = null
+        notice = null
         busy = Busy.Planning
         val validZip = Regex("^\\d{5}$").matches(zip)
         val fingerprint = currentPlanFingerprint()
+        inFlightPlanFp = fingerprint
         val viaHelper = fromHelperLink
         val request = PlanRequest(
             care = items.map { PlanCareInput(it) },
@@ -289,24 +419,35 @@ class AppModel(app: Application) : AndroidViewModel(app) {
             language = language,
             note = note,
         )
-        task = viewModelScope.launch {
+        task = scope.launch {
             try {
                 val result = api.plan(request, fromHelperLink = viaHelper)
+                // Changed after sending: the reply is for inputs no longer on screen, so nothing of it is applied.
+                if (fingerprint != currentPlanFingerprint()) {
+                    cancel(); notice = PLAN_STOPPED
+                    return@launch
+                }
                 plan = result
                 planFp = fingerprint
+                planCount++
                 // One link counts at most one plan (helperLink.ts consumeHelperSession).
                 if (viaHelper) fromHelperLink = false
                 busy = null
                 persist(planChanged = true)
-                push(Route.Plan)
+                arrived(ReadyCue.What.plan, planCount)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ApiException) {
                 busy = null
+                lookingAround = false
                 error = e.message
             }
         }
     }
+
+    /** "Ask my paper" (AskPaperSection): one question about the paper on screen. Nothing is saved, not the question and not the answer. */
+    suspend fun askPaper(sourceText: String, language: Language, question: String): ApiClient.AskOutcome =
+        api.ask(sourceText, language, question)
 
     /** Runs the second check for `forCare`. Its reply is applied only while the run is current and `care` is still that read. */
     private fun startMeaningCheck(forCare: CarePlanResponse, language: Language?) {
@@ -315,7 +456,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         val request = MeaningRequest.of(forCare.items, forCare.language ?: language)
         if (request == null) { meaning = MeaningState.IDLE; return }
         meaning = MeaningState(MeaningStatus.loading)
-        meaningJob = viewModelScope.launch {
+        meaningJob = scope.launch {
             val next = try {
                 MeaningState.done(request, api.meaning(request))
             } catch (e: CancellationException) {
@@ -339,6 +480,9 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         task?.cancel()
         task = null
         busy = null
+        lookingAround = false
+        inFlightReadFp = null
+        inFlightPlanFp = null
     }
 
     // ---- Saved on this phone
@@ -392,11 +536,14 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         meaning = MeaningState.IDLE
         readFp = null; planFp = null; planChangedAt = null
         helperBanner = null; fromHelperLink = false
+        readyMark = null
         store.clear()
         restoring = true
         text = ""; care = null; plan = null; barriers.clear(); zip = ""; note = ""; done.clear(); removed.clear()
         restoring = false
         location = null
+        locationRun++
+        locating = false
         restoredAt = null
         path.clear()
         Reminders.removeAll(getApplication())

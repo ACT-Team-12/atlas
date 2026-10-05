@@ -5,6 +5,7 @@
 import { LANGUAGES, READING_LEVELS, type CarePlanResponse } from "./schema";
 import type { Barrier } from "./resources";
 import type { PlanResponse } from "./plan";
+import type { MeaningResult } from "./meaning";
 
 /** The old single saved session (before saved plans). Migrated into the list once. */
 export const OLD_KEY = "atlas-session-v1";
@@ -29,7 +30,44 @@ export type Session = {
    * Older saves kept later edits beside an older result, so without it the results can't be trusted as current.
    */
   matched?: boolean;
+  /**
+   * The second check's verdicts for `care`, kept on this device so a reopened plan shows what was already checked
+   * without sending anything again (the privacy page promises nothing is uploaded on reopen). `key` ties them to the
+   * exact steps and language they were made for (checksKey); a mismatch drops them.
+   */
+  checks?: SavedChecks;
 };
+
+export type SavedChecks = { key: string; byId: Record<string, MeaningResult> };
+
+/**
+ * The steps and language a set of check verdicts was made for: every field the check reads (id, title, explanation,
+ * when, quote) plus the language. FNV-1a over that text: a fingerprint, not a secret.
+ */
+export function checksKey(items: { id: string; title?: string; plain_language?: string; when?: string; source_quote?: string }[], language?: string): string {
+  const text = JSON.stringify([language ?? "", ...items.map((i) => [i.id, i.title ?? "", i.plain_language ?? "", i.when ?? "", i.source_quote ?? ""])]);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return `${items.length}:${h.toString(16)}`;
+}
+
+/** Saved verdicts only when every one has the shape the check returns; anything else is dropped, never trusted. */
+function pickChecks(c: unknown): SavedChecks | undefined {
+  if (!c || typeof c !== "object") return undefined;
+  const { key, byId } = c as { key?: unknown; byId?: unknown };
+  if (typeof key !== "string" || !byId || typeof byId !== "object" || Array.isArray(byId)) return undefined;
+  const out: Record<string, MeaningResult> = {};
+  for (const [id, r] of Object.entries(byId as Record<string, unknown>)) {
+    const m = r as Partial<MeaningResult> | null;
+    if (!m || typeof m !== "object" || m.id !== id || typeof m.flagged !== "boolean" || typeof m.certified !== "boolean"
+      || typeof m.numbers_ok !== "boolean" || !Array.isArray(m.unexpected_numbers) || !m.unexpected_numbers.every((n) => typeof n === "string")
+      || !["same", "different", "unclear"].includes(m.model_verdict as string) || typeof m.what_differs !== "string") return undefined;
+    // Certified means the second model said "same" and every number checked out (lib/meaning.ts): never more.
+    if (m.certified && (m.flagged || m.model_verdict !== "same" || !m.numbers_ok)) return undefined;
+    out[id] = { id, flagged: m.flagged, certified: m.certified, numbers_ok: m.numbers_ok, unexpected_numbers: m.unexpected_numbers, model_verdict: m.model_verdict as MeaningResult["model_verdict"], what_differs: m.what_differs };
+  }
+  return { key, byId: out };
+}
 
 export type SavedPlan = Session & { id: string; name: string; createdAt: string; savedAt: string };
 export type Store = { v: 2; active: string | null; plans: SavedPlan[] };
@@ -47,11 +85,13 @@ export function pickSession(s: Session): Session {
   const level = oneOf(READING_LEVELS, s.level, "simple");
   // A replaced language or level means the saved results were made under other settings: never certify them as current.
   const replaced = language !== s.language || level !== s.level;
+  const checks = pickChecks(s.checks);
   return {
     text: s.text ?? "", language, level, care: s.care ?? null,
     barriers: Array.isArray(s.barriers) ? s.barriers : [], zip: typeof s.zip === "string" ? s.zip : "", note: s.note ?? "",
     plan: s.plan ?? null, done: s.done ?? {}, removed: s.removed ?? {}, photoChecked: s.photoChecked ?? false,
     matched: s.matched === true && !replaced,
+    ...(checks ? { checks } : {}),
   };
 }
 

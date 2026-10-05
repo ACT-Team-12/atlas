@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CarePlanResponse } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { CarePlanTool } from "./CarePlanTool";
+import { checksKey } from "@/lib/savedPlans";
 import { SAMPLE_AVS } from "@/lib/sample";
 import { TRY_SAMPLE_EVENT } from "@/lib/sampleStart";
 
@@ -835,21 +836,49 @@ describe("a plan saved before results were checked against answers", () => {
   });
 
   // Found Oct 5 on the live site: a reopened plan never ran the second check, so every step said "Checked once".
-  it("a reopened plan runs the second check again on its steps", () => {
+  // Found Oct 5 on the live site: a reopened plan showed every step as checked once. Its verdicts now come back from
+  // the save itself; reopening never sends the paper anywhere (the privacy page's promise, Codex review of PR 104).
+  const certified = (id: string) => ({ id, flagged: false, numbers_ok: true, unexpected_numbers: [], model_verdict: "same" as const, what_differs: "", certified: true });
+  const sealCounts = () => [...host.querySelectorAll("[data-seal-label]")].map((e) => e.textContent?.trim() ?? "").reduce<Record<string, number>>((a, s) => ({ ...a, [s]: (a[s] ?? 0) + 1 }), {});
+
+  it("reopening a saved plan sends nothing to the server", () => {
     fetchCalls = [];
     reopenWith({ matched: true });
-    const meaning = fetchCalls.filter((c) => c.url === "/api/meaning");
-    expect(meaning.length).toBe(1);
-    expect(JSON.stringify(meaning[0].body)).toContain(careFor(PAPER).items[0].source_quote);
+    expect(fetchCalls.filter((c) => c.url === "/api/meaning")).toHaveLength(0);
   });
 
-  it("a reopened plan from a photo the person never confirmed is not checked; a confirmed one is", () => {
-    fetchCalls = [];
-    reopenWith({ matched: true, care: { ...careFor(PAPER), source_kind: "image" }, photoChecked: false });
-    expect(fetchCalls.filter((c) => c.url === "/api/meaning")).toHaveLength(0);
-    fetchCalls = [];
-    reopenWith({ matched: true, care: { ...careFor(PAPER), source_kind: "image" }, photoChecked: true });
-    expect(fetchCalls.filter((c) => c.url === "/api/meaning")).toHaveLength(1);
+  it("verdicts saved with a plan come back on reopen, for exactly those steps", () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ matched: true, checks: { key: checksKey(care.items, care.language), byId } });
+    expect(sealCounts()["Checked twice"]).toBe(care.items.length);
+  });
+
+  it("verdicts saved for other steps are dropped: the steps show as checked once", () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ matched: true, checks: { key: checksKey([{ id: "item-1", source_quote: "a different paper" }], care.language), byId } });
+    expect(sealCounts()["Checked twice"] ?? 0).toBe(0);
+  });
+
+  it("a fresh read keeps its verdicts in the save, with the key for its steps", async () => {
+    const original = fetch;
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/meaning") {
+        const body = JSON.parse(String(init?.body)) as { items: { id: string }[] };
+        return Promise.resolve(json({ results: body.items.map((i) => certified(i.id)), flagged: 0, checker_model: "test", ms: 1 }));
+      }
+      return original(input, init);
+    });
+    act(() => typeInto(paperBox(), PAPER));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    const care = careFor(PAPER);
+    await release(req, ready(care));
+    await act(async () => { await drain(); await drain(); });
+    const saved = JSON.parse(localStorage.getItem("atlas-plans-v2")!) as { plans: { checks?: { key: string; byId: Record<string, unknown> } }[] };
+    expect(saved.plans[0].checks?.key).toBe(checksKey(care.items, care.language));
+    expect(Object.keys(saved.plans[0].checks?.byId ?? {})).toHaveLength(care.items.length);
   });
 
   it("a saved level that is no longer a choice: no crash, defaults shown, plan outdated with actions off", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CarePlanResponse } from "./schema";
 import {
-  cleanName, closePlan, deletePlan, DEFAULT_NAME, emptyStore, listPlans, loadStore, nextName, openPlan, pickSession,
+  checksKey, cleanName, closePlan, deletePlan, DEFAULT_NAME, emptyStore, listPlans, loadStore, nextName, openPlan, pickSession,
   progress, readStartsNewPlan, renamePlan, saveSession, type Session,
 } from "./savedPlans";
 
@@ -135,5 +135,30 @@ describe("saving, renaming, opening, deleting", () => {
     let s = saveSession(emptyStore(), session(), "2026-10-01", "old");
     s = saveSession(closePlan(s), session(), "2026-10-02", "new");
     expect(listPlans(s).map((p) => p.id)).toEqual(["new", "old"]);
+  });
+});
+
+describe("saved check verdicts (kept on this device, never re-sent)", () => {
+  const ok = (id: string) => ({ id, flagged: false, numbers_ok: true, unexpected_numbers: [], model_verdict: "same", what_differs: "", certified: true });
+  const key = checksKey(care.items, care.language);
+  it("the key changes with any step's words or the language", () => {
+    expect(checksKey(care.items, "Spanish")).not.toBe(key);
+    expect(checksKey(care.items.map((i, n) => (n === 0 ? { ...i, source_quote: "other" } : i)), care.language)).not.toBe(key);
+    expect(checksKey(care.items, care.language)).toBe(key);
+  });
+  it("well-formed verdicts are kept", () => {
+    const kept = pickSession({ ...session(), checks: { key, byId: { a: ok("a") } } } as unknown as Session);
+    expect(kept.checks?.byId.a.certified).toBe(true);
+  });
+  it("a malformed or impossible verdict drops the whole set: nothing is trusted that the check could not have said", () => {
+    for (const bad of [
+      { a: { ...ok("a"), id: "b" } },
+      { a: { ...ok("a"), certified: "yes" } },
+      { a: { ...ok("a"), model_verdict: "different" } }, // certified but the model said different
+      { a: { ...ok("a"), numbers_ok: false } },
+      { a: { ...ok("a"), flagged: true } },
+      { a: null },
+    ]) expect(pickSession({ ...session(), checks: { key, byId: bad } } as unknown as Session).checks).toBeUndefined();
+    expect(pickSession({ ...session(), checks: "x" } as unknown as Session).checks).toBeUndefined();
   });
 });

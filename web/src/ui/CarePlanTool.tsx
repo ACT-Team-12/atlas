@@ -37,7 +37,7 @@ import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollElementToTop, scrollTargetY, scrollToPanel, tabId, useIsPhone, type PageScroll } from "./PhoneTabs";
 import { paidVoiceAllowed, speechLines } from "@/lib/speechText";
 import {
-  closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan,
+  checksKey, closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan,
   STORE_KEY, type Session, type Store,
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
@@ -257,6 +257,8 @@ export function CarePlanTool() {
   const [meaning, setMeaning] = useState<MeaningState>(IDLE_MEANING);
   // One check at a time, with its own id and abort: Clear, Delete, a new read and unmount cancel it (lib/meaningRun.ts).
   const [meaningFence] = useState(() => new RunFence());
+  // The steps and language the current verdicts were made for (savedPlans.ts checksKey); what a save may store.
+  const meaningFor = useRef<string | null>(null);
   // The same quote checker, run again on this device (WebAssembly, loaded only after a read). Per step: did the
   // browser find the same words in the same place as the server?
   // Stored with the id of the reading it belongs to (never the reading, which holds the paper), so a newer read
@@ -359,10 +361,14 @@ export function CarePlanTool() {
       careIds: (v.care?.items ?? []).filter((i) => !v.removed[i.id]).map((i) => i.id),
       barriers: v.barriers, language: v.language, note: v.note, place: fromDevice ? "device" : planPlace(false, v.zip), location: null,
     }) : null);
-    // A save keeps the paper's words, not the second check's verdicts, so a reopened plan showed every step as checked
-    // only once, its explanations demoted under the quote (found Oct 5 on the live site). Run the check again, under the
-    // same rule as a fresh read: never on a photo's text the person has not confirmed.
-    if (v.care && !(v.care.source_kind === "image" && !v.photoChecked)) void checkMeaningFor(v.care);
+    // The second check's verdicts come back from the save itself, never by sending the paper again (the privacy page:
+    // nothing is uploaded when a saved plan is reopened). Only when they were made for exactly these steps and this
+    // language; a save from before verdicts were kept shows its steps as checked once (found Oct 5 on the live site).
+    meaningFor.current = null;
+    if (v.care && v.checks && v.checks.key === checksKey(v.care.items, v.care.language)) {
+      meaningFor.current = v.checks.key;
+      setMeaning({ status: "done", byId: v.checks.byId });
+    }
     setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan }));
   }
 
@@ -482,12 +488,18 @@ export function CarePlanTool() {
     if (!resultsCurrent) return;
     const next = autosaveStore({
       loaded: loaded.current, epoch, currentEpoch: sessionEpoch.current, store: storeRef.current,
-      session: { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, matched: true }, now: new Date().toISOString(), newId: newPlanId(),
+      session: {
+        text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, matched: true,
+        // The check's verdicts, kept on this device with the steps they were made for (savedPlans.ts, checksKey).
+        // Only verdicts made for exactly these steps: ids like item-1 repeat between readings.
+        ...(care && meaning.status === "done" && meaningFor.current === checksKey(care.items, care.language)
+          ? { checks: { key: meaningFor.current, byId: meaning.byId } } : {}),
+      }, now: new Date().toISOString(), newId: newPlanId(),
     });
     if (next) writeStore(next);
     // writeStore only touches refs, setters and localStorage; a new render's copy changes nothing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, resultsCurrent, epoch]);
+  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, meaning, resultsCurrent, epoch]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /**
@@ -549,6 +561,7 @@ export function CarePlanTool() {
   }
 
   function checkMeaningFor(c: CarePlanResponse) {
+    meaningFor.current = checksKey(c.items, c.language); // the steps these verdicts will belong to
     return runMeaningCheck(meaningFence, c.items, fetchMeaning, setMeaning, c.language);
   }
 

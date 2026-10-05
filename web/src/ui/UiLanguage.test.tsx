@@ -101,8 +101,8 @@ const PAGE = /^(common|paper|work|kind|when|seal|pf|steps|ask|askClinic|remind|s
 
 async function walkThrough(lang: Lang) {
   act(() => root.render(<CarePlanTool />));
-  const select = host.querySelector<HTMLSelectElement>("#try select")!;
-  act(() => setValue(select, lang, "change"));
+  // The language is a chip now (ReadIn), next to Read my paper.
+  act(() => host.querySelector<HTMLInputElement>(`input[name="read-in-language"][value="${lang}"]`)!.click());
   act(() => setValue(host.querySelector<HTMLTextAreaElement>("#try textarea")!, SAMPLE.source_text, "input"));
   await act(async () => { button(ui(lang, "paper.read")).click(); await drain(); await drain(); });
   await act(async () => { button(ui(lang, "barrier.transport")).click(); await drain(); });

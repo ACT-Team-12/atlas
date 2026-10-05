@@ -203,7 +203,7 @@ struct WebParityTests {
         #expect(text.contains("3. Self care\n   Your paper says: \"Walk daily.\"\n   \(PaperFirst.leftOutUnchecked)"))
         #expect(text.components(separatedBy: "Take one pill two times a day.").count - 1 == 1)
         #expect(text.contains("1. Get a ride. Call MARTA Mobility.\n   Your paper says: \"Labs in 2 weeks.\""))
-        #expect(text.contains("Suggestion from ATLAS, not the paper: \(plan.summary)"))
+        #expect(text.contains("Suggestion from ATLAS (follow your paper first): \(plan.summary)"))
         // With no double-check at all (the default), no explanation leaves the phone.
         #expect(!ShareText.plan(items: items, plan: plan, questions: []).contains("one pill"))
     }

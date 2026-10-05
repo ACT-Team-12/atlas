@@ -55,9 +55,11 @@ export function Resource({ r, off, proof = true }: { r: ResourceCard; off?: stri
     const hours = formatHours(c.hours);
     const open = openNow(c);
     return (
-      <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
+      <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4" data-place-card="">
         <div className="flex flex-wrap items-center gap-2">
           <span className="chip bg-mint text-teal-deep">{t("plan.healthCenter")}</span>
+          {/* On every place card, wherever it shows (best option, other options): who suggested it (Codex review). */}
+          <span className="chip border border-ink/40 bg-paper text-ink" data-by-atlas="">{t("prov.byAtlas")}</span>
           {r.km != null && <span className="text-xs font-bold text-ink/70">{t("plan.kmAway", { km: r.km })}</span>}
           {open != null && <span className={`chip ${open ? "bg-teal text-paper" : "bg-paper border border-ink/30 text-ink/70"}`}>{t(open ? "plan.openNow" : "plan.closedNow")}</span>}
           {(opensEvenings(c) || opensWeekends(c)) && <span className="chip bg-sun text-ink">{[opensEvenings(c) && t("plan.evenings"), opensWeekends(c) && t("plan.weekends")].filter(Boolean).join(" + ")}</span>}
@@ -90,8 +92,11 @@ export function Resource({ r, off, proof = true }: { r: ResourceCard; off?: stri
   }
   const p = r.program;
   return (
-    <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
-      <span className="chip bg-sky text-sky-deep">{t("plan.program")}</span>
+    <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4" data-place-card="">
+      <span className="flex flex-wrap gap-1.5">
+        <span className="chip bg-sky text-sky-deep">{t("plan.program")}</span>
+        <span className="chip border border-ink/40 bg-paper text-ink" data-by-atlas="">{t("prov.byAtlas")}</span>
+      </span>
       <p className="font-extrabold mt-2">{p.name}</p>
       {/* The quote and the how-to text can hold a number to call or text: not offered while the plan is outdated. */}
       {proof && !off && <p className="text-sm italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{p.evidence_quote}&rdquo;</p>}
@@ -141,10 +146,13 @@ function TopCard({ r, rank, chosen, language, off, offId, pip }: { r: RankedReso
   const actionLabel = !action ? "" : action.label.startsWith("Call ") ? t("plan.callPhone", { phone: action.label.slice(5) })
     : action.label === "Apply online" ? t("plan.applyOnline") : action.label === "Open their website" ? t("plan.openSite") : t("plan.directions");
   return (
-    <li className="grid content-start gap-2.5 rounded-[1.2rem] border-2 border-ink bg-paper p-4 shadow-[3px_4px_0_var(--ink)]" data-pip-here={pip ? "arrive" : undefined}>
+    <li className="grid content-start gap-2.5 rounded-[1.2rem] border-2 border-ink bg-paper p-4 shadow-[3px_4px_0_var(--ink)]" data-place-card="" data-pip-here={pip ? "arrive" : undefined}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <span className={`chip ${card.type === "clinic" ? "bg-mint text-teal-deep" : "bg-sky text-sky-deep"}`}>{t(card.type === "clinic" ? "plan.healthCenter" : "plan.program")}</span>
+          <span className="flex flex-wrap gap-1.5">
+            <span className={`chip ${card.type === "clinic" ? "bg-mint text-teal-deep" : "bg-sky text-sky-deep"}`}>{t(card.type === "clinic" ? "plan.healthCenter" : "plan.program")}</span>
+            <span className="chip border border-ink/40 bg-paper text-ink" data-by-atlas="">{t("prov.byAtlas")}</span>
+          </span>
           <h5 className="mt-1.5 text-lg font-extrabold leading-tight break-words">{name}</h5>
         </div>
         <span className="flex flex-none items-start gap-1">
@@ -208,6 +216,8 @@ export function TopCalls({ top, chosen, language, off, offId }: { top: RankedRes
           <CalmToggle />
         </span>
       </div>
+      {/* Who picked these: ATLAS. A caregiver could not tell (Oct 4 try). */}
+      <p className="mt-1 max-w-3xl text-sm font-semibold text-ink/80" data-places-note="">{t("prov.placesNote")}</p>
       <ol className="mt-3 grid gap-3 lg:grid-cols-3">
         {top.map((r, i) => <TopCard key={r.id} r={r} rank={i + 1} chosen={chosen} language={language} off={off} offId={offId}
           pip={i === 0 && pipText ? { text: pipText, calm } : undefined} />)}
@@ -257,6 +267,7 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
         </h5>
       </div>
       <div id={ids.body} className={`plan-fold ${open ? "" : "plan-shut"} border-t-2 border-ink/10 px-3 pb-4 pt-3 sm:px-4`}>
+        <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink/70" data-by-atlas="">{t("prov.byAtlas")}</p>
         <p className="font-semibold">{step.action}</p>
         {/* The plan step is a suggestion, never certified: the paper's own words for its steps stay right next to it. */}
         {quotes.map((q, k) => (
@@ -286,8 +297,9 @@ export function ProblemRow({ step, index, quotes, resources, done, onDone, off, 
           <div id={ids.why} className={`plan-fold ${why ? "" : "plan-shut"} mt-3 space-y-3`}>
             {step.why && <p className="text-sm text-ink/80">{t("plan.why", { why: step.why })}</p>}
             {programs.map((c) => c.type === "program" && (
-              <div key={c.id} className="rounded-xl bg-mint-soft/70 p-3">
-                <p className="text-sm font-extrabold">{c.program.name}</p>
+              <div key={c.id} className="rounded-xl bg-mint-soft/70 p-3" data-place-card="">
+                <p className="flex flex-wrap items-center gap-1.5 text-sm font-extrabold">{c.program.name}
+                  <span className="chip border border-ink/40 bg-paper text-ink" data-by-atlas="">{t("prov.byAtlas")}</span></p>
                 {/* Can hold a number to call or text: not shown while the plan is outdated. */}
                 {!off && <p className="mt-1 border-l-4 border-sun pl-2 text-sm italic text-ink/75">&ldquo;{c.program.evidence_quote}&rdquo;</p>}
                 <div className="mt-1.5"><VerifiedSeal url={c.program.source_url} off={off} /></div>

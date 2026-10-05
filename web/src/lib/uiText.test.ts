@@ -11,7 +11,7 @@ const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1
  */
 const SAME_AS_ENGLISH: Partial<Record<Lang, string[]>> = {
   Spanish: ["common.no", "tab.3", "fb.use.no"], // "No", "Plan"
-  French: ["paper.level.simple", "paper.level.standard", "tab.3", "dock.stop.short"], // "simple", "standard", "Plan", "Stop"
+  French: ["paper.level.simple", "paper.level.standard", "readin.level.simple", "readin.level.standard", "tab.3", "dock.stop.short"], // "simple", "standard", "Simple", "Standard", "Plan", "Stop"
 };
 
 /** English words that never belong in another language's entry. Proper names are removed before the check. */

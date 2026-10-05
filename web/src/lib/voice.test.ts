@@ -158,6 +158,6 @@ describe("speak token", () => {
   });
 
   it("signs exactly what the page reads aloud", () => {
-    expect(text).toBe("This plan is a suggestion from ATLAS, not your paper. If anything differs, follow your paper.\nGet your blood test this week.\n1. Lab. Go Friday");
+    expect(text).toBe("This plan is a suggestion from ATLAS. If anything differs from your paper, follow your paper.\nGet your blood test this week.\n1. Lab. Go Friday");
   });
 });

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { setupGsap, useGSAP, gsap, SplitText, prefersReducedMotion } from "./motion/gsap";
 import { WaveBlobs } from "./WaveBlobs";
 import { SquashButton } from "./SquashButton";
+import { isPlainClick, TRY_SAMPLE_EVENT, TRY_SAMPLE_HASH } from "@/lib/sampleStart";
 
 /** Illustrative loop of what a plan card looks like. Built from our labeled sample paper, not a real patient. */
 const LOOP = [
@@ -12,14 +13,13 @@ const LOOP = [
   { chip: "Getting there", chipCls: "bg-sky text-sky-deep", title: "Closest health center", body: "Sliding fee by law. Nearest MARTA stop shown on the plan.", quote: "verified HRSA record" },
 ];
 
-function PlanLoop() {
+export function PlanLoop() {
   const [i, setI] = useState(0);
   useEffect(() => {
     if (prefersReducedMotion()) return;
     const t = window.setInterval(() => setI((x) => (x + 1) % LOOP.length), 2600);
     return () => window.clearInterval(t);
   }, []);
-  const s = LOOP[i];
   return (
     <div className="relative w-[min(22rem,86vw)]">
       <div className="card p-5 rotate-[-2deg] bg-paper">
@@ -27,11 +27,19 @@ function PlanLoop() {
           <span className="hand text-2xl text-ink-soft">Your plan</span>
           <span className="text-xs font-bold text-ink/70">sample</span>
         </div>
-        <div key={i} className="mt-3 animate-[fadein_0.5s_ease]">
-          <span className={`chip ${s.chipCls}`}>{s.chip}</span>
-          <p className="display text-2xl mt-3">{s.title}</p>
-          <p className="mt-2 font-semibold text-ink/80">{s.body}</p>
-          <p className="mt-3 border-l-4 border-sun pl-2 text-sm italic text-ink/70">&ldquo;{s.quote}&rdquo;</p>
+        {/* All three stacked in one grid cell, only the current one shown, so the card is always as tall as the tallest.
+            When the height changed with each turn, the browser nudged the page to keep the rest in place, and that scroll
+            counted as the person using the page: a phone left alone never opened its plan (Akhil, Oct 4, measured live). */}
+        <div className="mt-3 grid" data-plan-loop="">
+          {LOOP.map((s, j) => (
+            <div key={j === i ? `on-${i}` : j} aria-hidden={j !== i || undefined} data-loop-item={j === i ? "on" : "off"}
+              className={`col-start-1 row-start-1 ${j === i ? "animate-[fadein_0.5s_ease]" : "invisible"}`}>
+              <span className={`chip ${s.chipCls}`}>{s.chip}</span>
+              <p className="display text-2xl mt-3">{s.title}</p>
+              <p className="mt-2 font-semibold text-ink/80">{s.body}</p>
+              <p className="mt-3 border-l-4 border-sun pl-2 text-sm italic text-ink/70">&ldquo;{s.quote}&rdquo;</p>
+            </div>
+          ))}
         </div>
         <div className="mt-4 flex gap-1.5">
           {LOOP.map((_, j) => <span key={j} className={`h-1.5 flex-1 rounded-full ${j === i ? "bg-teal" : "bg-ink/15"}`} />)}
@@ -87,7 +95,8 @@ export function Hero() {
               Atlanta health centers and programs. If it can&apos;t point to it, it won&apos;t say it.
             </p>
             <div data-reveal className="hero-cta mt-8 flex flex-wrap gap-3">
-              <SquashButton href="#try" bg="var(--teal)" accent="var(--sun)">Try it with a sample</SquashButton>
+              {/* Fills the sample in and brings "Read my paper" into view (lib/sampleStart.ts). */}
+              <SquashButton href={TRY_SAMPLE_HASH} onClick={(e) => { if (isPlainClick(e)) window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); }} bg="var(--teal)" accent="var(--sun)">Try it with a sample</SquashButton>
               <SquashButton href="#how" bg="var(--paper)" fg="var(--ink)" accent="var(--sky)">How it works</SquashButton>
             </div>
           </div>

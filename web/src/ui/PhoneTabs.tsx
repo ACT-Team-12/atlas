@@ -88,7 +88,7 @@ export function PhoneTabBar({ shown, state, onPick, notice }: { shown: Tab; stat
 
   return (
     // The mint strip behind the bar keeps the steps from showing through while it is stuck.
-    <div ref={bar} data-stuck={stuck || undefined}
+    <div ref={bar} data-sticky-bar="" data-stuck={stuck || undefined} data-covers-top={stuck || undefined}
       className={`md:hidden sticky top-[4rem] z-30 mt-4 -mx-4 sm:-mx-10 bg-mint-soft px-4 sm:px-10 py-2 ${stuck ? "before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-[4rem] before:bg-mint-soft before:content-['']" : ""}`}>
       <div role="tablist" aria-label={tr("tab.label")} onKeyDown={onKeyDown}
         className="grid grid-cols-3 gap-1 rounded-full border-2 border-ink bg-paper p-1 shadow-[0_3px_0_var(--ink)]">

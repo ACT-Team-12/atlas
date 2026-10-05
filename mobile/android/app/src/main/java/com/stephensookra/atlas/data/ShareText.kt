@@ -20,7 +20,7 @@ object ShareText {
      */
     fun plan(items: List<VerifiedItem>, plan: PlanResponse, questions: List<String>, meaning: MeaningState = MeaningState.IDLE,
              planItems: List<VerifiedItem>? = null): String {
-        val out = mutableListOf("Plan after the visit (from ATLAS)", "", "Suggestion from ATLAS, not the paper: ${plan.summary}")
+        val out = mutableListOf("Plan after the visit (from ATLAS)", "", "Suggestion from ATLAS (follow your paper first): ${plan.summary}")
 
         val grounded = items.filter { it.grounded }
         if (grounded.isNotEmpty()) {
@@ -47,7 +47,7 @@ object ShareText {
         val used = plan.steps.flatMap { it.resource_ids }.toSet()
         val help = plan.resources.filterKeys { it in used }.toSortedMap().values
         if (help.isNotEmpty()) {
-            out += listOf("", "WHO CAN HELP (checked numbers)")
+            out += listOf("", "WHO CAN HELP (suggested by ATLAS from checked records; follow the paper first)")
             for (r in help) {
                 when (r) {
                     is ResourceCard.ClinicCard -> {

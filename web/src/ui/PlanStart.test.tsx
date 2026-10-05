@@ -92,7 +92,8 @@ const rowToggle = (row: Element) => row.querySelector<HTMLButtonElement>("h5 > b
 describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
   it("opens with the summary, the suggestions label, the top 3 and the needs-a-person note, none of them folded", async () => {
     const card = await planReady();
-    const label = [...card.querySelectorAll("p")].find((p) => p.textContent?.startsWith("Suggestions from ATLAS, not your paper"))!;
+    const follows = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const label = [...card.querySelectorAll("p")].find((p) => p.textContent?.startsWith("Suggestions from ATLAS. If anything differs from your paper"))!;
     expect(label).toBeTruthy();
     expect(isFolded(label)).toBe(false);
     expect(card.textContent).toContain(PLAN.summary);
@@ -108,13 +109,19 @@ describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
     expect(card.textContent).not.toMatch(/of your 6 problems/);
     expect(tops[0].textContent).toContain("Paying for the visit, lab or medicine");
     expect(tops[2].textContent).toContain("Verified on the official page");
+    // Who picked them, on every card and under the heading: ATLAS, not the doctor (caregiver's try, Oct 4).
+    expect(tops.map((li) => li.querySelector("[data-by-atlas]")?.textContent)).toEqual(Array(3).fill("Suggested by ATLAS"));
+    const placesNote = card.querySelector("[data-places-note]")!;
+    expect(placesNote.textContent).toContain("They are ATLAS's suggestions. If your paper says who to call, follow your paper");
+    expect(placesNote.textContent).not.toMatch(/doctor did not/);
+    expect(isFolded(placesNote)).toBe(false);
+    expect(follows(heading, placesNote) && follows(placesNote, topList(card))).toBe(true);
     const person = [...card.querySelectorAll("p")].find((p) => p.textContent === "This needs a person too")!;
     expect(person).toBeTruthy();
     expect(isFolded(person)).toBe(false);
     expect(card.textContent).toContain(PLAN.ask_a_person_reason);
     // First screen: the note comes right after the summary, before the actions and the three calls.
     const note = person.closest("div")!;
-    const follows = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
     expect(follows([...card.querySelectorAll("p")].find((p) => p.textContent === PLAN.summary)!, note)).toBe(true);
     expect(follows(note, card.querySelector(".plan-dock")!)).toBe(true);
     expect(follows(note, heading)).toBe(true);
@@ -159,6 +166,7 @@ describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
     expect(shut(body)).toBe(false);
     expect(body.textContent).toContain(PLAN.steps[0].action);
     expect(body.textContent).toContain("Best option");
+    expect(body.querySelector("[data-by-atlas]")?.textContent).toBe("Suggested by ATLAS"); // over the plan's own action
     act(() => t.click());
     expect(t.getAttribute("aria-expanded")).toBe("false");
     expect(shut(body)).toBe(true);
@@ -198,6 +206,12 @@ describe("plan screen: start with 3 calls", { timeout: 30_000 }, () => {
     act(() => more.click());
     expect(more.getAttribute("aria-expanded")).toBe("true");
     expect(moreBody.textContent).toContain("Grady Health System Financial Assistance Program");
+    // Every place card in every row, best and other options alike, says who suggested it (Codex review, round 4).
+    // Every place card on the plan screen: the top 3, best and other options, and the Why this? program cards.
+    const placeCards = [...card.querySelectorAll("[data-place-card]")];
+    expect(placeCards.length).toBeGreaterThanOrEqual(3 + PLAN.steps.length);
+    expect(placeCards.some((c) => c.closest('[id$="-why"]'))).toBe(true);
+    for (const c of placeCards) expect(c.querySelector("[data-by-atlas]")?.textContent).toBe("Suggested by ATLAS");
     const book = byText("Book it now", card);
     expect(book.closest("li")).toBe(rows(card).find((r) => r.contains(book)));
   });

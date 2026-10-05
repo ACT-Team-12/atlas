@@ -28,8 +28,9 @@ export function Why() {
   return (
     <section ref={root} id="why" className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="why-title">
       <div className="section-card bg-sky px-6 sm:px-12 py-24">
-        <p className="hand text-3xl text-sky-deep -rotate-1 mb-5">why this exists</p>
-        <h2 id="why-title" className="display text-[clamp(2.4rem,5vw,5rem)] max-w-[15em]">The visit ends. The hard part starts in the parking lot.</h2>
+        {/* The section's point leads (a teammate's review, Oct 4): what it is about, big; the line under it, smaller. */}
+        <h2 id="why-title" className="display text-[clamp(2.6rem,5.5vw,5.5rem)] text-sky-deep">Why this exists</h2>
+        <p className="mt-4 text-[clamp(1.35rem,2.4vw,2.1rem)] font-bold leading-snug max-w-[24em]">The visit ends. The hard part starts in the parking lot.</p>
         <div className="mt-14 grid md:grid-cols-3 gap-8">
           {STATS.map((s) => (
             <a key={s.big} href={s.href} target="_blank" rel="noreferrer" className="why-stat group card block p-7 transition-transform hover:-translate-y-1" style={{ rotate: `${s.rot}deg` }}>

@@ -14,6 +14,7 @@ import { dayOptions, formatTime, googleCalendarUrl, localStart, timeOptions } fr
 import { SPEECH_LANG } from "@/lib/speechLang";
 import { pipLine, pipSpot, type PipSpot } from "@/lib/pip";
 import { nextOpen, walkLine, walkPip, walkSteps, type WalkStep } from "@/lib/walkThrough";
+import { MedicineChanges } from "./MedicineChanges";
 import { PaperFirst } from "./PaperFirst";
 import { ShowOnPaper } from "./ShowOnPaper";
 import { CalmToggle, PipBubble, PipMarker, PipSlot, usePipCalm } from "./Pip";
@@ -143,6 +144,18 @@ export function CareSteps(p: Props) {
 
   const isOpen = (id: string) => open[id] ?? sealOf(checkFor(id)) === "recheck";
   const toggle = (id: string) => setOpen((o) => ({ ...o, [id]: !isOpen(id) }));
+  // "Go to this step" from the medicine card: open the step, bring it up, and move focus to it (keyboard and
+  // screen-reader users land on the step, not back at the top). The link's own #step-id still works when printed.
+  const goTo = (id: string) => {
+    setOpen((o) => ({ ...o, [id]: true }));
+    requestAnimationFrame(() => {
+      const li = document.getElementById(`step-${id}`);
+      if (!li) return;
+      const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      li.scrollIntoView?.({ block: "start", behavior: still ? "auto" : "smooth" });
+      li.querySelector<HTMLButtonElement>("button[aria-expanded]")?.focus({ preventScroll: true });
+    });
+  };
 
   // One way to mark a step done, for the list and the walk-through alike: the same saved record, Pip's cheer, the end
   // of the first-view greeting.
@@ -195,7 +208,7 @@ export function CareSteps(p: Props) {
       <div className={walking ? "walk-away" : undefined} data-walk-away={walking || undefined}>
       {(care.has_warning_signs || warnings.length > 0) && (
         <section aria-labelledby="warn-title" className="mb-5 rounded-2xl border-2 border-red bg-red-soft p-4 text-red" data-warnings="">
-          <h3 id="warn-title" className="display text-xl">{t("steps.warnTitle")}</h3>
+          <h3 id="warn-title" tabIndex={-1} className="display text-xl scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{t("steps.warnTitle")}</h3>
           <p className="text-sm font-semibold">{t("steps.warnBody")}</p>
           {warnings.length > 0 && <ul className="mt-3 space-y-2">{warnings.map((it) => row(it, true))}</ul>}
         </section>
@@ -235,7 +248,7 @@ export function CareSteps(p: Props) {
         <div>
           <div data-pip-heading-area="">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="display text-2xl">{t("steps.title")}</h3>
+              <h3 id="steps-title" tabIndex={-1} className="display text-2xl scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{t("steps.title")}</h3>
               <div className="flex items-center gap-2" data-pip-heading="">
                 <CalmToggle />
                 {/* Pip's heading spot (the first-view greeting, or every step done); reserved either way so the heading
@@ -247,6 +260,9 @@ export function CareSteps(p: Props) {
             {spot.at === "greet" && <div className="mt-1 flex justify-end" data-pip-greet=""><PipBubble text={pipText} pointDown /></div>}
           </div>
           <p className="text-xs font-semibold text-ink/70">{t("steps.tapHint")}</p>
+          {/* Above the time groups, not inside "Right away": a change or a new medicine is often daily, not right away,
+              and the card must not file it under a time the paper does not give it. */}
+          <MedicineChanges items={items} paper={care.source_text} onGo={goTo} />
           {groups.length === 0 && warnings.length === 0 && <p className="mt-3 text-sm font-semibold">{t("steps.noneLeft")}</p>}
           {groups.map(({ g, list }) => (
             <section key={g} aria-labelledby={`when-${g}`} className="mt-4" data-when-group={g}>
@@ -331,8 +347,8 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
   const kind = KIND[it.kind];
   const { t } = useUi();
   return (
-    <li onMouseEnter={() => onHover(it.id)} onMouseLeave={() => onHover(null)} data-step={it.id} data-seal={seal} data-open={open || undefined} data-pip-here={pip?.mood}
-      className={`rounded-2xl border-2 bg-paper ${warn ? "border-red" : open ? "border-ink" : "border-ink/20"}`}>
+    <li id={`step-${it.id}`} onMouseEnter={() => onHover(it.id)} onMouseLeave={() => onHover(null)} data-step={it.id} data-seal={seal} data-open={open || undefined} data-pip-here={pip?.mood}
+      className={`scroll-mt-44 md:scroll-mt-24 rounded-2xl border-2 bg-paper ${warn ? "border-red" : open ? "border-ink" : "border-ink/20"}`}>
       <div className="flex items-start gap-3 p-3">
         <input type="checkbox" aria-label={t("steps.markDone", { n })} className="mt-1 h-6 w-6 flex-none accent-[var(--teal)]"
           checked={done} onChange={(e) => onDone(e.target.checked)} />
@@ -341,8 +357,10 @@ function StepRow({ it, n, warn, check, open, onToggle, done, onDone, onRemove, c
           <span className="min-w-0" data-closed-row={closed.lead}>
             {closed.lead === "explanation"
               ? <span className={`block font-extrabold leading-snug ${done ? "line-through text-ink/70" : ""}`}>{closed.title}</span>
-              // Open, the panel shows the paper's whole line first; the row does not repeat it (no duplicate quote).
-              : open ? null
+              // Open, the panel shows the paper's whole line first; the row does not repeat it on screen (no duplicate
+              // quote). The button keeps the line's start in its name, so focus that lands here (a "Go to this step"
+              // link) still says which step it is (Codex review). Always shortened, so the full line is still shown only once.
+              : open ? <span className="sr-only" data-open-name="">{t("steps.fromYourPaper")}: &ldquo;{shortQuote(it.source_quote, Math.min(40, Math.floor(it.source_quote.length * 0.6)))}&rdquo;</span>
               : (
                 <span className={`block leading-snug ${done ? "line-through text-ink/70" : ""}`} data-paper-quote="">
                   <span className="block text-[11px] font-extrabold uppercase tracking-wide text-ink/70">{t("steps.fromYourPaper")}</span>

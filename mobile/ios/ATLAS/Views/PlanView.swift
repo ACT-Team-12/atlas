@@ -71,7 +71,7 @@ struct PlanView: View {
                                      open: { web = IdentifiedURL(url: $0) }) {
                             // A plan step is the AI's suggestion: the reminder says so, and carries the paper's words.
                             reminder = ReminderTarget(title: "Step \(i + 1) of your plan", quote: quotes.first ?? "",
-                                                      detail: "Suggestion from ATLAS, not the paper: \(step.title). \(step.action)")
+                                                      detail: "Suggestion from ATLAS (follow your paper first): \(step.title). \(step.action)")
                         }
                     }
 
@@ -154,6 +154,10 @@ struct PlanStepCard: View {
                     .accessibilityLabel("Remind me about step \(index)")
             }
 
+            // Who picked these places: ATLAS (caregiver's try, Oct 4; web lib/provenance.ts).
+            if step.resource_ids.contains(where: { plan.resources[$0] != nil }) {
+                Text("Suggested by ATLAS from checked records. Follow your paper first.").font(.caption.weight(.heavy)).foregroundStyle(Palette.inkSoft)
+            }
             ForEach(step.resource_ids, id: \.self) { id in
                 if let r = plan.resources[id] { ResourceView(card: r, open: open) }
             }

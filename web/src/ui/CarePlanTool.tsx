@@ -4,12 +4,14 @@ import { bookSafe, careStepView, checkOf, type Check } from "@/lib/paperFirst";
 import { readingGeneralQuestions, visitQuestions } from "@/lib/visitQuestions";
 import { PaperFirst } from "./PaperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
+import { landingTop, readyTarget, ReadyCue, type Ready } from "./ReadyCue";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
-import { BARRIERS, type Barrier } from "@/lib/resources";
+import { mayFillSample, TRY_SAMPLE_EVENT, TRY_SAMPLE_HASH } from "@/lib/sampleStart";
+import { BARRIERS, BARRIER_LABEL, type Barrier } from "@/lib/resources";
 import type { PlanResponse } from "@/lib/plan";
 import { topResources } from "@/lib/planTop";
 import { ProblemRow, TopCalls } from "./PlanStart";
@@ -20,6 +22,8 @@ import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
 import { AskPaper } from "./AskPaper";
 import { HandoffSheet } from "./HandoffSheet";
+import { HANDOFF_SHEET, printOrView, printPageOr } from "./printView";
+import { ReadIn } from "./ReadIn";
 import { MissedLines, useMissedLines } from "./MissedLines";
 import { missedLineTexts } from "@/lib/missedLines";
 import { ShareFamily } from "./ShareFamily";
@@ -138,17 +142,19 @@ export function StreamingSteps({ items }: { items: VerifiedItem[] }) {
   );
 }
 
-function StepHeader({ n, title, done, note }: { n: number; title: string; done?: boolean; note?: string }) {
+function StepHeader({ n, title, done, note, id }: { n: number; title: string; done?: boolean; note?: string; id?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <span className={`grid place-items-center w-10 h-10 rounded-full border-2 border-ink font-extrabold ${done ? "bg-teal text-paper" : "bg-paper"}`}>{done ? "✓" : n}</span>
-      <h3 className="display text-3xl">{title}</h3>
+      {/* With an id it is a landing spot (the ready cue moves focus here), so it takes focus without joining the tab order. */}
+      <h3 id={id} tabIndex={id ? -1 : undefined} className="display text-3xl outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{title}</h3>
       {note && <span className="hand text-2xl text-ink/70 -rotate-1">{note}</span>}
     </div>
   );
 }
 
-type ScrollRequest = { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number };
+/** `ready`: the cue to raise instead when an automatic scroll is cancelled at the last check (Codex review, round 4). */
+type ScrollRequest = { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number; ready?: { what: Ready; ref: object } };
 
 /** The fingerprint of a save from before results were checked against answers: no inputs ever match it. */
 const UNMATCHED_SAVE = "saved-before-results-were-checked";
@@ -195,9 +201,15 @@ export function CarePlanTool() {
   const locGen = useRef(0);
   const [locating, setLocatingState] = useState(false);
   const layoutShift = useRef<LayoutShift>(NO_LAYOUT_SHIFT);
+  // Where the page was at the last scroll event: a scroll event that did not move the page is not the person.
+  const lastScrollY = useRef(0);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const [planReadyNote, setPlanReadyNote] = useState<string | null>(null);
+  // A result landed while the person was elsewhere on the page (ReadyCue). `ref` is that exact result: the cue
+  // shows only while it is still the one on screen and still current (Codex review).
+  const [ready, setReady] = useState<{ what: Ready; ref: object } | null>(null);
+  const clearReady = useCallback(() => setReady(null), []);
   const [care, setCareState] = useState<CarePlanResponse | null>(null);
   const [barriers, setBarriersState] = useState<Barrier[]>([]);
   const [zip, setZipState] = useState("");
@@ -270,7 +282,7 @@ export function CarePlanTool() {
   // A scroll to run after the next render, once the newly shown card is on the page.
   // `submittedAt` marks an automatic scroll: it is checked again right before scrolling, and skipped if the
   // person has used the page since they pressed the button. A tab they picked themselves has none.
-  const scrollAfter = useRef<{ t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number } | null>(null);
+  const scrollAfter = useRef<ScrollRequest | null>(null);
   // A plan that just arrived: once it is on the page, decide (then, not when the reply landed) whether to open and scroll to it.
   const planNav = useRef<{ plan: PlanResponse; submittedAt: number } | null>(null);
   // The card an automatic scroll brought up, kept in place briefly while late content above it loads.
@@ -334,7 +346,7 @@ export function CarePlanTool() {
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFence.cancel(); setMeaning(IDLE_MEANING);
-    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setLoc(null); locGen.current++; setLocating(false);
+    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setLoc(null); locGen.current++; setLocating(false); setReady(null); setPlanReadyNote(null);
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
     // A plan saved before ids were filtered out (lib/planText.ts) comes back without them. A plan with nothing to clean
@@ -360,7 +372,7 @@ export function CarePlanTool() {
   function resetTool() {
     endSession();
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
-    setReadNote(null); setPlanNote(null); setPlanReadyNote(null);
+    setReadNote(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setPhotoChecked(false); setReadLevel(null);
@@ -389,12 +401,78 @@ export function CarePlanTool() {
   // A helper link (/helper) starts a fresh plan with its presets in the normal inputs. Runs after the restore above.
   const helper = useHelperArrival((p) => { newPlan(); if (p.language) setLanguage(p.language); if (p.level) setLevel(p.level); if (p.zip) setZip(p.zip); });
 
+  // "Try it with a sample" (lib/sampleStart.ts): fill the sample in, then bring "Read my paper" into view and focus it,
+  // so the next thing to press is on screen. Each bump of readJump asks for one jump, after the render that enabled it.
+  const [readJump, setReadJump] = useState(0);
+  const loadSample = () => { setText(SAMPLE_AVS); setPhoto(null); setTab(1); setReadJump((n) => n + 1); };
+  const arriveWithSample = useEffectEvent(() => {
+    // Never replace a paper the person typed or photographed; just show them the button. On a phone a restored plan
+    // can be open on tab 2 or 3, where step 1 is hidden, so the button's tab is opened first either way (Codex review).
+    if (mayFillSample(live.current.text, !!live.current.photo, SAMPLE_AVS)) loadSample();
+    else { setTab(1); setReadJump((n) => n + 1); }
+  });
+  useEffect(() => {
+    const toTry = () => { try { window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#try`); } catch {} };
+    const fromHash = () => {
+      if (window.location.hash !== TRY_SAMPLE_HASH) return;
+      toTry();
+      arriveWithSample();
+    };
+    // The home button's href is #try-sample, so a tap before this page is interactive still arrives here on load.
+    // Once it is, the button also sends the event (Next changes the hash without a hashchange); tidy the hash after.
+    let tidy = 0;
+    const fromEvent = () => {
+      arriveWithSample();
+      window.clearTimeout(tidy);
+      tidy = window.setTimeout(() => { if (window.location.hash === TRY_SAMPLE_HASH) toTry(); }, 100);
+    };
+    fromHash();
+    window.addEventListener(TRY_SAMPLE_EVENT, fromEvent);
+    window.addEventListener("hashchange", fromHash);
+    return () => { window.clearTimeout(tidy); window.removeEventListener(TRY_SAMPLE_EVENT, fromEvent); window.removeEventListener("hashchange", fromHash); };
+  }, []);
+  useEffect(() => {
+    if (!readJump) return;
+    const askedAt = performance.now();
+    const go = () => {
+      // Never pull the person away: not after they have tapped, typed or scrolled since, nor out of a field they are in.
+      if (lastInteraction.current > askedAt) return;
+      if (isEditable(document.activeElement as HTMLElement | null)) return;
+      const el = document.getElementById("read-my-paper");
+      if (!el) return;
+      el.scrollIntoView({ block: "center" });
+      el.focus({ preventScroll: true });
+    };
+    // The first-visit intro (Preloader) holds the page with overflow hidden for about a second and a half, and says
+    // "atlas:intro-done" twice: once mid-animation (still locked) and once after it lets go. Jump once: right away, or
+    // on the first intro-done that arrives after the lock is gone, never both.
+    if (document.documentElement.style.overflow === "hidden") {
+      const onIntro = () => {
+        if (document.documentElement.style.overflow === "hidden") return; // still locked: wait for the next one
+        window.removeEventListener("atlas:intro-done", onIntro);
+        go();
+      };
+      window.addEventListener("atlas:intro-done", onIntro);
+      const stop = window.setTimeout(() => window.removeEventListener("atlas:intro-done", onIntro), 6000);
+      return () => { window.clearTimeout(stop); window.removeEventListener("atlas:intro-done", onIntro); };
+    }
+    const frame = requestAnimationFrame(go);
+    return () => cancelAnimationFrame(frame);
+  }, [readJump]);
+
   // Is the reading (or the plan) on screen still the one these inputs would get? A plan built from an outdated reading is outdated too.
   const careOutdated = !!care && careFp !== null && readFingerprintFor({ text, photo, language, level }) !== careFp;
+  // Not enough to read yet: "Read my paper" is off and a note says what to do first.
+  const needsPaper = !photo && text.trim().length < 20;
   const planOutdated = !!plan && planFp !== null && (careOutdated || planFingerprint({
     careIds: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id),
     barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc,
   }) !== planFp);
+  // The ready cue, only for the exact result that raised it and only while that result is current.
+  const cueFor: Ready | null = !ready ? null
+    : ready.what === "steps" ? (care === ready.ref && !careOutdated ? "steps" : null)
+    : ready.what === "photo" ? (care === ready.ref && !careOutdated && !photoChecked ? "photo" : null)
+    : (plan === ready.ref && !planOutdated ? "plan" : null);
   const resultsCurrent = !careOutdated && !planOutdated;
   const actionsOffReason = t(careOutdated ? "plan.offPaper" : "plan.offPlan");
   // A plan made near the device's position, with no position or ZIP now: it needs a place before it can be updated.
@@ -495,7 +573,7 @@ export function CarePlanTool() {
     planRun.current++; setPlanning(false); // drop any plan still on its way: it was built from the old steps
     pendingPlan.current?.abort.abort(); pendingPlan.current = null;
     pendingRead.current?.abort.abort();
-    setReadNote(null); setPlanNote(null); setPlanReadyNote(null);
+    setReadNote(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     const usePhoto = corrected === undefined && !!photo;
     pendingRead.current = {
       run, abort: ac, at: performance.now(),
@@ -526,12 +604,18 @@ export function CarePlanTool() {
       setCareFp(sent.fp);
       if (json.source_kind === "image" && photo) setReadPhoto({ for: json, file: photo });
       setReadLevel(usedLevel);
-      if (json.source_kind === "image") { setTranscript(json.source_text); return; }
+      if (json.source_kind === "image") {
+        setTranscript(json.source_text);
+        // The photo check waits in step 1; if they moved on while it read, the cue brings them back to it (Codex review, round 5).
+        if (!autoScrollOk(sent.at)) setReady({ what: "photo", ref: json });
+        return;
+      }
       void checkMeaningFor(json);
       // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared),
       // and only if the person has not scrolled, tapped or typed since pressing the button.
       const target = scrollTargetAfter("read", isPhoneNow());
-      if (target && autoScrollOk(sent.at)) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at };
+      if (!autoScrollOk(sent.at)) setReady({ what: "steps", ref: json }); // they moved on: offer the way back instead of moving them
+      else if (target) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at, ready: { what: "steps", ref: json } };
     } catch (e) {
       if (readRun.current !== run) return; // stopped or replaced: nothing to show
       if (pendingRead.current?.run === run && pendingRead.current.fp !== liveReadFp()) return stopStaleRead();
@@ -574,7 +658,7 @@ export function CarePlanTool() {
     const abort = new AbortController();
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
     pendingPlan.current = { run, abort, at: performance.now(), fp: planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc }) };
-    setPlanning(true); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null);
+    setPlanning(true); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     try {
       const body = {
         care: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => ({ id: i.id, kind: i.kind, title: i.title, plain_language: i.plain_language, when: i.when, source_quote: i.source_quote })),
@@ -710,7 +794,7 @@ export function CarePlanTool() {
   useEffect(() => {
     // Stopping speech sets state, on purpose: the reading must end the moment the plan goes out of date.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (planOutdated) { stopSpeaking(); document.documentElement.classList.remove("print-sheet"); }
+    if (planOutdated) { stopSpeaking(); document.documentElement.classList.remove("print-sheet", "print-view"); }
     // Only the change to outdated matters; stopSpeaking only touches refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planOutdated]);
@@ -729,9 +813,23 @@ export function CarePlanTool() {
     const kinds = ["pointerdown", "keydown", "wheel", "touchmove"] as const;
     kinds.forEach((k) => window.addEventListener(k, mark, opts));
     // A scroll with none of those (dragging the scrollbar, find in page) counts too, unless it is the page's own.
-    const onScroll = () => {
+    lastScrollY.current = window.scrollY;
+    const onScroll = (e: Event) => {
       const now = performance.now();
-      if (scrollIsPersons({ now, y: window.scrollY, own: ownScroll.current, layout: layoutShift.current })) lastInteraction.current = now;
+      // Chrome fires a scroll event without moving the page when content appears (measured live, Oct 4: pressing
+      // Make my plan inserts the working card and a scroll event arrives at the same scrollY). Nothing moved, so it is
+      // not the person, and a phone left alone must still open its plan (Akhil's report).
+      // Only the page's own scroll is checked this way: a scroll inside a box (the paper viewer, a long list) reaches this
+      // capture listener too without moving the page, and is still the person (Codex review).
+      const y = window.scrollY;
+      const t = e.target;
+      const isBox = t instanceof Element && t !== document.documentElement && t !== document.body;
+      if (!isBox) {
+        const moved = Math.abs(y - lastScrollY.current) >= 1;
+        lastScrollY.current = y;
+        if (!moved) return;
+      }
+      if (scrollIsPersons({ now, y, own: ownScroll.current, layout: layoutShift.current })) lastInteraction.current = now;
     };
     // The page's own scroll is over. If it stopped short of (or past) its target, the person moved it.
     const onScrollEnd = () => {
@@ -801,7 +899,8 @@ export function CarePlanTool() {
 
   function runScroll(req: ScrollRequest) {
     // An automatic scroll is checked again here: a tap or scroll since the button press cancels it.
-    if (req.submittedAt !== undefined && !autoScrollOk(req.submittedAt)) { scrollAnchor.current = null; return; }
+    // Cancelled: offer the way back instead, so the result is never left off screen with no sign of it.
+    if (req.submittedAt !== undefined && !autoScrollOk(req.submittedAt)) { scrollAnchor.current = null; if (req.ready) setReady(req.ready); return; }
     const own = ownScroll.current;
     if (req.submittedAt !== undefined && own && performance.now() <= own.until) return waitForOwnScroll(req, own);
     markOwnScroll(scrollToPanel(req.t, req.onlyIfHidden));
@@ -845,9 +944,10 @@ export function CarePlanTool() {
     const phone = isPhoneNow();
     if (free || !phone) setTab(3);
     else setPlanReadyNote(t("plan.ready"));
+    if (!free) setReady({ what: "plan", ref: nav.plan }); // they moved on: the floating "Your plan is ready" button takes them there
     const target = scrollTargetAfter("plan", phone);
     if (!target || !free) return;
-    const next = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt };
+    const next: ScrollRequest = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt, ready: { what: "plan", ref: nav.plan } };
     // On a phone the card shows only after the tab switch renders; if step 3 is already open, nothing re-renders.
     if (phone && tab !== 3) scrollAfter.current = next;
     else runScroll(next);
@@ -898,18 +998,43 @@ export function CarePlanTool() {
 
   function pickTab(t: Tab, onlyIfHidden = true) {
     setTab(t);
-    if (t === 3) setPlanReadyNote(null); // they opened the plan
+    if (t === 3) { setPlanReadyNote(null); setReady((r) => (r?.what === "plan" ? null : r)); } // they opened the plan
     scrollAfter.current = { t, onlyIfHidden };
   }
 
-  // The handoff sheet is the only thing printed while html.print-sheet is set; afterprint clears it.
-  function printSheet() {
+  // "Show me" on the ready cue: the plan opens step 3; the steps (or the photo check) come to the top of step 1.
+  // Focus then follows to the result's heading, so keyboard and screen-reader users land there too (Codex review).
+  function goToReady(r: Ready) {
+    setReady(null);
+    const focusTarget = () => readyTarget(r)?.focus({ preventScroll: true });
+    if (r === "plan") {
+      pickTab(3, false);
+      requestAnimationFrame(() => requestAnimationFrame(focusTarget)); // after step 3 has rendered and scrolled
+      return;
+    }
+    setTab(1);
+    requestAnimationFrame(() => {
+      const el = readyTarget(r);
+      if (!el) return;
+      const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.style.scrollMarginTop = `${landingTop(el)}px`; // clear of whatever covers the top on this screen
+      markOwnScroll(scrollElementToTop(el, calm ? "auto" : "smooth"));
+      focusTarget();
+    });
+  }
+
+  // The handoff sheet shown on screen as the page, printed from its bar (printView.ts, PrintViewBar).
+  function printSheet(e: { currentTarget: Element }) {
     if (planOutdated) return;
-    const root = document.documentElement;
-    const done = () => { root.classList.remove("print-sheet"); window.removeEventListener("afterprint", done); };
-    root.classList.add("print-sheet");
-    window.addEventListener("afterprint", done);
-    window.print();
+    printOrView(HANDOFF_SHEET, e.currentTarget);
+  }
+
+  // Print the plan page; where the browser can't print from a button (Chrome on iPhone, or an app's browser that never
+  // starts a print), the handoff sheet, which holds the plan and the paper's words, is shown on screen to print from
+  // the browser's menu instead (printView.ts).
+  function printPlan(e: { currentTarget: Element }) {
+    if (planOutdated) return;
+    printPageOr(HANDOFF_SHEET, e.currentTarget);
   }
 
   const careById = Object.fromEntries((care?.items ?? []).map((i) => [i.id, i]));
@@ -950,6 +1075,8 @@ export function CarePlanTool() {
   const transcriptEdited = !!care && isTranscriptEdited(transcript, care.source_text);
   const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0, transcriptEdited, hasPlan: !!plan, planning });
   const shown = shownTab(tab, flow);
+  // The phone tab bar's "Your plan is ready" holds to the same rule as the cue: never for an outdated plan (Codex review, round 4).
+  const phonePlanNote = plan && shown !== 3 && !planOutdated ? planReadyNote : null;
   // Phones: one step card at a time. Hidden cards stay mounted (state, timers and requests carry on).
   const panel = (t: Tab) => ({
     id: panelId(t),
@@ -980,7 +1107,9 @@ export function CarePlanTool() {
 
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
 
-        <PhoneTabBar shown={shown} state={flow} onPick={pickTab} notice={plan && shown !== 3 ? planReadyNote : null} />
+        <PhoneTabBar shown={shown} state={flow} onPick={pickTab} notice={phonePlanNote} />
+        {/* Only while that exact result is still on screen and current; the tab bar already announces the phone plan. */}
+        <ReadyCue ready={cueFor} announce={!(cueFor === "plan" && !!phonePlanNote)} onGo={goToReady} onSeen={clearReady} />
 
         {/* Step 1 */}
         <div {...panel(1)} className={`card mt-10 max-md:mt-4 p-5 sm:p-8 max-md:scroll-mt-44 ${onPhone(1)}`}>
@@ -990,7 +1119,7 @@ export function CarePlanTool() {
               <textarea data-lenis-prevent aria-label={t("paper.textLabel")} className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 placeholder={t("paper.placeholder")} value={text} onChange={(e) => { setText(e.target.value); setPhoto(null); }} />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
-                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setText(SAMPLE_AVS); setPhoto(null); setTab(1); }}>{t("paper.useSample")}</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={loadSample}>{t("paper.useSample")}</button>
                 <label className="cursor-pointer rounded-full border-2 border-ink px-4 py-2 hover:bg-mint">
                   📷 {photo ? photo.name : t("common.photoButton")}
                   <input type="file" accept="image/*" capture="environment" className="hidden"
@@ -998,20 +1127,13 @@ export function CarePlanTool() {
                 </label>
               </div>
               <p className="mt-2 text-xs text-ink/70">{language === "English" ? SAMPLE_LABEL : t("paper.sampleLabel")}.</p>
+              <div className="mt-5"><ReadIn language={language} level={level} onLanguage={setLanguage} onLevel={setLevel} /></div>
             </div>
             <div className="flex flex-col gap-3">
-              <label className="text-sm font-bold">{t("common.explainIn")}
-                <select className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" value={language} onChange={(e) => setLanguage(e.target.value as typeof language)}>
-                  {/* Each language in its own name; the value stays the English name the API expects. */}
-                  {LANGUAGES.map((l) => <option key={l} value={l} lang={UI_LANG_CODE[l]}>{LANGUAGE_NAME[l]}</option>)}
-                </select>
-              </label>
-              <label className="text-sm font-bold">{t("paper.readingLevel")}
-                <select className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" value={level} onChange={(e) => setLevel(e.target.value as typeof level)}>
-                  {READING_LEVELS.map((l) => <option key={l} value={l}>{t(keyFor("paper.level", l, "paper.level.simple"))}</option>)}
-                </select>
-              </label>
-              <SquashButton onClick={() => readPaper()} disabled={reading || (!photo && text.trim().length < 20)} bg="var(--teal)" accent="var(--sun)" className="mt-auto">
+              {/* A greyed-out button alone says nothing; say what to do first (the Oct 4 watched try). */}
+              {needsPaper && <p id="read-hint" className="mt-auto text-sm font-bold text-ink/80">{t("paper.addFirst")}</p>}
+              <SquashButton id="read-my-paper" onClick={() => readPaper()} disabled={reading || needsPaper} describedBy={needsPaper ? "read-hint" : undefined}
+                bg="var(--teal)" accent="var(--sun)" className={needsPaper ? "" : "mt-auto"}>
                 {reading ? t("common.reading") : t("paper.read")}
               </SquashButton>
             </div>
@@ -1034,7 +1156,7 @@ export function CarePlanTool() {
 
           {care && needsPhotoCheck && (
             <div className="mt-8 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4 sm:p-5">
-              <p className="font-extrabold">{t("paper.checkPhotoTitle")}</p>
+              <p id="photo-check-title" tabIndex={-1} className="font-extrabold scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{t("paper.checkPhotoTitle")}</p>
               <p className="text-sm font-semibold text-ink/70">
                 {t("paper.checkPhotoBody")}
               </p>
@@ -1118,14 +1240,14 @@ export function CarePlanTool() {
           </div>
         </div>
 
-        {plan && care && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={generalQuestions} language={language} meaning={paperMeaning} planItems={planItems} alsoOnPaper={missedLineTexts(missed)} />}
+        {plan && care && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={generalQuestions} language={language} meaning={paperMeaning} planItems={planItems} alsoOnPaper={missedLineTexts(missed)} paper={care.source_text} />}
 
         {/* Step 3 */}
         {plan && (
           <div {...panel(3)} ref={planCard} data-outdated={planOutdated || undefined} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 max-md:pb-36 scroll-mt-24 max-md:scroll-mt-44 ${planOutdated ? "plan-outdated" : ""} ${onPhone(3)}`}>
             {/* Printing from the browser menu while the plan is outdated prints only this, never the outdated plan. */}
             {planOutdated && <p className="outdated-print-note">{t("plan.outdatedPrint", { reason: actionsOffReason })}</p>}
-            <StepHeader n={3} title={t("plan.title")} done note={plan.located.label} />
+            <StepHeader n={3} id="plan-title" title={t("plan.title")} done note={plan.located.label} />
             {planOutdated && (
               <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-sun/30 p-3 text-sm font-bold">
                 {careOutdated
@@ -1166,7 +1288,7 @@ export function CarePlanTool() {
               {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2"><DockLabel icon="✕" short={t("dock.cancel")} long={t("dock.cancel")} /></button>}
               {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} short={t("dock.callMe.short")} />}
               {care && <ShareFamily items={items} plan={plan} questions={generalQuestions} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short={t("dock.send.short")} />}
-              <button type="button" onClick={() => { if (!planOutdated) window.print(); }} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short={t("dock.print.short")} long={t("dock.print.long")} /></button>
+              <button type="button" onClick={printPlan} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short={t("dock.print.short")} long={t("dock.print.long")} /></button>
               <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short={t("dock.handoff.short")} long={t("dock.handoff.long")} /></button>
               <span role="status" className={voiceNote ? "dock-note self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
             </div>

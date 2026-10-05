@@ -157,7 +157,7 @@ object PaperFirst {
     }
 
     /** PLAN_IS_A_SUGGESTION in speechText.ts. */
-    const val PLAN_IS_A_SUGGESTION = "This plan is a suggestion from ATLAS, not your paper. If anything differs, follow your paper."
+    const val PLAN_IS_A_SUGGESTION = "This plan is a suggestion from ATLAS. If anything differs from your paper, follow your paper."
 
     /** speechLines in speechText.ts: what "Read it out loud" says for a plan. */
     fun planSpeechLines(plan: PlanResponse, items: List<VerifiedItem>): List<String> =

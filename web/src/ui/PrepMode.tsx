@@ -11,6 +11,7 @@ import { defaultOpenSlot, explainState, meaningItems, NO_MEANING, prepAskText, p
 import { createRequestGate, type Ticket } from "@/lib/requestGate";
 import { keyFor, LANGUAGE_NAME, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
 import { UiLangProvider, useUi } from "./UiLang";
+import { PREP_SHEET, printOrView } from "./printView";
 
 type Inputs = { text: string; language: string };
 
@@ -130,12 +131,8 @@ export function PrepMode() {
     }, 5000);
   }
 
-  function print() {
-    const root = document.documentElement;
-    const done = () => { root.classList.remove("print-prep"); window.removeEventListener("afterprint", done); };
-    root.classList.add("print-prep");
-    window.addEventListener("afterprint", done);
-    window.print();
+  function print(e: { currentTarget: Element }) {
+    printOrView(PREP_SHEET, e.currentTarget); // the sheet on screen first, printed from its bar (printView.ts)
   }
 
   const placed = res ? res.timeline.reduce((n, g) => n + g.steps.length, 0) : 0;

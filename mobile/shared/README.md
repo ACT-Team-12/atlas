@@ -41,6 +41,17 @@ cd web && VECTORS_OUT=../mobile/shared/pip-vectors.json pnpm exec vitest run src
 rm src/lib/genPipVectors.test.ts
 ```
 
+## Medicine changes (medicine-changes-vectors.json)
+
+`medicine-changes-vectors.json` holds hand-written cases for the "Your medicine changes" card
+(`web/src/lib/medicineChanges.ts`): a medicine line (and, when it matters, the paper it sits in, for its list heading),
+with the row it must go in (`stop`, `change`, `start`, `keep`, or `ask` for "Ask your pharmacist"; `none` for a step that
+is not a medicine), why, the medicine's name as the paper starts the line, and the old and new dose shown only when both
+are written in the line. Cases cover all seven app languages, negations, conditions, a hold then restart, two medicines on
+one line, and a change with one dose versus two. Unlike the files above it is not generated: the web suite replays it
+(`web/src/lib/medicineChanges.vectors.test.ts`) and `check-vectors.sh` runs that test in web-ci. The phone apps should
+replay the same file when they port the card. The non-English lines need a native speaker's review.
+
 ## Missed lines (missed-lines-vectors.json)
 
 `missed-lines-vectors.json` is the website's own answer for the "Lines on your paper we didn't turn into steps"

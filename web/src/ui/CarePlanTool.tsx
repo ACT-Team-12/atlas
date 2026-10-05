@@ -806,15 +806,21 @@ export function CarePlanTool() {
     kinds.forEach((k) => window.addEventListener(k, mark, opts));
     // A scroll with none of those (dragging the scrollbar, find in page) counts too, unless it is the page's own.
     lastScrollY.current = window.scrollY;
-    const onScroll = () => {
+    const onScroll = (e: Event) => {
       const now = performance.now();
       // Chrome fires a scroll event without moving the page when content appears (measured live, Oct 4: pressing
       // Make my plan inserts the working card and a scroll event arrives at the same scrollY). Nothing moved, so it is
       // not the person, and a phone left alone must still open its plan (Akhil's report).
+      // Only the page's own scroll is checked this way: a scroll inside a box (the paper viewer, a long list) reaches this
+      // capture listener too without moving the page, and is still the person (Codex review).
       const y = window.scrollY;
-      const moved = Math.abs(y - lastScrollY.current) >= 1;
-      lastScrollY.current = y;
-      if (!moved) return;
+      const t = e.target;
+      const isBox = t instanceof Element && t !== document.documentElement && t !== document.body;
+      if (!isBox) {
+        const moved = Math.abs(y - lastScrollY.current) >= 1;
+        lastScrollY.current = y;
+        if (!moved) return;
+      }
       if (scrollIsPersons({ now, y, own: ownScroll.current, layout: layoutShift.current })) lastInteraction.current = now;
     };
     // The page's own scroll is over. If it stopped short of (or past) its target, the person moved it.

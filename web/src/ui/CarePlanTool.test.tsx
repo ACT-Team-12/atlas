@@ -281,6 +281,15 @@ describe("automatic scroll after a reply", () => {
     expect(scrolls).toContain("step-3");
   });
 
+  it("phone: scrolling inside a box (not the page) while the plan is built still counts as using the page", async () => {
+    const box = document.createElement("div");
+    host.appendChild(box);
+    await planOnPhone(() => box.dispatchEvent(new Event("scroll"))); // the page itself does not move
+    expect(tabSelected(3)).toBe("false");
+    expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
+    box.remove();
+  });
+
   // Oct 4 watched tries: both testers scrolled away while the AI worked; one never found her plan.
   const cue = () => host.querySelector<HTMLElement>("[data-ready-cue]");
 

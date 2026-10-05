@@ -267,10 +267,18 @@ describe("automatic scroll after a reply", () => {
   });
 
   it("phone: dragging the scrollbar (a scroll with no tap, wheel or key) counts as using the page", async () => {
-    await planOnPhone(() => window.dispatchEvent(new Event("scroll")));
+    await planOnPhone(() => { setScrollY(240); window.dispatchEvent(new Event("scroll")); }); // a drag moves the page
     expect(tabSelected(3)).toBe("false");
     expect(scrolls).not.toContain("step-3");
     expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
+  });
+
+  it("phone, untouched: a scroll event that does not move the page (content appearing) does not stop step 3 opening", async () => {
+    // Akhil, Oct 4: measured live, pressing Make my plan inserts the working card and Chrome fires a scroll event at the
+    // same scrollY. Nothing moved, so it is not the person.
+    await planOnPhone(() => window.dispatchEvent(new Event("scroll")));
+    expect(tabSelected(3)).toBe("true");
+    expect(scrolls).toContain("step-3");
   });
 
   // Oct 4 watched tries: both testers scrolled away while the AI worked; one never found her plan.

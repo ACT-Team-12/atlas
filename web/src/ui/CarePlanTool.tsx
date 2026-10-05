@@ -193,6 +193,8 @@ export function CarePlanTool() {
   const locGen = useRef(0);
   const [locating, setLocatingState] = useState(false);
   const layoutShift = useRef<LayoutShift>(NO_LAYOUT_SHIFT);
+  // Where the page was at the last scroll event: a scroll event that did not move the page is not the person.
+  const lastScrollY = useRef(0);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const [planReadyNote, setPlanReadyNote] = useState<string | null>(null);
@@ -803,9 +805,17 @@ export function CarePlanTool() {
     const kinds = ["pointerdown", "keydown", "wheel", "touchmove"] as const;
     kinds.forEach((k) => window.addEventListener(k, mark, opts));
     // A scroll with none of those (dragging the scrollbar, find in page) counts too, unless it is the page's own.
+    lastScrollY.current = window.scrollY;
     const onScroll = () => {
       const now = performance.now();
-      if (scrollIsPersons({ now, y: window.scrollY, own: ownScroll.current, layout: layoutShift.current })) lastInteraction.current = now;
+      // Chrome fires a scroll event without moving the page when content appears (measured live, Oct 4: pressing
+      // Make my plan inserts the working card and a scroll event arrives at the same scrollY). Nothing moved, so it is
+      // not the person, and a phone left alone must still open its plan (Akhil's report).
+      const y = window.scrollY;
+      const moved = Math.abs(y - lastScrollY.current) >= 1;
+      lastScrollY.current = y;
+      if (!moved) return;
+      if (scrollIsPersons({ now, y, own: ownScroll.current, layout: layoutShift.current })) lastInteraction.current = now;
     };
     // The page's own scroll is over. If it stopped short of (or past) its target, the person moved it.
     const onScrollEnd = () => {

@@ -49,8 +49,11 @@ with the row it must go in (`stop`, `change`, `start`, `keep`, or `ask` for "Ask
 is not a medicine), why, the medicine's name as the paper starts the line, and the old and new dose shown only when both
 are written in the line. Cases cover all seven app languages, negations, conditions, a hold then restart, two medicines on
 one line, and a change with one dose versus two. Unlike the files above it is not generated: the web suite replays it
-(`web/src/lib/medicineChanges.vectors.test.ts`) and `check-vectors.sh` runs that test in web-ci. The phone apps should
-replay the same file when they port the card. The non-English lines need a native speaker's review.
+(`web/src/lib/medicineChanges.vectors.test.ts`) and `check-vectors.sh` runs that test in web-ci. iOS replays the same file
+in `mobile/ios/ATLASTests/MedicineChangesTests.swift` and Android in
+`mobile/android/app/src/test/java/com/stephensookra/atlas/MedicineChangesTest.kt`, with the same checks as the web test
+(every Stop is also a "Right away" stop, the quote is the paper's, a dose shown is two pieces of that quote). The
+non-English lines need a native speaker's review.
 
 ## Walk me through it (walk-vectors.json)
 

@@ -74,6 +74,9 @@ targets:
       # "Ask my paper" web reference (web/src/lib/askText.ts, onThisPaper): AskPaperTests replays it.
       - path: ../shared/ask-vectors.json
         buildPhase: resources
+      # "Your medicine changes" cases (web/src/lib/medicineChanges.ts): MedicineChangesTests replays them.
+      - path: ../shared/medicine-changes-vectors.json
+        buildPhase: resources
     dependencies:
       - target: ATLAS
     settings:

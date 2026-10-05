@@ -16,8 +16,11 @@ struct CareStepsView: View {
     /// "Walk me through it" (WalkThroughView): open while set. Its order is fixed when it starts.
     @State private var walk: WalkState?
     @AccessibilityFocusState private var walkButtonFocused: Bool
+    /// The step "Go to this step" (medicine card) lands on, for VoiceOver.
+    @AccessibilityFocusState private var focusedStep: String?
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             if let care = model.care {
                 VStack(alignment: .leading, spacing: 16) {
@@ -95,6 +98,9 @@ struct CareStepsView: View {
                             }
                         }
                     }
+                    // Above the time groups, not inside "Right away": a change or a new medicine is often daily, and the
+                    // card must not file it under a time the paper does not give it.
+                    MedicineChangesView(items: model.items, paper: care.source_text) { goTo($0, proxy: proxy) }
                     ForEach(layout.groups) { g in
                         StepGroupHeader(title: g.group.label, count: g.items.count, note: g.group.note)
                         ForEach(g.items) { card($0, pip: pip) }
@@ -164,6 +170,7 @@ struct CareStepsView: View {
             } else {
                 Text("No steps yet. Go back and read your paper.").padding()
             }
+        }
         }
         .screenBackground()
         .navigationTitle("Step 1 of 3")
@@ -252,6 +259,18 @@ struct CareStepsView: View {
         } onRemove: {
             model.removed[item.id] = true
         }
+        .id("step-\(item.id)")
+        .accessibilityFocused($focusedStep, equals: item.id)
+    }
+
+    /// "Go to this step" from the medicine card: bring the step up and move VoiceOver to it.
+    private func goTo(_ id: String, proxy: ScrollViewProxy) {
+        if reduceMotion {
+            proxy.scrollTo("step-\(id)", anchor: .top)
+        } else {
+            withAnimation { proxy.scrollTo("step-\(id)", anchor: .top) }
+        }
+        focusedStep = id
     }
 
     private var readLines: [String] {

@@ -30,6 +30,7 @@ import com.stephensookra.atlas.data.PlanCareInput
 import com.stephensookra.atlas.data.PlanRequest
 import com.stephensookra.atlas.data.PlanResponse
 import com.stephensookra.atlas.data.ReadingLevel
+import com.stephensookra.atlas.data.ReadyCue
 import com.stephensookra.atlas.data.Sample
 import com.stephensookra.atlas.data.SavedSession
 import com.stephensookra.atlas.data.SessionStore
@@ -110,6 +111,47 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     var busy by mutableStateOf<Busy?>(null)
         private set
     var error by mutableStateOf<String?>(null)
+    /**
+     * The person chose to look around while a read or plan runs (the busy card is put away). When the result lands they
+     * are not moved; the ready cue offers the way there instead. Not saved.
+     */
+    var lookingAround by mutableStateOf(false)
+    /** The result that raised the ready cue (ReadyCue), if any. Not saved. */
+    var readyMark by mutableStateOf<ReadyCue.Mark?>(null)
+        private set
+    /** Counts the plans built in this run of the app, so the cue belongs to one exact plan. Not saved. */
+    var planCount by mutableStateOf(0)
+        private set
+
+    /** The ready cue to float on screen now (cueFor on the website), or null. */
+    val readyCue: ReadyCue.What?
+        get() = ReadyCue.shown(readyMark, readingCount, planCount, care != null && !careOutdated, plan != null && !planOutdated, path.lastOrNull())
+
+    /** "Show me" on the ready cue. */
+    fun showReady() {
+        val what = readyCue ?: return
+        readyMark = null
+        val next = ReadyCue.path(what, path.toList())
+        path.clear(); path.addAll(next)
+    }
+
+    /** The person opened the result themselves: the cue is no longer needed. */
+    fun clearReady() { readyMark = null }
+
+    /**
+     * A read or plan landed. If the person stayed with it, take them there, as before. If they chose to look around,
+     * leave them where they are and raise the ready cue for this exact result instead.
+     */
+    private fun arrived(what: ReadyCue.What, run: Int) {
+        val route = ReadyCue.route(what)
+        if (lookingAround && path.lastOrNull() != route) {
+            readyMark = ReadyCue.Mark(what, run)
+        } else {
+            readyMark = null
+            push(route)
+        }
+        lookingAround = false
+    }
 
     init {
         restore()
@@ -240,6 +282,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     fun readPaper() {
         if (!canRead) return
         cancel()
+        readyMark = null
         error = null
         busy = Busy.Reading
         val text = text; val level = level; val language = language
@@ -251,11 +294,12 @@ class AppModel(app: Application) : AndroidViewModel(app) {
                 busy = null
                 startMeaningCheck(care ?: result, language)
                 persist(planChanged = true)
-                push(Route.Steps)
+                arrived(ReadyCue.What.steps, readingCount)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ApiException) {
                 busy = null
+                lookingAround = false
                 error = e.message
             }
         }
@@ -276,6 +320,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     fun makePlan() {
         if (!canPlan) return
         cancel()
+        readyMark = null
         error = null
         busy = Busy.Planning
         val validZip = Regex("^\\d{5}$").matches(zip)
@@ -294,15 +339,17 @@ class AppModel(app: Application) : AndroidViewModel(app) {
                 val result = api.plan(request, fromHelperLink = viaHelper)
                 plan = result
                 planFp = fingerprint
+                planCount++
                 // One link counts at most one plan (helperLink.ts consumeHelperSession).
                 if (viaHelper) fromHelperLink = false
                 busy = null
                 persist(planChanged = true)
-                push(Route.Plan)
+                arrived(ReadyCue.What.plan, planCount)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ApiException) {
                 busy = null
+                lookingAround = false
                 error = e.message
             }
         }
@@ -343,6 +390,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         task?.cancel()
         task = null
         busy = null
+        lookingAround = false
     }
 
     // ---- Saved on this phone
@@ -396,6 +444,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         meaning = MeaningState.IDLE
         readFp = null; planFp = null; planChangedAt = null
         helperBanner = null; fromHelperLink = false
+        readyMark = null
         store.clear()
         restoring = true
         text = ""; care = null; plan = null; barriers.clear(); zip = ""; note = ""; done.clear(); removed.clear()

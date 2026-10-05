@@ -25,11 +25,13 @@ export function PrintViewBar() {
 
   useEffect(() => {
     if (!target) return;
-    heading.current?.focus();
     const close = () => { closePrintView(target); setTarget(null); };
+    // The sheet can go away while shown (the plan went out of date): go back rather than leave a blank page, including
+    // when it went between printOrView and this effect running.
+    if (!document.getElementById(target.sheetId)) { close(); return; }
+    heading.current?.focus();
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
     document.addEventListener("keydown", esc);
-    // The sheet can go away while shown (the plan went out of date): go back rather than leave a blank page.
     const gone = new MutationObserver(() => { if (!document.getElementById(target.sheetId)) close(); });
     gone.observe(document.body, { childList: true });
     return () => { document.removeEventListener("keydown", esc); gone.disconnect(); };

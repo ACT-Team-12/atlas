@@ -55,14 +55,46 @@ function focusWhenShown(el: HTMLElement) {
  * never a bare window.print: that does nothing in Chrome on iPhone and in apps' browsers, and no check can spot every
  * such browser (Codex review). The sheet's print class stays on while it is shown, so any print captures only it.
  */
-export function printOrView(t: PrintTarget) {
+export function printOrView(t: PrintTarget, trigger?: Element | null): boolean {
+  // No sheet (the plan just went out of date): don't hide the app behind an empty view.
+  if (!document.getElementById(t.sheetId)) return false;
   const root = document.documentElement;
   returnY = window.scrollY;
-  returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  // The button that was tapped; a tap doesn't always focus it, so activeElement is only the fallback.
+  const active = document.activeElement;
+  returnFocus = trigger instanceof HTMLElement ? trigger : active instanceof HTMLElement && active !== document.body ? active : null;
   root.classList.add(t.cls, "print-view");
   document.getElementById(t.sheetId)?.removeAttribute("aria-hidden"); // it is the page now, so it is read too
   jumpTo(0);
   window.dispatchEvent(new CustomEvent<PrintTarget>(PRINT_VIEW_EVENT, { detail: t }));
+  return true;
+}
+
+/** How long a print has to start before it counts as having done nothing. */
+export const PRINT_START_MS = 1000;
+
+/**
+ * Print the page as it is, and if the browser turns out not to print, show `fallback` on screen instead. A browser that
+ * prints fires beforeprint; one that ignores window.print (an app's browser that looks like Safari or Chrome, which no
+ * user-agent check can spot) fires nothing, so after PRINT_START_MS the sheet view opens with how to print from the
+ * menu. Browsers already known not to print go straight to the sheet.
+ */
+export function printPageOr(fallback: PrintTarget, trigger?: Element | null) {
+  if (!canPrintHere()) { printOrView(fallback, trigger); return; }
+  let started = false;
+  const onStart = () => { started = true; };
+  const stopListening = () => { window.removeEventListener("beforeprint", onStart); window.removeEventListener("afterprint", onStart); };
+  window.addEventListener("beforeprint", onStart);
+  window.addEventListener("afterprint", onStart);
+  const t0 = performance.now();
+  window.print();
+  // Where the dialog blocks the page (desktop Chrome), print() returns only after it closed: that was a print.
+  // Elsewhere beforeprint can arrive a moment later (measured in Chromium: after print() returned), so wait for it.
+  if (started || performance.now() - t0 > 250) { stopListening(); return; }
+  window.setTimeout(() => {
+    stopListening();
+    if (!started) printOrView(fallback, trigger);
+  }, PRINT_START_MS);
 }
 
 /** Back to the app, where the person was, with focus back on the button they used. */

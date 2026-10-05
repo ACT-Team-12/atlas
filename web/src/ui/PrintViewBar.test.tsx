@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PrintViewBar } from "./PrintViewBar";
-import { HANDOFF_SHEET, printOrView } from "./printView";
+import { HANDOFF_SHEET, PRINT_START_MS, printOrView, printPageOr } from "./printView";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -127,11 +127,72 @@ describe("the sheet view", () => {
     }
   });
 
+  it("focus goes back to the button that was tapped, even when a tap left focus somewhere else (Codex round 2)", () => {
+    as(CHROME_IPHONE);
+    const field = document.createElement("input");
+    document.body.appendChild(field);
+    field.focus();
+    act(() => { printOrView(HANDOFF_SHEET, trigger); });
+    act(() => button("Done")!.click());
+    expect(document.activeElement).toBe(trigger);
+    field.remove();
+  });
+
+  it("with no sheet on the page, nothing is hidden behind an empty view", () => {
+    as(CHROME_IPHONE);
+    sheet.remove();
+    let shownView = true;
+    act(() => { shownView = printOrView(HANDOFF_SHEET); });
+    expect(shownView).toBe(false);
+    expect(html().classList.contains("print-view")).toBe(false);
+    expect(shown()).toBe(false);
+  });
+
+  it("a sheet that goes away before the bar starts watching still closes the view (Codex round 2)", () => {
+    as(CHROME_IPHONE);
+    act(() => { printOrView(HANDOFF_SHEET); sheet.remove(); });
+    expect(html().classList.contains("print-view")).toBe(false);
+    expect(shown()).toBe(false);
+  });
+
   it("if the sheet goes away while shown (the plan went out of date), it goes back instead of leaving a blank page", async () => {
     as(CHROME_IPHONE);
     act(() => printOrView(HANDOFF_SHEET));
     await act(async () => { sheet.remove(); await new Promise((r) => setTimeout(r, 0)); });
     expect(html().classList.contains("print-view")).toBe(false);
     expect(shown()).toBe(false);
+  });
+});
+
+// "Print for the next visit" prints the page itself, and falls back to the sheet when the browser doesn't print.
+describe("printPageOr", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("a browser that prints (beforeprint fires) prints the page and shows no sheet", () => {
+    as(SAFARI_IPHONE);
+    vi.stubGlobal("print", vi.fn(() => window.dispatchEvent(new Event("beforeprint"))));
+    vi.useFakeTimers();
+    act(() => printPageOr(HANDOFF_SHEET, trigger));
+    act(() => { vi.advanceTimersByTime(PRINT_START_MS + 50); });
+    expect(window.print).toHaveBeenCalledTimes(1);
+    expect(html().classList.contains("print-view")).toBe(false);
+  });
+
+  it("a browser that looks able but never starts a print (an app's browser) gets the sheet after a moment", () => {
+    as(SAFARI_IPHONE);
+    vi.useFakeTimers();
+    act(() => printPageOr(HANDOFF_SHEET, trigger));
+    expect(window.print).toHaveBeenCalledTimes(1);
+    expect(html().classList.contains("print-view")).toBe(false);
+    act(() => { vi.advanceTimersByTime(PRINT_START_MS + 50); });
+    expect(html().classList.contains("print-view")).toBe(true);
+    expect(shown()).toBe(true);
+  });
+
+  it("a browser known not to print (Chrome on iPhone) gets the sheet straight away, no dead print call", () => {
+    as(CHROME_IPHONE);
+    act(() => printPageOr(HANDOFF_SHEET, trigger));
+    expect(window.print).not.toHaveBeenCalled();
+    expect(html().classList.contains("print-view")).toBe(true);
   });
 });

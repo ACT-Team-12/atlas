@@ -22,7 +22,7 @@ import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
 import { AskPaper } from "./AskPaper";
 import { HandoffSheet } from "./HandoffSheet";
-import { canPrintHere, HANDOFF_SHEET, printOrView } from "./printView";
+import { HANDOFF_SHEET, printOrView, printPageOr } from "./printView";
 import { MissedLines, useMissedLines } from "./MissedLines";
 import { missedLineTexts } from "@/lib/missedLines";
 import { ShareFamily } from "./ShareFamily";
@@ -1017,17 +1017,17 @@ export function CarePlanTool() {
   }
 
   // The handoff sheet shown on screen as the page, printed from its bar (printView.ts, PrintViewBar).
-  function printSheet() {
+  function printSheet(e: { currentTarget: Element }) {
     if (planOutdated) return;
-    printOrView(HANDOFF_SHEET);
+    printOrView(HANDOFF_SHEET, e.currentTarget);
   }
 
-  // Print the plan page; where the browser can't print from a button (Chrome on iPhone), the handoff sheet, which holds
-  // the plan and the paper's words, is shown on screen to print from the browser's menu instead (printView.ts).
-  function printPlan() {
+  // Print the plan page; where the browser can't print from a button (Chrome on iPhone, or an app's browser that never
+  // starts a print), the handoff sheet, which holds the plan and the paper's words, is shown on screen to print from
+  // the browser's menu instead (printView.ts).
+  function printPlan(e: { currentTarget: Element }) {
     if (planOutdated) return;
-    if (canPrintHere()) window.print();
-    else printOrView(HANDOFF_SHEET);
+    printPageOr(HANDOFF_SHEET, e.currentTarget);
   }
 
   const careById = Object.fromEntries((care?.items ?? []).map((i) => [i.id, i]));

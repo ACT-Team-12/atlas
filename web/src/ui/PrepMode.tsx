@@ -128,8 +128,8 @@ export function PrepMode() {
     }, 5000);
   }
 
-  function print() {
-    printOrView(PREP_SHEET); // the sheet on screen first, printed from its bar (printView.ts)
+  function print(e: { currentTarget: Element }) {
+    printOrView(PREP_SHEET, e.currentTarget); // the sheet on screen first, printed from its bar (printView.ts)
   }
 
   const placed = res ? res.timeline.reduce((n, g) => n + g.steps.length, 0) : 0;

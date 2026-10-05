@@ -38,8 +38,8 @@ export function SessionSummary(props: SessionPlanState) {
     navigator.clipboard?.writeText(s.text).then(() => setMsg("Copied. Paste it into your notes.")).catch(() => setMsg("Couldn't copy. Select the text below and copy it."));
   }
 
-  function print() {
-    printOrView(SESSION_SHEET); // the sheet on screen first, printed from its bar (printView.ts)
+  function print(e: { currentTarget: Element }) {
+    printOrView(SESSION_SHEET, e.currentTarget); // the sheet on screen first, printed from its bar (printView.ts)
   }
 
   return (

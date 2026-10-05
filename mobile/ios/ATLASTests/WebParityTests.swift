@@ -138,7 +138,8 @@ struct WebParityTests {
         }
         // The check status lines on each card use the website's own words.
         // The step cards moved to CareSteps.tsx, and the certified line is SEAL_TEXT.twice in stepsView.ts.
-        let ui = try repoFile("web/src/ui/CareSteps.tsx")
+        // The website's English now lives in lib/uiText.ts (PR 93), which CareSteps.tsx draws from.
+        let ui = try repoFile("web/src/ui/CareSteps.tsx") + repoFile("web/src/lib/uiText.ts")
         #expect(ui.contains("Double-check this one with your clinic: our second check says the explanation may not match your paper."))
         let seals = try repoFile("web/src/lib/stepsView.ts")
         #expect(seals.contains("\"\(CheckStatus.checkedTwice)\""))

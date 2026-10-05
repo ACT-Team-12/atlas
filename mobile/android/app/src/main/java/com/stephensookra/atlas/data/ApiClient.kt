@@ -38,24 +38,32 @@ object ApiErrors {
     }
 }
 
+/** The server calls AppModel makes, so a test can stand in for the network (StaleRepliesTest). */
+interface AtlasApi {
+    suspend fun extract(text: String, level: ReadingLevel, language: Language): CarePlanResponse
+    suspend fun plan(request: PlanRequest, fromHelperLink: Boolean = false): PlanResponse
+    suspend fun meaning(request: MeaningRequest): MeaningResponse
+    suspend fun ask(sourceText: String, language: Language, question: String): ApiClient.AskOutcome
+}
+
 /** Talks to the live ATLAS server. Only the text the person confirmed is sent; never a photo. */
-class ApiClient(private val baseUrl: String = BASE_URL) {
+class ApiClient(private val baseUrl: String = BASE_URL) : AtlasApi {
     companion object {
         const val BASE_URL = "https://atlas-team12.vercel.app"
         const val SURFACE_HEADER = "x-atlas-surface"
     }
 
-    suspend fun extract(text: String, level: ReadingLevel, language: Language): CarePlanResponse =
+    override suspend fun extract(text: String, level: ReadingLevel, language: Language): CarePlanResponse =
         post("/api/extract", AtlasJson.encodeToString(ExtractRequest.serializer(), ExtractRequest(text, level, language)),
             CarePlanResponse.serializer())
 
     /** `fromHelperLink`: this plan was built after opening a helper link (counted once by the server, never the link). */
-    suspend fun plan(request: PlanRequest, fromHelperLink: Boolean = false): PlanResponse =
+    override suspend fun plan(request: PlanRequest, fromHelperLink: Boolean): PlanResponse =
         post("/api/plan", AtlasJson.encodeToString(PlanRequest.serializer(), request), PlanResponse.serializer(),
             if (fromHelperLink) mapOf(HelperLink.ENTRY_HEADER to HelperLink.HELPER_ENTRY) else emptyMap())
 
     /** The second-model double-check of each explanation against its line (web/src/app/api/meaning). */
-    suspend fun meaning(request: MeaningRequest): MeaningResponse =
+    override suspend fun meaning(request: MeaningRequest): MeaningResponse =
         post("/api/meaning", AtlasJson.encodeToString(MeaningRequest.serializer(), request), MeaningResponse.serializer())
 
     suspend fun results(text: String, language: Language): ResultsResponse =
@@ -72,7 +80,7 @@ class ApiClient(private val baseUrl: String = BASE_URL) {
      * x-atlas-limit header, so the screen shows fixed words in the person's language instead of the server's English.
      * Network failures throw, as for every other call.
      */
-    suspend fun ask(sourceText: String, language: Language, question: String): AskOutcome = coroutineScope {
+    override suspend fun ask(sourceText: String, language: Language, question: String): AskOutcome = coroutineScope {
         val conn = URL("$baseUrl/api/ask").openConnection() as HttpURLConnection
         val body = AtlasJson.encodeToString(AskRequest.serializer(), AskRequest(sourceText, language, question))
         val call = async(Dispatchers.IO) {

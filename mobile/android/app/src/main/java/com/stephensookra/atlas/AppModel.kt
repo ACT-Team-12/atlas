@@ -38,7 +38,9 @@ import com.stephensookra.atlas.data.VerifiedItem
 import com.stephensookra.atlas.data.WarningPin
 import com.stephensookra.atlas.services.Reminders
 import com.stephensookra.atlas.services.TextReader
+import com.stephensookra.atlas.data.AtlasApi
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -49,8 +51,16 @@ enum class TextSource { Scan, Photo, Typed, Sample }
 
 enum class Busy { Recognizing, Reading, Planning }
 
-class AppModel(app: Application) : AndroidViewModel(app) {
-    private val api = ApiClient()
+/**
+ * `api` and `workScope` are for tests only (a stand-in server and a scope that runs without Android's main thread); the
+ * app uses the live server and viewModelScope.
+ */
+class AppModel @JvmOverloads constructor(
+    app: Application,
+    private val api: AtlasApi = ApiClient(),
+    private val workScope: CoroutineScope? = null,
+) : AndroidViewModel(app) {
+    private val scope: CoroutineScope get() = workScope ?: viewModelScope
     private val store = SessionStore(app.filesDir)
     private var restoring = false
     private var task: Job? = null
@@ -111,6 +121,33 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     var busy by mutableStateOf<Busy?>(null)
         private set
     var error by mutableStateOf<String?>(null)
+    /** Why a read or plan was stopped because its inputs changed while it ran (readNote / planNote on the website). */
+    var notice by mutableStateOf<String?>(null)
+    /**
+     * The inputs the read or plan now running was sent with (StaleGuard fingerprints). Its reply is applied only while
+     * the inputs on screen still give the same fingerprint.
+     */
+    private var inFlightReadFp: String? = null
+    private var inFlightPlanFp: String? = null
+
+    companion object {
+        /** The words the website shows when it stops a read or plan whose inputs changed (stopStaleRead, stopStalePlan). */
+        const val READ_STOPPED = "You changed your paper or settings, so we stopped reading. Press Read my paper again when ready."
+        const val PLAN_STOPPED = "You changed your answers, so we stopped building the plan. Press Make my plan again when ready."
+    }
+
+    /** A read or plan in flight whose inputs changed is stopped and its late reply ignored, with a short note why. */
+    private fun stopStaleWork() {
+        if (restoring) return
+        val read = inFlightReadFp
+        val planFpSent = inFlightPlanFp
+        if (busy == Busy.Reading && read != null && read != StaleGuard.readFingerprint(text, language, level)) {
+            cancel(); notice = READ_STOPPED
+        } else if (busy == Busy.Planning && planFpSent != null && planFpSent != currentPlanFingerprint()) {
+            cancel(); notice = PLAN_STOPPED
+        }
+    }
+
     /**
      * The person chose to look around while a read or plan runs (the busy card is put away). When the result lands they
      * are not moved; the ready cue offers the way there instead. Not saved.
@@ -200,10 +237,10 @@ class AppModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Setters that save
 
-    fun updateText(v: String) { text = v; persist() }
-    fun updateLanguage(v: Language) { language = v; persist() }
-    fun updateLevel(v: ReadingLevel) { level = v; persist() }
-    fun updateNote(v: String) { note = v; persist() }
+    fun updateText(v: String) { text = v; persist(); stopStaleWork() }
+    fun updateLanguage(v: Language) { language = v; persist(); stopStaleWork() }
+    fun updateLevel(v: ReadingLevel) { level = v; persist(); stopStaleWork() }
+    fun updateNote(v: String) { note = v; persist(); stopStaleWork() }
     /** Opened from a helper link: apply the presets (each one is optional) and show the banner. Nothing is sent. */
     fun applyHelperLink(p: HelperPresets) {
         p.language?.let { language = it }
@@ -214,6 +251,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         // Show the first screen, where the banner is. Nothing saved is touched; "Open it" still brings it back.
         if (busy == null) path.clear()
         persist()
+        stopStaleWork()
     }
 
     fun dismissHelperBanner() { helperBanner = null }
@@ -222,15 +260,17 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         zip = v.filter { it.isDigit() }.take(5)
         location = null
         persist()
+        stopStaleWork()
     }
-    fun useLocation(point: LatLng) { location = point; zip = ""; persist() }
+    fun useLocation(point: LatLng) { location = point; zip = ""; persist(); stopStaleWork() }
     fun toggle(b: Barrier) {
         if (barriers.contains(b)) barriers.remove(b) else barriers.add(b)
         persist()
+        stopStaleWork()
     }
     fun setDone(id: String, value: Boolean) { done[id] = value; persist(planChanged = true) }
-    fun remove(id: String) { removed[id] = true; persist(planChanged = true) }
-    fun undoRemove(id: String) { removed.remove(id); persist(planChanged = true) }
+    fun remove(id: String) { removed[id] = true; persist(planChanged = true); stopStaleWork() }
+    fun undoRemove(id: String) { removed.remove(id); persist(planChanged = true); stopStaleWork() }
 
     // ---- Navigation
 
@@ -256,7 +296,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         cancel()
         error = null
         busy = Busy.Recognizing
-        task = viewModelScope.launch {
+        task = scope.launch {
             try {
                 val result = TextReader.read(getApplication(), pages)
                 busy = null
@@ -284,12 +324,20 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         cancel()
         readyMark = null
         error = null
+        notice = null
         busy = Busy.Reading
         val text = text; val level = level; val language = language
-        task = viewModelScope.launch {
+        val sentFp = StaleGuard.readFingerprint(text, language, level)
+        inFlightReadFp = sentFp
+        task = scope.launch {
             try {
                 // An older server leaves out the language; the steps were still written in the one asked for.
                 val result = api.extract(text, level, language)
+                // Changed after sending: the reply is for inputs no longer on screen, so nothing of it is applied.
+                if (sentFp != StaleGuard.readFingerprint(this@AppModel.text, this@AppModel.language, this@AppModel.level)) {
+                    cancel(); notice = READ_STOPPED
+                    return@launch
+                }
                 applyRead(result, text, language, level)
                 busy = null
                 startMeaningCheck(care ?: result, language)
@@ -322,9 +370,11 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         cancel()
         readyMark = null
         error = null
+        notice = null
         busy = Busy.Planning
         val validZip = Regex("^\\d{5}$").matches(zip)
         val fingerprint = currentPlanFingerprint()
+        inFlightPlanFp = fingerprint
         val viaHelper = fromHelperLink
         val request = PlanRequest(
             care = items.map { PlanCareInput(it) },
@@ -334,9 +384,14 @@ class AppModel(app: Application) : AndroidViewModel(app) {
             language = language,
             note = note,
         )
-        task = viewModelScope.launch {
+        task = scope.launch {
             try {
                 val result = api.plan(request, fromHelperLink = viaHelper)
+                // Changed after sending: the reply is for inputs no longer on screen, so nothing of it is applied.
+                if (fingerprint != currentPlanFingerprint()) {
+                    cancel(); notice = PLAN_STOPPED
+                    return@launch
+                }
                 plan = result
                 planFp = fingerprint
                 planCount++
@@ -366,7 +421,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         val request = MeaningRequest.of(forCare.items, forCare.language ?: language)
         if (request == null) { meaning = MeaningState.IDLE; return }
         meaning = MeaningState(MeaningStatus.loading)
-        meaningJob = viewModelScope.launch {
+        meaningJob = scope.launch {
             val next = try {
                 MeaningState.done(request, api.meaning(request))
             } catch (e: CancellationException) {
@@ -391,6 +446,8 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         task = null
         busy = null
         lookingAround = false
+        inFlightReadFp = null
+        inFlightPlanFp = null
     }
 
     // ---- Saved on this phone

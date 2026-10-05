@@ -113,6 +113,17 @@ fun AtlasRoot(model: AppModel) {
 
     if (showAbout) AboutDialog(model, onDismiss = { showAbout = false })
 
+    // A read or plan stopped because its inputs changed while it ran (the website's read and plan notes).
+    if (model.error == null) model.notice?.let { message ->
+        AlertDialog(
+            onDismissRequest = { model.notice = null },
+            title = { Text("Stopped") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { model.notice = null }) { Text("OK") } },
+            containerColor = Palette.paper,
+        )
+    }
+
     model.error?.let { message ->
         AlertDialog(
             onDismissRequest = { model.error = null },

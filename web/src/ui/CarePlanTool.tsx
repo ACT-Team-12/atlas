@@ -787,7 +787,7 @@ export function CarePlanTool() {
   useEffect(() => {
     // Stopping speech sets state, on purpose: the reading must end the moment the plan goes out of date.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (planOutdated) { stopSpeaking(); document.documentElement.classList.remove("print-sheet"); }
+    if (planOutdated) { stopSpeaking(); document.documentElement.classList.remove("print-sheet", "print-view"); }
     // Only the change to outdated matters; stopSpeaking only touches refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planOutdated]);
@@ -1016,7 +1016,7 @@ export function CarePlanTool() {
     });
   }
 
-  // The handoff sheet is the only thing printed while html.print-sheet is set; afterprint clears it.
+  // The handoff sheet shown on screen as the page, printed from its bar (printView.ts, PrintViewBar).
   function printSheet() {
     if (planOutdated) return;
     printOrView(HANDOFF_SHEET);

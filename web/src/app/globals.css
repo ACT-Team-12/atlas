@@ -343,14 +343,14 @@ html.js-motion [data-reveal] {
   .atlas-prep-sheet .quote { font-style: italic; font-size: 12pt; border-left: 3pt solid #000; padding-left: 6pt; overflow-wrap: anywhere; }
 }
 
-/* Sheet view: where the browser can't print from a button (Chrome on iPhone, in-app browsers), the sheet is the whole
-   page on screen, under PrintViewBar, and the browser's own Print captures it (ui/printView.ts). */
+/* Sheet view: the sheet is the whole page on screen, under PrintViewBar (sticky, in the flow), which prints it where the
+   browser can and says how where it can't; any print then captures only the sheet (ui/printView.ts). */
 html.print-view body > *:not(#atlas-sheet):not(#atlas-prep-sheet):not(#atlas-session-sheet):not(#print-view-bar) { display: none !important; }
 html.print-view, html.print-view body { background: #fff !important; }
 html.print-view.print-sheet .atlas-sheet,
 html.print-view.print-prep .atlas-prep-sheet,
 html.print-view.print-session .atlas-session-sheet {
-  display: block; color: #000; font-size: 14pt; line-height: 1.4; max-width: 46rem; margin: 0 auto; padding: 8.5rem 1rem 2rem;
+  display: block; color: #000; font-size: 14pt; line-height: 1.4; max-width: 46rem; margin: 0 auto; padding: 1.25rem 1rem 2rem;
 }
 @media print {
   html.print-view.print-sheet .atlas-sheet, html.print-view.print-prep .atlas-prep-sheet, html.print-view.print-session .atlas-session-sheet { padding: 0; max-width: none; }

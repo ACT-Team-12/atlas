@@ -702,9 +702,10 @@ describe("an outdated plan cannot be acted on", () => {
     const print = vi.fn();
     vi.stubGlobal("print", print);
     act(() => byText("Print a handoff sheet").click());
-    expect(document.documentElement.classList.contains("print-sheet")).toBe(true); // set up, afterprint not fired yet
+    expect(document.documentElement.classList.contains("print-sheet")).toBe(true); // the sheet shown first (printView.ts)
     act(() => byText("Paying for the visit").click());
     expect(document.documentElement.classList.contains("print-sheet")).toBe(false);
+    expect(document.documentElement.classList.contains("print-view")).toBe(false); // never a blank page
     expect(document.getElementById("atlas-sheet")).toBeNull();
     const card = host.querySelector("#step-3, [data-outdated]")!.closest("[data-outdated]")!;
     expect(card.classList.contains("plan-outdated")).toBe(true);

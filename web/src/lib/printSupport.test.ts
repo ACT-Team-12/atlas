@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canPrintFromPage } from "./printSupport";
+import { canPrintFromPage, printHelp } from "./printSupport";
 
 const UA = {
   iphoneSafari: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1",
@@ -11,6 +11,7 @@ const UA = {
   ipadDesktopSafari: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15",
   androidChrome: "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36",
   androidWebView: "Mozilla/5.0 (Linux; Android 15; Pixel 9; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/140.0.0.0 Mobile Safari/537.36",
+  androidGoogleApp: "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36 GSA/16.30.42",
   desktopChrome: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
 };
 
@@ -30,5 +31,17 @@ describe("canPrintFromPage", () => {
     expect(canPrintFromPage(UA.iphoneSlack, 5)).toBe(false);
     expect(canPrintFromPage(UA.iphoneInstagram, 5)).toBe(false);
     expect(canPrintFromPage(UA.androidWebView, 5)).toBe(false);
+    expect(canPrintFromPage(UA.androidGoogleApp, 5)).toBe(false);
+  });
+
+  it("says how, per browser: a Print button, the iPhone browser's own menu, or the phone's browser", () => {
+    expect(printHelp(UA.iphoneSafari, 5).how).toBe("print");
+    expect(printHelp(UA.iphoneSafari, 5).text).toContain("If nothing happens"); // an app that embeds Safari looks like Safari
+    expect(printHelp(UA.desktopChrome, 0).how).toBe("print");
+    expect(printHelp(UA.iphoneChrome, 5).how).toBe("ios-menu");
+    expect(printHelp(UA.iphoneSlack, 5)).toMatchObject({ how: "open-browser" });
+    expect(printHelp(UA.iphoneSlack, 5).text).toContain("Safari");
+    expect(printHelp(UA.androidWebView, 5).text).toContain("Open in browser");
+    expect(printHelp(UA.androidGoogleApp, 5).how).toBe("open-browser");
   });
 });

@@ -9,12 +9,16 @@ import { HANDOFF_SHEET, printOrView } from "./printView";
 
 const CHROME_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/140.0.7339.122 Mobile/15E148 Safari/604.1";
 const SAFARI_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1";
+const ANDROID_GOOGLE_APP = "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36 GSA/16.30.42";
 
 let root: Root;
 let host: HTMLDivElement;
 let sheet: HTMLDivElement;
+let trigger: HTMLButtonElement;
 const html = () => document.documentElement;
-const bar = () => document.getElementById("print-view-bar");
+const bar = () => document.getElementById("print-view-bar")!;
+const shown = () => !!bar().getAttribute("data-print-view");
+const button = (t: string) => [...bar().querySelectorAll("button")].find((b) => b.textContent === t);
 
 function as(ua: string) {
   Object.defineProperty(navigator, "userAgent", { configurable: true, value: ua });
@@ -24,63 +28,110 @@ function as(ua: string) {
 beforeEach(() => {
   vi.stubGlobal("print", vi.fn());
   vi.stubGlobal("scrollTo", vi.fn());
-  sheet = document.createElement("div");
-  sheet.id = "atlas-sheet";
-  sheet.setAttribute("aria-hidden", "true");
-  document.body.appendChild(sheet);
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
   act(() => root.render(<PrintViewBar />));
+  sheet = document.createElement("div"); // added after the bar, as the portaled sheets are
+  sheet.id = "atlas-sheet";
+  sheet.setAttribute("aria-hidden", "true");
+  document.body.appendChild(sheet);
+  trigger = document.createElement("button");
+  document.body.appendChild(trigger);
+  trigger.focus();
 });
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
   sheet.remove();
+  trigger.remove();
   html().className = "";
   vi.unstubAllGlobals();
 });
 
-// Akhil, Oct 4: Print and Handoff did nothing in Chrome on his iPhone.
-describe("printing where the browser can't print from a button", () => {
-  it("Chrome on iPhone: the sheet becomes the page, with a bar that says how to print it; nothing is sent to window.print", () => {
+// Akhil, Oct 4: Print and Handoff did nothing in Chrome on his iPhone. The sheet is now always shown first.
+describe("the sheet view", () => {
+  it("Chrome on iPhone: the sheet becomes the page; the bar says to use Share or the menu, and offers no dead Print button", () => {
     as(CHROME_IPHONE);
-    let how = "";
-    act(() => { how = printOrView(HANDOFF_SHEET); });
-    expect(how).toBe("view");
+    act(() => printOrView(HANDOFF_SHEET));
     expect(window.print).not.toHaveBeenCalled();
     expect(html().classList.contains("print-view")).toBe(true);
     expect(html().classList.contains("print-sheet")).toBe(true);
     expect(sheet.hasAttribute("aria-hidden")).toBe(false); // the sheet is the page now, so screen readers read it
-    expect(bar()?.textContent).toContain("then Print");
+    expect(bar().getAttribute("data-print-how")).toBe("ios-menu");
+    expect(bar().textContent).toContain("then Print");
+    expect(button("Print")).toBeUndefined();
     expect(document.activeElement?.id).toBe("print-view-title");
   });
 
-  it("Done goes back: the classes are removed, the sheet is hidden again and the bar goes away", () => {
+  it("the bar sits before the sheet in the page, so the sticky bar is above it and never covers it", () => {
     as(CHROME_IPHONE);
-    act(() => { printOrView(HANDOFF_SHEET); });
-    act(() => bar()!.querySelector("button")!.click());
+    act(() => printOrView(HANDOFF_SHEET));
+    expect(bar().compareDocumentPosition(sheet) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bar().className).toContain("sticky");
+  });
+
+  it("Safari: the sheet first, with a Print button that prints it", () => {
+    as(SAFARI_IPHONE);
+    act(() => printOrView(HANDOFF_SHEET));
+    expect(window.print).not.toHaveBeenCalled();
+    expect(bar().getAttribute("data-print-how")).toBe("print");
+    act(() => button("Print")!.click());
+    expect(window.print).toHaveBeenCalledTimes(1);
+    expect(html().classList.contains("print-sheet")).toBe(true); // still set, so the print captures only the sheet
+  });
+
+  it("an app's own browser (the Google app on Android): says to open the page in the phone's browser", () => {
+    as(ANDROID_GOOGLE_APP);
+    act(() => printOrView(HANDOFF_SHEET));
+    expect(bar().getAttribute("data-print-how")).toBe("open-browser");
+    expect(bar().textContent).toContain("Open in browser");
+    expect(button("Print")).toBeUndefined();
+  });
+
+  it("Done goes back: classes off, the sheet hidden again, the bar empty, focus back on the button used", () => {
+    as(CHROME_IPHONE);
+    act(() => printOrView(HANDOFF_SHEET));
+    act(() => button("Done")!.click());
     expect(html().classList.contains("print-view")).toBe(false);
     expect(html().classList.contains("print-sheet")).toBe(false);
     expect(sheet.getAttribute("aria-hidden")).toBe("true");
-    expect(bar()).toBeNull();
+    expect(shown()).toBe(false);
+    expect(document.activeElement).toBe(trigger);
   });
 
-  it("Escape goes back too", () => {
+  it("Escape goes back too, and returns focus", () => {
     as(CHROME_IPHONE);
-    act(() => { printOrView(HANDOFF_SHEET); });
+    act(() => printOrView(HANDOFF_SHEET));
     act(() => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
     expect(html().classList.contains("print-view")).toBe(false);
-    expect(bar()).toBeNull();
+    expect(shown()).toBe(false);
+    expect(document.activeElement).toBe(trigger);
   });
 
-  it("Safari on iPhone still prints as before, with no bar", () => {
-    as(SAFARI_IPHONE);
-    let how = "";
-    act(() => { how = printOrView(HANDOFF_SHEET); });
-    expect(how).toBe("print");
-    expect(window.print).toHaveBeenCalledTimes(1);
+  it("with smooth scroll on, Done jumps back through Lenis, so its own target can't carry the page elsewhere", () => {
+    as(CHROME_IPHONE);
+    const lenis = { resize: vi.fn(), scrollTo: vi.fn() };
+    (window as unknown as { __lenis?: unknown }).__lenis = lenis;
+    Object.defineProperty(window, "scrollY", { configurable: true, value: 5338 });
+    try {
+      act(() => printOrView(HANDOFF_SHEET));
+      expect(lenis.scrollTo).toHaveBeenLastCalledWith(0, { immediate: true, force: true });
+      act(() => button("Done")!.click());
+      expect(lenis.resize).toHaveBeenCalled();
+      expect(lenis.scrollTo).toHaveBeenLastCalledWith(5338, { immediate: true, force: true });
+      expect(window.scrollTo).not.toHaveBeenCalled();
+    } finally {
+      delete (window as unknown as { __lenis?: unknown }).__lenis;
+      Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+    }
+  });
+
+  it("if the sheet goes away while shown (the plan went out of date), it goes back instead of leaving a blank page", async () => {
+    as(CHROME_IPHONE);
+    act(() => printOrView(HANDOFF_SHEET));
+    await act(async () => { sheet.remove(); await new Promise((r) => setTimeout(r, 0)); });
     expect(html().classList.contains("print-view")).toBe(false);
-    expect(bar()).toBeNull();
+    expect(shown()).toBe(false);
   });
 });

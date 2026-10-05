@@ -39,7 +39,7 @@ export function SessionSummary(props: SessionPlanState) {
   }
 
   function print() {
-    printOrView(SESSION_SHEET); // on screen instead where the browser can't print from a button (printView.ts)
+    printOrView(SESSION_SHEET); // the sheet on screen first, printed from its bar (printView.ts)
   }
 
   return (

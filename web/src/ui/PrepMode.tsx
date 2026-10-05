@@ -129,7 +129,7 @@ export function PrepMode() {
   }
 
   function print() {
-    printOrView(PREP_SHEET); // on screen instead where the browser can't print from a button (printView.ts)
+    printOrView(PREP_SHEET); // the sheet on screen first, printed from its bar (printView.ts)
   }
 
   const placed = res ? res.timeline.reduce((n, g) => n + g.steps.length, 0) : 0;

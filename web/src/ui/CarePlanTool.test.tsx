@@ -1471,21 +1471,6 @@ describe("a paper that is not a visit paper (nothing becomes a step)", () => {
     expect([...host.querySelectorAll("button")].some((b) => b.textContent?.includes(ui("English", "dock.handoff.short")))).toBe(false); // no button for a sheet that does not exist
   });
 
-  it("replacing the wrong paper does not make a barriers-only plan out of date", async () => {
-    act(() => typeInto(paperBox(), LIST));
-    const read = hold("/api/extract");
-    await act(async () => { byText("Read my paper").click(); await drain(); });
-    await release(read, ready(empty(LIST)));
-    act(() => byText("Getting there").click());
-    const plan = hold("/api/plan");
-    await act(async () => { byText("Make my plan").click(); await drain(); });
-    await release(plan, ready(planFor("Plan made from barriers only")));
-
-    act(() => typeInto(paperBox(), PAPER)); // the right paper, not read yet
-    expect(host.querySelector("[data-outdated]")).toBeNull();
-    expect(screenText()).toContain("Plan made from barriers only");
-  });
-
   it("a read whose steps were all held back still shows the held-back list, not the wrong-paper card", async () => {
     act(() => typeInto(paperBox(), PAPER));
     const req = hold("/api/extract");

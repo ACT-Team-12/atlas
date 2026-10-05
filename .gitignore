@@ -9,3 +9,6 @@ dist/
 build/
 .claude/settings.local.json
 *-workspace/
+
+# Mission briefs not yet public, and the team plan (kept on our machines, never pushed)
+missions-private/

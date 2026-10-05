@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "What ATLAS does with your visit paper, your location and your plan, on the website and in the mobile apps.",
 };
 
-const UPDATED = "October 3, 2026";
+const UPDATED = "October 4, 2026";
 // Rendered per request so the speech-to-text paragraph always names the service this deployment uses right now.
 export const dynamic = "force-dynamic";
 
@@ -39,6 +39,10 @@ export default function PrivacyPage() {
               <p>When you press Read my paper, the text (or the photo, on the website) goes to our server and to Anthropic, the company whose AI model reads it. We use it only to build your checklist and send it back.</p>
               <p>We do not save your paper on our side. Anthropic says that by default it does not use inputs or outputs from its API to train its models (<a className="underline decoration-2 underline-offset-4" href="https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training" target="_blank" rel="noreferrer">Anthropic privacy center</a>).</p>
               <p>In the ATLAS phone apps, the photo is read on your phone and never leaves it. Only the text you check and confirm is sent.</p>
+            </Block>
+            <Block title="Asking your paper a question">
+              <p>When you press Ask my paper, your question and the text of your paper go to our server and to Anthropic, so its AI model can point to the words in your paper that answer it. Our own checker then makes sure those words are really in your paper before anything is shown. If they are not, you see &quot;Your paper doesn&apos;t say&quot; instead.</p>
+              <p>We do not save your question or your paper. To stay within budget, our database counts how many questions the whole site answers each day: only the day and the count, nothing about you, your question or your network address. A question our own check recognizes as an emergency (for example chest pain or trouble breathing) is never sent; it gets 911 and 211 guidance instead.</p>
             </Block>
             <Block title="Saying your answer out loud">
               <p>In Check I understood, you can tap Say your answer instead of typing or tapping. Only then, and only while you record (up to 20 seconds), the recording is sent to a speech-to-text service to turn it into words. The words come back to your screen so you can fix them before you check your answer. If you never tap Say your answer, nothing is recorded.</p>

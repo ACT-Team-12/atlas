@@ -202,7 +202,7 @@ class WebParityTest {
         assertTrue(text.contains("3. Self care\n   Your paper says: \"Walk daily.\"\n   ${PaperFirst.LEFT_OUT_UNCHECKED}"))
         assertEquals(1, text.split("Take one pill two times a day.").size - 1)
         assertTrue(text.contains("1. Get a ride. Call MARTA Mobility.\n   Your paper says: \"Labs in 2 weeks.\""))
-        assertTrue(text.contains("Suggestion from ATLAS, not the paper: ${plan.summary}"))
+        assertTrue(text.contains("Suggestion from ATLAS (follow your paper first): ${plan.summary}"))
         // With no double-check at all (the default), no explanation leaves the phone.
         assertFalse(ShareText.plan(items, plan, emptyList()).contains("one pill"))
     }

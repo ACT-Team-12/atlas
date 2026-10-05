@@ -35,6 +35,21 @@ describe("pickSession", () => {
     expect(kept.location).toBeUndefined();
     expect(JSON.stringify(kept)).not.toContain("33.7");
   });
+
+  it("an old or edited save with a language or level that is no longer a choice gets the default, not a crash", () => {
+    const odd = { ...session(), language: "Klingon", level: "expert" } as unknown as Session;
+    const kept = pickSession(odd);
+    expect(kept.language).toBe("English");
+    expect(kept.level).toBe("simple");
+    expect(pickSession({ ...session(), language: "Amharic", level: "detailed" }).language).toBe("Amharic");
+    expect(pickSession({ ...session(), language: "Amharic", level: "detailed" }).level).toBe("detailed");
+  });
+
+  it("a replaced language or level un-certifies the saved results, so they show as out of date (Codex round 2)", () => {
+    expect(pickSession({ ...session(), level: "expert", matched: true } as unknown as Session).matched).toBe(false);
+    expect(pickSession({ ...session(), language: "Klingon", matched: true } as unknown as Session).matched).toBe(false);
+    expect(pickSession({ ...session(), language: "Spanish", level: "standard", matched: true }).matched).toBe(true);
+  });
 });
 
 describe("pickSession matched", () => {

@@ -79,6 +79,28 @@ export function CallMe({ plan, language, short }: { plan: PlanResponse; language
   const [typed, setTyped] = useState(""); // the code the person typed: the plan call asks for it again before it plays
   const [suffix, setSuffix] = useState(""); // the number's last 4 digits, kept here: the server clears its copy when the call ends
   const panelId = useId();
+  const toggle = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  // A tap or click anywhere else, or Escape, folds the panel away (Akhil, Oct 4: it only closed from its own button).
+  // Only the panel hides: what was typed and a call in progress stay as they are. It listens for the finished click,
+  // in the bubble phase, so the control that was tapped acts first and the bar does not shrink under the finger, and
+  // keyboard and screen-reader activation (a click with no pointer) closes it too (Codex review).
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: MouseEvent) => {
+      const t = e.target as Node | null;
+      if (t && (panel.current?.contains(t) || toggle.current?.contains(t))) return;
+      setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      toggle.current?.focus();
+    };
+    document.addEventListener("click", outside);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("click", outside); document.removeEventListener("keydown", esc); };
+  }, [open]);
   const [poll, setPoll] = useState<PollState>(() => startPoll(0)); // restarted, timed from now, when a call is asked for
   const text = paidSpeechText(plan);
   // The plan this panel's call belongs to. A response that comes back after the plan changed (or the panel went away)
@@ -167,11 +189,11 @@ export function CallMe({ plan, language, short }: { plan: PlanResponse; language
 
   return (
     <>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId} className="rounded-full border-2 border-ink bg-paper px-4 py-2">
+      <button ref={toggle} type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId} className="rounded-full border-2 border-ink bg-paper px-4 py-2">
         {short ? <DockLabel icon="📞" short={short} long="Call me with my plan" /> : "📞 Call me with my plan"}
       </button>
       {open && (
-        <div id={panelId} className="basis-full mt-1 rounded-2xl border-2 border-ink bg-paper p-4 font-normal">
+        <div ref={panel} id={panelId} className="basis-full mt-1 rounded-2xl border-2 border-ink bg-paper p-4 font-normal">
           <p className="font-extrabold">ATLAS can call you and read this plan out loud, in {language}.</p>
           {!callable ? (
             <p className="mt-2 text-sm font-bold">Phone calls aren&apos;t available in {language} yet. Use Read it out loud or Print instead.</p>

@@ -102,7 +102,8 @@ const used = (kind: string) => [...new Set(ALL.flat().filter((u) => u.kind === k
 
 /** Backgrounds that carry paper-colored text (filled buttons, badges, the footer); every other bg is a surface for ink. */
 const FILLS = new Set(["ink", "ink-soft", "teal", "teal-deep", "red", "sky-deep", "peach-deep"]);
-const isFill = (bg: string) => FILLS.has(bg.split("/")[0]) && !GRAPHIC_BG.test(bg);
+// A faint tint of a fill (ink/10 to ink/40) is a surface that ink text sits on, not a fill that carries paper text.
+const isFill = (bg: string) => FILLS.has(bg.split("/")[0]) && !GRAPHIC_BG.test(bg) && !/\/(10|20|30|40)$/.test(bg);
 /** Faint ink bars (the sample-loop progress dots, the fake text lines on the "reading your paper" card): never behind text. */
 const GRAPHIC_BG = /^ink\/(15|20)$/;
 /**

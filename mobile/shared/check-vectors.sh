@@ -35,6 +35,17 @@ fi
 echo "safety vectors match the web reference ($(wc -c < "$safety_out") bytes)"
 rm -f "$safety_out"
 
+# Medicine-changes vectors (the "Your medicine changes" card: which row each medicine line goes in, and when an old and
+# new dose may be shown; mobile/shared/medicine-changes-vectors.json). Hand-written cases with the expected answer; the
+# web suite replays them against web/src/lib/medicineChanges.ts, so the web answer and the committed file can't drift.
+med_vectors="$root/mobile/shared/medicine-changes-vectors.json"
+if [ ! -s "$med_vectors" ]; then
+  echo "::error::mobile/shared/medicine-changes-vectors.json is missing or empty"
+  exit 1
+fi
+(cd "$web" && pnpm exec vitest run src/lib/medicineChanges.vectors.test.ts) || { echo "::error::the web classifier (medicineChanges.ts) disagrees with mobile/shared/medicine-changes-vectors.json"; exit 1; }
+echo "medicine-changes vectors match the web reference ($(wc -c < "$med_vectors") bytes)"
+
 # Pip vectors (where the "you are here" marker goes and what he says; mobile/shared/pip-vectors.json). The web reference,
 # web/src/lib/pip.ts, arrives with PR 82. Without it the check cannot run: it FAILS when ENFORCE=true (main and pull
 # requests into main) and otherwise warns, so the phone port can be reviewed before PR 82 lands.

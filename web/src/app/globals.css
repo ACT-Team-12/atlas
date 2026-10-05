@@ -402,6 +402,24 @@ mark {
   border: 0.4rem solid transparent; border-top-color: var(--ink); border-bottom: 0;
 }
 
+/* "Walk me through it" (CareSteps.tsx): the full list stays in the page, hidden on screen while walking. */
+.walk-away { display: none !important; }
+.walk-card { animation: walk-in 0.28s ease-out both; }
+.walk-card[data-calm] { animation: none; }
+@keyframes walk-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+/* Big type: the paper's words and their labels, which PaperFirst sizes for a list row. */
+.walk-paper [data-paper-quote] > p:first-child { font-size: 1rem; }
+.walk-paper [data-explanation][data-secondary], .walk-paper [data-explanation][data-secondary] p:first-child { font-size: 1.125rem; }
+.walk-paper [data-lead="explanation"] [data-paper-quote] { font-size: 1.25rem; }
+@media print {
+  /* Printing while walking prints the list as usual, never the walk-through screen. */
+  .walk-away { display: block !important; }
+  .walk-through { display: none !important; }
+}
+
 html.js-motion [data-reveal] {
   visibility: hidden;
 }
@@ -414,6 +432,7 @@ html.js-motion [data-reveal] {
   }
   .marquee-track { animation: none; }
   .step-in { animation: none; }
+  .walk-card { animation: none !important; }
   /* Pip in reduced motion: no hop, no bounce, no blink; it only fades into its spot (the one motion kept, on purpose). */
   .pip .pip-eyes, .pip[data-pip] .pip-body { animation: none !important; }
   .pip[data-pip="arrive"] .pip-body, .pip[data-pip="cheer"] .pip-body { animation: pip-fade 0.4s ease-out both !important; }
@@ -425,6 +444,9 @@ html.js-motion [data-reveal] {
   html.print-sheet body > *:not(#atlas-sheet) { display: none !important; }
   html.print-sheet, html.print-sheet body { background: #fff !important; }
   html.print-sheet .atlas-sheet { display: block; color: #000; font-size: 14pt; line-height: 1.4; }
+}
+/* The sheet's type rules hold on screen too, for the sheet view (below). */
+@media all {
   .atlas-sheet h1 { font-size: 22pt; margin: 0 0 2pt; }
   .atlas-sheet h2 { font-size: 15pt; margin: 14pt 0 4pt; border-bottom: 1.5pt solid #000; padding-bottom: 2pt; break-after: avoid; }
   .atlas-sheet .meta, .atlas-sheet .foot { font-size: 10pt; color: #333; }
@@ -437,6 +459,9 @@ html.js-motion [data-reveal] {
   .atlas-sheet .quote { font-style: italic; font-size: 12pt; border-left: 3pt solid #000; padding-left: 6pt; }
   .atlas-sheet .plan li, .atlas-sheet .help li { margin: 3pt 0; break-inside: avoid; }
   .atlas-sheet .lines span { display: block; border-bottom: 0.75pt solid #000; height: 24pt; }
+  .atlas-sheet .meds { list-style: none; padding: 0; }
+  .atlas-sheet .meds > li { padding: 4pt 0; border-bottom: 0.5pt solid #999; break-inside: avoid; }
+  .atlas-sheet .meds > li > div { margin: 2pt 0 2pt 10pt; }
 }
 
 /* Prep timeline sheet: hidden on screen; when printing it, it is the only thing on the page. */
@@ -445,6 +470,8 @@ html.js-motion [data-reveal] {
   html.print-prep body > *:not(#atlas-prep-sheet) { display: none !important; }
   html.print-prep, html.print-prep body { background: #fff !important; }
   html.print-prep .atlas-prep-sheet { display: block; color: #000; font-size: 14pt; line-height: 1.4; }
+}
+@media all {
   .atlas-prep-sheet h1 { font-size: 22pt; margin: 0 0 2pt; }
   .atlas-prep-sheet h2 { font-size: 16pt; margin: 14pt 0 4pt; border-bottom: 1.5pt solid #000; padding-bottom: 2pt; break-after: avoid; }
   .atlas-prep-sheet .meta, .atlas-prep-sheet .foot { font-size: 10pt; color: #333; }
@@ -454,6 +481,19 @@ html.js-motion [data-reveal] {
   .atlas-prep-sheet .box { flex: none; width: 16pt; height: 16pt; border: 2pt solid #000; margin-top: 3pt; }
   .atlas-prep-sheet p { margin: 0 0 2pt; }
   .atlas-prep-sheet .quote { font-style: italic; font-size: 12pt; border-left: 3pt solid #000; padding-left: 6pt; overflow-wrap: anywhere; }
+}
+
+/* Sheet view: the sheet is the whole page on screen, under PrintViewBar (sticky, in the flow), which prints it where the
+   browser can and says how where it can't; any print then captures only the sheet (ui/printView.ts). */
+html.print-view body > *:not(#atlas-sheet):not(#atlas-prep-sheet):not(#atlas-session-sheet):not(#print-view-bar) { display: none !important; }
+html.print-view, html.print-view body { background: #fff !important; }
+html.print-view.print-sheet .atlas-sheet,
+html.print-view.print-prep .atlas-prep-sheet,
+html.print-view.print-session .atlas-session-sheet {
+  display: block; color: #000; font-size: 14pt; line-height: 1.4; max-width: 46rem; margin: 0 auto; padding: 1.25rem 1rem 2rem;
+}
+@media print {
+  html.print-view.print-sheet .atlas-sheet, html.print-view.print-prep .atlas-prep-sheet, html.print-view.print-session .atlas-session-sheet { padding: 0; max-width: none; }
 }
 
 /* An outdated plan is never printed: from the browser menu, only a note that it is out of date. */
@@ -510,4 +550,11 @@ html.js-motion [data-reveal] {
 /* Pip and its calm toggle are screen-only. */
 @media print {
   .pip-slot, .pip-bubble, [data-calm-toggle] { display: none !important; }
+}
+
+/* "Your medicine changes" prints as a plain black-and-white card (useful on the fridge): one piece, no links. */
+@media print {
+  .med-changes { break-inside: avoid; border-color: #000 !important; color: #000 !important; }
+  .med-changes section { border-color: #000 !important; color: #000 !important; background: #fff !important; }
+  .med-changes .med-go { display: none !important; }
 }

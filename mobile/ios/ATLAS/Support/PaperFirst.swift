@@ -175,7 +175,7 @@ enum PaperFirst {
     }
 
     /// PLAN_IS_A_SUGGESTION in speechText.ts.
-    static let planIsASuggestion = "This plan is a suggestion from ATLAS, not your paper. If anything differs, follow your paper."
+    static let planIsASuggestion = "This plan is a suggestion from ATLAS. If anything differs from your paper, follow your paper."
 
     /// speechLines in speechText.ts: what "Read it out loud" says for a plan.
     static func planSpeechLines(_ plan: PlanResponse, items: [VerifiedItem]) -> [String] {

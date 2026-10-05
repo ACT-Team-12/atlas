@@ -10,6 +10,7 @@ import { SPEECH_LANG } from "@/lib/speechLang";
 import { SAMPLE_PREP, SAMPLE_PREP_LABEL } from "@/lib/samplePrep";
 import { defaultOpenSlot, EXPLAIN_NOTE, explainState, meaningItems, NO_MEANING, prepAskText, prepClosedRow, prepMustSee, shownExplanation, type MeaningState } from "@/lib/prepView";
 import { createRequestGate, type Ticket } from "@/lib/requestGate";
+import { PREP_SHEET, printOrView } from "./printView";
 
 type Inputs = { text: string; language: string };
 
@@ -127,12 +128,8 @@ export function PrepMode() {
     }, 5000);
   }
 
-  function print() {
-    const root = document.documentElement;
-    const done = () => { root.classList.remove("print-prep"); window.removeEventListener("afterprint", done); };
-    root.classList.add("print-prep");
-    window.addEventListener("afterprint", done);
-    window.print();
+  function print(e: { currentTarget: Element }) {
+    printOrView(PREP_SHEET, e.currentTarget); // the sheet on screen first, printed from its bar (printView.ts)
   }
 
   const placed = res ? res.timeline.reduce((n, g) => n + g.steps.length, 0) : 0;

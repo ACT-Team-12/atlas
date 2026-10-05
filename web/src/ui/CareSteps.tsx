@@ -63,7 +63,7 @@ export function CareSteps(p: Props) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string | null>(null);
   const speech = useStepSpeech(p.language);
-  const { t, ts, tn } = useUi();
+  const { t, ts, tn, paperLang } = useUi();
 
   const warnings = items.filter(isWarning);
   // Every step in the order shown (lib/walkThrough.ts): warning signs, then each time group. The list and "Walk me
@@ -289,7 +289,7 @@ export function CareSteps(p: Props) {
             <p className="font-extrabold mb-2">{t("steps.paperHighlighted")}</p>
             {/* Focusable so keyboard users can scroll the paper (axe scrollable-region-focusable). */}
             <div data-lenis-prevent tabIndex={0} role="region" aria-label={t("steps.paperRegion")}
-              className="max-h-[26rem] overflow-auto rounded-lg focus-visible:outline-2 focus-visible:outline-teal"><Highlighted text={care.source_text} items={items} active={active} /></div>
+              className="max-h-[26rem] overflow-auto rounded-lg focus-visible:outline-2 focus-visible:outline-teal"><div lang={paperLang}><Highlighted text={care.source_text} items={items} active={active} /></div></div>
           </div>
           {p.removedItems.length > 0 && (
             <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4 text-sm">
@@ -556,7 +556,7 @@ function WalkCard({ step, index, total, done, check, tl, heading, pip, pipText, 
       <div className="walk-paper mt-2 text-2xl leading-snug sm:text-3xl"><PaperFirst v={careStepView(it, check)} /></div>
       {/* After the paper's words, never before them: the paper says what to do; this line only points back to it. */}
       {warn && <p role="note" className="mt-3 rounded-xl bg-red-soft p-3 text-lg font-bold text-red" data-walk-warning="">{tl("warningDo")}</p>}
-      {question && check === "certified" && <p className="mt-3 rounded-xl bg-peach p-3 text-base font-semibold text-peach-deep">On your questions list: {question}</p>}
+      {question && check === "certified" && <p className="mt-3 rounded-xl bg-peach p-3 text-base font-semibold text-peach-deep">{t("steps.onQuestionsList")} {question}</p>}
       {done && (
         <p className="mt-4 flex flex-wrap items-center gap-3 text-lg font-extrabold text-teal-deep" data-walk-done-status="">
           <span>✓ {tl("doneAlready")}</span>

@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import type { CarePlanResponse } from "@/lib/schema";
 import { missedLinesAnnouncement, missedLinesView, type MissedLinesView } from "@/lib/missedLines";
-import { useUi } from "./UiLang";
+import { PaperWords, useUi } from "./UiLang";
 
 /**
  * The coverage check for one plan, computed once per paper and per set of removed steps.
@@ -74,7 +74,7 @@ function MissedLinesBody({ view }: { view: MissedLinesView }) {
         <p className="text-sm font-semibold text-ink/80">{t("missed.readThese")}</p>
         <ul className="mt-3 space-y-2">
           {view.lines.map((l) => (
-            <li key={l.start} className="border-l-4 border-teal pl-2 text-sm">&ldquo;{l.text}&rdquo;</li>
+            <li key={l.start} className="border-l-4 border-teal pl-2 text-sm">&ldquo;<PaperWords>{l.text}</PaperWords>&rdquo;</li>
           ))}
         </ul>
         <p className="mt-3 text-xs font-semibold text-ink/70">{t("missed.canMissEnd")}</p>

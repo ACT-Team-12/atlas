@@ -82,10 +82,10 @@ export function Resource({ r, off, proof = true }: { r: ResourceCard; off?: stri
           <a className="rounded-full border-2 border-ink px-3 py-1" target="_blank" rel="noreferrer" href={directionsHref(c)}>{t("plan.directions")} ↗</a>
         </div>}
         <p className="mt-2 text-[11px] text-ink/70">
-          Source: HRSA health center data{c.source_id === "hrsa-national" ? " (nationwide list, Oct 2)" : ""}
+          {t("plan.src.hrsa")}{c.source_id === "hrsa-national" ? ` ${t("plan.src.national")}` : ""}
           {hours && c.hours_source_id === "clinic-site" && c.hours_url
-            ? <> · hours quoted from <SourceLink href={c.hours_url} label={host(c.hours_url)} off={off} />, checked Oct 2</>
-            : hours ? " · hours from its Google Maps listing, checked Oct 2" : c.hours_per_week ? ` · ${c.hours_per_week} hrs/week listed, times not listed` : " · hours not listed"}
+            ? <> · {t("plan.src.hoursQuotedFrom")} <SourceLink href={c.hours_url} label={host(c.hours_url)} off={off} />, {t("plan.src.checked")}</>
+            : hours ? ` · ${t("plan.src.hoursMaps")}` : c.hours_per_week ? ` · ${t("plan.src.hrsWeek", { n: c.hours_per_week })}` : ` · ${t("plan.src.noHours")}`}
         </p>
       </div>
     );

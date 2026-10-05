@@ -639,6 +639,21 @@ export const UI_TEXT = {
   "ready.showMe": { English: "show me", Spanish: "muéstreme", Vietnamese: "cho tôi xem", Korean: "보기", Chinese: "带我去看", Amharic: "ያሳዩኝ", French: "montrez-moi" },
   "call.intro": { English: "ATLAS can call you and read this plan out loud, in {language}.", Spanish: "ATLAS puede llamarle y leerle este plan en voz alta, en {language}.", Vietnamese: "ATLAS có thể gọi điện và đọc to kế hoạch này cho quý vị, bằng {language}.", Korean: "ATLAS가 전화를 걸어 이 계획을 {language}(으)로 소리 내어 읽어 드릴 수 있습니다.", Chinese: "ATLAS 可以打电话给您，用{language}把这个计划读给您听。", Amharic: "ATLAS ደውሎ ይህን ዕቅድ በ{language} ጮክ ብሎ ሊያነብልዎ ይችላል።", French: "ATLAS peut vous appeler et lire ce plan à voix haute, en {language}." },
   "call.inEnglish": { English: "The rest of this panel is in English for now. A helper can go through it with you. The call itself speaks {language}.", Spanish: "El resto de este panel está en inglés por ahora. Alguien que le ayuda puede revisarlo con usted. La llamada misma será en {language}.", Vietnamese: "Phần còn lại ở đây hiện chỉ có bằng tiếng Anh. Người giúp đỡ có thể cùng quý vị xem. Cuộc gọi sẽ nói bằng {language}.", Korean: "이 창의 나머지는 아직 영어로만 되어 있습니다. 도와주시는 분과 함께 보세요. 전화는 {language}(으)로 합니다.", Chinese: "这个面板的其余部分目前只有英文。帮助您的人可以和您一起看。电话本身会用{language}。", Amharic: "የዚህ ክፍል ቀሪው ለጊዜው በእንግሊዝኛ ብቻ ነው። የሚረዳዎት ሰው አብሮዎት ሊያየው ይችላል። ጥሪው ራሱ በ{language} ይናገራል።", French: "Le reste de ce panneau est en anglais pour l'instant. Une personne qui vous aide peut le parcourir avec vous. L'appel lui-même sera en {language}." },
+
+  // ---- Codex review, round 3: the plan card's source line, Show on my paper's labels, the helper summary ----
+  "plan.src.hrsa": { English: "Source: HRSA health center data", Spanish: "Fuente: datos de centros de salud de HRSA", Vietnamese: "Nguồn: dữ liệu trung tâm y tế của HRSA", Korean: "출처: HRSA 보건소 자료", Chinese: "来源：HRSA 社区卫生中心数据", Amharic: "ምንጭ፦ የHRSA የጤና ጣቢያ መረጃ", French: "Source : données des centres de santé HRSA" },
+  "plan.src.national": { English: "(nationwide list, Oct 2)", Spanish: "(lista nacional, 2 de oct.)", Vietnamese: "(danh sách toàn quốc, 2/10)", Korean: "(전국 목록, 10월 2일)", Chinese: "（全国名单，10 月 2 日）", Amharic: "(የአገር አቀፍ ዝርዝር፣ ጥቅምት 2)", French: "(liste nationale, 2 oct.)" },
+  "plan.src.hoursQuotedFrom": { English: "hours quoted from", Spanish: "horario citado de", Vietnamese: "giờ mở cửa trích từ", Korean: "운영 시간 출처:", Chinese: "营业时间引自", Amharic: "የሥራ ሰዓት የተጠቀሰው ከ", French: "horaires cités depuis" },
+  "plan.src.checked": { English: "checked Oct 2", Spanish: "revisado el 2 de oct.", Vietnamese: "kiểm tra ngày 2/10", Korean: "10월 2일 확인", Chinese: "10 月 2 日核对", Amharic: "ጥቅምት 2 ተረጋግጧል", French: "vérifié le 2 oct." },
+  "plan.src.hoursMaps": { English: "hours from its Google Maps listing, checked Oct 2", Spanish: "horario de su ficha de Google Maps, revisado el 2 de oct.", Vietnamese: "giờ mở cửa lấy từ Google Maps, kiểm tra ngày 2/10", Korean: "운영 시간은 Google 지도 정보, 10월 2일 확인", Chinese: "营业时间来自其 Google 地图信息，10 月 2 日核对", Amharic: "የሥራ ሰዓቱ ከGoogle Maps መረጃው፣ ጥቅምት 2 ተረጋግጧል", French: "horaires de sa fiche Google Maps, vérifiés le 2 oct." },
+  "plan.src.hrsWeek": { English: "{n} hrs/week listed, times not listed", Spanish: "{n} h/semana anotadas, sin horario", Vietnamese: "ghi {n} giờ/tuần, không ghi giờ cụ thể", Korean: "주 {n}시간으로 기재, 시간대는 없음", Chinese: "列出每周 {n} 小时，未列具体时间", Amharic: "በሳምንት {n} ሰዓት ተዘርዝሯል፣ ሰዓቶቹ አልተዘረዘሩም", French: "{n} h/semaine indiquées, horaires non indiqués" },
+  "plan.src.noHours": { English: "hours not listed", Spanish: "horario no indicado", Vietnamese: "không ghi giờ mở cửa", Korean: "운영 시간 없음", Chinese: "未列营业时间", Amharic: "የሥራ ሰዓት አልተዘረዘረም", French: "horaires non indiqués" },
+  "show.paperRegion": { English: "Your paper", Spanish: "Su hoja", Vietnamese: "Giấy tờ của quý vị", Korean: "안내문", Chinese: "您的就诊单", Amharic: "ሰነድዎ", French: "Votre document" },
+  "show.photoRegion": { English: "Your photo", Spanish: "Su foto", Vietnamese: "Ảnh của quý vị", Korean: "사진", Chinese: "您的照片", Amharic: "ፎቶዎ", French: "Votre photo" },
+  "show.quoteStart": { English: "Quoted on your paper:", Spanish: "Citado en su hoja:", Vietnamese: "Trích trong giấy tờ của quý vị:", Korean: "안내문 인용:", Chinese: "就诊单原文：", Amharic: "በሰነድዎ የተጠቀሰው፦", French: "Cité sur votre document :" },
+  "show.quoteEnd": { English: "(end of quote)", Spanish: "(fin de la cita)", Vietnamese: "(hết trích dẫn)", Korean: "(인용 끝)", Chinese: "（引文结束）", Amharic: "(የጥቅሱ መጨረሻ)", French: "(fin de la citation)" },
+  "session.title": { English: "For helpers: session summary (in English, for case notes)", Spanish: "Para quien ayuda: resumen de la sesión (en inglés, para las notas del caso)", Vietnamese: "Dành cho người hỗ trợ: tóm tắt buổi làm việc (bằng tiếng Anh, để ghi hồ sơ)", Korean: "도우미용: 상담 요약 (사례 기록용, 영어)", Chinese: "帮助者用：本次服务小结（英文，用于个案记录）", Amharic: "ለረዳቶች፦ የክፍለ ጊዜ ማጠቃለያ (በእንግሊዝኛ፣ ለጉዳይ ማስታወሻ)", French: "Pour les aidants : résumé de la séance (en anglais, pour les notes de dossier)" },
+  "share.preview": { English: "What they will get (in English)", Spanish: "Lo que recibirán (en inglés)", Vietnamese: "Nội dung họ sẽ nhận (bằng tiếng Anh)", Korean: "받는 사람이 보게 될 내용 (영어)", Chinese: "对方会收到的内容（英文）", Amharic: "የሚደርሳቸው (በእንግሊዝኛ)", French: "Ce qu'ils recevront (en anglais)" },
 } as const satisfies Record<string, Row>;
 
 export type UiKey = keyof typeof UI_TEXT;
@@ -658,6 +673,8 @@ export const UI_SAFETY_KEYS: ReadonlySet<UiKey> = new Set<UiKey>([
   "prep.paperCounts", "prep.dontMiss", "prep.sheetFoot", "prep.explain.negation",
   // Lines that send the person back to the paper or the clinic before acting (Codex review, round 2).
   "when.unclearNote", "steps.heldNote", "book.skipNote", "labs.noneChecked", "labs.noneRead", "labs.unsureHint", "prep.none", "prep.askWhenNote",
+  // Checking the text read from a photo: a wrong word or number here becomes a wrong step (Codex review, round 3).
+  "paper.checkPhotoBody", "labs.photoCheckTitle", "labs.photoCheckBody", "labs.checkPhotoFirst", "labs.readPhotoCheck",
 ]);
 
 /**

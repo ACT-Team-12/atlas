@@ -155,17 +155,17 @@ function scrollBehavior(): ScrollBehavior {
 /** The whole paper, with the verified span (exact offsets) marked and scrolled into view with the lines around it. */
 function TextPaper({ text, span }: { text: string; span: { start: number; end: number } }) {
   const mark = useRef<HTMLElement>(null);
-  const { paperLang } = useUi();
+  const { t, code, paperLang } = useUi();
   useEffect(() => { mark.current?.scrollIntoView({ block: "center", behavior: scrollBehavior() }); }, [span.start, span.end]);
   return (
-    <div tabIndex={0} role="region" aria-label="Your paper" data-lenis-prevent
+    <div tabIndex={0} role="region" aria-label={t("show.paperRegion")} data-lenis-prevent
       className="max-h-[55dvh] overflow-auto rounded-2xl border-2 border-ink/70 bg-paper p-3">
       <pre lang={paperLang} className="whitespace-pre-wrap font-sans text-sm leading-6 text-ink/80">
         {text.slice(0, span.start)}
         <mark ref={mark} className="rounded bg-sun px-0.5 text-ink outline-2 outline-teal-deep">
-          <span className="sr-only" lang="en">Quoted on your paper: </span>
+          <span className="sr-only" lang={code}>{t("show.quoteStart")} </span>
           {text.slice(span.start, span.end)}
-          <span className="sr-only" lang="en"> (end of quote)</span>
+          <span className="sr-only" lang={code}> {t("show.quoteEnd")}</span>
         </mark>
         {text.slice(span.end)}
       </pre>
@@ -177,10 +177,11 @@ function TextPaper({ text, span }: { text: string; span: { start: number; end: n
 function PhotoPaper({ state }: { state: Extract<PhotoState, { kind: "found" }> }) {
   const first = useRef<HTMLDivElement>(null);
   useEffect(() => { first.current?.scrollIntoView({ block: "center", behavior: scrollBehavior() }); }, [state]);
+  const { t } = useUi();
   const { width: W, height: H } = state.page;
   const pad = Math.max(2, Math.round(W / 400));
   return (
-    <div tabIndex={0} role="region" aria-label="Your photo" data-lenis-prevent className="max-h-[60dvh] overflow-auto rounded-2xl border-2 border-ink/70 bg-paper">
+    <div tabIndex={0} role="region" aria-label={t("show.photoRegion")} data-lenis-prevent className="max-h-[60dvh] overflow-auto rounded-2xl border-2 border-ink/70 bg-paper">
       <div className="relative">
         {/* eslint-disable-next-line @next/next/no-img-element -- a local object URL of the person's own photo */}
         <img src={state.url} alt="Your photo, with the quoted words boxed" className="block h-auto w-full" />

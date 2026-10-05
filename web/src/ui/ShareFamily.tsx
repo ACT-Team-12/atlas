@@ -56,8 +56,8 @@ export function ShareFamily({ items, plan, questions, meaning, planItems, disabl
             <a className="rounded-full border-2 border-ink px-3 py-1.5" href={`mailto:?subject=${encodeURIComponent(SHARE_TITLE)}&body=${encodeURIComponent(text)}`}>{t("share.email")}</a>
             <a className="rounded-full border-2 border-ink px-3 py-1.5" href={`sms:?&body=${encodeURIComponent(text)}`}>{t("share.text")}</a>
           </div>
-          <label className="mt-3 block text-xs font-bold text-ink/70">What they will get
-            <textarea readOnly data-lenis-prevent value={text} className="mt-1 h-40 w-full rounded-xl border-2 border-ink/40 bg-paper p-2 font-mono text-xs" />
+          <label className="mt-3 block text-xs font-bold text-ink/70">{t("share.preview")}
+            <textarea lang="en" readOnly data-lenis-prevent value={text} className="mt-1 h-40 w-full rounded-xl border-2 border-ink/40 bg-paper p-2 font-mono text-xs" />
           </label>
         </div>
       )}

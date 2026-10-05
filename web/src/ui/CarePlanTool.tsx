@@ -1165,7 +1165,7 @@ export function CarePlanTool() {
             <div className="mt-8 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4 sm:p-5">
               <p id="photo-check-title" tabIndex={-1} className="font-extrabold scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{t("paper.checkPhotoTitle")}</p>
               <p className="text-sm font-semibold text-ink/70">
-                {t("paper.checkPhotoBody")}
+                {ts("paper.checkPhotoBody")}
               </p>
               <textarea data-lenis-prevent aria-label={t("paper.photoTextLabel")} className="mt-3 h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 value={transcript ?? care.source_text} onChange={(e) => setTranscript(e.target.value)} />

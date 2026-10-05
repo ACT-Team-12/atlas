@@ -33,6 +33,7 @@ export function LabResults() {
   const [language, setLanguage] = useState<(typeof LANGUAGES)[number]>("English");
   const t: T = (key, vars) => ui(language, key, vars);
   const tn: TN = (key, n, vars) => uiCount(language, key, n, vars);
+  const ts = (key: UiKey) => safeLine(language, key);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [res, setRes] = useState<ResultsResponse | null>(null);
@@ -94,9 +95,9 @@ export function LabResults() {
             <div>
               {fromPhoto && (
                 <div id="labs-photo-note" className="mb-3 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4">
-                  <p className="font-extrabold">{t("labs.photoCheckTitle")}</p>
+                  <p className="font-extrabold">{ts("labs.photoCheckTitle")}</p>
                   <p className="mt-1 text-sm font-semibold text-ink/70">
-                    {t("labs.photoCheckBody")}
+                    {ts("labs.photoCheckBody")}
                   </p>
                 </div>
               )}
@@ -132,18 +133,18 @@ export function LabResults() {
                 className="mt-auto rounded-full bg-ink px-5 py-3 font-bold text-paper disabled:opacity-50">
                 {busy ? t("common.reading") : t("labs.show")}
               </button>
-              {fromPhoto && !checked && <p className="text-xs font-bold text-ink/70">{t("labs.checkPhotoFirst")}</p>}
+              {fromPhoto && !checked && <p className="text-xs font-bold text-ink/70">{ts("labs.checkPhotoFirst")}</p>}
             </div>
           </div>
 
           <div aria-live="polite">
             <p role="status" className={reading || fromPhoto ? "mt-4 text-sm font-bold" : "sr-only"}>
-              {reading ? t("labs.readingPhoto") : fromPhoto ? (checked ? "" : t("labs.readPhotoCheck")) : ""}
+              {reading ? t("labs.readingPhoto") : fromPhoto ? (checked ? "" : ts("labs.readPhotoCheck")) : ""}
             </p>
             {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
             {res && (
               <div className="mt-8">
-                <p className="font-extrabold text-lg">{headline(res, t, tn, (k) => safeLine(language, k))}</p>
+                <p className="font-extrabold text-lg">{headline(res, t, tn, ts)}</p>
                 {res.rows.length > 0 && (
                   <p className="text-xs font-semibold text-ink/70 mt-1">
                     {tn("labsInside", res.counts.inside)}{res.counts.unknown ? tn("labsCouldntTell", res.counts.unknown) : ""}.

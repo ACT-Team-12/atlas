@@ -589,8 +589,8 @@ function WalkCard({ step, index, total, done, check, language, tl, heading, pip,
         <p className="font-extrabold">{tl("askTitle")}</p>
         {warn ? <p className="mt-1 font-bold text-red">{withEnglish(tl("warningDo"), walkEnglishBeside(language, "warningDo"))}</p> : (
           <>
-            {ask ? <div className="mt-1" data-ask-person-panel="" data-ask-person={ask.who}><AskPersonBody ask={ask} big /></div> : <p className="mt-1 font-semibold">{tl("askClinicCall")}</p>}
-            <p className="mt-2 text-sm font-semibold text-ink/70" data-walk-211="">{tl("ask211")}</p>
+            {ask ? <div className="mt-1" data-ask-person-panel="" data-ask-person={ask.who}><AskPersonBody ask={ask} big /></div> : <p className="mt-1 font-semibold">{withEnglish(tl("askClinicCall"), walkEnglishBeside(language, "askClinicCall"))}</p>}
+            <p className="mt-2 text-sm font-semibold text-ink/70" data-walk-211="">{withEnglish(tl("ask211"), walkEnglishBeside(language, "ask211"))}</p>
           </>
         )}
       </div>

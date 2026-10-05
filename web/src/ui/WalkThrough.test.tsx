@@ -440,6 +440,19 @@ describe("the walk-through's warning lines keep their English beside them until 
     });
   }
 
+  for (const lang of LANGUAGES.filter((l) => l !== "English")) {
+    it(`${lang}: Ask a person's clinic and 211 lines keep their English beside them (Codex round 11)`, () => {
+      render({ language: lang, meaning: { status: "done", byId: Object.fromEntries(ITEMS.map((i) => [i.id, result(i.id, { certified: true, model_verdict: "same" })])) } });
+      open();
+      while (shownId() !== "eye") click(q("[data-walk-not-yet]"));
+      click(q("[data-walk-ask]"));
+      const panel = q("[data-walk-ask-panel]");
+      expect(panel.textContent).toContain(WALK_LINES[lang].askClinicCall);
+      expect(beside(panel)).toContain(WALK_LINES.English.askClinicCall);
+      expect(beside(q("[data-walk-211]"))).toContain(WALK_LINES.English.ask211);
+    });
+  }
+
   it("a step's time group that is a safety line (Right away) keeps its English on the walk-through card", () => {
     // The paper's STOP list: a stop with no time words starts now, so this step is in the "Right away" group.
     const stop = step("ibu", "medication", "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function.", "AI-TITLE Stop ibuprofen", "");

@@ -2,6 +2,7 @@
 
 import { useId, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { printOrView, SESSION_SHEET } from "./printView";
 import { ACTIVITIES, ACTIVITY_LABEL, type Activity, sessionSummary, SUMMARY_FOOT, SUMMARY_TITLE, type SessionPlanState } from "@/lib/sessionSummary";
 
 const noop = () => () => {};
@@ -13,11 +14,12 @@ const PRINT_CSS = `
   html.print-session body > *:not(#atlas-session-sheet) { display: none !important; }
   html.print-session, html.print-session body { background: #fff !important; }
   html.print-session .atlas-session-sheet { display: block; color: #000; font-size: 12pt; line-height: 1.4; }
-  .atlas-session-sheet h1 { font-size: 18pt; margin: 0 0 4pt; }
-  .atlas-session-sheet h2 { font-size: 13pt; margin: 12pt 0 4pt; border-bottom: 1.5pt solid #000; padding-bottom: 2pt; break-after: avoid; }
-  .atlas-session-sheet p { margin: 0 0 2pt; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .atlas-session-sheet .foot { margin-top: 14pt; font-size: 9pt; color: #333; }
-}`;
+}
+/* The type rules hold on screen too, for the sheet view in browsers that can't print from a button (printView.ts). */
+.atlas-session-sheet h1 { font-size: 18pt; margin: 0 0 4pt; }
+.atlas-session-sheet h2 { font-size: 13pt; margin: 12pt 0 4pt; border-bottom: 1.5pt solid #000; padding-bottom: 2pt; break-after: avoid; }
+.atlas-session-sheet p { margin: 0 0 2pt; white-space: pre-wrap; overflow-wrap: anywhere; }
+.atlas-session-sheet .foot { margin-top: 14pt; font-size: 9pt; color: #333; }`;
 
 /**
  * "For helpers: session summary": a CHW or navigator fills in minutes, notes and consent, then copies or prints a
@@ -36,12 +38,8 @@ export function SessionSummary(props: SessionPlanState) {
     navigator.clipboard?.writeText(s.text).then(() => setMsg("Copied. Paste it into your notes.")).catch(() => setMsg("Couldn't copy. Select the text below and copy it."));
   }
 
-  function print() {
-    const root = document.documentElement;
-    const done = () => { root.classList.remove("print-session"); window.removeEventListener("afterprint", done); };
-    root.classList.add("print-session");
-    window.addEventListener("afterprint", done);
-    window.print();
+  function print(e: { currentTarget: Element }) {
+    printOrView(SESSION_SHEET, e.currentTarget); // the sheet on screen first, printed from its bar (printView.ts)
   }
 
   return (

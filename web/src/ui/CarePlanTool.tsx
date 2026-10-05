@@ -22,6 +22,7 @@ import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
 import { AskPaper } from "./AskPaper";
 import { HandoffSheet } from "./HandoffSheet";
+import { HANDOFF_SHEET, printOrView, printPageOr } from "./printView";
 import { MissedLines, useMissedLines } from "./MissedLines";
 import { missedLineTexts } from "@/lib/missedLines";
 import { ShareFamily } from "./ShareFamily";
@@ -786,7 +787,7 @@ export function CarePlanTool() {
   useEffect(() => {
     // Stopping speech sets state, on purpose: the reading must end the moment the plan goes out of date.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (planOutdated) { stopSpeaking(); document.documentElement.classList.remove("print-sheet"); }
+    if (planOutdated) { stopSpeaking(); document.documentElement.classList.remove("print-sheet", "print-view"); }
     // Only the change to outdated matters; stopSpeaking only touches refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planOutdated]);
@@ -1015,14 +1016,18 @@ export function CarePlanTool() {
     });
   }
 
-  // The handoff sheet is the only thing printed while html.print-sheet is set; afterprint clears it.
-  function printSheet() {
+  // The handoff sheet shown on screen as the page, printed from its bar (printView.ts, PrintViewBar).
+  function printSheet(e: { currentTarget: Element }) {
     if (planOutdated) return;
-    const root = document.documentElement;
-    const done = () => { root.classList.remove("print-sheet"); window.removeEventListener("afterprint", done); };
-    root.classList.add("print-sheet");
-    window.addEventListener("afterprint", done);
-    window.print();
+    printOrView(HANDOFF_SHEET, e.currentTarget);
+  }
+
+  // Print the plan page; where the browser can't print from a button (Chrome on iPhone, or an app's browser that never
+  // starts a print), the handoff sheet, which holds the plan and the paper's words, is shown on screen to print from
+  // the browser's menu instead (printView.ts).
+  function printPlan(e: { currentTarget: Element }) {
+    if (planOutdated) return;
+    printPageOr(HANDOFF_SHEET, e.currentTarget);
   }
 
   const careById = Object.fromEntries((care?.items ?? []).map((i) => [i.id, i]));
@@ -1284,7 +1289,7 @@ export function CarePlanTool() {
               {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2"><DockLabel icon="✕" short="Cancel" long="Cancel" /></button>}
               {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} short="Call me" />}
               {care && <ShareFamily items={items} plan={plan} questions={generalQuestions} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short="Send" />}
-              <button type="button" onClick={() => { if (!planOutdated) window.print(); }} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short="Print" long="Print for the next visit" /></button>
+              <button type="button" onClick={printPlan} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short="Print" long="Print for the next visit" /></button>
               <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short="Handoff" long="Print a handoff sheet" /></button>
               <span role="status" className={voiceNote ? "dock-note self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
             </div>

@@ -201,6 +201,7 @@ describe("printPageOr", () => {
       act(() => { vi.advanceTimersByTime(PRINT_START_MS / 2); });
       act(() => printPageOr(HANDOFF_SHEET, trigger));
       act(() => { vi.advanceTimersByTime(PRINT_START_MS + 50); });
+      expect(window.print).toHaveBeenCalledTimes(1); // the second tap did not ask the browser to print again
       expect(shown()).toBe(true);
       Object.defineProperty(window, "scrollY", { configurable: true, value: 0 }); // the sheet view is at the top
       act(() => { vi.advanceTimersByTime(PRINT_START_MS * 2); }); // no stale timer reopens it or resets the way back

@@ -79,7 +79,7 @@ export type PrintViewDetail = { target: PrintTarget; printFailed: boolean };
 /** How long a print has to start before it counts as having done nothing. */
 export const PRINT_START_MS = 1000;
 
-// One print attempt at a time: a second tap, or Handoff during the wait, replaces the first (Codex round 3).
+// One print attempt at a time: a second tap is ignored while one waits, and opening a sheet cancels it (Codex rounds 3-4).
 let cancelPending: (() => void) | null = null;
 function cancelPendingPrint() { cancelPending?.(); cancelPending = null; }
 
@@ -91,7 +91,8 @@ function cancelPendingPrint() { cancelPending?.(); cancelPending = null; }
  * to the sheet.
  */
 export function printPageOr(fallback: PrintTarget, trigger?: Element | null) {
-  cancelPendingPrint();
+  // A print is already waiting to start: a second tap must not ask the browser to print again (Codex round 4).
+  if (cancelPending) return;
   if (!canPrintHere()) { printOrView(fallback, trigger); return; }
   let started = false;
   const onStart = () => { started = true; };

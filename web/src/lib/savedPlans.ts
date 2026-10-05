@@ -6,6 +6,7 @@ import { LANGUAGES, READING_LEVELS, type CarePlanResponse } from "./schema";
 import type { Barrier } from "./resources";
 import type { PlanResponse } from "./plan";
 import type { MeaningResult } from "./meaning";
+import { CLIENT_CHECK_POLICY } from "./checkPolicy";
 
 /** The old single saved session (before saved plans). Migrated into the list once. */
 export const OLD_KEY = "atlas-session-v1";
@@ -41,10 +42,10 @@ export type Session = {
 export type SavedChecks = { key: string; policy: string; byId: Record<string, MeaningResult> };
 
 /**
- * The second check's rules (model, prompt, number checker, guards) as of this version. Bump it whenever any of them
- * changes: saved verdicts made under other rules are not restored, and their steps show as checked once (Codex review).
+ * The second check's rules and model for this build (checkPolicy.ts). Saved verdicts made under any other policy are
+ * not restored, and their steps show as checked once (Codex review).
  */
-export const CHECK_POLICY = "2026-10-05";
+export const CHECK_POLICY = CLIENT_CHECK_POLICY;
 
 /**
  * The steps and language a set of check verdicts was made for: every field the check reads (id, title, explanation,

@@ -495,8 +495,9 @@ export function CarePlanTool() {
         text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, matched: true,
         // The check's verdicts, kept on this device with the steps they were made for (savedPlans.ts, checksKey).
         // Only verdicts made for exactly these steps: ids like item-1 repeat between readings.
-        ...(care && meaning.status === "done" && meaningFor.current === checksKey(care.items, care.language ?? language)
-          ? { checks: { key: meaningFor.current, policy: CHECK_POLICY, byId: meaning.byId } } : {}),
+        // Kept only when the server says it checked under this build's rules and model (checkPolicy.ts).
+        ...(care && meaning.status === "done" && meaning.policy === CHECK_POLICY && meaningFor.current === checksKey(care.items, care.language ?? language)
+          ? { checks: { key: meaningFor.current, policy: meaning.policy, byId: meaning.byId } } : {}),
       }, now: new Date().toISOString(), newId: newPlanId(),
     });
     if (next) writeStore(next);

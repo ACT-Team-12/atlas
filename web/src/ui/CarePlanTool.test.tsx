@@ -777,7 +777,8 @@ describe("reopening a plan built from the device location", () => {
     expect(screenText()).toContain(LOCATION_AGAIN);
     expect(byText("Update plan").disabled).toBe(true);
     expect(byText("Read it out loud").disabled).toBe(true);
-    expect(byText("Print a handoff sheet").disabled).toBe(true);
+    // No paper was read, so there is no handoff sheet and no button for one (Codex review of PR 107, round 4).
+    expect(() => byText("Print a handoff sheet")).toThrow();
   });
 
   it("a fresh position, then Update plan, makes it current again", async () => {
@@ -1467,6 +1468,7 @@ describe("a paper that is not a visit paper (nothing becomes a step)", () => {
     expect(host.querySelector("#atlas-sheet")).toBeNull(); // no handoff sheet built on the rejected paper
     expect(host.innerHTML).not.toContain("Could you share the after-visit summary");
     expect(fetchCalls.find((c) => c.url === "/api/plan")?.body.care).toEqual([]);
+    expect([...host.querySelectorAll("button")].some((b) => b.textContent?.includes(ui("English", "dock.handoff.short")))).toBe(false); // no button for a sheet that does not exist
   });
 
   it("replacing the wrong paper does not make a barriers-only plan out of date", async () => {

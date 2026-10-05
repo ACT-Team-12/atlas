@@ -1466,7 +1466,8 @@ export function CarePlanTool() {
               {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} short={t("dock.callMe.short")} />}
               {care && !noStepsFound && <ShareFamily items={items} plan={plan} questions={generalQuestions} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short={t("dock.send.short")} />}
               <button type="button" onClick={printPlan} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short={t("dock.print.short")} long={t("dock.print.long")} /></button>
-              <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short={t("dock.handoff.short")} long={t("dock.handoff.long")} /></button>
+              {/* Only when the handoff sheet exists: it is built from a usable paper (none, or a wrong one, has no sheet). */}
+              {care && !noStepsFound && <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short={t("dock.handoff.short")} long={t("dock.handoff.long")} /></button>}
               <span role="status" className={voiceNote ? "dock-note self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
             </div>
             <p className="mt-3 text-xs font-bold text-ink/70">{tn("planStats", plan.stats.steps, { c: plan.stats.candidates, d: plan.stats.dropped_refs })}</p>

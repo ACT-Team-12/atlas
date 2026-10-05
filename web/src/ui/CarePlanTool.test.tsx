@@ -666,16 +666,13 @@ describe("an outdated plan cannot be acted on", () => {
     expect(screenText()).not.toContain("Update the plan first");
   }
 
-  const selectValue = (label: string, value: string) => {
-    const sel = [...host.querySelectorAll("label")].find((l) => l.textContent?.startsWith(label))!.querySelector("select")!;
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(sel, value);
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
-  };
+  // "Explain it in" is a set of radio buttons (ReadIn.tsx), each language in its own words.
+  const pickLanguage = (value: string) => host.querySelector<HTMLInputElement>(`input[name="read-in-language"][value="${value}"]`)!.click();
 
   const changes: [string, () => void][] = [
     ["place (a ZIP typed)", () => typeInto(host.querySelector<HTMLInputElement>("#zip")!, "30340")],
     ["barriers", () => byText("Paying for the visit").click()],
-    ["language", () => selectValue("Explain it in", "Spanish")],
+    ["language", () => pickLanguage("Spanish")],
     ["a removed step", () => (host.querySelector('button[aria-label="Remove step 1"]') as HTMLButtonElement).click()],
   ];
   for (const [what, change] of changes) {
@@ -835,6 +832,13 @@ describe("a plan saved before results were checked against answers", () => {
     reopenWith({ matched: true });
     expect(screenText()).not.toContain("Read your paper again first");
     expect(byText("Read it out loud").disabled).toBe(false);
+  });
+
+  it("a saved level that is no longer a choice: no crash, defaults shown, plan outdated with actions off", () => {
+    reopenWith({ matched: true, level: "expert" });
+    expect(screenText()).toContain("Read your paper again first");
+    for (const t of ["Read it out loud", "Print for the next visit", "Print a handoff sheet", "Send to family"]) expect(byText(t).disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>('input[name="read-in-level"]:checked')!.value).toBe("simple");
   });
 
   it("a plan saved with internal ids in its text comes back without them (the live 2026-10-03 sentence)", () => {

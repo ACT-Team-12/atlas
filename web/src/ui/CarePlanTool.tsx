@@ -23,6 +23,7 @@ import { Understand } from "./Understand";
 import { AskPaper } from "./AskPaper";
 import { HandoffSheet } from "./HandoffSheet";
 import { HANDOFF_SHEET, printOrView, printPageOr } from "./printView";
+import { ReadIn } from "./ReadIn";
 import { MissedLines, useMissedLines } from "./MissedLines";
 import { missedLineTexts } from "@/lib/missedLines";
 import { ShareFamily } from "./ShareFamily";
@@ -1119,18 +1120,9 @@ export function CarePlanTool() {
                 </label>
               </div>
               <p className="mt-2 text-xs text-ink/70">{SAMPLE_LABEL}.</p>
+              <div className="mt-5"><ReadIn language={language} level={level} onLanguage={setLanguage} onLevel={setLevel} /></div>
             </div>
             <div className="flex flex-col gap-3">
-              <label className="text-sm font-bold">Explain it in
-                <select className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" value={language} onChange={(e) => setLanguage(e.target.value as typeof language)}>
-                  {LANGUAGES.map((l) => <option key={l}>{l}</option>)}
-                </select>
-              </label>
-              <label className="text-sm font-bold">Reading level
-                <select className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" value={level} onChange={(e) => setLevel(e.target.value as typeof level)}>
-                  {READING_LEVELS.map((l) => <option key={l}>{l}</option>)}
-                </select>
-              </label>
               {/* A greyed-out button alone says nothing; say what to do first (the Oct 4 watched try). */}
               {needsPaper && <p id="read-hint" className="mt-auto text-sm font-bold text-ink/80">Add your paper first: paste it, take a photo, or tap Use the sample paper.</p>}
               <SquashButton id="read-my-paper" onClick={() => readPaper()} disabled={reading || needsPaper} describedBy={needsPaper ? "read-hint" : undefined}

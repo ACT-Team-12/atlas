@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { SmoothScroll } from "@/ui/motion/SmoothScroll";
 import { THEME_SCRIPT } from "@/lib/theme";
 import { PrintViewBar } from "@/ui/PrintViewBar";
+import { SiteLangProvider } from "@/ui/SiteLang";
 import "./globals.css";
 
 // Self-hosted (SIL Open Font License), so builds never depend on a font download.
@@ -42,8 +43,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body>
-        <SmoothScroll>{children}</SmoothScroll>
-        <PrintViewBar />
+        <SiteLangProvider>
+          <SmoothScroll>{children}</SmoothScroll>
+          <PrintViewBar />
+        </SiteLangProvider>
       </body>
     </html>
   );

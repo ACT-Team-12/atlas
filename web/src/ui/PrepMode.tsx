@@ -12,6 +12,7 @@ import { createRequestGate, type Ticket } from "@/lib/requestGate";
 import { keyFor, LANGUAGE_NAME, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
 import { failureKey, logFailure, postJson } from "@/lib/requestError";
 import { paperLangCode, safeLine, UiLangProvider, useUi, PaperWords } from "./UiLang";
+import { useFollowSiteLang } from "./SiteLang";
 
 /** Marks where the paper's timing words go in a translated sentence (Codex round 9 of PR 93). */
 const WORDS = "\u0001";
@@ -58,6 +59,13 @@ export function PrepMode() {
     silence(); setSpeaking(false); setVoiceNote("");
     setRes(null); setMeaning(NO_MEANING); setBusy(false); setError("");
   }
+
+  // Follows the nav's language picker (ui/SiteLang.tsx) the same way its own picker does: a change clears the result.
+  useFollowSiteLang((l, source) => {
+    if (l === language || (source === "load" && text)) return;
+    inputsChanged({ language: l });
+    setLanguage(l);
+  });
 
   function silence() {
     run.current++;

@@ -63,6 +63,7 @@ import { consumeHelperSession, entryHeaders } from "@/lib/helperLink";
 import { HelperBanner, useHelperArrival } from "./HelperArrival";
 import { keyFor, locatedLine, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
 import { paperLangCode, safeLine, UiLangProvider, useUi } from "./UiLang";
+import { useFollowSiteLang } from "./SiteLang";
 
 /** Id for a saved plan. randomUUID needs a secure page; the fallback is fine for a local key. */
 function newPlanId() {
@@ -318,6 +319,13 @@ export function CarePlanTool() {
   const setPhoto = (v: File | null) => { live.current.photo = v; setPhotoState(v); };
   const setLanguage = (v: (typeof LANGUAGES)[number]) => { live.current.language = v; setLanguageState(v); };
   const setLevel = (v: (typeof READING_LEVELS)[number]) => { live.current.level = v; setLevelState(v); };
+  // The nav's language picker moves "Explain it in" too (ui/SiteLang.tsx). On page load it leaves a restored paper or
+  // plan alone, so a saved plan keeps the language it was read in.
+  useFollowSiteLang((l, source) => {
+    if (l === live.current.language) return;
+    if (source === "load" && (live.current.text || live.current.care)) return;
+    setLanguage(l);
+  });
   const setCare = (v: CarePlanResponse | null) => { live.current.care = v; setCareState(v); };
   const setZip = (v: string) => { live.current.zip = v; setZipState(v); };
   const setLoc = (v: { lat: number; lng: number } | null) => { live.current.loc = v; setLocState(v); };

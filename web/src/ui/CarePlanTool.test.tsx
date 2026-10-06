@@ -16,6 +16,7 @@ import { failureKey, RequestFailed } from "@/lib/requestError";
 import { CHECK_POLICY, checksKey } from "@/lib/savedPlans";
 import { SAMPLE_AVS } from "@/lib/sample";
 import { TRY_SAMPLE_EVENT } from "@/lib/sampleStart";
+import { site } from "@/lib/siteText";
 
 vi.mock("@/lib/deviceChecker", () => ({ loadDeviceChecker: () => Promise.reject(new Error("no wasm in tests")), sameSpan: () => false }));
 
@@ -1254,8 +1255,9 @@ describe("Try it with a sample lands with the sample in and Read my paper in vie
   it("the home button's own href carries the request, so a tap before the page is interactive still works", () => {
     // Codex review: with href="#try" the request lived only in the click handler, which does not exist before hydration.
     const hero = readFileSync(join(__dirname, "Hero.tsx"), "utf8");
-    // One line: the opening tag (whose onClick contains "=>") through the label.
-    expect(hero).toMatch(/<SquashButton href=\{TRY_SAMPLE_HASH\}[^\n]*>Try it with a sample<\/SquashButton>/);
+    // One line: the opening tag (whose onClick contains "=>") through the label (the site's own words, lib/siteText.ts).
+    expect(hero).toMatch(/<SquashButton href=\{TRY_SAMPLE_HASH\}[^\n]*>\{s\("hero\.try"\)\}<\/SquashButton>/);
+    expect(site("English", "hero.try")).toBe("Try it with a sample");
   });
 
   it("on a phone with their own paper on another tab: keeps the paper, opens tab 1, then jumps (Codex review)", async () => {

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { setupGsap, gsap, prefersReducedMotion } from "./motion/gsap";
 import { Mark } from "./Mark";
+import { useSite } from "./SiteLang";
 
 const introDone = () => window.dispatchEvent(new Event("atlas:intro-done"));
 
@@ -15,6 +16,7 @@ export function Preloader() {
   const root = useRef<HTMLDivElement>(null);
   const started = useRef(false);
   const [done, setDone] = useState(false);
+  const { s } = useSite();
 
   useEffect(() => {
     if (started.current) return;
@@ -57,7 +59,7 @@ export function Preloader() {
       <div className="absolute inset-0 grid place-items-center">
         <div className="relative flex flex-col items-center gap-3">
           <div className="pl-mark invisible"><Mark size={120} /></div>
-          <p className="pl-word hand text-4xl text-ink invisible">only what&apos;s written</p>
+          <p className="pl-word hand text-4xl text-ink invisible">{s("intro.word")}</p>
           <span className="pl-line invisible block h-1.5 w-48 rounded-full bg-teal origin-left" />
         </div>
       </div>

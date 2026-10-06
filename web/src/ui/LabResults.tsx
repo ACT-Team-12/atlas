@@ -10,6 +10,7 @@ import { SAMPLE_LABS, SAMPLE_LABS_LABEL } from "@/lib/sampleLabs";
 import { keyFor, labReason, LANGUAGE_NAME, ui, uiCount, uiLang, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
 import { failureKey, logFailure, postJson } from "@/lib/requestError";
 import { EnglishBeside, paperLangCode, safeLine, UiLangProvider, useUi, PaperWords } from "./UiLang";
+import { useFollowSiteLang } from "./SiteLang";
 
 type T = (key: UiKey, vars?: Record<string, string | number>) => string;
 type TN = (key: UiPluralKey, n: number, vars?: Record<string, string | number>) => string;
@@ -32,6 +33,8 @@ async function fileToBase64(file: File) {
 export function LabResults() {
   const [text, setText] = useState("");
   const [language, setLanguage] = useState<(typeof LANGUAGES)[number]>("English");
+  // Follows the nav's language picker (ui/SiteLang.tsx); a report already typed in is left as it is on page load.
+  useFollowSiteLang((l, source) => { if (l !== language && !(source === "load" && text)) setLanguage(l); });
   const t: T = (key, vars) => ui(language, key, vars);
   const tn: TN = (key, n, vars) => uiCount(language, key, n, vars);
   const ts = (key: UiKey) => safeLine(language, key);

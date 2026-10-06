@@ -251,6 +251,11 @@ mark {
   line-height: 1.05;
 }
 
+/* Vietnamese stacks accents above and below each letter (quý vị), and Amharic glyphs are taller than Latin: the tight
+   display and handwriting lines made them touch the line above. Measured on the site in each language (Oct 5). */
+:lang(vi) .display, :lang(am) .display { line-height: 1.12; letter-spacing: -0.01em; }
+:lang(vi) .hand, :lang(am) .hand { line-height: 1.3; }
+
 .section-card {
   border-radius: var(--radius-section);
   position: relative;

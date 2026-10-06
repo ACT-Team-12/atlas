@@ -216,7 +216,7 @@ export function CallMe({ plan, language, short }: { plan: PlanResponse; language
               )}
               {st?.phase === "code" && (
                 <form onSubmit={verify} className="mt-3 grid gap-2">
-                  <label className="text-sm font-bold">The 4-digit code from the call
+                  <label className="grid text-sm font-bold">The 4-digit code from the call
                     <input inputMode="numeric" autoComplete="one-time-code" maxLength={4} value={code}
                       onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="0000" className={input} />
                   </label>
@@ -228,7 +228,7 @@ export function CallMe({ plan, language, short }: { plan: PlanResponse; language
               )}
               {showStart && (
                 <form onSubmit={askCode} className="mt-3 grid gap-2">
-                  <label className="text-sm font-bold">Your phone number (US)
+                  <label className="grid text-sm font-bold">Your phone number (US)
                     <input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
                       placeholder="(404) 555-2368" className={input} />
                   </label>

@@ -5,16 +5,19 @@ import { setupGsap, useGSAP, gsap, SplitText, prefersReducedMotion } from "./mot
 import { WaveBlobs } from "./WaveBlobs";
 import { SquashButton } from "./SquashButton";
 import { isPlainClick, TRY_SAMPLE_EVENT, TRY_SAMPLE_HASH } from "@/lib/sampleStart";
+import { useSite } from "./SiteLang";
 
 /** Illustrative loop of what a plan card looks like. Built from our labeled sample paper, not a real patient. */
+/** The words come from lib/siteText.ts (loop.N.*); each quote stays in English, as the paper wrote it. */
 const LOOP = [
-  { chip: "From your paper", chipCls: "bg-mint text-teal-deep", title: "Start metformin 500 mg", body: "1 tablet, 2 times a day, with meals.", quote: "Take 1 tablet by mouth 2 times a day with meals." },
-  { chip: "Ask your clinic", chipCls: "bg-peach text-peach-deep", title: "Fasting blood test", body: "Within 2 weeks. The paper doesn't say how many hours to fast.", quote: "fasting, complete within 2 weeks" },
-  { chip: "Getting there", chipCls: "bg-sky text-sky-deep", title: "Closest health center", body: "Sliding fee by law. Nearest MARTA stop shown on the plan.", quote: "verified HRSA record" },
-];
+  { n: 0, chipCls: "bg-mint text-teal-deep", quote: "Take 1 tablet by mouth 2 times a day with meals." },
+  { n: 1, chipCls: "bg-peach text-peach-deep", quote: "fasting, complete within 2 weeks" },
+  { n: 2, chipCls: "bg-sky text-sky-deep", quote: "verified HRSA record" },
+] as const;
 
 export function PlanLoop() {
   const [i, setI] = useState(0);
+  const { s } = useSite();
   useEffect(() => {
     if (prefersReducedMotion()) return;
     const t = window.setInterval(() => setI((x) => (x + 1) % LOOP.length), 2600);
@@ -24,20 +27,20 @@ export function PlanLoop() {
     <div className="relative w-[min(22rem,86vw)]">
       <div className="card p-5 rotate-[-2deg] bg-paper">
         <div className="flex items-center justify-between">
-          <span className="hand text-2xl text-ink-soft">Your plan</span>
-          <span className="text-xs font-bold text-ink/70">sample</span>
+          <span className="hand text-2xl text-ink-soft">{s("loop.yourPlan")}</span>
+          <span className="text-xs font-bold text-ink/70">{s("loop.sample")}</span>
         </div>
         {/* All three stacked in one grid cell, only the current one shown, so the card is always as tall as the tallest.
             When the height changed with each turn, the browser nudged the page to keep the rest in place, and that scroll
             counted as the person using the page: a phone left alone never opened its plan (Akhil, Oct 4, measured live). */}
         <div className="mt-3 grid" data-plan-loop="">
-          {LOOP.map((s, j) => (
+          {LOOP.map((c, j) => (
             <div key={j === i ? `on-${i}` : j} aria-hidden={j !== i || undefined} data-loop-item={j === i ? "on" : "off"}
               className={`col-start-1 row-start-1 ${j === i ? "animate-[fadein_0.5s_ease]" : "invisible"}`}>
-              <span className={`chip ${s.chipCls}`}>{s.chip}</span>
-              <p className="display text-2xl mt-3">{s.title}</p>
-              <p className="mt-2 font-semibold text-ink/80">{s.body}</p>
-              <p className="mt-3 border-l-4 border-sun pl-2 text-sm italic text-ink/70">&ldquo;{s.quote}&rdquo;</p>
+              <span className={`chip ${c.chipCls}`}>{s(`loop.${c.n}.chip`)}</span>
+              <p className="display text-2xl mt-3">{s(`loop.${c.n}.title`)}</p>
+              <p className="mt-2 font-semibold text-ink/80">{s(`loop.${c.n}.body`)}</p>
+              <p lang="en" className="mt-3 border-l-4 border-sun pl-2 text-sm italic text-ink/70">&ldquo;{c.quote}&rdquo;</p>
             </div>
           ))}
         </div>
@@ -52,6 +55,7 @@ export function PlanLoop() {
 
 export function Hero() {
   const root = useRef<HTMLElement>(null);
+  const { s } = useSite();
   useGSAP(
     (_ctx, contextSafe) => {
       setupGsap();
@@ -84,25 +88,23 @@ export function Hero() {
         <div className="relative z-10 w-full grid lg:grid-cols-[1.3fr_1fr] gap-10 items-center px-6 sm:px-12 pt-28 pb-16">
           <div>
             <p data-reveal className="hero-note hand text-3xl text-teal-deep -rotate-2 mb-4 inline-block">
-              for whoever is helping someone after a clinic visit
+              {s("hero.note")}
             </p>
             <h1 data-reveal className="hero-title display text-[clamp(2.8rem,6.6vw,6.6rem)] text-ink">
-              Your visit, turned into a plan you can actually finish.
+              {s("hero.title")}
             </h1>
             <p data-reveal className="hero-sub mt-6 max-w-[34em] text-lg font-semibold text-ink/85">
-              Snap the after-visit summary. ATLAS explains every step in your language and shows the exact line it came
-              from. Then it plans around what gets in the way, like a ride, the cost or the language, using verified
-              Atlanta health centers and programs. If it can&apos;t point to it, it won&apos;t say it.
+              {s("hero.sub")}
             </p>
             <div data-reveal className="hero-cta mt-8 flex flex-wrap gap-3">
               {/* Fills the sample in and brings "Read my paper" into view (lib/sampleStart.ts). */}
-              <SquashButton href={TRY_SAMPLE_HASH} onClick={(e) => { if (isPlainClick(e)) window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); }} bg="var(--teal)" accent="var(--sun)">Try it with a sample</SquashButton>
-              <SquashButton href="#how" bg="var(--paper)" fg="var(--ink)" accent="var(--sky)">How it works</SquashButton>
+              <SquashButton href={TRY_SAMPLE_HASH} onClick={(e) => { if (isPlainClick(e)) window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); }} bg="var(--teal)" accent="var(--sun)">{s("hero.try")}</SquashButton>
+              <SquashButton href="#how" bg="var(--paper)" fg="var(--ink)" accent="var(--sky)">{s("nav.how")}</SquashButton>
             </div>
           </div>
           <div data-reveal className="hero-card relative justify-self-center">
             <PlanLoop />
-            <p className="hero-note hand text-2xl text-ink absolute -left-8 -bottom-10 rotate-[-6deg] max-w-[10em]">no account needed</p>
+            <p className="hero-note hand text-2xl text-ink absolute -left-8 -bottom-10 rotate-[-6deg] max-w-[10em]">{s("hero.noAccount")}</p>
           </div>
         </div>
       </div>

@@ -3,9 +3,11 @@ import { SAMPLE_AVS } from "./sample";
 
 // The model is replaced: each test sets what it "returns", and the request it was sent is recorded.
 const sent: { params: { system: string; messages: { content: string }[] }; signal?: AbortSignal }[] = [];
+const clients: unknown[] = [];
 let reply: unknown = null;
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class {
+    constructor(options: unknown) { clients.push(options); }
     messages = {
       parse: async (params: never, opts?: { signal?: AbortSignal }) => {
         sent.push({ params, signal: opts?.signal });
@@ -22,7 +24,13 @@ const paper = SAMPLE_AVS;
 const draft = (quotes: string[], topic = "", answered = true, urgent = false) => ({ answered, urgent, topic, quotes });
 const slice = (s: { start: number; end: number }) => paper.slice(s.start, s.end);
 
-beforeEach(() => { sent.length = 0; reply = null; vi.stubEnv("ANTHROPIC_API_KEY", "test-key"); });
+beforeEach(() => {
+  sent.length = 0;
+  clients.length = 0;
+  reply = null;
+  vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+});
 afterEach(() => { vi.unstubAllEnvs(); });
 
 describe("ask checker: quotes", () => {
@@ -221,6 +229,22 @@ describe("ask: refusal", () => {
 });
 
 describe("ask: the model call (mocked)", () => {
+  it("uses OpenRouter when configured, even without a direct Anthropic key", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "router-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    reply = draft(["Return to clinic in 3 months"], "Return to clinic");
+    const r = await answerFromPaper({ source_text: paper, language: "English", question: "when should I return?" });
+    expect(r.kind).toBe("answer");
+    expect(clients).toEqual([{ apiKey: null, authToken: "router-test-key", baseURL: "https://openrouter.ai/api" }]);
+    expect(sent).toHaveLength(1);
+  });
+
+  it("uses the direct Anthropic client only when OpenRouter is not configured", async () => {
+    reply = draft(["Return to clinic in 3 months"], "Return to clinic");
+    await answerFromPaper({ source_text: paper, language: "English", question: "when should I return?" });
+    expect(clients).toEqual([{ apiKey: "test-key" }]);
+  });
+
   it("sends the paper and question as tagged data, then checks the reply against the paper", async () => {
     reply = draft(["STOP taking these medications:", "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function", "Stop ibuprofen today."], "ibuprofen");
     const ac = new AbortController();

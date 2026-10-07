@@ -1,7 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { ExtractError, MODEL } from "./extract";
+import { ExtractError, makeClient, MODEL } from "./extract";
 import { LANGUAGES } from "./schema";
 import { enclosingSentence, findSpanIn, mapSource, normalize, type MappedSource } from "./verify";
 import { cuesForbid } from "./prepCues";
@@ -152,9 +151,7 @@ function checkTopic(topic: string, quotes: AskQuote[]): { topic: string | null; 
 
 /** One paid model call, then the checker. The route has already ruled out urgent questions and spent a daily slot. */
 export async function answerFromPaper(req: AskRequest, signal?: AbortSignal): Promise<AskResponse> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
-  const client = new Anthropic({ apiKey });
+  const client = makeClient();
   const t0 = Date.now();
   const msg = await client.messages.parse(
     {

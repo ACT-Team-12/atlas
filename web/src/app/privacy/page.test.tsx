@@ -78,5 +78,17 @@ describe("privacy page: the deployed AI provider", () => {
     expect(text).toContain("have not verified zero data retention for this route");
     expect(text).toContain("OpenRouter provider policies");
     expect(text).not.toContain("Anthropic privacy center");
+    const askSection = text.slice(text.indexOf("Asking your paper a question"), text.indexOf("Saying your answer out loud"));
+    expect(askSection).toContain("also receive your question");
+    expect(askSection).toContain("have not verified zero data retention for this route");
+  });
+
+  it("reads the provider at render time without needing a module reload", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "");
+    vi.resetModules();
+    const { default: Page } = await import("./page");
+    expect(renderToStaticMarkup(<Page />)).not.toContain("OpenRouter");
+    vi.stubEnv("OPENROUTER_API_KEY", "router-test-key");
+    expect(renderToStaticMarkup(<Page />)).toContain("OpenRouter provider policies");
   });
 });

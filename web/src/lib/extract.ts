@@ -6,6 +6,7 @@ import { verifyItems } from "./verify";
 import { missedLinesPayload } from "./missedLines";
 import { isWarning } from "./warningPin";
 
+export const AI_PROVIDER = process.env.OPENROUTER_API_KEY ? "openrouter" : "anthropic";
 export const MODEL = process.env.ATLAS_MODEL ?? "claude-opus-5-5";
 
 const SYSTEM = `You turn a patient's after-visit summary into a care plan they can act on.
@@ -59,6 +60,14 @@ export class ExtractError extends Error {
 }
 
 export function makeClient() {
+  const openRouterKey = process.env.OPENROUTER_API_KEY;
+  if (openRouterKey) {
+    return new Anthropic({
+      apiKey: null,
+      authToken: openRouterKey,
+      baseURL: "https://openrouter.ai/api",
+    });
+  }
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
   return new Anthropic({ apiKey });

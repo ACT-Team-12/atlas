@@ -1,8 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { checkPolicyFor, DEFAULT_CHECKER_MODEL } from "./checkPolicy";
 import { z } from "zod";
-import { ExtractError } from "./extract";
+import { ExtractError, makeClient } from "./extract";
 import { LANGUAGES } from "./schema";
 import { NAME_BEFORE_LETTER, readNumberWords, type NumberLanguage } from "./numberWords";
 import { certifyBlocker } from "./semanticGuard";
@@ -482,9 +481,7 @@ export function combine(id: string, item: MeaningRequest["items"][number], verdi
  * call is cancelled instead of reading the excerpts for nobody.
  */
 export async function checkMeaning(req: MeaningRequest, signal?: AbortSignal): Promise<MeaningResponse> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
-  const client = new Anthropic({ apiKey });
+  const client = makeClient();
   const t0 = Date.now();
   signal?.throwIfAborted();
   const msg = await client.messages.parse({

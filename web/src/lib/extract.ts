@@ -6,7 +6,10 @@ import { verifyItems } from "./verify";
 import { missedLinesPayload } from "./missedLines";
 import { isWarning } from "./warningPin";
 
-export const AI_PROVIDER = process.env.OPENROUTER_API_KEY ? "openrouter" : "anthropic";
+export function aiProvider() {
+  return process.env.OPENROUTER_API_KEY ? "openrouter" : "anthropic";
+}
+export const AI_PROVIDER = aiProvider();
 export const MODEL = process.env.ATLAS_MODEL ?? "claude-opus-5-5";
 
 const SYSTEM = `You turn a patient's after-visit summary into a care plan they can act on.

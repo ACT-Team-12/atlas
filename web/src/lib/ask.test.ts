@@ -245,6 +245,13 @@ describe("ask: the model call (mocked)", () => {
     expect(clients).toEqual([{ apiKey: "test-key" }]);
   });
 
+  it("prefers OpenRouter when both keys are configured", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "router-test-key");
+    reply = draft(["Return to clinic in 3 months"], "Return to clinic");
+    await answerFromPaper({ source_text: paper, language: "English", question: "when should I return?" });
+    expect(clients).toEqual([{ apiKey: null, authToken: "router-test-key", baseURL: "https://openrouter.ai/api" }]);
+  });
+
   it("sends the paper and question as tagged data, then checks the reply against the paper", async () => {
     reply = draft(["STOP taking these medications:", "ibuprofen (ADVIL) 200 mg tablet. Avoid NSAIDs due to kidney function", "Stop ibuprofen today."], "ibuprofen");
     const ac = new AbortController();

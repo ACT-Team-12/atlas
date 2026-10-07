@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Nav } from "@/ui/Nav";
 import { Footer } from "@/ui/Footer";
 import { sttProvider } from "@/lib/transcribe";
-import { AI_PROVIDER } from "@/lib/extract";
+import { aiProvider } from "@/lib/extract";
 
 export const metadata: Metadata = {
   title: "Privacy · ATLAS",
@@ -25,7 +25,8 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 /** Every line here describes what the code actually does; change the code and this page together. */
 export default function PrivacyPage() {
   const stt = sttProvider(); // names the speech-to-text service this deployment actually uses
-  const aiDestination = AI_PROVIDER === "openrouter"
+  const ai = aiProvider();
+  const aiDestination = ai === "openrouter"
     ? "OpenRouter, which routes it to a provider running Anthropic's Claude model"
     : "Anthropic, the company whose AI model reads it";
   return (
@@ -41,7 +42,7 @@ export default function PrivacyPage() {
           <div className="mt-10 grid gap-5 lg:grid-cols-2">
             <Block title="Your visit paper">
               <p>When you press Read my paper, the text (or the photo, on the website) goes to our server and to {aiDestination}. We use it only to build your checklist and send it back.</p>
-              {AI_PROVIDER === "openrouter" ? (
+              {ai === "openrouter" ? (
                 <p>We do not save your paper on our side. OpenRouter sends it to the model provider. Retention and training policies depend on the provider and account settings; we have not verified zero data retention for this route. See <a className="underline decoration-2 underline-offset-4" href="https://openrouter.ai/docs/guides/privacy/provider-logging" target="_blank" rel="noreferrer">OpenRouter provider policies</a> and <a className="underline decoration-2 underline-offset-4" href="https://openrouter.ai/privacy/" target="_blank" rel="noreferrer">OpenRouter privacy policy</a>.</p>
               ) : (
                 <p>We do not save your paper on our side. Anthropic says that by default it does not use inputs or outputs from its API to train its models (<a className="underline decoration-2 underline-offset-4" href="https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training" target="_blank" rel="noreferrer">Anthropic privacy center</a>).</p>
@@ -50,6 +51,7 @@ export default function PrivacyPage() {
             </Block>
             <Block title="Asking your paper a question">
               <p>When you press Ask my paper, your question and the text of your paper go to our server and to {aiDestination}, so the AI model can point to the words in your paper that answer it. Our own checker then makes sure those words are really in your paper before anything is shown. If they are not, you see &quot;Your paper doesn&apos;t say&quot; instead.</p>
+              {ai === "openrouter" && <p>OpenRouter and the model provider also receive your question. Their retention and training policies depend on the provider and account settings; we have not verified zero data retention for this route.</p>}
               <p>We do not save your question or your paper. To stay within budget, our database counts how many questions the whole site answers each day: only the day and the count, nothing about you, your question or your network address. A question our own check recognizes as an emergency (for example chest pain or trouble breathing) is never sent; it gets 911 and 211 guidance instead.</p>
             </Block>
             <Block title="Saying your answer out loud">

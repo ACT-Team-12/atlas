@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/ui/Nav", () => ({ Nav: () => null }));
 vi.mock("@/ui/Footer", () => ({ Footer: () => null }));
 import PrivacyPage from "./page";
@@ -45,5 +45,38 @@ describe("privacy page: asking your paper a question", () => {
   it("describes the daily count as the day and the count only, and that emergency questions are never sent", () => {
     expect(section).toMatch(/only the day and the count, nothing about you/);
     expect(section).toMatch(/A question our own check recognizes as an emergency \(for example chest pain or trouble breathing\) is never sent/);
+  });
+});
+
+describe("privacy page: the deployed AI provider", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  async function renderedProvider(openRouterKey: string) {
+    vi.stubEnv("OPENROUTER_API_KEY", openRouterKey);
+    vi.resetModules();
+    const { default: Page } = await import("./page");
+    return renderToStaticMarkup(<Page />).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  }
+
+  it("names Anthropic on the direct route", async () => {
+    const text = await renderedProvider("");
+    expect(text).toContain("goes to our server and to Anthropic");
+    expect(text).toContain("go to our server and to Anthropic");
+    expect(text).toContain("Anthropic privacy center");
+    expect(text).not.toContain("OpenRouter");
+  });
+
+  it("names OpenRouter for both reading and questions without promising verified zero retention", async () => {
+    const text = await renderedProvider("router-test-key");
+    expect(text).toContain("goes to our server and to OpenRouter");
+    expect(text).toContain("go to our server and to OpenRouter");
+    expect(text).toContain("a provider running Anthropic");
+    expect(text).toContain("provider and account settings");
+    expect(text).toContain("have not verified zero data retention for this route");
+    expect(text).toContain("OpenRouter provider policies");
+    expect(text).not.toContain("Anthropic privacy center");
   });
 });

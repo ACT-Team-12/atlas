@@ -55,7 +55,7 @@ medicine changes (stop / change / start from the paper's words), lab results, pr
 ```bash
 cd web
 pnpm install
-cp .env.example .env.local   # only ANTHROPIC_API_KEY is required; every other key is optional and explained in the file
+cp .env.example .env.local   # set OPENROUTER_API_KEY or ANTHROPIC_API_KEY; see the file for optional keys
 pnpm dev                     # http://localhost:3000
 pnpm test                    # unit and component tests
 pnpm lint && pnpm exec tsc --noEmit

@@ -1,7 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { MODEL, ExtractError } from "./extract";
+import { ExtractError, MODEL, makeClient } from "./extract";
 import { BARRIERS, BARRIER_LABEL, type Barrier, type Clinic, type Program, afterHoursClinics, formatHours, nearestClinics, opensEvenings, opensWeekends, programsFor } from "./resources";
 import { LANGUAGES } from "./schema";
 import { type Region, isGeorgiaZip, locateAnyZip, nationalPrograms, nearestNationalClinics, regionOf } from "./national";
@@ -98,10 +97,8 @@ export type PlanContext = {
   catalog: Record<string, unknown>[];
 };
 
-export function makePlanClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
-  return new Anthropic({ apiKey });
+export function makePlanClient() {
+  return makeClient();
 }
 
 /** Locates the person and picks the verified resources. No AI is involved; the model only chooses among these. */

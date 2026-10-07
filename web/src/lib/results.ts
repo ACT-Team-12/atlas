@@ -1,7 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { ExtractError, MODEL } from "./extract";
+import { ExtractError, MODEL, makeClient } from "./extract";
 import { LANGUAGES } from "./schema";
 import { findSpanIn, mapSource, type MappedSource } from "./verify";
 import { criticalOnLine, findTestName, isCritical } from "./labsView";
@@ -297,10 +296,8 @@ For each result return: test (as printed), value (exactly as printed, digits onl
 Rules: copy quote, value and range_text exactly. Do not decide whether a result is high or low; our code does that from the report. Do not diagnose, do not suggest treatments, foods or doses. Skip lines that are not test results.`;
 
 export async function explainResults(req: ResultsRequest): Promise<ResultsResponse> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
   const t0 = Date.now();
-  const client = new Anthropic({ apiKey });
+  const client = makeClient();
   const msg = await client.messages.parse({
     model: MODEL,
     max_tokens: 8000,
@@ -335,10 +332,8 @@ Keep section headings (like LIPID PANEL) on their own lines. Leave out names, da
 If the image is not a lab report, set readable to false and leave text empty.`;
 
 export async function readLabPhoto(req: ResultsReadRequest): Promise<ResultsReadResponse> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
   const t0 = Date.now();
-  const client = new Anthropic({ apiKey });
+  const client = makeClient();
   const msg = await client.messages.parse({
     model: MODEL,
     max_tokens: 6000,

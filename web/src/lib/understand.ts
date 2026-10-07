@@ -1,7 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { ExtractError, MODEL } from "./extract";
+import { ExtractError, MODEL, makeClient } from "./extract";
 import { LANGUAGES } from "./schema";
 import { enclosingSentence, findSpanIn, mapSource } from "./verify";
 import { cuesDiffer } from "./prepCues";
@@ -121,9 +120,7 @@ export function checkQuestions(
 }
 
 export async function buildQuestions(req: UnderstandRequest): Promise<UnderstandResponse> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
-  const client = new Anthropic({ apiKey });
+  const client = makeClient();
   const t0 = Date.now();
   const steps = req.items.map((i) => `- id: ${i.id} | ${i.kind} | ${i.title}\n  source_quote: ${i.source_quote}`).join("\n");
   const msg = await client.messages.parse({

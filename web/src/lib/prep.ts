@@ -1,6 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ExtractError, MODEL } from "./extract";
+import { ExtractError, MODEL, makeClient } from "./extract";
 import { buildPrepTimeline, PrepModelOutput, type PrepRequest, type PrepResponse } from "./prepTimeline";
 
 const SYSTEM = `You read the instructions a clinic gave a person to get ready for a procedure (a colonoscopy, an endoscopy, a surgery, a scan).
@@ -14,10 +13,8 @@ Use ONLY what the paper says. Do not add medical advice. Skip headings, names, d
 
 /** Calls the model, then hands its answer to the deterministic part (prepTimeline.ts). */
 export async function preparePrep(req: PrepRequest): Promise<PrepResponse> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
   const t0 = Date.now();
-  const client = new Anthropic({ apiKey });
+  const client = makeClient();
   const msg = await client.messages.parse({
     model: MODEL,
     max_tokens: 8000,

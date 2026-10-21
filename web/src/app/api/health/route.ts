@@ -1,11 +1,12 @@
-import { MODEL } from "@/lib/extract";
+import { AI_PROVIDER, MODEL } from "@/lib/extract";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   return Response.json({
     ok: true,
-    ai_key_configured: Boolean(process.env.ANTHROPIC_API_KEY),
+    ai_key_configured: Boolean(process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY),
+    ai_provider: AI_PROVIDER,
     model: MODEL,
     // Git-integration deploys set VERCEL_GIT_COMMIT_SHA. CLI deploys (scripts/deploy-prod.sh) leave it empty and pass
     // ATLAS_COMMIT instead, so `||` (not `??`) lets an empty string fall through to it.

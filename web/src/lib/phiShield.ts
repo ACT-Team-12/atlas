@@ -912,8 +912,8 @@ export function shield(text: string, session: PhiShield = new PhiShield()): Shie
 const TOKEN_OR_BARE = /⟦(?:NAME|DOB|AGE|MRN|ACCT|ID|SSN|PHONE|EMAIL|ADDR)_[A-Z]{1,3}⟧|(?<![\p{L}\p{N}_⟦])(?:NAME|DOB|AGE|MRN|ACCT|ID|SSN|PHONE|EMAIL|ADDR)_[A-Z]{1,3}(?![\p{L}\p{N}_⟧])/giu;
 
 /**
- * Says which placeholders nobody can put back and must be removed rather than shown: given a placeholder this side did
- * not make, true when it is not the paper's own text either (a model made it up). Undefined: leave unknown ones.
+ * Says which placeholders nobody can put back and must be removed rather than shown: given a placeholder this side
+ * never made, true when it is absent from the paper's own text too (a model made it up). Undefined: leave unknown ones.
  */
 export type DropUnknown = ((token: string) => boolean) | undefined;
 

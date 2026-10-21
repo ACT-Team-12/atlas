@@ -3,6 +3,7 @@ import { missedLinesPayload } from "./missedLines";
 import type { CarePlanResponse, VerifiedItem } from "./schema";
 import type { ExtractEvent } from "./extractEvents";
 import type { UnderstandResponse } from "./understand";
+import type { AskResponse } from "./ask";
 
 /**
  * Putting the real words back into what the AI routes answer, shared by the web page (shieldFetch.ts) and the
@@ -82,5 +83,16 @@ export function unshieldExtractEvent(e: ExtractEvent, ctx: ShieldContext | null,
 export function unshieldUnderstand(resp: UnderstandResponse, ctx: ShieldContext, tokens: ReadonlyMap<string, string>, drop?: DropUnknown): UnderstandResponse {
   const out = unshieldDeep(resp, tokens, drop);
   out.questions = resp.questions.map((q, i) => ({ ...out.questions[i], span: rangeToOriginal(ctx.result.map, q.span) }));
+  return out;
+}
+
+/** Ask my paper: each quote's span goes back onto the original paper, and its text is the original's words there. */
+export function unshieldAsk(resp: AskResponse, ctx: ShieldContext, tokens: ReadonlyMap<string, string>, drop?: DropUnknown): AskResponse {
+  const out = unshieldDeep(resp, tokens, drop);
+  if (resp.kind !== "answer" || out.kind !== "answer") return out;
+  out.quotes = resp.quotes.map((q) => {
+    const span = rangeToOriginal(ctx.result.map, q.span);
+    return { text: ctx.original.slice(span.start, span.end), span };
+  });
   return out;
 }

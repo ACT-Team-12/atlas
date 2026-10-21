@@ -91,6 +91,16 @@ describe("paper first: every surface", () => {
     expect(html).toContain('data-lead="quote"');
     quoteLeads(html);
   });
+  it.each(NOT_CERTIFIED)("care plan step on screen ($name): the paper's line once, calmly labelled, the explanation under it", ({ meaning }) => {
+    const check = checkOf(meaning?.status === "done" ? meaning.byId.c1 : undefined);
+    const html = renderToStaticMarkup(createElement(PaperFirst, { v: careStepView(item(), check) }));
+    expect(html.split(QUOTE.replace(/'/g, "&#x27;")).length - 1).toBe(1);
+    expect(html.indexOf("Copied word for word from your paper")).toBeLessThan(html.indexOf(QUOTE));
+    expect(html).not.toContain("If it and your paper differ");
+    if (check === "unchecked") expect(html.indexOf("Plain words (not double-checked yet)")).toBeGreaterThan(html.indexOf(QUOTE));
+    // Never a word that says the explanation was checked.
+    expect(html).not.toMatch(/(?<!not )double-checked(?! yet)/);
+  });
   it("care plan step on screen, certified: explanation first, the paper's words with it", () => {
     const html = renderToStaticMarkup(createElement(PaperFirst, { v: careStepView(item(), "certified") }));
     expect(html).toContain('data-lead="explanation"');
@@ -107,6 +117,23 @@ describe("paper first: every surface", () => {
     expect(html).toContain(PARA);
     expect(html).toContain("Your paper says:");
   });
+  // The step's own clinic question is AI-written too: it leaves the screen only when certified (visitQuestions.ts).
+  // The reading's general list repeats it, as older readings did, so a leak through either path fails.
+  const ASK = "QUESTION-WHICH-METFORMIN-DOSE";
+  const asks = () => item({ needs_clarification: true, question_for_clinic: ASK });
+  it.each(NOT_CERTIFIED)("next-visit questions ($name): printed and sent with the paper's words, never the AI's question", ({ meaning }) => {
+    const html = renderToStaticMarkup(createElement(HandoffSheetBody, { items: [asks()], plan, questions: [ASK], language: "English", meaning }));
+    const t = planShareText({ items: [asks()], plan, questions: [ASK], meaning });
+    for (const out of [html, t]) {
+      expect(out).not.toContain(ASK);
+      expect(out).toContain("Can you confirm what I should take?");
+    }
+  });
+  it("next-visit questions, certified: the step's own question is printed and sent, once", () => {
+    const html = renderToStaticMarkup(createElement(HandoffSheetBody, { items: [asks()], plan, questions: [ASK], language: "English", meaning: CERTIFIED }));
+    const t = planShareText({ items: [asks()], plan, questions: [ASK], meaning: CERTIFIED });
+    for (const out of [html, t]) expect(out.split(ASK).length - 1).toBe(1);
+  });
   it.each(NOT_CERTIFIED)("send to family text ($name): the paper's words, no AI words for the step", ({ meaning }) => {
     const t = planShareText({ items: [item()], plan, questions: [], meaning });
     quoteLeads(t);
@@ -120,7 +147,7 @@ describe("paper first: every surface", () => {
   it("lab row: the report's line leads, the AI's plain name is secondary", () => {
     const html = renderToStaticMarkup(createElement(PaperFirst, { v: labRowView({ quote: QUOTE, plain_name: PARA }) }));
     expect(html).toContain('data-lead="quote"');
-    expect(html).toContain("Your report says:");
+    expect(html).toContain("Copied word for word from your report");
     expect(html.indexOf(QUOTE.replace(/'/g, "&#x27;"))).toBeLessThan(html.indexOf(PARA));
   });
   it("prep timeline: an explanation is shown only when certified", () => {
@@ -153,7 +180,7 @@ describe("Codex round 12: removing a step never strips a plan step's quote", () 
   it("share text and read-aloud use every planned step's quote, even after it was removed from the list", () => {
     const t = planShareText({ items: [], plan, questions: [], planItems: [item()] });
     expect(t).toContain(`Your paper says: "${QUOTE}"`);
-    expect(t).toContain("Suggestion from ATLAS, not the paper:");
+    expect(t).toContain("Suggestion from ATLAS (follow your paper first):");
     const lines = speechLines(plan, [item()]);
     expect(lines).toContain(`Your paper says: "${QUOTE}"`);
   });
@@ -180,7 +207,10 @@ describe("Codex round 13: titles, held-back steps and bookings", () => {
     for (const l of callScript(b, [], "English")) for (const w of [TITLE, PARA]) expect(l).not.toContain(w);
   });
   it("no UI file puts an AI title next to a held-back or removed step, or in an aria-label", () => {
-    const src = readFileSync(fileURLToPath(new URL("../ui/CarePlanTool.tsx", import.meta.url)), "utf8");
+    // The step list (and the held-back and removed lists) moved to CareSteps.tsx; ShowOnPaper names each step.
+    const src = ["../ui/CarePlanTool.tsx", "../ui/CareSteps.tsx", "../ui/ShowOnPaper.tsx"]
+      .map((f) => readFileSync(fileURLToPath(new URL(f, import.meta.url)), "utf8")).join("\n");
+    expect(src).toMatch(/care\.refused\.map\(/); // the guard below still has the list to look at
     expect(src).not.toMatch(/aria-label=\{`[^`]*\$\{\w+\.title\}/);
     expect(src).not.toMatch(/refused\.map\([^)]*\)\s*=>\s*\(\s*<li[^>]*>\{r\.title\}/);
     expect(src).not.toMatch(/<span>\{r\.title\}<\/span>/);

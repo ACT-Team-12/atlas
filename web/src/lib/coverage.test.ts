@@ -269,7 +269,9 @@ describe("checkCoverage speed", () => {
     const ms = performance.now() - t0;
     expect(r.total).toBeGreaterThan(100);
     expect(ms).toBeLessThan(50);
-  });
+    // Building the 20k paper and finding 40 spans is the slow part, not the timed check. Under the full parallel
+    // suite on a small machine that setup has crossed vitest's 5 s default, so it gets an explicit timeout.
+  }, 30_000);
 
   it("stays linear on a single 20k-character line with no punctuation", () => {
     const line = "if you have ".repeat(1_700).slice(0, 20_000);
@@ -277,5 +279,5 @@ describe("checkCoverage speed", () => {
     const t0 = performance.now();
     checkCoverage(line, []);
     expect(performance.now() - t0).toBeLessThan(50);
-  });
+  }, 30_000);
 });

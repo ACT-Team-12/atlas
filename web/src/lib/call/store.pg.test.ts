@@ -82,11 +82,11 @@ describe.skipIf(!url)("PgCallStore (real Postgres)", () => {
   it("caps counters atomically under a race, and gives slots back", async () => {
     const r = await Promise.all(Array.from({ length: 10 }, () => store.takeSlot("num:x:2026-10-02", 3, NOW)));
     expect(r.filter(Boolean).length).toBe(3);
-    expect(await store.counter("num:x:2026-10-02")).toBe(3);
+    expect(await store.counter("num:x:2026-10-02", NOW)).toBe(3);
     expect(await store.takeSlot("zero", 0, NOW)).toBe(false);
     await store.takeSlot("site:y", 1, NOW);
     expect(await reserveSlots(store, [{ key: "num:y", cap: 3 }, { key: "site:y", cap: 1 }], NOW)).toEqual({ ok: false, refused: 1 });
-    expect(await store.counter("num:y")).toBe(0);
+    expect(await store.counter("num:y", NOW)).toBe(0);
   });
 
   it("wipes a session whose code ran out, without touching a live call", async () => {

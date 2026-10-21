@@ -1,0 +1,13103 @@
+{
+ "lines": {
+  "English": {
+   "open": "Walk me through it",
+   "openHint": "One step at a time, in big type.",
+   "progress": "Step {n} of {total}",
+   "done": "Done",
+   "doneAlready": "Marked done",
+   "undoDone": "Not done after all",
+   "notYet": "Not yet",
+   "askPerson": "Ask a person",
+   "askTitle": "Ask a person about this step",
+   "askClinicCall": "Call your clinic and read them the words from your paper above.",
+   "ask211": "For help with rides, food, money or anything else, call 211 (United Way of Greater Atlanta) or your community health worker.",
+   "warningLabel": "Warning sign from your paper",
+   "warningDo": "If you have this right now, do what your paper says: call your clinic, or call 911.",
+   "readAloud": "Read aloud",
+   "stop": "Stop",
+   "back": "Back to the full list",
+   "previous": "Previous step",
+   "finished": "You went through every step.",
+   "finishedCount": "{done} of {total} marked done.",
+   "startOver": "Go through the open steps again",
+   "region": "One step at a time"
+  },
+  "Spanish": {
+   "open": "Guíeme paso a paso",
+   "openHint": "Un paso a la vez, en letra grande.",
+   "progress": "Paso {n} de {total}",
+   "done": "Hecho",
+   "doneAlready": "Marcado como hecho",
+   "undoDone": "Todavía no está hecho",
+   "notYet": "Todavía no",
+   "askPerson": "Preguntar a una persona",
+   "askTitle": "Pregunte a una persona sobre este paso",
+   "askClinicCall": "Llame a su clínica y léales las palabras de su papel que están arriba.",
+   "ask211": "Para ayuda con transporte, comida, dinero u otra cosa, llame al 211 (United Way of Greater Atlanta) o a su trabajador comunitario de salud.",
+   "warningLabel": "Señal de alerta de su papel",
+   "warningDo": "Si tiene esto ahora mismo, haga lo que dice su papel: llame a su clínica o llame al 911.",
+   "readAloud": "Leer en voz alta",
+   "stop": "Parar",
+   "back": "Volver a la lista completa",
+   "previous": "Paso anterior",
+   "finished": "Revisó todos los pasos.",
+   "finishedCount": "{done} de {total} marcados como hechos.",
+   "startOver": "Revisar otra vez los pasos pendientes",
+   "region": "Un paso a la vez"
+  },
+  "Vietnamese": {
+   "open": "Hướng dẫn tôi từng bước",
+   "openHint": "Mỗi lần một bước, chữ lớn.",
+   "progress": "Bước {n} / {total}",
+   "done": "Xong",
+   "doneAlready": "Đã đánh dấu xong",
+   "undoDone": "Chưa xong",
+   "notYet": "Chưa",
+   "askPerson": "Hỏi một người",
+   "askTitle": "Hỏi một người về bước này",
+   "askClinicCall": "Gọi phòng khám và đọc cho họ những chữ trong giấy của bạn ở trên.",
+   "ask211": "Để được giúp về đi lại, thức ăn, tiền bạc hay việc khác, hãy gọi 211 (United Way of Greater Atlanta) hoặc nhân viên y tế cộng đồng của bạn.",
+   "warningLabel": "Dấu hiệu cảnh báo trong giấy của bạn",
+   "warningDo": "Nếu bạn đang bị như vậy, hãy làm theo giấy của bạn: gọi phòng khám, hoặc gọi 911.",
+   "readAloud": "Đọc to",
+   "stop": "Dừng",
+   "back": "Quay lại danh sách đầy đủ",
+   "previous": "Bước trước",
+   "finished": "Bạn đã xem hết mọi bước.",
+   "finishedCount": "Đã xong {done} / {total}.",
+   "startOver": "Xem lại các bước chưa xong",
+   "region": "Mỗi lần một bước"
+  },
+  "Korean": {
+   "open": "한 단계씩 안내해 주세요",
+   "openHint": "한 번에 한 단계씩, 큰 글씨로.",
+   "progress": "{total}단계 중 {n}단계",
+   "done": "완료",
+   "doneAlready": "완료로 표시됨",
+   "undoDone": "아직 안 했어요",
+   "notYet": "아직",
+   "askPerson": "사람에게 묻기",
+   "askTitle": "이 단계에 대해 사람에게 물어보세요",
+   "askClinicCall": "병원에 전화해서 위에 있는 서류의 문장을 읽어 주세요.",
+   "ask211": "교통, 음식, 돈 등 도움이 필요하면 211(United Way of Greater Atlanta)이나 지역 보건 요원에게 전화하세요.",
+   "warningLabel": "서류에 있는 위험 신호",
+   "warningDo": "지금 이런 증상이 있으면 서류에 적힌 대로 하세요: 병원에 전화하거나 911에 전화하세요.",
+   "readAloud": "소리 내어 읽기",
+   "stop": "멈추기",
+   "back": "전체 목록으로 돌아가기",
+   "previous": "이전 단계",
+   "finished": "모든 단계를 다 보았어요.",
+   "finishedCount": "{total}개 중 {done}개 완료.",
+   "startOver": "남은 단계 다시 보기",
+   "region": "한 번에 한 단계씩"
+  },
+  "Chinese": {
+   "open": "一步一步带我做",
+   "openHint": "一次一步，大字显示。",
+   "progress": "第 {n} 步，共 {total} 步",
+   "done": "完成",
+   "doneAlready": "已标记完成",
+   "undoDone": "其实还没完成",
+   "notYet": "还没有",
+   "askPerson": "问一个人",
+   "askTitle": "就这一步问一个人",
+   "askClinicCall": "打电话给您的诊所，把上面您文件里的原话读给他们听。",
+   "ask211": "如需交通、食物、钱或其他方面的帮助，请拨打 211（United Way of Greater Atlanta）或联系您的社区健康工作者。",
+   "warningLabel": "您文件里的危险信号",
+   "warningDo": "如果您现在有这种情况，请按文件说的做：打电话给诊所，或拨打 911。",
+   "readAloud": "朗读",
+   "stop": "停止",
+   "back": "返回完整列表",
+   "previous": "上一步",
+   "finished": "您已经看完每一步。",
+   "finishedCount": "共 {total} 步，已完成 {done} 步。",
+   "startOver": "再看一遍没完成的步骤",
+   "region": "一次一步"
+  },
+  "Amharic": {
+   "open": "ደረጃ በደረጃ አሳዩኝ",
+   "openHint": "አንድ ደረጃ በአንድ ጊዜ፣ በትልቅ ፊደል።",
+   "progress": "ደረጃ {n} ከ {total}",
+   "done": "ተጠናቋል",
+   "doneAlready": "ተጠናቋል ተብሎ ተመዝግቧል",
+   "undoDone": "ገና አልተጠናቀቀም",
+   "notYet": "ገና ነው",
+   "askPerson": "ሰው ይጠይቁ",
+   "askTitle": "ስለዚህ ደረጃ ሰው ይጠይቁ",
+   "askClinicCall": "ወደ ክሊኒክዎ ይደውሉ እና ከላይ ያሉትን የወረቀትዎን ቃላት ያንብቡላቸው።",
+   "ask211": "ለትራንስፖርት፣ ለምግብ፣ ለገንዘብ ወይም ለሌላ እርዳታ ወደ 211 (United Way of Greater Atlanta) ወይም ወደ ማህበረሰብ ጤና ሰራተኛዎ ይደውሉ።",
+   "warningLabel": "ከወረቀትዎ የአደጋ ምልክት",
+   "warningDo": "ይህ አሁን ካለብዎ ወረቀትዎ የሚለውን ያድርጉ፦ ወደ ክሊኒክዎ ወይም ወደ 911 ይደውሉ።",
+   "readAloud": "ጮክ ብለው ያንብቡ",
+   "stop": "አቁም",
+   "back": "ወደ ሙሉ ዝርዝሩ ይመለሱ",
+   "previous": "ቀዳሚ ደረጃ",
+   "finished": "ሁሉንም ደረጃዎች አይተዋል።",
+   "finishedCount": "ከ {total} ውስጥ {done} ተጠናቀዋል።",
+   "startOver": "ያልተጠናቀቁትን ደረጃዎች እንደገና ይመልከቱ",
+   "region": "አንድ ደረጃ በአንድ ጊዜ"
+  },
+  "French": {
+   "open": "Guidez-moi pas à pas",
+   "openHint": "Une étape à la fois, en gros caractères.",
+   "progress": "Étape {n} sur {total}",
+   "done": "Fait",
+   "doneAlready": "Marqué comme fait",
+   "undoDone": "Pas encore fait finalement",
+   "notYet": "Pas encore",
+   "askPerson": "Demander à quelqu'un",
+   "askTitle": "Demandez à quelqu'un pour cette étape",
+   "askClinicCall": "Appelez votre clinique et lisez-leur les mots de votre papier ci-dessus.",
+   "ask211": "Pour de l'aide pour le transport, la nourriture, l'argent ou autre chose, appelez le 211 (United Way of Greater Atlanta) ou votre agent de santé communautaire.",
+   "warningLabel": "Signe d'alerte de votre papier",
+   "warningDo": "Si vous avez cela en ce moment, faites ce que dit votre papier : appelez votre clinique, ou appelez le 911.",
+   "readAloud": "Lire à voix haute",
+   "stop": "Arrêter",
+   "back": "Revenir à la liste complète",
+   "previous": "Étape précédente",
+   "finished": "Vous avez parcouru toutes les étapes.",
+   "finishedCount": "{done} sur {total} marquées comme faites.",
+   "startOver": "Revoir les étapes non faites",
+   "region": "Une étape à la fois"
+  }
+ },
+ "line_keys": [
+  "open",
+  "openHint",
+  "progress",
+  "done",
+  "doneAlready",
+  "undoDone",
+  "notYet",
+  "askPerson",
+  "askTitle",
+  "askClinicCall",
+  "ask211",
+  "warningLabel",
+  "warningDo",
+  "readAloud",
+  "stop",
+  "back",
+  "previous",
+  "finished",
+  "finishedCount",
+  "startOver",
+  "region"
+ ],
+ "filled": [
+  {
+   "language": "English",
+   "line": "progress",
+   "values": {
+    "n": 3,
+    "total": 12
+   },
+   "text": "Step 3 of 12"
+  },
+  {
+   "language": "English",
+   "line": "progress",
+   "values": {
+    "n": 1,
+    "total": 1
+   },
+   "text": "Step 1 of 1"
+  },
+  {
+   "language": "English",
+   "line": "finishedCount",
+   "values": {
+    "done": 0,
+    "total": 4
+   },
+   "text": "0 of 4 marked done."
+  },
+  {
+   "language": "English",
+   "line": "finishedCount",
+   "values": {
+    "done": 7,
+    "total": 9
+   },
+   "text": "7 of 9 marked done."
+  },
+  {
+   "language": "English",
+   "line": "open",
+   "values": {},
+   "text": "Walk me through it"
+  },
+  {
+   "language": "English",
+   "line": "back",
+   "values": {},
+   "text": "Back to the full list"
+  },
+  {
+   "language": "Spanish",
+   "line": "progress",
+   "values": {
+    "n": 3,
+    "total": 12
+   },
+   "text": "Paso 3 de 12"
+  },
+  {
+   "language": "Spanish",
+   "line": "progress",
+   "values": {
+    "n": 1,
+    "total": 1
+   },
+   "text": "Paso 1 de 1"
+  },
+  {
+   "language": "Spanish",
+   "line": "finishedCount",
+   "values": {
+    "done": 0,
+    "total": 4
+   },
+   "text": "0 de 4 marcados como hechos."
+  },
+  {
+   "language": "Spanish",
+   "line": "finishedCount",
+   "values": {
+    "done": 7,
+    "total": 9
+   },
+   "text": "7 de 9 marcados como hechos."
+  },
+  {
+   "language": "Spanish",
+   "line": "open",
+   "values": {},
+   "text": "Guíeme paso a paso"
+  },
+  {
+   "language": "Spanish",
+   "line": "back",
+   "values": {},
+   "text": "Volver a la lista completa"
+  },
+  {
+   "language": "Vietnamese",
+   "line": "progress",
+   "values": {
+    "n": 3,
+    "total": 12
+   },
+   "text": "Bước 3 / 12"
+  },
+  {
+   "language": "Vietnamese",
+   "line": "progress",
+   "values": {
+    "n": 1,
+    "total": 1
+   },
+   "text": "Bước 1 / 1"
+  },
+  {
+   "language": "Vietnamese",
+   "line": "finishedCount",
+   "values": {
+    "done": 0,
+    "total": 4
+   },
+   "text": "Đã xong 0 / 4."
+  },
+  {
+   "language": "Vietnamese",
+   "line": "finishedCount",
+   "values": {
+    "done": 7,
+    "total": 9
+   },
+   "text": "Đã xong 7 / 9."
+  },
+  {
+   "language": "Vietnamese",
+   "line": "open",
+   "values": {},
+   "text": "Hướng dẫn tôi từng bước"
+  },
+  {
+   "language": "Vietnamese",
+   "line": "back",
+   "values": {},
+   "text": "Quay lại danh sách đầy đủ"
+  },
+  {
+   "language": "Korean",
+   "line": "progress",
+   "values": {
+    "n": 3,
+    "total": 12
+   },
+   "text": "12단계 중 3단계"
+  },
+  {
+   "language": "Korean",
+   "line": "progress",
+   "values": {
+    "n": 1,
+    "total": 1
+   },
+   "text": "1단계 중 1단계"
+  },
+  {
+   "language": "Korean",
+   "line": "finishedCount",
+   "values": {
+    "done": 0,
+    "total": 4
+   },
+   "text": "4개 중 0개 완료."
+  },
+  {
+   "language": "Korean",
+   "line": "finishedCount",
+   "values": {
+    "done": 7,
+    "total": 9
+   },
+   "text": "9개 중 7개 완료."
+  },
+  {
+   "language": "Korean",
+   "line": "open",
+   "values": {},
+   "text": "한 단계씩 안내해 주세요"
+  },
+  {
+   "language": "Korean",
+   "line": "back",
+   "values": {},
+   "text": "전체 목록으로 돌아가기"
+  },
+  {
+   "language": "Chinese",
+   "line": "progress",
+   "values": {
+    "n": 3,
+    "total": 12
+   },
+   "text": "第 3 步，共 12 步"
+  },
+  {
+   "language": "Chinese",
+   "line": "progress",
+   "values": {
+    "n": 1,
+    "total": 1
+   },
+   "text": "第 1 步，共 1 步"
+  },
+  {
+   "language": "Chinese",
+   "line": "finishedCount",
+   "values": {
+    "done": 0,
+    "total": 4
+   },
+   "text": "共 4 步，已完成 0 步。"
+  },
+  {
+   "language": "Chinese",
+   "line": "finishedCount",
+   "values": {
+    "done": 7,
+    "total": 9
+   },
+   "text": "共 9 步，已完成 7 步。"
+  },
+  {
+   "language": "Chinese",
+   "line": "open",
+   "values": {},
+   "text": "一步一步带我做"
+  },
+  {
+   "language": "Chinese",
+   "line": "back",
+   "values": {},
+   "text": "返回完整列表"
+  },
+  {
+   "language": "Amharic",
+   "line": "progress",
+   "values": {
+    "n": 3,
+    "total": 12
+   },
+   "text": "ደረጃ 3 ከ 12"
+  },
+  {
+   "language": "Amharic",
+   "line": "progress",
+   "values": {
+    "n": 1,
+    "total": 1
+   },
+   "text": "ደረጃ 1 ከ 1"
+  },
+  {
+   "language": "Amharic",
+   "line": "finishedCount",
+   "values": {
+    "done": 0,
+    "total": 4
+   },
+   "text": "ከ 4 ውስጥ 0 ተጠናቀዋል።"
+  },
+  {
+   "language": "Amharic",
+   "line": "finishedCount",
+   "values": {
+    "done": 7,
+    "total": 9
+   },
+   "text": "ከ 9 ውስጥ 7 ተጠናቀዋል።"
+  },
+  {
+   "language": "Amharic",
+   "line": "open",
+   "values": {},
+   "text": "ደረጃ በደረጃ አሳዩኝ"
+  },
+  {
+   "language": "Amharic",
+   "line": "back",
+   "values": {},
+   "text": "ወደ ሙሉ ዝርዝሩ ይመለሱ"
+  },
+  {
+   "language": "French",
+   "line": "progress",
+   "values": {
+    "n": 3,
+    "total": 12
+   },
+   "text": "Étape 3 sur 12"
+  },
+  {
+   "language": "French",
+   "line": "progress",
+   "values": {
+    "n": 1,
+    "total": 1
+   },
+   "text": "Étape 1 sur 1"
+  },
+  {
+   "language": "French",
+   "line": "finishedCount",
+   "values": {
+    "done": 0,
+    "total": 4
+   },
+   "text": "0 sur 4 marquées comme faites."
+  },
+  {
+   "language": "French",
+   "line": "finishedCount",
+   "values": {
+    "done": 7,
+    "total": 9
+   },
+   "text": "7 sur 9 marquées comme faites."
+  },
+  {
+   "language": "French",
+   "line": "open",
+   "values": {},
+   "text": "Guidez-moi pas à pas"
+  },
+  {
+   "language": "French",
+   "line": "back",
+   "values": {},
+   "text": "Revenir à la liste complète"
+  },
+  {
+   "language": "Klingon",
+   "line": "progress",
+   "values": {
+    "n": 3,
+    "total": 12
+   },
+   "text": "Step 3 of 12"
+  },
+  {
+   "language": "Klingon",
+   "line": "progress",
+   "values": {
+    "n": 1,
+    "total": 1
+   },
+   "text": "Step 1 of 1"
+  },
+  {
+   "language": "Klingon",
+   "line": "finishedCount",
+   "values": {
+    "done": 0,
+    "total": 4
+   },
+   "text": "0 of 4 marked done."
+  },
+  {
+   "language": "Klingon",
+   "line": "finishedCount",
+   "values": {
+    "done": 7,
+    "total": 9
+   },
+   "text": "7 of 9 marked done."
+  },
+  {
+   "language": "Klingon",
+   "line": "open",
+   "values": {},
+   "text": "Walk me through it"
+  },
+  {
+   "language": "Klingon",
+   "line": "back",
+   "values": {},
+   "text": "Back to the full list"
+  },
+  {
+   "language": "English",
+   "line": "progress",
+   "values": {
+    "n": 2
+   },
+   "text": "Step 2 of {total}"
+  }
+ ],
+ "order": [
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s4",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s4",
+    "s5",
+    "s1",
+    "s3",
+    "s2",
+    "s0"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "soon",
+    "soon",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s3",
+    "s0",
+    "s4",
+    "s1"
+   ],
+   "groups": [
+    "soon",
+    "soon",
+    "daily",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s4",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s4",
+    "s1",
+    "s2",
+    "s0",
+    "s3",
+    "s5",
+    "s6"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "today",
+    "soon",
+    "soon",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s7",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s3",
+    "s5",
+    "s0",
+    "s4",
+    "s1",
+    "s2",
+    "s6",
+    "s7"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "soon",
+    "soon",
+    "daily",
+    "later",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s0"
+   ],
+   "groups": [
+    "daily",
+    "later"
+   ]
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s0",
+    "s1",
+    "s3"
+   ],
+   "groups": [
+    "today",
+    "soon",
+    "soon",
+    "soon"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s0"
+   ],
+   "groups": [
+    "daily"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s3",
+    "s4",
+    "s2"
+   ],
+   "groups": [
+    "today",
+    "soon",
+    "soon",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s2",
+    "s3",
+    "s4",
+    "s1"
+   ],
+   "groups": [
+    "today",
+    "today",
+    "soon",
+    "soon",
+    "later"
+   ]
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s3",
+    "s1",
+    "s0"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "soon",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s0"
+   ],
+   "groups": [
+    "warning"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s0",
+    "s2"
+   ],
+   "groups": [
+    "warning",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s3",
+    "s5",
+    "s0",
+    "s4",
+    "s2"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "warning",
+    "soon",
+    "daily",
+    "later"
+   ]
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s3",
+    "s2",
+    "s5",
+    "s0",
+    "s4"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "daily",
+    "daily",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s6",
+     "warning": true,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s6",
+    "s4",
+    "s1",
+    "s3",
+    "s2",
+    "s0",
+    "s5"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "soon",
+    "soon",
+    "daily",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "daily",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "warning",
+    "warning"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s3",
+    "s4",
+    "s0",
+    "s2",
+    "s5",
+    "s1"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "soon",
+    "soon",
+    "daily",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s7",
+     "warning": true,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s7",
+    "s4",
+    "s0",
+    "s1",
+    "s6",
+    "s3",
+    "s5",
+    "s2"
+   ],
+   "groups": [
+    "warning",
+    "soon",
+    "daily",
+    "daily",
+    "daily",
+    "later",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s0",
+    "s2"
+   ],
+   "groups": [
+    "later",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "soon"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s7",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s4",
+    "s3",
+    "s7",
+    "s1",
+    "s5",
+    "s0",
+    "s6"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "today",
+    "soon",
+    "daily",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s5",
+    "s1",
+    "s2",
+    "s3",
+    "s4",
+    "s0"
+   ],
+   "groups": [
+    "soon",
+    "daily",
+    "daily",
+    "daily",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s7",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s3",
+    "s7",
+    "s1",
+    "s5",
+    "s6",
+    "s0",
+    "s2",
+    "s4"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "daily",
+    "daily",
+    "daily",
+    "unclear",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "today",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s5",
+    "s2",
+    "s6",
+    "s0",
+    "s3",
+    "s4"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "daily",
+    "unclear",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s6",
+     "warning": true,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s6",
+    "s0",
+    "s2",
+    "s1",
+    "s3",
+    "s4",
+    "s5"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "soon",
+    "later",
+    "later",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s3",
+    "s2",
+    "s0"
+   ],
+   "groups": [
+    "warning",
+    "soon",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s0",
+    "s2"
+   ],
+   "groups": [
+    "today",
+    "later",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "soon",
+    "soon"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s2",
+    "s4",
+    "s3"
+   ],
+   "groups": [
+    "warning",
+    "daily",
+    "daily",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s6",
+     "warning": true,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s3",
+    "s5",
+    "s6",
+    "s0",
+    "s2",
+    "s4",
+    "s1"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "warning",
+    "today",
+    "today",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s0",
+    "s1",
+    "s3"
+   ],
+   "groups": [
+    "warning",
+    "soon",
+    "soon",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s3",
+    "s1",
+    "s0"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0"
+   ],
+   "groups": [
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s1",
+    "s0"
+   ],
+   "groups": [
+    "warning",
+    "soon",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s7",
+     "warning": true,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s3",
+    "s7",
+    "s1",
+    "s4",
+    "s0",
+    "s2",
+    "s6",
+    "s5"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "today",
+    "soon",
+    "soon",
+    "soon",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s0"
+   ],
+   "groups": [
+    "later"
+   ]
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s2"
+   ],
+   "groups": [
+    "later",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "soon"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s3",
+    "s1",
+    "s0",
+    "s4",
+    "s5"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "soon",
+    "daily",
+    "later",
+    "later"
+   ]
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s2",
+    "s0",
+    "s3"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "today"
+   ]
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s3",
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "daily",
+    "daily",
+    "later",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s2",
+    "s0"
+   ],
+   "groups": [
+    "today",
+    "today",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s5",
+    "s3",
+    "s4",
+    "s0",
+    "s2"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "today",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s6",
+     "warning": true,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s3",
+    "s6",
+    "s5",
+    "s2",
+    "s4"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "warning",
+    "warning",
+    "today",
+    "soon",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s5",
+    "s3",
+    "s1",
+    "s4",
+    "s6",
+    "s0"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "soon",
+    "daily",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s2"
+   ],
+   "groups": [
+    "warning",
+    "daily",
+    "daily"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s2"
+   ],
+   "groups": [
+    "later",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s2",
+    "s3",
+    "s4"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "soon",
+    "soon",
+    "soon"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "daily",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s2",
+    "s3",
+    "s0",
+    "s4"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "today",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": true,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s4",
+    "s0",
+    "s2",
+    "s3"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "daily",
+    "daily",
+    "later"
+   ]
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s7",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s5",
+    "s0",
+    "s3",
+    "s4",
+    "s7",
+    "s6",
+    "s2"
+   ],
+   "groups": [
+    "today",
+    "soon",
+    "daily",
+    "daily",
+    "daily",
+    "daily",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s7",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s3",
+    "s1",
+    "s4",
+    "s5",
+    "s6",
+    "s0",
+    "s2",
+    "s7"
+   ],
+   "groups": [
+    "today",
+    "soon",
+    "soon",
+    "soon",
+    "soon",
+    "daily",
+    "daily",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s2"
+   ],
+   "groups": [
+    "today",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s4",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s4",
+    "s5",
+    "s0",
+    "s1",
+    "s3",
+    "s6"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "later",
+    "later",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s0",
+    "s3",
+    "s1"
+   ],
+   "groups": [
+    "daily",
+    "later",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s7",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s7",
+    "s6",
+    "s3",
+    "s4",
+    "s2",
+    "s0",
+    "s5"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "soon",
+    "daily",
+    "daily",
+    "later",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s2",
+    "s3",
+    "s4",
+    "s1",
+    "s5"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "today",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s2",
+    "s3",
+    "s1",
+    "s4"
+   ],
+   "groups": [
+    "soon",
+    "daily",
+    "daily",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "today",
+    "today"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s2",
+    "s1",
+    "s3",
+    "s4"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "daily",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s3",
+    "s1",
+    "s2"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "soon",
+    "daily"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s1",
+    "s0",
+    "s3"
+   ],
+   "groups": [
+    "warning",
+    "soon",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "soon"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s0",
+    "s1",
+    "s3"
+   ],
+   "groups": [
+    "warning",
+    "daily",
+    "daily",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s0"
+   ],
+   "groups": [
+    "soon",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s2",
+    "s4",
+    "s1",
+    "s5",
+    "s3"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "soon",
+    "daily",
+    "daily",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s3",
+    "s4",
+    "s5",
+    "s2"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "today",
+    "today",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s2",
+    "s5",
+    "s1",
+    "s3",
+    "s4"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "today",
+    "later",
+    "later",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s3",
+    "s2",
+    "s0",
+    "s4",
+    "s1",
+    "s5"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "soon",
+    "later",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s3",
+    "s1",
+    "s6",
+    "s4",
+    "s0",
+    "s2",
+    "s5"
+   ],
+   "groups": [
+    "today",
+    "soon",
+    "soon",
+    "daily",
+    "later",
+    "later",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s2",
+    "s3"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "today",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s2",
+    "s3"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s4",
+    "s6",
+    "s3",
+    "s5",
+    "s1",
+    "s2"
+   ],
+   "groups": [
+    "today",
+    "soon",
+    "daily",
+    "later",
+    "later",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s4",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s4",
+    "s5",
+    "s1",
+    "s2",
+    "s3"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "warning",
+    "later",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s0"
+   ],
+   "groups": [
+    "today"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s3",
+    "s4",
+    "s5",
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "soon",
+    "soon",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s4",
+    "s2",
+    "s3",
+    "s0",
+    "s5"
+   ],
+   "groups": [
+    "daily",
+    "daily",
+    "later",
+    "later",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "soon",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s3",
+    "s0",
+    "s1",
+    "s4",
+    "s5"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "later",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "soon"
+    },
+    {
+     "id": "s6",
+     "warning": true,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s5",
+    "s6",
+    "s0",
+    "s3",
+    "s4",
+    "s1",
+    "s2"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "soon",
+    "soon",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s0",
+    "s3",
+    "s2"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "today",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s6",
+     "warning": true,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s6",
+    "s0",
+    "s2",
+    "s3",
+    "s4",
+    "s5"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "today",
+    "soon",
+    "soon",
+    "daily"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s7",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s3",
+    "s0",
+    "s4",
+    "s5",
+    "s7",
+    "s6",
+    "s2"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "today",
+    "today",
+    "today",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s7",
+     "warning": true,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s7",
+    "s0",
+    "s2",
+    "s4",
+    "s1",
+    "s5",
+    "s3",
+    "s6"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "today",
+    "today",
+    "soon",
+    "daily",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s2",
+    "s1"
+   ],
+   "groups": [
+    "soon",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s7",
+     "warning": true,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s7",
+    "s6",
+    "s3",
+    "s1",
+    "s2",
+    "s4",
+    "s5",
+    "s0"
+   ],
+   "groups": [
+    "warning",
+    "soon",
+    "daily",
+    "later",
+    "later",
+    "later",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s3",
+    "s2",
+    "s0"
+   ],
+   "groups": [
+    "soon",
+    "soon",
+    "daily",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s0",
+    "s1",
+    "s3",
+    "s4"
+   ],
+   "groups": [
+    "warning",
+    "later",
+    "later",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s2",
+    "s0"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s7",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s7",
+    "s4",
+    "s2",
+    "s5",
+    "s0",
+    "s3",
+    "s6"
+   ],
+   "groups": [
+    "today",
+    "today",
+    "soon",
+    "daily",
+    "daily",
+    "later",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s0"
+   ],
+   "groups": [
+    "today"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": true,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s1",
+    "s0"
+   ],
+   "groups": [
+    "warning",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s6",
+     "warning": true,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s6",
+    "s1",
+    "s5",
+    "s0",
+    "s3",
+    "s4"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "today",
+    "daily",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s4",
+    "s1",
+    "s2",
+    "s3"
+   ],
+   "groups": [
+    "soon",
+    "soon",
+    "daily",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s0"
+   ],
+   "groups": [
+    "today"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "soon"
+    }
+   ],
+   "ids": [
+    "s3",
+    "s6",
+    "s2",
+    "s1",
+    "s0",
+    "s4",
+    "s5"
+   ],
+   "groups": [
+    "warning",
+    "soon",
+    "daily",
+    "later",
+    "unclear",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s3",
+    "s4",
+    "s2"
+   ],
+   "groups": [
+    "today",
+    "today",
+    "today",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s3",
+    "s4",
+    "s2"
+   ],
+   "groups": [
+    "today",
+    "daily",
+    "daily",
+    "daily",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": true,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s4",
+    "s1",
+    "s2",
+    "s3"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "daily",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s3",
+    "s2"
+   ],
+   "groups": [
+    "daily",
+    "daily",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "daily"
+    }
+   ],
+   "ids": [
+    "s3",
+    "s5",
+    "s0",
+    "s4",
+    "s6",
+    "s1",
+    "s2"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "today",
+    "daily",
+    "daily",
+    "later",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "today"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "unclear"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s7",
+     "warning": false,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s5",
+    "s0",
+    "s1",
+    "s7",
+    "s2",
+    "s4",
+    "s3",
+    "s6"
+   ],
+   "groups": [
+    "warning",
+    "today",
+    "today",
+    "today",
+    "daily",
+    "daily",
+    "later",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": true,
+     "group": "later"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "warning",
+    "unclear"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s3",
+     "warning": true,
+     "group": "soon"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s5",
+     "warning": true,
+     "group": "today"
+    }
+   ],
+   "ids": [
+    "s3",
+    "s5",
+    "s0",
+    "s2",
+    "s1",
+    "s4"
+   ],
+   "groups": [
+    "warning",
+    "warning",
+    "soon",
+    "soon",
+    "daily",
+    "daily"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s2",
+     "warning": true,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s2",
+    "s0",
+    "s1"
+   ],
+   "groups": [
+    "warning",
+    "soon",
+    "later"
+   ]
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s0",
+    "s1",
+    "s2",
+    "s3"
+   ],
+   "groups": [
+    "soon",
+    "daily",
+    "unclear",
+    "unclear"
+   ]
+  },
+  {
+   "items": [],
+   "ids": [],
+   "groups": []
+  },
+  {
+   "items": [
+    {
+     "id": "s0",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s1",
+     "warning": false,
+     "group": "daily"
+    },
+    {
+     "id": "s2",
+     "warning": false,
+     "group": "unclear"
+    },
+    {
+     "id": "s3",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s4",
+     "warning": false,
+     "group": "later"
+    },
+    {
+     "id": "s5",
+     "warning": false,
+     "group": "soon"
+    },
+    {
+     "id": "s6",
+     "warning": false,
+     "group": "unclear"
+    }
+   ],
+   "ids": [
+    "s5",
+    "s1",
+    "s3",
+    "s4",
+    "s0",
+    "s2",
+    "s6"
+   ],
+   "groups": [
+    "soon",
+    "daily",
+    "later",
+    "later",
+    "unclear",
+    "unclear",
+    "unclear"
+   ]
+  }
+ ],
+ "pip": [
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p3",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p4",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p3",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p4",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p3",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p4",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p3",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p3",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "follow_up_visit"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p4",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p2",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "warning_sign"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "other"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "lab_test"
+   },
+   "check": "flagged",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "referral"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "next"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "cheer",
+    "line": "done"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "cheer",
+    "line": "done"
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "self_care"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "next"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "other"
+   },
+   "check": "certified",
+   "warning": true,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "follow_up_visit"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "referral"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "arrive",
+    "line": "start"
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p2",
+    "kind": "referral"
+   },
+   "check": "certified",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p0",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "lab_test"
+   },
+   "check": "unchecked",
+   "warning": true,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "greet",
+    "id": "p0",
+    "mood": "arrive",
+    "line": "start"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p1",
+    "kind": "warning_sign"
+   },
+   "check": "unchecked",
+   "warning": false,
+   "expected": {
+    "mood": "quiet",
+    "line": null
+   }
+  },
+  {
+   "spot": {
+    "at": "header",
+    "mood": "arrive",
+    "line": "allDone"
+   },
+   "shown": {
+    "id": "p0",
+    "kind": "medication"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  },
+  {
+   "spot": {
+    "at": "step",
+    "id": "p1",
+    "mood": "quiet",
+    "line": null
+   },
+   "shown": {
+    "id": "p3",
+    "kind": "follow_up_visit"
+   },
+   "check": "flagged",
+   "warning": false,
+   "expected": null
+  }
+ ],
+ "next_open": [
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "from": 2,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n2",
+    "n4",
+    "n5"
+   ],
+   "from": 5,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 2,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [],
+   "from": 1,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n2",
+    "n3"
+   ],
+   "from": 3,
+   "expected": 4
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n3"
+   ],
+   "from": 4,
+   "expected": 4
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n1",
+    "n3"
+   ],
+   "from": 1,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [
+    "n1"
+   ],
+   "from": 2,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n2"
+   ],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [
+    "n1"
+   ],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [
+    "n0",
+    "n1"
+   ],
+   "from": 1,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n0",
+    "n3"
+   ],
+   "from": 2,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 1,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n3"
+   ],
+   "from": 3,
+   "expected": 4
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n2"
+   ],
+   "from": 4,
+   "expected": 4
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [],
+   "from": 2,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [
+    "n0",
+    "n1"
+   ],
+   "from": 1,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [
+    "n0",
+    "n1"
+   ],
+   "from": 0,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n4"
+   ],
+   "from": 3,
+   "expected": 3
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [
+    "n1"
+   ],
+   "from": 1,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "from": 2,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n0",
+    "n3"
+   ],
+   "from": 2,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "from": 3,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n1",
+    "n2"
+   ],
+   "from": 1,
+   "expected": 3
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [
+    "n0",
+    "n1"
+   ],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [
+    "n1"
+   ],
+   "from": 1,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [
+    "n1",
+    "n2"
+   ],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n3"
+   ],
+   "from": 3,
+   "expected": 4
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n3",
+    "n4"
+   ],
+   "from": 4,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "from": 1,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [
+    "n0",
+    "n1"
+   ],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n2"
+   ],
+   "from": 1,
+   "expected": 1
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n1",
+    "n2",
+    "n4",
+    "n5"
+   ],
+   "from": 5,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n1"
+   ],
+   "from": 1,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n0",
+    "n2",
+    "n3"
+   ],
+   "from": 3,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n2",
+    "n4"
+   ],
+   "from": 2,
+   "expected": 3
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n1",
+    "n2",
+    "n4"
+   ],
+   "from": 2,
+   "expected": 3
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n1",
+    "n3"
+   ],
+   "from": 1,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "from": 3,
+   "expected": 4
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n5"
+   ],
+   "from": 2,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n1",
+    "n3"
+   ],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "from": 4,
+   "expected": 5
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n0",
+    "n3"
+   ],
+   "from": 0,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n2",
+    "n5"
+   ],
+   "from": 1,
+   "expected": 3
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "from": 3,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "from": 1,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "from": 1,
+   "expected": 4
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n4"
+   ],
+   "from": 3,
+   "expected": 3
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n1",
+    "n3",
+    "n4"
+   ],
+   "from": 1,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n3"
+   ],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [
+    "n1"
+   ],
+   "from": 1,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n1"
+   ],
+   "from": 0,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n1",
+    "n3"
+   ],
+   "from": 3,
+   "expected": 4
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n3"
+   ],
+   "from": 5,
+   "expected": 5
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n4",
+    "n5"
+   ],
+   "from": 3,
+   "expected": 3
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n3",
+    "n5"
+   ],
+   "from": 2,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "from": 3,
+   "expected": 4
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 0,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "from": 2,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "from": 1,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [],
+   "from": 1,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n2"
+   ],
+   "from": 1,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n1",
+    "n2",
+    "n4"
+   ],
+   "from": 4,
+   "expected": 0
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [
+    "n0",
+    "n1"
+   ],
+   "from": 0,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n4"
+   ],
+   "from": 3,
+   "expected": 3
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [
+    "n1"
+   ],
+   "from": 1,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 3,
+   "expected": 3
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n1",
+    "n3",
+    "n5"
+   ],
+   "from": 3,
+   "expected": 4
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n3",
+    "n5"
+   ],
+   "from": 3,
+   "expected": 4
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n3",
+    "n4"
+   ],
+   "from": 1,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [
+    "n2"
+   ],
+   "from": 2,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [],
+   "from": 1,
+   "expected": 1
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [],
+   "done": [],
+   "from": 0,
+   "expected": -1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1"
+   ],
+   "done": [
+    "n0"
+   ],
+   "from": 1,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n4"
+   ],
+   "from": 5,
+   "expected": 5
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4"
+   ],
+   "done": [
+    "n0",
+    "n3"
+   ],
+   "from": 4,
+   "expected": 4
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [
+    "n0",
+    "n1",
+    "n3",
+    "n4"
+   ],
+   "from": 2,
+   "expected": 2
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "done": [],
+   "from": 5,
+   "expected": 5
+  },
+  {
+   "ids": [
+    "n0"
+   ],
+   "done": [],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [
+    "n2"
+   ],
+   "from": 1,
+   "expected": 1
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [],
+   "from": 0,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "done": [
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "from": 2,
+   "expected": 0
+  },
+  {
+   "ids": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "done": [],
+   "from": 1,
+   "expected": 1
+  }
+ ]
+}

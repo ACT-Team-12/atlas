@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { setupGsap, gsap, prefersReducedMotion } from "./motion/gsap";
 import { Mark } from "./Mark";
+import { useSite } from "./SiteLang";
 
 const introDone = () => window.dispatchEvent(new Event("atlas:intro-done"));
 
@@ -15,6 +16,7 @@ export function Preloader() {
   const root = useRef<HTMLDivElement>(null);
   const started = useRef(false);
   const [done, setDone] = useState(false);
+  const { s } = useSite();
 
   useEffect(() => {
     if (started.current) return;
@@ -52,12 +54,12 @@ export function Preloader() {
     <div ref={root} className="fixed inset-0 z-[100] pointer-events-none" aria-hidden="true">
       <svg viewBox="0 0 1080 1080" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
         <path className="pl-path" d="M-160 140 C 240 -120, 520 420, 300 640 S 620 1180, 900 820 S 1260 380, 1240 1240"
-          fill="none" stroke="#bfe9dc" strokeWidth="75%" strokeLinecap="round" />
+          fill="none" stroke="var(--mint)" strokeWidth="75%" strokeLinecap="round" />
       </svg>
       <div className="absolute inset-0 grid place-items-center">
         <div className="relative flex flex-col items-center gap-3">
           <div className="pl-mark invisible"><Mark size={120} /></div>
-          <p className="pl-word hand text-4xl text-ink invisible">only what&apos;s written</p>
+          <p className="pl-word hand text-4xl text-ink invisible">{s("intro.word")}</p>
           <span className="pl-line invisible block h-1.5 w-48 rounded-full bg-teal origin-left" />
         </div>
       </div>

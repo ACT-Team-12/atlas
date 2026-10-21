@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkRows, parseRange, printedFlag, ResultsReadRequestSchema } from "./results";
+import { checkRows, parseRange, printedFlag, resultLines, ResultsReadRequestSchema } from "./results";
 import { SAMPLE_LABS } from "./sampleLabs";
 
 const row = (o: Partial<{ test: string; value: string; unit: string; range_text: string; quote: string }>) => ({
@@ -135,8 +135,9 @@ describe("lab results: adversarial review cases", () => {
   });
 
   it("3. a flag is only read after the value, never from the unit or the test name", () => {
-    // A liter "L" is not Low, with or without the AI naming the unit.
-    expect(status(one("Volume 3.0 L 2.0-4.0", { test: "Volume", value: "3.0", unit: "L", range_text: "2.0-4.0" }))).toEqual([["inside", null]]);
+    // A lone "L" may be liters or Low. The AI naming the unit "L" may only add caution, never clear it: in range by the
+    // printed range is still "can't tell", shown and never folded (security review; this was "inside" before).
+    expect(status(one("Volume 3.0 L 2.0-4.0", { test: "Volume", value: "3.0", unit: "L", range_text: "2.0-4.0" }))).toEqual([["unknown", null]]);
     expect(status(one("Volume 3.0 L 2.0-4.0", { test: "Volume", value: "3.0", unit: "", range_text: "2.0-4.0" }))).toEqual([["unknown", null]]);
     expect(status(one("Potassium 3.2 L 3.5-5.1", { test: "Potassium", value: "3.2", unit: "", range_text: "3.5-5.1" }))).toEqual([["outside", "low"]]);
     expect(status(one("CRP 1.0 mg/L 0.0-3.0", { test: "CRP", value: "1.0", unit: "mg/L", range_text: "0.0-3.0" }))).toEqual([["inside", null]]);
@@ -158,5 +159,27 @@ describe("lab results: adversarial review cases", () => {
     const part = checkRows(src, [row({ test: "Sodium", value: "139", unit: "mmol/L", range_text: "136-145", quote: "Sodium 139 mmol/L 136-145" })]);
     expect(part.counts.outside).toBe(0);
     expect(part.coverage).toEqual({ candidates: 3, checked: 1, unchecked: ["Glucose 126 mg/dL 70-99 H", "Hemoglobin A1c 7.4 % <5.7 H"] });
+  });
+});
+
+describe("critical headings (Codex review)", () => {
+  it("a heading made only of the marker and heading words is not an unchecked result; a real critical line still is", () => {
+    const src = ["CRITICAL VALUES", "*** Panic Results ***", "Critical values and alerts:", "Troponin unable to calculate CRITICAL", "Potassium 6.9 mmol/L 3.5-5.1 HH"].join("\n");
+    expect(resultLines(src)).toEqual(["Troponin unable to calculate CRITICAL", "Potassium 6.9 mmol/L 3.5-5.1 HH"]);
+  });
+
+  it("page and count marks don't turn a heading into a result; a bare critical number still counts (round 2)", () => {
+    const heads = ["CRITICAL VALUES - PAGE 2", "CRITICAL RESULTS (2)", "Critical values, page 2 of 3", "PANIC VALUES #3", "Critical results 1/2 continued"];
+    expect(resultLines(heads.join("\n"))).toEqual([]);
+    expect(resultLines("CRITICAL 6.9\nCRITICAL (6.9)")).toEqual(["CRITICAL 6.9", "CRITICAL (6.9)"]);
+  });
+
+  it("a line marked CRITICAL is outside even when the model calls it normal and the value sits in range", () => {
+    for (const line of ["Potassium 4.0 mmol/L 3.5-5.1 CRITICAL", "CRITICAL Potassium 4.0 mmol/L 3.5-5.1", "Potassium 4.0 mmol/L 3.5-5.1 panic"]) {
+      const res = checkRows(`${line}\n`, [{ ...row({ test: "Potassium", value: "4.0", unit: "mmol/L normal", range_text: "3.5-5.1", quote: line }), plain_name: "Normal potassium", ask: "Is this normal?" }]);
+      // Outside, by the critical rule or by the trailing mark read as a flag; never inside or can't tell.
+      expect(res.rows.map((r) => r.status), line).toEqual(["outside"]);
+      expect(res.rows[0].reason, line).toMatch(/^Your report marks this line (critical|as abnormal)\.$/);
+    }
   });
 });

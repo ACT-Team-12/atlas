@@ -1,20 +1,29 @@
 "use client";
 
 import { bookSafe, careStepView, checkOf, type Check } from "@/lib/paperFirst";
+import { readingGeneralQuestions, visitQuestionsTagged } from "@/lib/visitQuestions";
 import { PaperFirst } from "./PaperFirst";
 import { planStepQuotes } from "@/lib/planQuotes";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
+import { landingTop, readyTarget, ReadyCue, type Ready } from "./ReadyCue";
 import type { CarePlanResponse, VerifiedItem } from "@/lib/schema";
 import { LANGUAGES, READING_LEVELS } from "@/lib/schema";
 import { WorkingCard } from "./WorkingCard";
 import { SAMPLE_AVS, SAMPLE_LABEL } from "@/lib/sample";
-import { BARRIERS, BARRIER_LABEL, type Barrier, formatHours, openNow, opensEvenings, opensWeekends } from "@/lib/resources";
-import type { PlanResponse, ResourceCard } from "@/lib/plan";
+import { mayFillSample, TRY_SAMPLE_EVENT, TRY_SAMPLE_HASH } from "@/lib/sampleStart";
+import { BARRIERS, type Barrier } from "@/lib/resources";
+import type { PlanResponse } from "@/lib/plan";
+import { topResources } from "@/lib/planTop";
+import { ProblemRow, TopCalls } from "./PlanStart";
+import { DockLabel } from "./DockLabel";
 import { restoredPlan } from "@/lib/planText";
 import { SquashButton } from "./SquashButton";
 import { Feedback } from "./Feedback";
 import { Understand } from "./Understand";
+import { AskPaper } from "./AskPaper";
 import { HandoffSheet } from "./HandoffSheet";
+import { HANDOFF_SHEET, printOrView, printPageOr } from "./printView";
+import { ReadIn } from "./ReadIn";
 import { MissedLines, useMissedLines } from "./MissedLines";
 import { missedLineTexts } from "@/lib/missedLines";
 import { ShareFamily } from "./ShareFamily";
@@ -23,12 +32,14 @@ import { callMeKey } from "@/lib/call/callKey";
 import { BookIt } from "./BookIt";
 import { bookableItem } from "@/lib/booking";
 import { readExtractEvents, StreamBroken, StreamFailed } from "@/lib/extractEvents";
+import { failureKey, RequestFailed } from "@/lib/requestError";
+import { readPlanEvents, type PlanPreview } from "@/lib/planEvents";
 import { restoredTab, scrollTargetAfter, shownTab, type Tab } from "@/lib/phoneTabs";
 import { canMakeSimpler, isTranscriptEdited } from "@/lib/simpler";
 import { isPhoneNow, panelId, PhoneTabBar, scrollElementToTop, scrollTargetY, scrollToPanel, tabId, useIsPhone, type PageScroll } from "./PhoneTabs";
 import { paidVoiceAllowed, speechLines } from "@/lib/speechText";
 import {
-  closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan,
+  CHECK_POLICY, checksKey, closePlan, deletePlan, emptyStore, listPlans, loadStore, OLD_KEY, openPlan, readStartsNewPlan, renamePlan,
   STORE_KEY, type Session, type Store,
 } from "@/lib/savedPlans";
 import { SavedPlans } from "./SavedPlans";
@@ -37,7 +48,8 @@ import {
   scrollIsPersons, shouldAutoScroll, type LayoutShift, type OwnScroll,
 } from "@/lib/staleGuard";
 import { SPEECH_LANG } from "@/lib/speechLang";
-import { ShowOnPaper } from "./ShowOnPaper";
+import { CareSteps, KIND } from "./CareSteps";
+import { isWarning } from "@/lib/warningPin";
 import { SessionSummary } from "./SessionSummary";
 import { helperSessionKey } from "@/lib/sessionSummary";
 import { deviceStatus as deviceStatusOf, NO_DEVICE_RUN, runIdFor, type DeviceRun, type DeviceVerdict } from "@/lib/deviceRun";
@@ -49,16 +61,9 @@ import { autosaveStore } from "@/lib/autosave";
 import { fetchMeaning, IDLE_MEANING, RunFence, runMeaningCheck, type MeaningState } from "@/lib/meaningRun";
 import { consumeHelperSession, entryHeaders } from "@/lib/helperLink";
 import { HelperBanner, useHelperArrival } from "./HelperArrival";
-
-const KIND: Record<string, { label: string; cls: string }> = {
-  medication: { label: "Medicine", cls: "bg-sky text-sky-deep" },
-  lab_test: { label: "Lab test", cls: "bg-lilac text-ink" },
-  referral: { label: "Referral", cls: "bg-peach text-peach-deep" },
-  follow_up_visit: { label: "Next visit", cls: "bg-mint text-teal-deep" },
-  self_care: { label: "Daily care", cls: "bg-mint-soft text-teal-deep" },
-  warning_sign: { label: "Warning sign", cls: "bg-red-soft text-red" },
-};
-
+import { keyFor, locatedLine, ui, uiCount, UI_LANG_CODE, type UiKey, type UiPluralKey } from "@/lib/uiText";
+import { paperLangCode, safeLine, UiLangProvider, useUi } from "./UiLang";
+import { useFollowSiteLang } from "./SiteLang";
 
 /** Id for a saved plan. randomUUID needs a secure page; the fallback is fine for a local key. */
 function newPlanId() {
@@ -79,15 +84,30 @@ async function fileToBase64(file: File) {
 }
 
 async function postExtract(body: Record<string, unknown>, signal?: AbortSignal): Promise<CarePlanResponse> {
-  const res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
-  return json;
+  let res: Response;
+  try {
+    res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    throw new RequestFailed(0, "Network error");
+  }
+  return replyJson<CarePlanResponse>(res);
+}
+
+/**
+ * The JSON body of one of our routes, or a RequestFailed carrying its status and the server's own (English) words,
+ * which are logged, never shown. A reply that is not JSON at all counts as a server failure.
+ */
+async function replyJson<T>(res: Response): Promise<T> {
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new RequestFailed(res.status, json?.error ?? `HTTP ${res.status}`);
+  if (json === null) throw new RequestFailed(502, "Reply was not JSON");
+  return json as T;
 }
 
 /**
  * Reads a pasted paper over the streaming route. Throws StreamBroken when the caller should retry
- * with the plain route (connection cut, route missing, server error), or a plain Error to show.
+ * with the plain route (connection cut, route missing, server error), or a RequestFailed (failureKey says what to show).
  */
 async function streamExtract(body: Record<string, unknown>, onItem: (it: VerifiedItem) => void, signal?: AbortSignal): Promise<CarePlanResponse> {
   let res: Response;
@@ -100,31 +120,94 @@ async function streamExtract(body: Record<string, unknown>, onItem: (it: Verifie
   if (!res.ok || !res.body) {
     // 404: an older deploy without this route. 5xx: worth one try on the plain route. 503 means no AI key, so retrying won't help.
     if (!res.body || res.status === 404 || (res.status >= 500 && res.status !== 503)) throw new StreamBroken(`HTTP ${res.status}`);
-    const json = await res.json().catch(() => ({}));
-    throw new Error(json.error ?? "Something went wrong.");
+    const json = await res.json().catch(() => null);
+    throw new RequestFailed(res.status, json?.error ?? `HTTP ${res.status}`);
   }
   try {
     return await readExtractEvents(res.body, onItem);
   } catch (e) {
-    if (e instanceof StreamFailed && (e.status < 500 || e.status === 503)) throw new Error(e.message);
+    if (e instanceof StreamFailed && (e.status < 500 || e.status === 503)) throw new RequestFailed(e.status, e.message);
     if (e instanceof StreamFailed) throw new StreamBroken(e.message);
     throw e;
   }
 }
 
-/** Steps shown while the paper is still being read. Not final: no checkboxes, nothing saved, nothing built on them. */
-function StreamingSteps({ items }: { items: VerifiedItem[] }) {
+/**
+ * Builds the plan over the streaming route, calling onPreview with the checked steps so far. Throws StreamBroken when
+ * the caller should retry with the plain route (connection cut, route missing, server error), or RequestFailed, whose
+ * status picks the translated line to show (the server's own words are logged, never shown).
+ */
+async function streamPlanRequest(body: Record<string, unknown>, onPreview: (p: PlanPreview) => void, signal: AbortSignal): Promise<PlanResponse> {
+  let res: Response;
+  try {
+    res = await fetch("/api/plan/stream", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body), signal });
+  } catch (e) {
+    if (signal.aborted) throw e; // stopped on purpose: do not retry on the plain route
+    throw new StreamBroken("Network error");
+  }
+  if (!res.ok || !res.body) {
+    // 404: an older deploy without this route. 5xx: worth one try on the plain route. 503 means no AI key, so retrying won't help.
+    if (!res.body || res.status === 404 || (res.status >= 500 && res.status !== 503)) throw new StreamBroken(`HTTP ${res.status}`);
+    const json = await res.json().catch(() => null);
+    throw new RequestFailed(res.status, json?.error ?? `HTTP ${res.status}`);
+  }
+  try {
+    return await readPlanEvents(res.body, onPreview);
+  } catch (e) {
+    if (e instanceof StreamFailed && (e.status < 500 || e.status === 503)) throw new RequestFailed(e.status, e.message);
+    if (e instanceof StreamFailed) throw new StreamBroken(e.message);
+    throw e;
+  }
+}
+
+/**
+ * Plan steps shown while the plan is still being built. Each one's links were already checked against the paper's
+ * steps and the verified list. Not final: no ticks, no actions, nothing saved, nothing read aloud or printed from it.
+ */
+export function StreamingPlanSteps({ preview }: { preview: PlanPreview }) {
+  const { t, tn } = useUi();
+  const n = preview.steps.length;
+  const name = (id: string) => {
+    const r = preview.resources[id];
+    return !r ? null : r.type === "clinic" ? r.clinic.name : r.program.name;
+  };
+  return (
+    <div className="mt-6" aria-busy="true">
+      <p className="display text-2xl">{t("plan.stillBuilding")}<span className="working-dots" aria-hidden="true" /></p>
+      <p className="text-sm font-bold text-ink/70 mt-1">{tn("planStepsReady", n)} {t("plan.readyMore")}</p>
+      <ol className="mt-4 space-y-3">
+        {preview.steps.map((st, i) => (
+          <li key={i} className="step-in rounded-2xl border-2 border-ink/70 bg-paper p-4">
+            <p className="font-extrabold">{i + 1}. {st.title}</p>
+            <p className="mt-1">{st.action}</p>
+            {st.resource_ids.length > 0 && (
+              <p className="mt-2 text-sm font-bold text-ink/70">{st.resource_ids.map(name).filter(Boolean).join(" · ")}</p>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/**
+ * Steps shown while the paper is still being read. Not final: no checkboxes, nothing saved, nothing built on them.
+ * A step is styled as a warning exactly when "Your steps" pins it as one (lib/warningPin.ts): the model's kind or the
+ * paper's own words, so a mislabeled "call 911" line is red here too.
+ */
+export function StreamingSteps({ items }: { items: VerifiedItem[] }) {
+  const { t, ts, tn } = useUi();
   return (
     <div className="mt-8" aria-busy="true">
-      <p className="display text-2xl">Still reading your paper<span className="working-dots" aria-hidden="true" /></p>
+      <p className="display text-2xl">{t("paper.stillReading")}<span className="working-dots" aria-hidden="true" /></p>
       <p className="text-sm font-bold text-ink/70 mt-1">
-        {items.length} {items.length === 1 ? "step" : "steps"} found so far. We found each one&apos;s words in your paper. More may come.
+        {tn("stepsFoundSoFar", items.length)} {t("paper.foundSoFarMore")}
       </p>
       <ul className="mt-4 space-y-3">
         {items.map((it) => (
-          <li key={it.id} className={`step-in rounded-2xl border-2 p-4 ${it.kind === "warning_sign" ? "border-red bg-red-soft/50" : "border-ink/70 bg-paper"}`}>
+          <li key={it.id} data-warning={isWarning(it) ? "" : undefined} className={`step-in rounded-2xl border-2 p-4 ${isWarning(it) ? "border-red bg-red-soft/50" : "border-ink/70 bg-paper"}`}>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`chip ${KIND[it.kind]?.cls}`}>{KIND[it.kind]?.label}</span>
+              <span className={`chip ${KIND[it.kind]?.cls}`}>{ts(keyFor("kind", it.kind, "kind.step"))}</span>
             </div>
             {/* Not checked yet while streaming, so the paper's words lead (lib/paperFirst.ts). */}
             <PaperFirst v={careStepView(it, "unchecked")} />
@@ -135,114 +218,45 @@ function StreamingSteps({ items }: { items: VerifiedItem[] }) {
   );
 }
 
-function Highlighted({ text, items, active }: { text: string; items: VerifiedItem[]; active: string | null }) {
-  const parts = useMemo(() => {
-    const spans = items.filter((i) => i.span).map((i) => ({ ...i.span!, id: i.id })).sort((a, b) => a.start - b.start);
-    const out: { t: string; id?: string }[] = [];
-    let at = 0;
-    for (const s of spans) {
-      if (s.start < at) continue;
-      out.push({ t: text.slice(at, s.start) }, { t: text.slice(s.start, s.end), id: s.id });
-      at = s.end;
-    }
-    out.push({ t: text.slice(at) });
-    return out;
-  }, [text, items]);
-  return (
-    <pre className="whitespace-pre-wrap font-sans text-sm leading-6 text-ink/80">
-      {parts.map((p, i) => p.id
-        ? <mark key={i} className={`rounded px-0.5 transition-colors ${active === p.id ? "bg-sun" : "bg-sun/35"}`}>{p.t}</mark>
-        : <span key={i}>{p.t}</span>)}
-    </pre>
-  );
+/** A read where nothing became a step: no steps, none held back, no warning signs. The paper is probably not a visit
+ * paper, so it does not count as step 1 done (heading check, phone tab bar, the tab a saved plan reopens on). */
+function foundNothing(c: CarePlanResponse | null | undefined): boolean {
+  return !!c && c.items.length === 0 && c.stats.refused === 0 && !c.has_warning_signs;
 }
 
-function StepHeader({ n, title, done, note }: { n: number; title: string; done?: boolean; note?: string }) {
+function StepHeader({ n, title, done, note, id }: { n: number; title: string; done?: boolean; note?: string; id?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <span className={`grid place-items-center w-10 h-10 rounded-full border-2 border-ink font-extrabold ${done ? "bg-teal text-paper" : "bg-paper"}`}>{done ? "✓" : n}</span>
-      <h3 className="display text-3xl">{title}</h3>
+      {/* With an id it is a landing spot (the ready cue moves focus here), so it takes focus without joining the tab order. */}
+      <h3 id={id} tabIndex={id ? -1 : undefined} className="display text-3xl outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{title}</h3>
       {note && <span className="hand text-2xl text-ink/70 -rotate-1">{note}</span>}
     </div>
   );
 }
 
-/** While the plan is outdated, `off` says why and the call, website, directions and open links are not offered: the place may be wrong. */
-/** A source link, or just its name while the plan is outdated (no link out to a place picked from old answers). */
-function SourceLink({ href, label, off }: { href: string; label: string; off?: string }) {
-  return off ? <span>{label}</span> : <a className="underline" href={href} target="_blank" rel="noreferrer">{label}</a>;
-}
-
-type ScrollRequest = { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number };
+/** `ready`: the cue to raise instead when an automatic scroll is cancelled at the last check (Codex review, round 4). */
+type ScrollRequest = { t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number; ready?: { what: Ready; ref: object } };
 
 /** The fingerprint of a save from before results were checked against answers: no inputs ever match it. */
 const UNMATCHED_SAVE = "saved-before-results-were-checked";
 
-function ResourceLinksOff({ off }: { off: string }) {
-  return <p className="mt-3 text-sm font-bold text-peach-deep">{off}: calls, websites and directions for this plan are off until then.</p>;
-}
-
-function Resource({ r, off }: { r: ResourceCard; off?: string }) {
-  if (r.type === "clinic") {
-    const c = r.clinic;
-    const hours = formatHours(c.hours);
-    const open = openNow(c);
-    return (
-      <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="chip bg-mint text-teal-deep">Health center</span>
-          {r.km != null && <span className="text-xs font-bold text-ink/70">{r.km} km away</span>}
-          {open != null && <span className={`chip ${open ? "bg-teal text-paper" : "bg-paper border border-ink/30 text-ink/70"}`}>{open ? "Listed as open now" : "Listed as closed now"}</span>}
-          {(opensEvenings(c) || opensWeekends(c)) && <span className="chip bg-sun text-ink">{[opensEvenings(c) && "Evenings", opensWeekends(c) && "Weekends"].filter(Boolean).join(" + ")}</span>}
-        </div>
-        <p className="font-extrabold mt-2">{c.name}</p>
-        <p className="text-sm font-semibold text-ink/75">{c.address}, {c.city} {c.zip}</p>
-        <p className="text-sm font-semibold mt-1">Fees adjust to your income and family size (federal health center rule).</p>
-        {c.nearest_rail && <p className="text-sm mt-1">🚆 {c.nearest_rail.name}, {(c.nearest_rail.meters / 1000).toFixed(1)} km straight-line</p>}
-        {c.nearest_bus && <p className="text-sm">🚌 Bus stop: {c.nearest_bus.name}</p>}
-        {hours && c.hours_source_id === "clinic-site" && (
-          <>
-            <p className="text-sm mt-1">🕘 Hours: {hours}</p>
-            <p className="text-xs italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{c.hours_quote}&rdquo;</p>
-          </>
-        )}
-        {hours && c.hours_source_id !== "clinic-site" && <p className="text-sm mt-1">🕘 Listed hours: {hours} <span className="text-ink/70">(call to confirm)</span></p>}
-        {off ? <ResourceLinksOff off={off} /> : <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
-          {c.phone && <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${c.phone.replace(/[^\d]/g, "")}`}>Call {c.phone}</a>}
-          {c.website && <a className="rounded-full border-2 border-ink px-3 py-1" href={c.website} target="_blank" rel="noreferrer">Website ↗</a>}
-          <a className="rounded-full border-2 border-ink px-3 py-1" target="_blank" rel="noreferrer"
-            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(c.city.includes(",") ? `${c.address}, ${c.city} ${c.zip}` : `${c.address}, ${c.city}, GA ${c.zip}`)}&travelmode=transit`}>Transit directions ↗</a>
-        </div>}
-        <p className="mt-2 text-[11px] text-ink/70">
-          Source: HRSA health center data{c.source_id === "hrsa-national" ? " (nationwide list, Oct 2)" : ""}
-          {hours && c.hours_source_id === "clinic-site" && c.hours_url
-            ? <> · hours quoted from <SourceLink href={c.hours_url} label={new URL(c.hours_url).hostname.replace(/^www\./, "")} off={off} />, checked Oct 2</>
-            : hours ? " · hours from its Google Maps listing, checked Oct 2" : c.hours_per_week ? ` · ${c.hours_per_week} hrs/week listed, times not listed` : " · hours not listed"}
-        </p>
-      </div>
-    );
-  }
-  const p = r.program;
-  return (
-    <div className="rounded-2xl border-2 border-ink/80 bg-paper p-4">
-      <span className="chip bg-sky text-sky-deep">Program</span>
-      <p className="font-extrabold mt-2">{p.name}</p>
-      {/* The quote and the how-to text can hold a number to call or text: not offered while the plan is outdated. */}
-      {!off && <p className="text-sm italic text-ink/70 mt-1 border-l-4 border-sun pl-2">&ldquo;{p.evidence_quote}&rdquo;</p>}
-      {off ? <ResourceLinksOff off={off} /> : <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
-        {p.access.phone && <a className="rounded-full bg-ink text-paper px-3 py-1.5" href={`tel:${p.access.phone.replace(/[^\d]/g, "")}`}>Call {p.access.phone}</a>}
-        {p.access.url && <a className="rounded-full border-2 border-ink px-3 py-1" href={p.access.url} target="_blank" rel="noreferrer">Open ↗</a>}
-      </div>}
-      {p.access.text && !off && <p className="text-sm mt-2">{p.access.text}</p>}
-      <p className="mt-2 text-[11px] text-ink/70">Verified on the official page: <SourceLink href={p.source_url} label={new URL(p.source_url).hostname} off={off} /></p>
-    </div>
-  );
-}
+/**
+ * A plan step's done tick, kept in the same saved `done` record as the paper's steps (whose keys are care ids, never
+ * starting with "plan:"), so it is saved and reopened with the plan. Cleared when a new plan replaces it.
+ */
+const planTickKey = (i: number) => `plan:${i}`;
+const dropPlanTicks = (d: Record<string, boolean>) => Object.fromEntries(Object.entries(d).filter(([k]) => !k.startsWith("plan:")));
 
 export function CarePlanTool() {
   const [text, setTextState] = useState("");
   const [photo, setPhotoState] = useState<File | null>(null);
   const [language, setLanguageState] = useState<(typeof LANGUAGES)[number]>("English");
+  // The app's own words in the chosen language (lib/uiText.ts); children read it from UiLangProvider below.
+  const t = (key: UiKey, vars?: Record<string, string | number>) => ui(language, key, vars);
+  const tn = (key: UiPluralKey, n: number, vars?: Record<string, string | number>) => uiCount(language, key, n, vars);
+  // A safety line with its English beside it until reviewed (UiLang.tsx, ts).
+  const ts = (key: UiKey, vars?: Record<string, string | number>): ReactNode => safeLine(language, key, vars);
   const [level, setLevelState] = useState<(typeof READING_LEVELS)[number]>("simple");
   // The level the steps on screen were read at (the select can change after a read).
   const [readLevel, setReadLevel] = useState<(typeof READING_LEVELS)[number] | null>(null);
@@ -271,19 +285,27 @@ export function CarePlanTool() {
   const locGen = useRef(0);
   const [locating, setLocatingState] = useState(false);
   const layoutShift = useRef<LayoutShift>(NO_LAYOUT_SHIFT);
+  // Where the page was at the last scroll event: a scroll event that did not move the page is not the person.
+  const lastScrollY = useRef(0);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const [planReadyNote, setPlanReadyNote] = useState<string | null>(null);
+  // A result landed while the person was elsewhere on the page (ReadyCue). `ref` is that exact result: the cue
+  // shows only while it is still the one on screen and still current (Codex review).
+  const [ready, setReady] = useState<{ what: Ready; ref: object } | null>(null);
+  const clearReady = useCallback(() => setReady(null), []);
   const [care, setCareState] = useState<CarePlanResponse | null>(null);
   const [barriers, setBarriersState] = useState<Barrier[]>([]);
   const [zip, setZipState] = useState("");
   const [loc, setLocState] = useState<{ lat: number; lng: number } | null>(null);
   const [note, setNoteState] = useState("");
   const [planning, setPlanning] = useState(false);
+  // Steps of the plan being built, for the current request only (cleared when it starts, ends or is replaced).
+  // `fp`: the answers it was built from; it is drawn only while the answers on screen still match (see the render).
+  const [planPreview, setPlanPreview] = useState<(PlanPreview & { fp: string }) | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
-  const [active, setActive] = useState<string | null>(null);
   const [removed, setRemovedState] = useState<Record<string, boolean>>({});
   const [restoredAt, setRestoredAt] = useState<string | null>(null);
   // What the reading and the plan on screen were made from. If the inputs move on, the result is labelled
@@ -297,6 +319,13 @@ export function CarePlanTool() {
   const setPhoto = (v: File | null) => { live.current.photo = v; setPhotoState(v); };
   const setLanguage = (v: (typeof LANGUAGES)[number]) => { live.current.language = v; setLanguageState(v); };
   const setLevel = (v: (typeof READING_LEVELS)[number]) => { live.current.level = v; setLevelState(v); };
+  // The nav's language picker moves "Explain it in" too (ui/SiteLang.tsx). On page load it leaves a restored paper or
+  // plan alone, so a saved plan keeps the language it was read in.
+  useFollowSiteLang((l, source) => {
+    if (l === live.current.language) return;
+    if (source === "load" && (live.current.text || live.current.care)) return;
+    setLanguage(l);
+  });
   const setCare = (v: CarePlanResponse | null) => { live.current.care = v; setCareState(v); };
   const setZip = (v: string) => { live.current.zip = v; setZipState(v); };
   const setLoc = (v: { lat: number; lng: number } | null) => { live.current.loc = v; setLocState(v); };
@@ -328,6 +357,8 @@ export function CarePlanTool() {
   const [meaning, setMeaning] = useState<MeaningState>(IDLE_MEANING);
   // One check at a time, with its own id and abort: Clear, Delete, a new read and unmount cancel it (lib/meaningRun.ts).
   const [meaningFence] = useState(() => new RunFence());
+  // The steps and language the current verdicts were made for (savedPlans.ts checksKey); what a save may store.
+  const meaningFor = useRef<string | null>(null);
   // The same quote checker, run again on this device (WebAssembly, loaded only after a read). Per step: did the
   // browser find the same words in the same place as the server?
   // Stored with the id of the reading it belongs to (never the reading, which holds the paper), so a newer read
@@ -347,12 +378,24 @@ export function CarePlanTool() {
   // A scroll to run after the next render, once the newly shown card is on the page.
   // `submittedAt` marks an automatic scroll: it is checked again right before scrolling, and skipped if the
   // person has used the page since they pressed the button. A tab they picked themselves has none.
-  const scrollAfter = useRef<{ t: Tab; onlyIfHidden: boolean; anchor?: boolean; submittedAt?: number } | null>(null);
+  const scrollAfter = useRef<ScrollRequest | null>(null);
   // A plan that just arrived: once it is on the page, decide (then, not when the reply landed) whether to open and scroll to it.
   const planNav = useRef<{ plan: PlanResponse; submittedAt: number } | null>(null);
   // The card an automatic scroll brought up, kept in place briefly while late content above it loads.
   const scrollAnchor = useRef<{ t: Tab; at: number } | null>(null);
   const [tapToPlay, setTapToPlay] = useState(false);
+  // The plan card, and whether it is off screen: on phones the plan's action bar shows only while the card is on screen.
+  // With no IntersectionObserver the bar simply stays.
+  const planCard = useRef<HTMLDivElement | null>(null);
+  const [dockAway, setDockAway] = useState(() => typeof IntersectionObserver !== "undefined");
+  const hasPlan = !!plan;
+  useEffect(() => {
+    const el = planCard.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((entries) => setDockAway(!entries.some((e) => e.isIntersecting)));
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasPlan]);
 
   // "My saved plans": saved on this device only (localStorage). Nothing is stored on our side; location is never saved.
   const [store, setStore] = useState<Store>(emptyStore);
@@ -399,7 +442,7 @@ export function CarePlanTool() {
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFence.cancel(); setMeaning(IDLE_MEANING);
-    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setLoc(null); locGen.current++; setLocating(false);
+    setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setLoc(null); locGen.current++; setLocating(false); setReady(null); setPlanReadyNote(null);
     setText(v.text); setLanguage(v.language); setLevel(v.level);
     setCare(v.care); setReadLevel(v.care ? v.level : null); setBarriers(v.barriers); setZip(v.zip); setNote(v.note);
     // A plan saved before ids were filtered out (lib/planText.ts) comes back without them. A plan with nothing to clean
@@ -418,14 +461,25 @@ export function CarePlanTool() {
       careIds: (v.care?.items ?? []).filter((i) => !v.removed[i.id]).map((i) => i.id),
       barriers: v.barriers, language: v.language, note: v.note, place: fromDevice ? "device" : planPlace(false, v.zip), location: null,
     }) : null);
-    setTab(restoredTab({ hasCare: !!v.care, hasPlan: !!v.plan }));
+    // The second check's verdicts come back from the save itself, never by sending the paper again (the privacy page:
+    // nothing is uploaded when a saved plan is reopened). Only when they were made for exactly these steps and this
+    // language; a save from before verdicts were kept shows its steps as checked once (found Oct 5 on the live site).
+    meaningFor.current = null;
+    // Only for a save that is current (matched) and read in the plan's own language: an outdated save never gets
+    // its verdicts back. (Saved data is the person's own; this guards against stale saves, not a person editing them.)
+    const careLang = v.care?.language ?? v.language;
+    if (v.care && v.checks && v.matched === true && careLang === v.language && v.checks.key === checksKey(v.care.items, careLang)) {
+      meaningFor.current = v.checks.key;
+      setMeaning({ status: "done", byId: v.checks.byId, policy: v.checks.policy }); // the policy too, or the next save drops them (Codex round 4)
+    }
+    setTab(restoredTab({ hasCare: !!v.care && !foundNothing(v.care), hasPlan: !!v.plan }));
   }
 
   /** Empties the tool for a new plan. Saved plans stay as they are. */
   function resetTool() {
     endSession();
     pendingRead.current?.abort.abort(); pendingPlan.current?.abort.abort(); pendingRead.current = null; pendingPlan.current = null;
-    setReadNote(null); setPlanNote(null); setPlanReadyNote(null);
+    setReadNote(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     readRun.current++; planRun.current++; setReading(false); setPlanning(false); stopSpeaking();
     meaningFence.cancel(); setMeaning(IDLE_MEANING);
     setError(null); setPartial([]); setTranscript(null); setPhoto(null); setReadPhoto(null); setPhotoChecked(false); setReadLevel(null);
@@ -454,14 +508,86 @@ export function CarePlanTool() {
   // A helper link (/helper) starts a fresh plan with its presets in the normal inputs. Runs after the restore above.
   const helper = useHelperArrival((p) => { newPlan(); if (p.language) setLanguage(p.language); if (p.level) setLevel(p.level); if (p.zip) setZip(p.zip); });
 
+  // "Try it with a sample" (lib/sampleStart.ts): fill the sample in, then bring "Read my paper" into view and focus it,
+  // so the next thing to press is on screen. Each bump of readJump asks for one jump, after the render that enabled it.
+  const [readJump, setReadJump] = useState(0);
+  const loadSample = () => { setText(SAMPLE_AVS); setPhoto(null); setTab(1); setReadJump((n) => n + 1); };
+  const arriveWithSample = useEffectEvent(() => {
+    // Never replace a paper the person typed or photographed; just show them the button. On a phone a restored plan
+    // can be open on tab 2 or 3, where step 1 is hidden, so the button's tab is opened first either way (Codex review).
+    if (mayFillSample(live.current.text, !!live.current.photo, SAMPLE_AVS)) loadSample();
+    else { setTab(1); setReadJump((n) => n + 1); }
+  });
+  useEffect(() => {
+    const toTry = () => { try { window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#try`); } catch {} };
+    const fromHash = () => {
+      if (window.location.hash !== TRY_SAMPLE_HASH) return;
+      toTry();
+      arriveWithSample();
+    };
+    // The home button's href is #try-sample, so a tap before this page is interactive still arrives here on load.
+    // Once it is, the button also sends the event (Next changes the hash without a hashchange); tidy the hash after.
+    let tidy = 0;
+    const fromEvent = () => {
+      arriveWithSample();
+      window.clearTimeout(tidy);
+      tidy = window.setTimeout(() => { if (window.location.hash === TRY_SAMPLE_HASH) toTry(); }, 100);
+    };
+    fromHash();
+    window.addEventListener(TRY_SAMPLE_EVENT, fromEvent);
+    window.addEventListener("hashchange", fromHash);
+    return () => { window.clearTimeout(tidy); window.removeEventListener(TRY_SAMPLE_EVENT, fromEvent); window.removeEventListener("hashchange", fromHash); };
+  }, []);
+  useEffect(() => {
+    if (!readJump) return;
+    const askedAt = performance.now();
+    const go = () => {
+      // Never pull the person away: not after they have tapped, typed or scrolled since, nor out of a field they are in.
+      if (lastInteraction.current > askedAt) return;
+      if (isEditable(document.activeElement as HTMLElement | null)) return;
+      const el = document.getElementById("read-my-paper");
+      if (!el) return;
+      el.scrollIntoView({ block: "center" });
+      el.focus({ preventScroll: true });
+    };
+    // The first-visit intro (Preloader) holds the page with overflow hidden for about a second and a half, and says
+    // "atlas:intro-done" twice: once mid-animation (still locked) and once after it lets go. Jump once: right away, or
+    // on the first intro-done that arrives after the lock is gone, never both.
+    if (document.documentElement.style.overflow === "hidden") {
+      const onIntro = () => {
+        if (document.documentElement.style.overflow === "hidden") return; // still locked: wait for the next one
+        window.removeEventListener("atlas:intro-done", onIntro);
+        go();
+      };
+      window.addEventListener("atlas:intro-done", onIntro);
+      const stop = window.setTimeout(() => window.removeEventListener("atlas:intro-done", onIntro), 6000);
+      return () => { window.clearTimeout(stop); window.removeEventListener("atlas:intro-done", onIntro); };
+    }
+    const frame = requestAnimationFrame(go);
+    return () => cancelAnimationFrame(frame);
+  }, [readJump]);
+
   // Is the reading (or the plan) on screen still the one these inputs would get? A plan built from an outdated reading is outdated too.
   const careOutdated = !!care && careFp !== null && readFingerprintFor({ text, photo, language, level }) !== careFp;
-  const planOutdated = !!plan && planFp !== null && (careOutdated || planFingerprint({
+  // Not enough to read yet: "Read my paper" is off and a note says what to do first.
+  const needsPaper = !photo && text.trim().length < 20;
+  // The answers on screen in this render, as a plan fingerprint.
+  const answersFp = planFingerprint({
     careIds: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id),
     barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc,
-  }) !== planFp);
+  });
+  const planOutdated = !!plan && planFp !== null && (careOutdated || answersFp !== planFp);
+  // A streamed step is drawn only in a render whose answers match the ones it was built from, so an answer changed
+  // before the stale-plan effect runs never paints an old step, not even for one frame (Codex round 2 of PR 105).
+  // And never beside a paper or reading level that changed after the plan was asked for (Codex round 3).
+  const shownPreview = planning && !careOutdated && planPreview && planPreview.fp === answersFp && planPreview.steps.length > 0 ? planPreview : null;
+  // The ready cue, only for the exact result that raised it and only while that result is current.
+  const cueFor: Ready | null = !ready ? null
+    : ready.what === "steps" ? (care === ready.ref && !careOutdated ? "steps" : null)
+    : ready.what === "photo" ? (care === ready.ref && !careOutdated && !photoChecked ? "photo" : null)
+    : (plan === ready.ref && !planOutdated ? "plan" : null);
   const resultsCurrent = !careOutdated && !planOutdated;
-  const actionsOffReason = careOutdated ? "Read your paper again first" : "Update the plan first";
+  const actionsOffReason = t(careOutdated ? "plan.offPaper" : "plan.offPlan");
   // A plan made near the device's position, with no position or ZIP now: it needs a place before it can be updated.
   const needsPlace = !!plan && plan.located.by === "device" && !loc && !/^\d{5}$/.test(zip);
 
@@ -471,12 +597,19 @@ export function CarePlanTool() {
     if (!resultsCurrent) return;
     const next = autosaveStore({
       loaded: loaded.current, epoch, currentEpoch: sessionEpoch.current, store: storeRef.current,
-      session: { text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, matched: true }, now: new Date().toISOString(), newId: newPlanId(),
+      session: {
+        text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, matched: true,
+        // The check's verdicts, kept on this device with the steps they were made for (savedPlans.ts, checksKey).
+        // Only verdicts made for exactly these steps: ids like item-1 repeat between readings.
+        // Kept only when the server says it checked under this build's rules and model (checkPolicy.ts).
+        ...(care && meaning.status === "done" && meaning.policy === CHECK_POLICY && meaningFor.current === checksKey(care.items, care.language ?? language)
+          ? { checks: { key: meaningFor.current, policy: meaning.policy, byId: meaning.byId } } : {}),
+      }, now: new Date().toISOString(), newId: newPlanId(),
     });
     if (next) writeStore(next);
     // writeStore only touches refs, setters and localStorage; a new render's copy changes nothing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, resultsCurrent, epoch]);
+  }, [text, language, level, care, barriers, zip, note, plan, done, removed, photoChecked, meaning, resultsCurrent, epoch]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /**
@@ -538,7 +671,10 @@ export function CarePlanTool() {
   }
 
   function checkMeaningFor(c: CarePlanResponse) {
-    return runMeaningCheck(meaningFence, c.items, fetchMeaning, setMeaning, c.language);
+    // An older save has no language on its reading: use the plan's, so number words are read in the right language.
+    const lang = c.language ?? language;
+    meaningFor.current = checksKey(c.items, lang); // the steps these verdicts will belong to
+    return runMeaningCheck(meaningFence, c.items, fetchMeaning, setMeaning, lang);
   }
 
   // Leaving the page cancels a meaning check still in flight.
@@ -560,7 +696,7 @@ export function CarePlanTool() {
     planRun.current++; setPlanning(false); // drop any plan still on its way: it was built from the old steps
     pendingPlan.current?.abort.abort(); pendingPlan.current = null;
     pendingRead.current?.abort.abort();
-    setReadNote(null); setPlanNote(null); setPlanReadyNote(null);
+    setReadNote(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     const usePhoto = corrected === undefined && !!photo;
     pendingRead.current = {
       run, abort: ac, at: performance.now(),
@@ -591,17 +727,26 @@ export function CarePlanTool() {
       setCareFp(sent.fp);
       if (json.source_kind === "image" && photo) setReadPhoto({ for: json, file: photo });
       setReadLevel(usedLevel);
-      if (json.source_kind === "image") { setTranscript(json.source_text); return; }
+      if (json.source_kind === "image") {
+        setTranscript(json.source_text);
+        // The photo check waits in step 1; if they moved on while it read, the cue brings them back to it (Codex review, round 5).
+        if (!autoScrollOk(sent.at)) setReady({ what: "photo", ref: json });
+        return;
+      }
       void checkMeaningFor(json);
       // Scroll after the steps render (scrolling now would aim at where step 2 was before they appeared),
       // and only if the person has not scrolled, tapped or typed since pressing the button.
       const target = scrollTargetAfter("read", isPhoneNow());
-      if (target && autoScrollOk(sent.at)) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at };
+      if (!autoScrollOk(sent.at)) setReady({ what: "steps", ref: json }); // they moved on: offer the way back instead of moving them
+      else if (target) scrollAfter.current = { t: target, onlyIfHidden: false, anchor: true, submittedAt: sent.at, ready: { what: "steps", ref: json } };
     } catch (e) {
       if (readRun.current !== run) return; // stopped or replaced: nothing to show
       if (pendingRead.current?.run === run && pendingRead.current.fp !== liveReadFp()) return stopStaleRead();
       pendingRead.current = null;
-      setPartial([]); setError(e instanceof Error ? e.message : "Something went wrong.");
+      setPartial([]);
+      // The server's words are English: they go to the console, and the person reads a fixed line in their language.
+      console.error("read failed", e instanceof RequestFailed ? e.status : "", e instanceof Error ? e.message : e);
+      setError(t(failureKey(e, "read")));
     }
     finally { if (readRun.current === run) setReading(false); }
   }
@@ -610,13 +755,13 @@ export function CarePlanTool() {
   function stopStaleRead() {
     readRun.current++; pendingRead.current?.abort.abort(); pendingRead.current = null;
     setReading(false); setPartial([]);
-    setReadNote("You changed your paper or settings, so we stopped reading. Press Read my paper again when ready.");
+    setReadNote(t("paper.readStopped"));
   }
 
   function stopStalePlan() {
     planRun.current++; pendingPlan.current?.abort.abort(); pendingPlan.current = null;
     setPlanning(false);
-    setPlanNote("You changed your answers, so we stopped building the plan. Press Make my plan again when ready.");
+    setPlanNote(t("needs.planStopped"));
   }
 
   function autoScrollOk(submittedAt: number) {
@@ -639,22 +784,50 @@ export function CarePlanTool() {
     const abort = new AbortController();
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
     pendingPlan.current = { run, abort, at: performance.now(), fp: planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc }) };
-    setPlanning(true); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null);
+    setPlanning(true); setPlanPreview(null); setError(null); setPlan(null); setPlanNote(null); setPlanReadyNote(null); setReady(null);
     try {
       const body = {
         care: (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => ({ id: i.id, kind: i.kind, title: i.title, plain_language: i.plain_language, when: i.when, source_quote: i.source_quote })),
         barriers, language, note,
         ...(loc ? { location: loc } : /^\d{5}$/.test(zip) ? { zip } : {}),
       };
-      const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body), signal: abort.signal });
-      const json = await res.json();
+      // Each step is shown as soon as it is checked; only the final answer becomes the plan. The plain route is the
+      // fallback when the stream is missing or breaks (it builds the same plan in one answer). A failure is read now
+      // and judged after the staleness checks below, so a late failure for a changed plan is never shown.
+      let reply: { json: PlanResponse } | { err: unknown };
+      try {
+        // A step is shown only while this request still matches the answers on screen (Codex review of PR 105): an
+        // answer changed before the stale-plan effect ran must not paint a step built from the old ones.
+        const current = () => planRun.current === run && pendingPlan.current?.run === run && pendingPlan.current.fp === livePlanFp();
+        reply = { json: await streamPlanRequest(body, (p) => { if (current()) setPlanPreview({ ...p, fp: pendingPlan.current!.fp }); }, abort.signal) };
+      } catch (e) {
+        if (abort.signal.aborted) throw e;
+        if (!(e instanceof StreamBroken)) reply = { err: e };
+        else {
+          if (planRun.current === run) setPlanPreview(null);
+          if (pendingPlan.current?.run === run && pendingPlan.current.fp !== livePlanFp()) return stopStalePlan(); // no plain retry for old answers
+          // Nor for a paper changed since (Codex round 4 of PR 105): the retry would spend a model call on the old paper.
+          const l = live.current;
+          if (careFp !== null && readFingerprintFor({ text: l.text, photo: l.photo, language: l.language, level: l.level }) !== careFp) return stopStalePlan();
+          let res: Response;
+          try {
+            res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json", ...entryHeaders() }, body: JSON.stringify(body), signal: abort.signal });
+          } catch (err) {
+            if (abort.signal.aborted) throw err;
+            throw new RequestFailed(0, "Network error");
+          }
+          reply = await replyJson<PlanResponse>(res).then((json) => ({ json }), (err: unknown) => ({ err }));
+        }
+      }
       if (planRun.current !== run) return; // a new read, a clear, or a changed answer happened meanwhile
       const sent = pendingPlan.current;
       if (!sent || sent.run !== run) return;
       if (sent.fp !== livePlanFp()) return stopStalePlan(); // changed after sending; the change's effect may not have run yet
       pendingPlan.current = null;
-      if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
+      if ("err" in reply) throw reply.err;
+      const json = reply.json;
       setPlan(json);
+      setDone(dropPlanTicks); // ticks belong to the plan's steps; a new plan starts with none
       setPlanFp(sent.fp);
       consumeHelperSession();
       // Step 3 only exists after this render; what happens next is decided once it is on the page.
@@ -662,15 +835,17 @@ export function CarePlanTool() {
     } catch (e) {
       if (planRun.current !== run) return;
       if (pendingPlan.current?.run === run && pendingPlan.current.fp !== livePlanFp()) return stopStalePlan();
-      pendingPlan.current = null; setError(e instanceof Error ? e.message : "Something went wrong.");
+      pendingPlan.current = null;
+      console.error("plan failed", e instanceof RequestFailed ? e.status : "", e instanceof Error ? e.message : e);
+      setError(t(failureKey(e, "plan")));
     }
-    finally { if (planRun.current === run) setPlanning(false); }
+    finally { if (planRun.current === run) { setPlanning(false); setPlanPreview(null); } }
   }
 
   // Asking again drops the old position at once: a plan built from it is outdated until this request answers.
   // Only the latest request counts (a typed ZIP also supersedes any request still out).
   function useMyLocation() {
-    if (!navigator.geolocation) return setError("This browser can't share location. Type a ZIP instead.");
+    if (!navigator.geolocation) return setError(t("needs.noGeo"));
     const gen = ++locGen.current;
     setLoc(null); setLocating(true);
     navigator.geolocation.getCurrentPosition(
@@ -680,7 +855,7 @@ export function CarePlanTool() {
       },
       () => {
         if (locGen.current !== gen) return;
-        setLocating(false); setError("Location wasn't shared. Type a ZIP instead.");
+        setLocating(false); setError(t("needs.geoDenied"));
       },
       { timeout: 8000 },
     );
@@ -689,8 +864,8 @@ export function CarePlanTool() {
   // The phone's own voice. One utterance per line: Chrome silently stops a single long utterance after about 15 seconds.
   // If the browser never starts (iPhone Safari can ignore speech that isn't started by a tap), give up after 5 seconds.
   function phoneVoice(lines: string[], run: number) {
-    if (!("speechSynthesis" in window)) { setSpeaking(false); setVoiceNote("This device can't read aloud. Try Print or Send to family."); return; }
-    setVoiceNote("Reading with your phone's voice.");
+    if (!("speechSynthesis" in window)) { setSpeaking(false); setVoiceNote(t("voice.cant")); return; }
+    setVoiceNote(t("voice.phone"));
     let started = false;
     lines.forEach((line, i) => {
       const u = new SpeechSynthesisUtterance(line);
@@ -705,7 +880,7 @@ export function CarePlanTool() {
       if (speechRun.current !== run || started) return;
       window.speechSynthesis.cancel();
       setSpeaking(false);
-      setVoiceNote("This device didn't start reading. Tap Read it out loud again, or use Print or Send to family.");
+      setVoiceNote(t("voice.didntStart"));
     }, 5000);
   }
 
@@ -729,7 +904,7 @@ export function CarePlanTool() {
     } catch (e) {
       if (speechRun.current !== run) return;
       // iPhone Safari: the tap that started this expired during the download. One more tap plays it.
-      if (e instanceof DOMException && e.name === "NotAllowedError") { setTapToPlay(true); setVoiceNote("The voice is ready. Tap play."); }
+      if (e instanceof DOMException && e.name === "NotAllowedError") { setTapToPlay(true); setVoiceNote(t("voice.tapPlay")); }
       else fallBack(run);
     }
   }
@@ -774,7 +949,7 @@ export function CarePlanTool() {
   useEffect(() => {
     // Stopping speech sets state, on purpose: the reading must end the moment the plan goes out of date.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (planOutdated) { stopSpeaking(); document.documentElement.classList.remove("print-sheet"); }
+    if (planOutdated) { stopSpeaking(); document.documentElement.classList.remove("print-sheet", "print-view"); }
     // Only the change to outdated matters; stopSpeaking only touches refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planOutdated]);
@@ -793,9 +968,23 @@ export function CarePlanTool() {
     const kinds = ["pointerdown", "keydown", "wheel", "touchmove"] as const;
     kinds.forEach((k) => window.addEventListener(k, mark, opts));
     // A scroll with none of those (dragging the scrollbar, find in page) counts too, unless it is the page's own.
-    const onScroll = () => {
+    lastScrollY.current = window.scrollY;
+    const onScroll = (e: Event) => {
       const now = performance.now();
-      if (scrollIsPersons({ now, y: window.scrollY, own: ownScroll.current, layout: layoutShift.current })) lastInteraction.current = now;
+      // Chrome fires a scroll event without moving the page when content appears (measured live, Oct 4: pressing
+      // Make my plan inserts the working card and a scroll event arrives at the same scrollY). Nothing moved, so it is
+      // not the person, and a phone left alone must still open its plan (Akhil's report).
+      // Only the page's own scroll is checked this way: a scroll inside a box (the paper viewer, a long list) reaches this
+      // capture listener too without moving the page, and is still the person (Codex review).
+      const y = window.scrollY;
+      const t = e.target;
+      const isBox = t instanceof Element && t !== document.documentElement && t !== document.body;
+      if (!isBox) {
+        const moved = Math.abs(y - lastScrollY.current) >= 1;
+        lastScrollY.current = y;
+        if (!moved) return;
+      }
+      if (scrollIsPersons({ now, y, own: ownScroll.current, layout: layoutShift.current })) lastInteraction.current = now;
     };
     // The page's own scroll is over. If it stopped short of (or past) its target, the person moved it.
     const onScrollEnd = () => {
@@ -865,7 +1054,8 @@ export function CarePlanTool() {
 
   function runScroll(req: ScrollRequest) {
     // An automatic scroll is checked again here: a tap or scroll since the button press cancels it.
-    if (req.submittedAt !== undefined && !autoScrollOk(req.submittedAt)) { scrollAnchor.current = null; return; }
+    // Cancelled: offer the way back instead, so the result is never left off screen with no sign of it.
+    if (req.submittedAt !== undefined && !autoScrollOk(req.submittedAt)) { scrollAnchor.current = null; if (req.ready) setReady(req.ready); return; }
     const own = ownScroll.current;
     if (req.submittedAt !== undefined && own && performance.now() <= own.until) return waitForOwnScroll(req, own);
     markOwnScroll(scrollToPanel(req.t, req.onlyIfHidden));
@@ -880,6 +1070,8 @@ export function CarePlanTool() {
     if (!r || r.run !== readRun.current) return;
     if (readFingerprintFor({ text, photo, language, level }) === r.fp) return;
     stopStaleRead();
+    // stopStale* reads only this render's t, whose language is already a dependency here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, photo, language, level]);
 
   useEffect(() => {
@@ -888,6 +1080,8 @@ export function CarePlanTool() {
     const careIds = (care?.items ?? []).filter((i) => !removed[i.id]).map((i) => i.id);
     if (planFingerprint({ careIds, barriers, language, note, place: planPlace(!!loc, zip, locating), location: loc }) === p.fp) return;
     stopStalePlan();
+    // stopStale* reads only this render's t, whose language is already a dependency here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [care, removed, barriers, language, note, loc, zip, locating]);
 
   // Runs after every render; does nothing unless a tab change or a reply asked for a scroll.
@@ -908,10 +1102,11 @@ export function CarePlanTool() {
     const free = autoScrollOk(nav.submittedAt);
     const phone = isPhoneNow();
     if (free || !phone) setTab(3);
-    else setPlanReadyNote("Your plan is ready. Open 3 · Plan.");
+    else setPlanReadyNote(t("plan.ready"));
+    if (!free) setReady({ what: "plan", ref: nav.plan }); // they moved on: the floating "Your plan is ready" button takes them there
     const target = scrollTargetAfter("plan", phone);
     if (!target || !free) return;
-    const next = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt };
+    const next: ScrollRequest = { t: target, onlyIfHidden: false, anchor: true, submittedAt: nav.submittedAt, ready: { what: "plan", ref: nav.plan } };
     // On a phone the card shows only after the tab switch renders; if step 3 is already open, nothing re-renders.
     if (phone && tab !== 3) scrollAfter.current = next;
     else runScroll(next);
@@ -962,18 +1157,43 @@ export function CarePlanTool() {
 
   function pickTab(t: Tab, onlyIfHidden = true) {
     setTab(t);
-    if (t === 3) setPlanReadyNote(null); // they opened the plan
+    if (t === 3) { setPlanReadyNote(null); setReady((r) => (r?.what === "plan" ? null : r)); } // they opened the plan
     scrollAfter.current = { t, onlyIfHidden };
   }
 
-  // The handoff sheet is the only thing printed while html.print-sheet is set; afterprint clears it.
-  function printSheet() {
+  // "Show me" on the ready cue: the plan opens step 3; the steps (or the photo check) come to the top of step 1.
+  // Focus then follows to the result's heading, so keyboard and screen-reader users land there too (Codex review).
+  function goToReady(r: Ready) {
+    setReady(null);
+    const focusTarget = () => readyTarget(r)?.focus({ preventScroll: true });
+    if (r === "plan") {
+      pickTab(3, false);
+      requestAnimationFrame(() => requestAnimationFrame(focusTarget)); // after step 3 has rendered and scrolled
+      return;
+    }
+    setTab(1);
+    requestAnimationFrame(() => {
+      const el = readyTarget(r);
+      if (!el) return;
+      const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.style.scrollMarginTop = `${landingTop(el)}px`; // clear of whatever covers the top on this screen
+      markOwnScroll(scrollElementToTop(el, calm ? "auto" : "smooth"));
+      focusTarget();
+    });
+  }
+
+  // The handoff sheet shown on screen as the page, printed from its bar (printView.ts, PrintViewBar).
+  function printSheet(e: { currentTarget: Element }) {
     if (planOutdated) return;
-    const root = document.documentElement;
-    const done = () => { root.classList.remove("print-sheet"); window.removeEventListener("afterprint", done); };
-    root.classList.add("print-sheet");
-    window.addEventListener("afterprint", done);
-    window.print();
+    printOrView(HANDOFF_SHEET, e.currentTarget);
+  }
+
+  // Print the plan page; where the browser can't print from a button (Chrome on iPhone, or an app's browser that never
+  // starts a print), the handoff sheet, which holds the plan and the paper's words, is shown on screen to print from
+  // the browser's menu instead (printView.ts).
+  function printPlan(e: { currentTarget: Element }) {
+    if (planOutdated) return;
+    printPageOr(HANDOFF_SHEET, e.currentTarget);
   }
 
   const careById = Object.fromEntries((care?.items ?? []).map((i) => [i.id, i]));
@@ -983,6 +1203,8 @@ export function CarePlanTool() {
     const b = bookableItem(s.care_ids.map((id) => careById[id]).filter(Boolean));
     if (b && !bookAt.has(b.id)) bookAt.set(b.id, i);
   });
+  // "Start with these 3": the verified places that help with the most plan steps (lib/planTop.ts, no AI).
+  const top = plan ? topResources(plan) : [];
   const items = (care?.items ?? []).filter((i) => !removed[i.id]);
   // Every grounded step the plan could point at, removed or not: a plan step's paper quote never drops out (round 12).
   const planItems = (care?.items ?? []).filter((i) => i.grounded);
@@ -997,17 +1219,33 @@ export function CarePlanTool() {
     status: meaning.status,
     byId: Object.fromEntries(Object.entries(meaning.byId).map(([id, r]) => [id, checkFor(id) === "flagged" ? { ...r, certified: false, flagged: true } : r])),
   };
+  // Questions for the next visit, paper first (lib/visitQuestions.ts): a step's own question only when certified.
+  // General questions with every step's own question taken out, held-back steps included, before any surface uses them.
+  // A wrong paper's questions are the model asking the person for the right paper, not questions for a clinic.
+  const generalQuestions = care && !foundNothing(care) ? readingGeneralQuestions(care) : [];
+  const nextVisitTagged = care ? visitQuestionsTagged({ items: items.filter((i) => i.grounded), general: generalQuestions, also: care.items, checkFor }) : [];
+  const nextVisit = nextVisitTagged.map((q) => q.text);
   // A photo's steps quote the AI's own reading of it, so nothing is shown or planned until the person checks that reading.
   const needsPhotoCheck = care?.source_kind === "image" && !photoChecked;
   const removedItems = (care?.items ?? []).filter((i) => removed[i.id]);
   const missed = useMissedLines(care, removed);
+  // A read that found nothing (no steps, none held back, no warning signs): the paper is probably not a visit paper.
+  const noStepsFound = foundNothing(care);
+  const pasteAgain = () => {
+    const box = document.querySelector<HTMLTextAreaElement>('#try textarea[data-paper-box]');
+    box?.scrollIntoView?.({ block: "center" });
+    box?.focus({ preventScroll: true });
+    box?.select();
+  };
   const deviceStatus = deviceStatusOf(care, needsPhotoCheck, deviceRun);
-  const flow = { hasCare: !!care, hasPlan: !!plan };
+  const flow = { hasCare: !!care && !noStepsFound, hasPlan: !!plan };
   const openName = store.plans.find((p) => p.id === store.active)?.name ?? null;
   // The person changed our reading of their photo. Accepting or re-reading the old text would silently drop their fix.
   const transcriptEdited = !!care && isTranscriptEdited(transcript, care.source_text);
   const simplerOk = canMakeSimpler({ readLevel, hasCare: !!care, needsPhotoCheck, reading, sourceLength: care?.source_text.trim().length ?? 0, transcriptEdited, hasPlan: !!plan, planning });
   const shown = shownTab(tab, flow);
+  // The phone tab bar's "Your plan is ready" holds to the same rule as the cue: never for an outdated plan (Codex review, round 4).
+  const phonePlanNote = plan && shown !== 3 && !planOutdated ? planReadyNote : null;
   // Phones: one step card at a time. Hidden cards stay mounted (state, timers and requests carry on).
   const panel = (t: Tab) => ({
     id: panelId(t),
@@ -1016,17 +1254,18 @@ export function CarePlanTool() {
   const onPhone = (t: Tab) => (t === shown ? "" : "max-md:hidden");
 
   return (
-    <section id="try" className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="try-title">
+    <UiLangProvider language={language} paperLang={paperLangCode(care?.source_text ?? text)}>
+    <section id="try" lang={UI_LANG_CODE[language]} className="relative px-3 mt-3 scroll-mt-20" aria-labelledby="try-title">
       <div className="section-card bg-mint-soft px-4 sm:px-10 py-20">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 id="try-title" tabIndex={-1} className="display text-[clamp(2.4rem,5vw,5rem)]">Try it</h2>
-          <p className="hand text-3xl text-teal-deep rotate-1 max-w-[16em]">use the sample, or a paper you&apos;re comfortable sharing</p>
+          <h2 id="try-title" tabIndex={-1} className="display text-[clamp(2.4rem,5vw,5rem)]">{t("paper.sectionTitle")}</h2>
+          <p className="hand text-3xl text-teal-deep rotate-1 max-w-[16em]">{t("paper.sectionNote")}</p>
         </div>
 
         {restoredAt && (
           <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-teal bg-paper p-4">
-            <p className="font-bold">Welcome back. {openName ? <>&ldquo;{openName}&rdquo; is</> : "Your plan is"} saved on this device ({new Date(restoredAt).toLocaleString()}).</p>
-            <button type="button" onClick={clearSaved} className="rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold hover:bg-red-soft">Clear it from this device</button>
+            <p className="font-bold">{t("paper.welcomeBack")} {openName ? t("paper.savedNamed", { name: openName, when: new Date(restoredAt).toLocaleString(UI_LANG_CODE[language]) }) : t("paper.savedHere", { when: new Date(restoredAt).toLocaleString(UI_LANG_CODE[language]) })}</p>
+            <button type="button" onClick={clearSaved} className="rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold hover:bg-red-soft">{t("paper.clearSaved")}</button>
           </div>
         )}
 
@@ -1037,38 +1276,34 @@ export function CarePlanTool() {
 
         {error && <p role="alert" className="mt-6 rounded-2xl border-2 border-red bg-red-soft p-4 font-bold text-red">{error}</p>}
 
-        <PhoneTabBar shown={shown} state={flow} onPick={pickTab} notice={plan && shown !== 3 ? planReadyNote : null} />
+        <PhoneTabBar shown={shown} state={flow} onPick={pickTab} notice={phonePlanNote} />
+        {/* Only while that exact result is still on screen and current; the tab bar already announces the phone plan. */}
+        <ReadyCue ready={cueFor} announce={!(cueFor === "plan" && !!phonePlanNote)} onGo={goToReady} onSeen={clearReady} />
 
         {/* Step 1 */}
         <div {...panel(1)} className={`card mt-10 max-md:mt-4 p-5 sm:p-8 max-md:scroll-mt-44 ${onPhone(1)}`}>
-          <StepHeader n={1} title="Your visit paper" done={!!care} note="optional, but it makes the plan yours" />
+          <StepHeader n={1} title={t("paper.title")} done={!!care && !noStepsFound} note={t("paper.titleNote")} />
           <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_15rem]">
             <div>
-              <textarea data-lenis-prevent aria-label="After-visit summary text" className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
-                placeholder="Paste the after-visit summary here..." value={text} onChange={(e) => { setText(e.target.value); setPhoto(null); }} />
+              <textarea data-lenis-prevent data-paper-box="" aria-label={t("paper.textLabel")} className="h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
+                placeholder={t("paper.placeholder")} value={text} onChange={(e) => { setText(e.target.value); setPhoto(null); }} />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold">
-                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => { setText(SAMPLE_AVS); setPhoto(null); setTab(1); }}>Use the sample paper</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={loadSample}>{t("paper.useSample")}</button>
                 <label className="cursor-pointer rounded-full border-2 border-ink px-4 py-2 hover:bg-mint">
-                  📷 {photo ? photo.name : "Take or upload a photo"}
+                  📷 {photo ? photo.name : t("common.photoButton")}
                   <input type="file" accept="image/*" capture="environment" className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0] ?? null; setPhoto(f); if (f) setText(""); }} />
                 </label>
               </div>
-              <p className="mt-2 text-xs text-ink/70">{SAMPLE_LABEL}.</p>
+              <p className="mt-2 text-xs text-ink/70">{language === "English" ? SAMPLE_LABEL : t("paper.sampleLabel")}.</p>
+              <div className="mt-5"><ReadIn language={language} level={level} onLanguage={setLanguage} onLevel={setLevel} /></div>
             </div>
             <div className="flex flex-col gap-3">
-              <label className="text-sm font-bold">Explain it in
-                <select className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" value={language} onChange={(e) => setLanguage(e.target.value as typeof language)}>
-                  {LANGUAGES.map((l) => <option key={l}>{l}</option>)}
-                </select>
-              </label>
-              <label className="text-sm font-bold">Reading level
-                <select className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" value={level} onChange={(e) => setLevel(e.target.value as typeof level)}>
-                  {READING_LEVELS.map((l) => <option key={l}>{l}</option>)}
-                </select>
-              </label>
-              <SquashButton onClick={() => readPaper()} disabled={reading || (!photo && text.trim().length < 20)} bg="var(--teal)" accent="var(--sun)" className="mt-auto">
-                {reading ? "Reading..." : "Read my paper"}
+              {/* A greyed-out button alone says nothing; say what to do first (the Oct 4 watched try). */}
+              {needsPaper && <p id="read-hint" className="mt-auto text-sm font-bold text-ink/80">{t("paper.addFirst")}</p>}
+              <SquashButton id="read-my-paper" onClick={() => readPaper()} disabled={reading || needsPaper} describedBy={needsPaper ? "read-hint" : undefined}
+                bg="var(--teal)" accent="var(--sun)" className={needsPaper ? "" : "mt-auto"}>
+                {reading ? t("common.reading") : t("paper.read")}
               </SquashButton>
             </div>
           </div>
@@ -1076,153 +1311,74 @@ export function CarePlanTool() {
           {readNote && <p role="status" className="mt-4 rounded-2xl border-2 border-sun bg-paper p-3 text-sm font-bold">{readNote}</p>}
           {careOutdated && !reading && (
             <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-paper p-3 text-sm font-bold">
-              <p className="flex-1 min-w-[14rem]">You changed your paper or settings after we read it. The steps below are from the earlier version, and changes are not saved until you read it again.</p>
+              <p className="flex-1 min-w-[14rem]">{t("paper.changedAfterRead")}</p>
               <button type="button" onClick={() => readPaper()} disabled={!photo && text.trim().length < 20}
-                className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">Read it again</button>
+                className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">{t("paper.readAgain")}</button>
             </div>
           )}
           {/* Always mounted so screen readers hear each count change; one update per verified step, never per word. */}
           <p className="sr-only" role="status" aria-live="polite">
-            {reading && partial.length > 0 ? `${partial.length} ${partial.length === 1 ? "step" : "steps"} found so far` : ""}
+            {reading && partial.length > 0 ? tn("stepsFoundSoFar", partial.length) : ""}
           </p>
           {reading && partial.length === 0 && <WorkingCard kind="read" />}
           {reading && partial.length > 0 && <StreamingSteps items={partial} />}
 
           {care && needsPhotoCheck && (
             <div className="mt-8 rounded-2xl border-2 border-sky-deep bg-sky/60 p-4 sm:p-5">
-              <p className="font-extrabold">Check how we read your photo</p>
+              <p id="photo-check-title" tabIndex={-1} className="font-extrabold scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{t("paper.checkPhotoTitle")}</p>
               <p className="text-sm font-semibold text-ink/70">
-                Every step below has to quote this text. If a word or number is wrong here, fix it, then read it again so the steps come from your corrected text.
+                {ts("paper.checkPhotoBody")}
               </p>
-              <textarea data-lenis-prevent aria-label="Text read from your photo" className="mt-3 h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
+              <textarea data-lenis-prevent aria-label={t("paper.photoTextLabel")} className="mt-3 h-44 w-full rounded-2xl border-2 border-ink/70 bg-paper p-4 text-sm focus:border-teal"
                 value={transcript ?? care.source_text} onChange={(e) => setTranscript(e.target.value)} />
               <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
                 <button type="button" className="rounded-full bg-ink text-paper px-4 py-2 disabled:opacity-40"
                   disabled={reading || (transcript ?? care.source_text).trim().length < 20 || transcript === care.source_text}
-                  onClick={() => readPaper(transcript ?? care.source_text)}>Use my corrected text</button>
+                  onClick={() => readPaper(transcript ?? care.source_text)}>{t("paper.useCorrected")}</button>
                 <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint disabled:opacity-40"
                   disabled={transcriptEdited} aria-describedby={transcriptEdited ? "photo-edited" : undefined}
-                  onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>It matches my paper</button>
+                  onClick={() => { setPhotoChecked(true); void checkMeaningFor(care); }}>{ts("paper.itMatches")}</button>
                 {transcriptEdited && (
-                  <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => setTranscript(care.source_text)}>Undo my changes</button>
+                  <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={() => setTranscript(care.source_text)}>{t("paper.undoChanges")}</button>
                 )}
               </div>
               {transcriptEdited && (
-                <p id="photo-edited" className="mt-2 text-sm font-bold text-ink/70">You changed the text, so use your corrected text, or undo your changes.</p>
+                <p id="photo-edited" className="mt-2 text-sm font-bold text-ink/70">{t("paper.photoEdited")}</p>
               )}
             </div>
           )}
 
-          {care && !needsPhotoCheck && (
-            <div className="mt-8">
-              {care.has_warning_signs && (
-                <div className="mb-5 rounded-2xl border-2 border-red bg-red-soft p-4 text-red">
-                  <p className="font-extrabold">Your paper lists warning signs (marked red).</p>
-                  <p className="text-sm font-semibold">If you have any of them right now, do what your paper says: call your clinic, or call 911.</p>
-                </div>
-              )}
-              <p className="text-sm font-bold text-ink/70">{care.stats.grounded} steps found in your paper · {care.stats.refused} held back because we couldn&apos;t show their words from your paper · {(care.stats.ms / 1000).toFixed(1)}s</p>
-              {deviceStatus === "loading" && <p className="mt-1 text-xs font-semibold text-ink/70">Checking each step again on this device...</p>}
-              {deviceStatus === "error" && <p className="mt-1 text-xs font-semibold text-ink/70">This device couldn&apos;t run its own check, so each step shows our server&apos;s check only.</p>}
-              {simplerOk && (
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <button type="button" onClick={makeSimpler} aria-describedby="simpler-why"
-                    className="rounded-full border-2 border-ink bg-sun px-4 py-2 text-sm font-bold shadow-[0_2px_0_var(--ink)] hover:bg-mint focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-                    Too much? Make it simpler
-                  </button>
-                  <span id="simpler-why" className="text-xs font-semibold text-ink/70">Reads your paper again in plainer words, in the same language.</span>
-                </div>
-              )}
-              <div className="mt-4 grid gap-5 lg:grid-cols-[1.15fr_1fr]">
-                <ul className="space-y-3">
-                  {items.map((it, n) => (
-                    <li key={it.id} onMouseEnter={() => setActive(it.id)} onMouseLeave={() => setActive(null)}
-                      className={`rounded-2xl border-2 p-4 ${it.kind === "warning_sign" ? "border-red bg-red-soft/50" : "border-ink/70 bg-paper"}`}>
-                      <div className="flex items-start gap-3">
-                        <input type="checkbox" aria-label={`Mark step ${n + 1} done`} className="mt-1 h-5 w-5 accent-[var(--teal)]"
-                          checked={!!done[it.id]} onChange={(e) => setDone((d) => ({ ...d, [it.id]: e.target.checked }))} />
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`chip ${KIND[it.kind]?.cls}`}>{KIND[it.kind]?.label}</span>
-                            {checkFor(it.id) === "certified" && <span className="font-extrabold">{it.title}</span>}
-                            {checkFor(it.id) === "certified" && it.when && <span className="text-xs font-bold text-ink/70">· {it.when}</span>}
-                          </div>
-                          <PaperFirst v={careStepView(it, checkFor(it.id))} />
-                          {it.needs_clarification && it.question_for_clinic && <p className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">Ask your clinic: {it.question_for_clinic}</p>}
-                          <ShowOnPaper care={care} item={it} photo={readPhoto?.for === care ? readPhoto.file : null} />
-                          {deviceStatus === "done" && deviceRun.byId[it.id] === "match" && (
-                            <p className="mt-1 text-[11px] font-bold text-teal-deep" data-device-check="match">✓ Checked on this device: same words, same place in your paper</p>
-                          )}
-                          {deviceStatus === "done" && deviceRun.byId[it.id] && deviceRun.byId[it.id] !== "match" && (
-                            <p role="note" className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep" data-device-check="differ">
-                              Double-check this one: this device&apos;s own check {deviceRun.byId[it.id] === "missing" ? "could not find these words in your paper" : "found these words in a different place in your paper"}. Read the line from your paper above.
-                            </p>
-                          )}
-                          {meaning.status === "loading" && <p className="mt-1 text-[11px] font-semibold text-ink/70">Double-checking this against your paper...</p>}
-                          {meaning.status === "done" && meaning.byId[it.id]?.flagged && (
-                            <p role="note" className="mt-2 rounded-xl bg-peach p-2 text-sm font-semibold text-peach-deep">
-                              Double-check this one with your clinic: our second check says the explanation may not match your paper.
-                              {meaning.byId[it.id].what_differs ? ` ${meaning.byId[it.id].what_differs.charAt(0).toUpperCase()}${meaning.byId[it.id].what_differs.slice(1)}` : ""}
-                              {meaning.byId[it.id].unexpected_numbers.length > 0 ? ` (Number not in your paper: ${meaning.byId[it.id].unexpected_numbers.join(", ")}.)` : ""}
-                            </p>
-                          )}
-                          {meaning.status === "done" && meaning.byId[it.id]?.certified && (
-                            <p className="mt-1 text-[11px] font-bold text-teal-deep">✓ Double-checked: the explanation matches this line</p>
-                          )}
-                          {meaning.status === "done" && meaning.byId[it.id] && !meaning.byId[it.id].flagged && !meaning.byId[it.id].certified && (
-                            <p className="mt-1 text-[11px] font-semibold text-ink/70">Not double-checked: our second check couldn&apos;t confirm this one. Read the line from your paper above.</p>
-                          )}
-                        </div>
-                        <button type="button" aria-label={`Remove step ${n + 1}`} className="text-xs font-bold text-ink/70 hover:text-red"
-                          onClick={() => setRemoved((r) => ({ ...r, [it.id]: true }))}>Remove</button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                <div className="space-y-4">
-                  <div className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
-                    <p className="font-extrabold mb-2">Your paper, every step highlighted</p>
-                    {/* Focusable so keyboard users can scroll the paper (axe scrollable-region-focusable). */}
-                    <div data-lenis-prevent tabIndex={0} role="region" aria-label="Your paper with every step highlighted"
-                      className="max-h-[26rem] overflow-auto rounded-lg focus-visible:outline-2 focus-visible:outline-teal"><Highlighted text={care.source_text} items={items} active={active} /></div>
-                  </div>
-                  {removedItems.length > 0 && (
-                    <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4 text-sm">
-                      <p className="font-extrabold">You removed {removedItems.length}</p>
-                      <ul className="mt-2 space-y-1">
-                        {removedItems.map((r) => (
-                          <li key={r.id} className="flex items-center justify-between gap-2">
-                            <span data-paper-quote="">{KIND[r.kind]?.label ?? "Step"}: your paper says &ldquo;{r.source_quote}&rdquo;</span>
-                            <button type="button" className="font-bold underline" onClick={() => setRemoved((x) => { const n = { ...x }; delete n[r.id]; return n; })}>Undo</button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {care.not_in_document.length > 0 && (
-                    <div className="rounded-2xl border-2 border-ink/70 bg-paper p-4">
-                      <p className="font-extrabold">What your paper does not say</p>
-                      <p className="text-xs text-ink/70">Worth asking your clinic about.</p>
-                      <ul className="mt-2 list-disc pl-5 text-sm">{care.not_in_document.map((q, i) => <li key={i}>{q}</li>)}</ul>
-                    </div>
-                  )}
-                  {care.refused.length > 0 && (
-                    <div className="rounded-2xl border-2 border-ink/30 bg-paper p-4">
-                      <p className="font-extrabold">Held back to protect you ({care.refused.length})</p>
-                      <p className="text-xs text-ink/70">The AI suggested these, but we couldn&apos;t show their words from your paper, so we don&apos;t show what it said. Read your paper itself.</p>
-                      {/* Never the AI's title: a held-back step has no paper words to stand next to it (Codex round 13). */}
-                      <ul className="mt-2 list-disc pl-5 text-sm">{care.refused.map((r, n) => (
-                        <li key={r.id}>Held back {n + 1}: {r.held_reason === "sentence_too_long" ? "its sentence in your paper is too long to show here." : r.held_reason === "skips_across" ? "its words come from different lines of your paper." : "its words are not in your paper."}</li>
-                      ))}</ul>
-                    </div>
-                  )}
-                </div>
+          {care && !needsPhotoCheck && noStepsFound && (
+            // Nothing in the paper became a step (a wrong paper, like a shopping list): say so in the app's own words and
+            // offer the way back, instead of an empty list under a "checked" banner. The heading is the ready cue's landing spot.
+            <section aria-labelledby="steps-title" className="mt-8 rounded-2xl border-2 border-sun bg-paper p-4 sm:p-5" data-no-steps="">
+              <h3 id="steps-title" tabIndex={-1} className="display text-2xl scroll-mt-28 outline-none focus-visible:outline-3 focus-visible:outline-teal-deep">{t("steps.noneFound.title")}</h3>
+              <p className="mt-2 text-sm font-semibold">{ts("steps.noneFound.body")}</p>
+              <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
+                <button type="button" className="rounded-full border-2 border-ink bg-sun px-4 py-2 shadow-[0_2px_0_var(--ink)]" onClick={pasteAgain}>{t("steps.noneFound.paste")}</button>
+                <button type="button" className="rounded-full border-2 border-ink px-4 py-2 hover:bg-mint" onClick={loadSample}>{t("paper.useSample")}</button>
               </div>
+            </section>
+          )}
+
+          {care && !needsPhotoCheck && !noStepsFound && (
+            <div>
+              {/* "Your steps", grouped by when (CareSteps.tsx). Every row follows the paper-first rule. */}
+              <CareSteps key={runIdFor(care)} care={care} items={items} removedItems={removedItems} checkFor={checkFor} meaning={meaning}
+                deviceRun={deviceRun} deviceStatus={deviceStatus} done={done} language={language}
+                onDone={(id, v) => setDone((d) => ({ ...d, [id]: v }))}
+                onRemove={(id) => setRemoved((r) => ({ ...r, [id]: true }))}
+                onUndoRemove={(id) => setRemoved((x) => { const n = { ...x }; delete n[id]; return n; })}
+                photo={readPhoto?.for === care ? readPhoto.file : null} simpler={{ ok: simplerOk, onClick: makeSimpler }} />
               <MissedLines view={missed} />
               <Understand key={`${care.source_text.length}:${items.map((i) => i.id).join(",")}:${language}`} care={care} items={items} language={language} />
+              {/* "Ask my paper": answers only in the paper's own words, checked, or "your paper doesn't say" (lib/ask.ts). */}
+              {/* Off while the paper on screen differs from the one read: it would answer from the old text (Codex review). */}
+              {!careOutdated && <AskPaper key={`${runIdFor(care)}:${language}`} care={care} items={items} language={language}
+                photo={readPhoto?.for === care ? readPhoto.file : null} />}
               <button type="button" onClick={() => pickTab(2, false)}
                 className="md:hidden mt-8 w-full rounded-full border-2 border-ink bg-sun px-5 py-3 text-lg font-extrabold shadow-[0_3px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-                Next: your needs →
+                {t("paper.nextNeeds")}
               </button>
             </div>
           )}
@@ -1230,128 +1386,128 @@ export function CarePlanTool() {
 
         {/* Step 2 */}
         <div {...panel(2)} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 scroll-mt-24 max-md:scroll-mt-44 ${onPhone(2)}`}>
-          <StepHeader n={2} title="What gets in the way?" done={!!plan} note="pick any that fit" />
-          <div className="mt-6 flex flex-wrap gap-2.5" role="group" aria-label="Barriers">
+          <StepHeader n={2} title={t("needs.title")} done={!!plan} note={t("needs.note")} />
+          <div className="mt-6 flex flex-wrap gap-2.5" role="group" aria-label={t("needs.group")}>
             {BARRIERS.map((b) => {
               const on = barriers.includes(b);
               return (
                 <button key={b} type="button" aria-pressed={on} onClick={() => setBarriers((x) => (on ? x.filter((y) => y !== b) : [...x, b]))}
                   className={`rounded-full border-2 border-ink px-4 py-2.5 text-sm font-bold transition-all ${on ? "bg-teal text-paper shadow-[0_3px_0_var(--ink)] -translate-y-0.5" : "bg-paper hover:bg-mint"}`}>
-                  {on ? "✓ " : ""}{BARRIER_LABEL[b]}
+                  {on ? "✓ " : ""}{t(keyFor("barrier", b, "needs.group"))}
                 </button>
               );
             })}
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-[14rem_1fr]">
             <div>
-              <label className="text-sm font-bold" htmlFor="zip">Your ZIP</label>
+              <label className="text-sm font-bold" htmlFor="zip">{t("needs.zip")}</label>
               <input id="zip" inputMode="numeric" maxLength={5} className="mt-1 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5"
-                placeholder="e.g. 30340" value={zip} onChange={(e) => { setZip(e.target.value.replace(/\D/g, "")); setLoc(null); locGen.current++; setLocating(false); }} />
+                placeholder={t("needs.zipExample")} value={zip} onChange={(e) => { setZip(e.target.value.replace(/\D/g, "")); setLoc(null); locGen.current++; setLocating(false); }} />
               <button type="button" onClick={useMyLocation} className="mt-2 text-sm font-bold underline decoration-2 underline-offset-4">
-                {locating ? "Finding your location..." : loc ? "✓ Using your location (stays on this device)" : "Or use my location"}
+                {locating ? t("needs.locating") : loc ? t("needs.usingLocation") : t("needs.useLocation")}
               </button>
             </div>
-            <label className="text-sm font-bold">Anything else we should know? (optional)
-              <textarea data-lenis-prevent className="mt-1 h-24 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" placeholder="e.g. no car, I work mornings, I prefer home remedies first"
+            <label className="text-sm font-bold">{t("needs.anythingElse")}
+              <textarea data-lenis-prevent className="mt-1 h-24 w-full rounded-xl border-2 border-ink/70 bg-paper p-2.5" placeholder={t("needs.anythingElseExample")}
                 value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           </div>
           <div className="mt-6">
             <SquashButton onClick={makePlan} disabled={planning || needsPhotoCheck || locating || (barriers.length === 0 && items.length === 0)} bg="var(--ink)" accent="var(--mint)">
-              {planning ? "Building your plan..." : "Make my plan"}
+              {planning ? t("needs.building") : t("needs.makePlan")}
             </SquashButton>
-            {needsPhotoCheck && <p className="mt-3 text-sm font-bold text-ink/70">First check how we read your photo in step 1.</p>}
+            {needsPhotoCheck && <p className="mt-3 text-sm font-bold text-ink/70">{t("needs.checkPhotoFirst")}</p>}
             {planNote && <p role="status" className="mt-3 rounded-2xl border-2 border-sun bg-paper p-3 text-sm font-bold">{planNote}</p>}
-            {planning && <WorkingCard kind="plan" />}
+            {planning && (shownPreview ? <StreamingPlanSteps preview={shownPreview} /> : <WorkingCard kind="plan" />)}
           </div>
         </div>
 
-        {plan && care && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={care.questions_for_doctor} language={language} meaning={paperMeaning} planItems={planItems} alsoOnPaper={missedLineTexts(missed)} />}
+        {plan && care && !noStepsFound && !planOutdated && <HandoffSheet items={items.filter((i) => i.grounded)} plan={plan} questions={generalQuestions} language={language} meaning={paperMeaning} planItems={planItems} alsoOnPaper={missedLineTexts(missed)} paper={care.source_text} />}
 
         {/* Step 3 */}
         {plan && (
-          <div {...panel(3)} data-outdated={planOutdated || undefined} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 scroll-mt-24 max-md:scroll-mt-44 ${planOutdated ? "plan-outdated" : ""} ${onPhone(3)}`}>
+          <div {...panel(3)} ref={planCard} data-outdated={planOutdated || undefined} className={`card mt-6 max-md:mt-4 p-5 sm:p-8 max-md:pb-36 scroll-mt-24 max-md:scroll-mt-44 ${planOutdated ? "plan-outdated" : ""} ${onPhone(3)}`}>
             {/* Printing from the browser menu while the plan is outdated prints only this, never the outdated plan. */}
-            {planOutdated && <p className="outdated-print-note">This plan is out of date, so it is not printed. {actionsOffReason}, then print again.</p>}
-            <StepHeader n={3} title="Your plan" done note={plan.located.label} />
+            {planOutdated && <p className="outdated-print-note">{t("plan.outdatedPrint", { reason: actionsOffReason })}</p>}
+            <StepHeader n={3} id="plan-title" title={t("plan.title")} done note={locatedLine(language, plan.located)} />
             {planOutdated && (
               <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-sun bg-sun/30 p-3 text-sm font-bold">
                 {careOutdated
-                  ? <p>This plan was made from your earlier paper. Read it again in step 1, then make a new plan.</p>
+                  ? <p>{t("plan.outdatedPaper")}</p>
                   : <>
                       <p className="flex-1 min-w-[14rem]">
                         {needsPlace
-                          ? "This plan used your location from before, and your location is never saved. Use my location again or enter a ZIP in step 2, then update the plan."
-                          : "You changed your answers after this plan was made, so it may not fit them. Changes are not saved until you update it."}
+                          ? t("plan.outdatedPlace")
+                          : t("plan.outdatedAnswers")}
                       </p>
                       <button type="button" onClick={makePlan} disabled={planning || needsPlace || locating || (barriers.length === 0 && items.length === 0)}
-                        className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">Update plan</button>
+                        className="rounded-full border-2 border-ink bg-sun px-4 py-1.5 disabled:opacity-40">{t("plan.update")}</button>
                     </>}
               </div>
             )}
-            <p className="mt-4 text-xs font-bold uppercase tracking-wide text-ink/70">Suggestions from ATLAS, not your paper. If anything differs, follow your paper.</p>
+            <p className="mt-4 text-xs font-bold uppercase tracking-wide text-ink/70">{ts("plan.suggestions")}</p>
             <p className="mt-1 text-lg font-semibold max-w-[50em]">{plan.summary}</p>
-            <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
-              {/* An outdated plan can't be read aloud, printed, sent, booked or called from; the on-screen note says why. */}
-              {planOutdated && <span id="plan-actions-off" className="basis-full text-sm font-bold text-peach-deep">{actionsOffReason}: read aloud, printing, the handoff sheet, Send to family, Book it now and the calls, websites and directions below are off until then.</span>}
+            {/* On the first screen at every width: right under the summary, before the actions and the three calls. */}
+            {plan.ask_a_person && (
+              <div className="mt-4 rounded-2xl border-2 border-peach-deep bg-peach p-4 max-w-[50em]">
+                <p className="font-extrabold text-peach-deep">{t("plan.needsPerson")}</p>
+                <p className="text-sm font-semibold">{plan.ask_a_person_reason} {ts("plan.call211")}</p>
+                <p className="mt-2 text-xs font-semibold"><a className="underline decoration-2 underline-offset-4" href="/helper">{t("plan.helperLink")}</a></p>
+              </div>
+            )}
+            {/* An outdated plan can't be read aloud, printed, sent, booked or called from; the on-screen note says why. */}
+            {planOutdated && <p id="plan-actions-off" className="mt-3 text-sm font-bold text-peach-deep">{t("plan.actionsOff", { reason: actionsOffReason })}</p>}
+            {/* One set of plan actions. Wider screens: a row under the summary. Phones: a bar fixed to the bottom while
+                this card is on screen (globals.css, .plan-dock). Screen only; the print stylesheet leaves it out. */}
+            <div role="group" aria-label={t("plan.actions")} data-away={dockAway || undefined} data-lenis-prevent
+              className="plan-dock mt-4 flex flex-wrap items-center gap-3 text-sm font-bold">
               {tapToPlay
-                ? <button type="button" onClick={() => void startAudio(speechRun.current)} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink bg-sun px-4 py-2 disabled:opacity-40">▶ Tap to play</button>
+                ? <button type="button" onClick={() => void startAudio(speechRun.current)} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink bg-sun px-4 py-2 disabled:opacity-40"><DockLabel icon="▶" short={t("dock.play.short")} long={t("dock.play.long")} /></button>
                 : <button type="button" onClick={speak} aria-pressed={speaking} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined}
                     className={`rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40 ${speaking ? "bg-ink text-paper" : "bg-sun"}`}>
-                    {speaking ? "⏹ Stop reading" : "🔊 Read it out loud"}
+                    {speaking ? <DockLabel icon="⏹" short={t("dock.stop.short")} long={t("dock.stop.long")} /> : <DockLabel icon="🔊" short={t("dock.listen.short")} long={t("dock.listen.long")} />}
                   </button>}
-              {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2">Cancel</button>}
-              <span role="status" className={voiceNote ? "self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
-              <button type="button" onClick={() => { if (!planOutdated) window.print(); }} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40">🖨️ Print for the next visit</button>
-              <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40">📄 Print a handoff sheet</button>
-              {care && <ShareFamily items={items} plan={plan} questions={care.questions_for_doctor} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} />}
-              {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} />}
-              <span className="self-center text-ink/70">{plan.stats.steps} steps · {plan.stats.candidates} verified options checked · {plan.stats.dropped_refs} unverified suggestions removed</span>
+              {tapToPlay && <button type="button" onClick={stopSpeaking} className="rounded-full border-2 border-ink px-4 py-2"><DockLabel icon="✕" short={t("dock.cancel")} long={t("dock.cancel")} /></button>}
+              {!planOutdated && <CallMe key={callMeKey(language, plan)} plan={plan} language={language} short={t("dock.callMe.short")} />}
+              {care && !noStepsFound && <ShareFamily items={items} plan={plan} questions={generalQuestions} meaning={paperMeaning} planItems={planItems} disabled={planOutdated} describedBy={planOutdated ? "plan-actions-off" : undefined} short={t("dock.send.short")} />}
+              <button type="button" onClick={printPlan} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="🖨️" short={t("dock.print.short")} long={t("dock.print.long")} /></button>
+              {/* Only when the handoff sheet exists: it is built from a usable paper (none, or a wrong one, has no sheet). */}
+              {care && !noStepsFound && <button type="button" onClick={printSheet} disabled={planOutdated} aria-describedby={planOutdated ? "plan-actions-off" : undefined} className="rounded-full border-2 border-ink px-4 py-2 disabled:opacity-40"><DockLabel icon="📄" short={t("dock.handoff.short")} long={t("dock.handoff.long")} /></button>}
+              <span role="status" className={voiceNote ? "dock-note self-center text-xs font-semibold text-ink/70" : "sr-only"}>{voiceNote}</span>
             </div>
-            {plan.ask_a_person && (
-              <div className="mt-5 rounded-2xl border-2 border-peach-deep bg-peach p-4">
-                <p className="font-extrabold text-peach-deep">This needs a person too</p>
-                <p className="text-sm font-semibold">{plan.ask_a_person_reason} Call 211 (United Way of Greater Atlanta) or your community health worker.</p>
-                <p className="mt-2 text-xs font-semibold"><a className="underline decoration-2 underline-offset-4" href="/helper">Helping someone? Make them a link</a></p>
-              </div>
-            )}
-            <ol className="mt-6 space-y-5">
-              {plan.steps.map((s, i) => (
-                <li key={i} className="rounded-3xl border-2 border-ink bg-mint-soft/60 p-5">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="display text-3xl text-teal">{i + 1}</span>
-                    <p className="display text-2xl">{s.title}</p>
-                    {s.barrier && <span className="chip bg-paper border border-ink/30">{BARRIER_LABEL[s.barrier as Barrier] ?? s.barrier}</span>}
-                  </div>
-                  <p className="mt-2 font-semibold">{s.action}</p>
-                  {s.why && <p className="mt-1 text-sm text-ink/75">Why: {s.why}</p>}
-                  {/* The plan step is a suggestion, never certified: the paper's own words for its steps go with it. */}
-                  {planStepQuotes(s, planItems).map((q, k) => (
-                    <p key={k} data-paper-quote="" className="mt-2 border-l-4 border-sun pl-2 text-sm font-semibold">📄 Your paper says: &ldquo;{q}&rdquo;</p>
+            <p className="mt-3 text-xs font-bold text-ink/70">{tn("planStats", plan.stats.steps, { c: plan.stats.candidates, d: plan.stats.dropped_refs })}</p>
+            <TopCalls top={top} chosen={barriers} language={language} off={planOutdated ? actionsOffReason : undefined} offId={planOutdated ? "plan-actions-off" : undefined} />
+            <div className="mt-6">
+              <section aria-labelledby="plan-rows-title" className="min-w-0">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <h4 id="plan-rows-title" className="display text-2xl">{t("plan.yourPlanN", { steps: tn("steps", plan.steps.length) })}</h4>
+                  <p className="text-xs font-bold text-ink/70">{t("plan.tapOne")}</p>
+                </div>
+                <ol className="mt-3 space-y-2.5">
+                  {plan.steps.map((s, i) => (
+                    <ProblemRow key={i} step={s} index={i} quotes={planStepQuotes(s, planItems)} resources={plan.resources}
+                      done={!!done[planTickKey(i)]} onDone={(on) => setDone((d) => ({ ...d, [planTickKey(i)]: on }))}
+                      off={planOutdated ? actionsOffReason : undefined}
+                      bookIt={[...bookAt.values()].includes(i)
+                        ? <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean).map((i) => bookSafe(i, checkFor(i.id)))} barriers={barriers} language={language} offReason={planOutdated ? actionsOffReason : undefined} />
+                        : undefined} />
                   ))}
-                  {s.resource_ids.length > 0 && (
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      {s.resource_ids.map((id) => plan.resources[id] && <Resource key={id} r={plan.resources[id]} off={planOutdated ? actionsOffReason : undefined} />)}
-                    </div>
-                  )}
-                  {[...bookAt.values()].includes(i) && (
-                    <BookIt items={s.care_ids.map((id) => careById[id]).filter(Boolean).map((i) => bookSafe(i, checkFor(i.id)))} barriers={barriers} language={language} offReason={planOutdated ? actionsOffReason : undefined} />
-                  )}
-                </li>
-              ))}
-            </ol>
-            {care && care.questions_for_doctor.length > 0 && (
+                </ol>
+              </section>
+            </div>
+            {nextVisit.length > 0 && (
               <div className="mt-6 rounded-2xl border-2 border-ink/70 bg-paper p-5">
-                <p className="display text-2xl">Questions for your next visit</p>
-                <ul className="mt-2 list-disc pl-5 space-y-1">{care.questions_for_doctor.map((q, i) => <li key={i}>{q}</li>)}</ul>
+                <p className="display text-2xl">{t("plan.nextVisitQuestions")}</p>
+                <ul className="mt-2 list-disc pl-5 space-y-1">{nextVisitTagged.map((q, i) => <li key={i} lang={q.english ? "en" : undefined}>{q.text}</li>)}</ul>
               </div>
             )}
-            {care && !planOutdated && <SessionSummary key={helperSessionKey(store.active, plan.summary)} barriers={barriers} items={items} done={done} plan={plan} questions={care.questions_for_doctor} language={language} readingLevel={readLevel ?? level} />}
+            {care && !noStepsFound && !planOutdated && <SessionSummary key={helperSessionKey(store.active, plan.summary)} barriers={barriers} items={items} done={done} plan={plan} questions={nextVisit} language={language} readingLevel={readLevel ?? level} />}
             <Feedback key={plan.summary} language={language} token={plan.feedback_token ?? null} />
-            <p className="mt-6 text-xs text-ink/70">ATLAS explains your own paperwork and points to verified public resources. It is not medical advice. Model: {plan.model}.</p>
+            <p className="mt-6 text-xs text-ink/70">{t("common.notMedicalAdvice", { model: plan.model })}</p>
           </div>
         )}
       </div>
     </section>
+    </UiLangProvider>
   );
 }

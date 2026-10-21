@@ -75,7 +75,8 @@ describe("the care-plan screen never shows a failed delete as done", () => {
   });
 
   it("the saved-plans list says Deleted only when it was, and otherwise says how to retry", () => {
-    expect(saved).toMatch(/const deleted = onDelete\(p\.id\);\s*setSaid\(deleted \? `Deleted \$\{p\.name\}\.` :/);
+    // The words come from lib/uiText.ts now ("Deleted {name}." in English), so the source names the key.
+    expect(saved).toMatch(/const deleted = onDelete\(p\.id\);\s*setSaid\(deleted \? t\("saved\.said\.deleted", \{ name: p\.name \}\) :/);
     expect(saved).toMatch(/\{deleteFailed && <p role="alert"/);
     expect(saved).toMatch(/could not be deleted from this device and is still saved here\. Try again\./);
     expect(ui).toMatch(/deleteFailed=\{deleteFailed\}/);

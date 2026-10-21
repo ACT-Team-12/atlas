@@ -8,7 +8,7 @@ const item = (id: string, quote: string) => ({ id, kind: "medication", title: id
 const verdict = (id: string, flagged: boolean): MeaningResult => ({
   id, flagged, numbers_ok: !flagged, unexpected_numbers: [], model_verdict: flagged ? "different" : "same", what_differs: "", certified: !flagged,
 });
-const reply = (results: MeaningResult[]): MeaningResponse => ({ results, flagged: results.filter((r) => r.flagged).length, checker_model: "test", ms: 1 });
+const reply = (results: MeaningResult[]): MeaningResponse => ({ results, flagged: results.filter((r) => r.flagged).length, checker_model: "test", policy: "test-policy", ms: 1 });
 
 /** A post whose replies the test settles by hand, in any order. */
 function manualPost() {

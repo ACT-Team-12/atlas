@@ -1,4 +1,4 @@
-import type { Barrier } from "./resources";
+import { BARRIER_LABEL, type Barrier } from "./resources";
 
 /**
  * "Book it now": turns a plan step into the things a person needs to actually book it.
@@ -66,11 +66,32 @@ const ASK: Partial<Record<Barrier, string>> = {
 export function callScript(item: BookableItem, barriers: Barrier[], language = "English"): string[] {
   const lines = [`Hi, I'm calling to book this: ${item.title}.`, `My paper from the clinic says: "${item.source_quote}"`];
   if (item.when.trim()) lines.push(`As I understand it, it should happen: ${item.when.trim()}.`);
+  return [...lines, ...concernLines(barriers, language), CLOSING_LINE];
+}
+
+const CLOSING_LINE = "Before I hang up, let me write down the date, the time, the address and what I should bring.";
+
+/** The questions "Book it now" asks for the person's barriers. Shared with the plan's "What to say" for a program or clinic. */
+function concernLines(barriers: Barrier[], language: string): string[] {
+  const lines: string[] = [];
   if (barriers.includes("cost") || barriers.includes("insurance")) lines.push("I'm worried about the cost. What would this cost me, and is there help with paying?");
   if (barriers.includes("language") && language !== "English") lines.push(`Can I have an interpreter in ${language}?`);
   for (const b of barriers) if (ASK[b]) lines.push(ASK[b]!);
-  lines.push("Before I hang up, let me write down the date, the time, the address and what I should bring.");
   return lines;
+}
+
+/**
+ * "What to say" when calling a program or clinic from the plan: the same lines as "Book it now", built only from the
+ * place's verified name and the barriers this place helps with in the plan. No AI, no facts about the place itself.
+ */
+export function resourceScript(name: string, barriers: Barrier[], language = "English"): string[] {
+  const needs = barriers.map((b) => BARRIER_LABEL[b].charAt(0).toLowerCase() + BARRIER_LABEL[b].slice(1));
+  return [
+    `Hi, I'm calling about ${name}. I'd like to know if you can help me.`,
+    ...(needs.length ? [`I need help with: ${needs.join("; ")}.`] : []),
+    ...concernLines(barriers, language),
+    CLOSING_LINE,
+  ];
 }
 
 // ---------- Calendar file (RFC 5545) ----------

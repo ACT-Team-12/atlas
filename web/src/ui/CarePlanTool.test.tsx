@@ -11,6 +11,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CarePlanResponse } from "@/lib/schema";
 import type { PlanResponse } from "@/lib/plan";
 import { CarePlanTool } from "./CarePlanTool";
+import { ui, type UiKey } from "@/lib/uiText";
+import { failureKey, RequestFailed } from "@/lib/requestError";
+import { CHECK_POLICY, checksKey } from "@/lib/savedPlans";
+import { SAMPLE_AVS } from "@/lib/sample";
+import { TRY_SAMPLE_EVENT } from "@/lib/sampleStart";
+import { site } from "@/lib/siteText";
 
 vi.mock("@/lib/deviceChecker", () => ({ loadDeviceChecker: () => Promise.reject(new Error("no wasm in tests")), sameSpan: () => false }));
 
@@ -49,7 +55,7 @@ function planFor(summary: string): PlanResponse {
 let root: Root;
 let host: HTMLDivElement;
 let pending: Record<string, Deferred[]>;
-let fetchCalls: { url: string; body: Record<string, unknown> }[];
+let fetchCalls: { url: string; body: Record<string, unknown>; method?: string; hasBody?: boolean }[];
 let geo: { lat: number; lng: number };
 let phone = false;
 let scrolls: string[];
@@ -66,8 +72,9 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    fetchCalls.push({ url, body: init?.body ? JSON.parse(String(init.body)) : {} });
+    fetchCalls.push({ url, body: init?.body ? JSON.parse(String(init.body)) : {}, method: init?.method ?? "GET", hasBody: init?.body != null });
     if (url === "/api/extract/stream") return Promise.resolve(new Response(null, { status: 404 })); // older deploy: use the plain route
+    if (url === "/api/plan/stream") return Promise.resolve(new Response(null, { status: 404 })); // older deploy: use the plain route
     if (url === "/api/meaning") return Promise.resolve(json({ results: [] }));
     const queue = pending[url];
     if (queue?.length) return queue.shift()!.promise;
@@ -265,10 +272,135 @@ describe("automatic scroll after a reply", () => {
   });
 
   it("phone: dragging the scrollbar (a scroll with no tap, wheel or key) counts as using the page", async () => {
-    await planOnPhone(() => window.dispatchEvent(new Event("scroll")));
+    await planOnPhone(() => { setScrollY(240); window.dispatchEvent(new Event("scroll")); }); // a drag moves the page
     expect(tabSelected(3)).toBe("false");
     expect(scrolls).not.toContain("step-3");
     expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
+  });
+
+  it("phone, untouched: a scroll event that does not move the page (content appearing) does not stop step 3 opening", async () => {
+    // Akhil, Oct 4: measured live, pressing Make my plan inserts the working card and Chrome fires a scroll event at the
+    // same scrollY. Nothing moved, so it is not the person.
+    await planOnPhone(() => window.dispatchEvent(new Event("scroll")));
+    expect(tabSelected(3)).toBe("true");
+    expect(scrolls).toContain("step-3");
+  });
+
+  it("phone: scrolling inside a box (not the page) while the plan is built still counts as using the page", async () => {
+    const box = document.createElement("div");
+    host.appendChild(box);
+    await planOnPhone(() => box.dispatchEvent(new Event("scroll"))); // the page itself does not move
+    expect(tabSelected(3)).toBe("false");
+    expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
+    box.remove();
+  });
+
+  // Oct 4 watched tries: both testers scrolled away while the AI worked; one never found her plan.
+  const cue = () => host.querySelector<HTMLElement>("[data-ready-cue]");
+
+  it("phone, untouched: no ready cue (the page takes them there itself)", async () => {
+    await planOnPhone(() => {});
+    expect(cue()).toBeNull();
+  });
+
+  it("phone, moved on during the wait: a 'Your plan is ready' button appears, and Show me opens step 3", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    expect(cue()?.dataset.readyCue).toBe("plan");
+    expect(cue()?.textContent).toContain("Your plan is ready");
+    act(() => cue()!.querySelector("button")!.click());
+    expect(tabSelected(3)).toBe("true");
+    expect(scrolls).toContain("step-3");
+    expect(cue()).toBeNull();
+    // Focus follows to the plan's heading (Codex review), after step 3 has rendered.
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("plan-title");
+  });
+
+  it("phone: one announcement per plan (the tab bar's note speaks; the cue's live region stays quiet)", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    const speaking = [...host.querySelectorAll("[aria-live], [role=status]")].filter((n) => /Your plan is ready/.test(n.textContent ?? ""));
+    expect(speaking).toHaveLength(1);
+  });
+
+  it("the cue goes away when the plan it announced becomes outdated (Codex review)", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    expect(cue()).not.toBeNull();
+    expect(screenText()).toContain("Your plan is ready. Open 3 · Plan.");
+    act(() => byText("Paying for the visit").click()); // a changed answer: the plan on screen is now outdated
+    expect(cue()).toBeNull();
+    // The tab bar's note holds to the same rule: it never sends them to an outdated plan (Codex review, round 4).
+    expect(screenText()).not.toContain("Your plan is ready");
+  });
+
+  it("desktop: a tap after the reading lands but before its scroll runs raises the cue instead (Codex review, round 4)", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await outsideReact(async () => {
+      read.resolve(ready(careFor(PAPER)));
+      await microtasks(); // the reply is handled and its scroll queued; the render that runs it has not happened yet
+      window.dispatchEvent(new Event("pointerdown"));
+    });
+    expect(scrolls).not.toContain("step-2");
+    expect(cue()?.dataset.readyCue).toBe("steps");
+  });
+
+  it("desktop, moved on during the read: a 'Your steps are ready' button appears instead of a jump", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    window.dispatchEvent(new Event("pointerdown")); // they tapped somewhere else while it read
+    await release(read, ready(careFor(PAPER)));
+    expect(scrolls).not.toContain("step-2");
+    expect(cue()?.dataset.readyCue).toBe("steps");
+    act(() => cue()!.querySelector("button")!.click());
+    expect(cue()).toBeNull();
+    expect(tabSelected(1)).toBe("true");
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("steps-title");
+  });
+
+  it("steps with warning signs: Show me lands on the warnings, never past them (Codex review, round 7)", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    window.dispatchEvent(new Event("pointerdown"));
+    await release(read, ready({ ...careFor(PAPER), has_warning_signs: true }));
+    expect(screenText()).toContain("Warning signs from your paper");
+    act(() => cue()!.querySelector("button")!.click());
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("warn-title");
+    expect(scrolls).toContain("warn-title");
+  });
+
+  it("photo, moved on while it read: the cue brings them back to the photo check (Codex review, round 5)", async () => {
+    vi.stubGlobal("createImageBitmap", async () => ({ width: 10, height: 10 }));
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage: () => {} } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue("data:image/jpeg;base64,AAAA");
+    const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, "files", { configurable: true, value: [new File(["x"], "paper.jpg", { type: "image/jpeg" })] });
+    act(() => { input.dispatchEvent(new Event("change", { bubbles: true })); });
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    window.dispatchEvent(new Event("pointerdown")); // they scrolled away while it read
+    await release(read, ready({ ...careFor(PAPER), source_kind: "image" }));
+    expect(screenText()).toContain("Check how we read your photo");
+    expect(cue()?.dataset.readyCue).toBe("photo");
+    act(() => cue()!.querySelector("button")!.click());
+    expect(cue()).toBeNull();
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement?.id).toBe("photo-check-title");
+    vi.restoreAllMocks();
+  });
+
+  it("a new read clears a waiting cue", async () => {
+    await planOnPhone(() => window.dispatchEvent(new Event("pointerdown")));
+    expect(cue()).not.toBeNull();
+    act(() => typeInto(paperBox(), PAPER + " Also: walk daily."));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    expect(cue()).toBeNull();
+    await release(read, ready(careFor(PAPER)));
   });
 
   it("desktop: the page's own smooth scroll still moving does not count as the person scrolling", async () => {
@@ -365,9 +497,12 @@ describe("a result the person changed their answers after", () => {
     await release(read, ready(careFor(PAPER, "Metformin twice a day")));
     expect(saved()[0].text).toBe(PAPER);
 
+    expect(host.querySelector("[data-ask-paper]")).not.toBeNull();
     act(() => typeInto(paperBox(), `${PAPER} Walk for 20 minutes a day.`));
     expect(screenText()).toContain("Metformin twice a day");
     expect(screenText()).toContain(CARE_OUTDATED);
+    // Ask my paper would answer from the old text, so it is gone until the paper is read again.
+    expect(host.querySelector("[data-ask-paper]")).toBeNull();
     expect(saved()[0].text).toBe(PAPER);
 
     remount();
@@ -508,9 +643,17 @@ describe("an outdated plan cannot be acted on", () => {
     return p;
   }
   const ACTIONS = ["Read it out loud", "Print for the next visit", "Print a handoff sheet", "Send to family", "Book it now"];
-  /** Every link out of the plan's place cards: calls, websites, directions, and their source pages. */
-  const placeLinks = () => [...host.querySelectorAll<HTMLAnchorElement>("li a")].map((a) => a.getAttribute("href") ?? "");
-  const enabled = () => Object.fromEntries(ACTIONS.map((t) => [t, !byText(t).disabled]));
+  /** Every place link the plan offers: 7 in the plan rows plus 3 in "Start with these 3" (was 7 before the top three). */
+  const PLACE_LINKS = 10;
+  /** Every link out of the plan's place cards: calls, websites, directions, and their source pages. Scoped to the plan
+   *  card (step 3), since each care step now has its own "Remind me" calendar link. */
+  const placeLinks = () => [...host.querySelectorAll<HTMLAnchorElement>("#step-3 li a")].map((a) => a.getAttribute("href") ?? "");
+  /** The same five actions, by their label in `lang` (the app's own words follow the chosen language, lib/uiText.ts). */
+  const LABEL_KEY: Record<string, UiKey> = {
+    "Read it out loud": "dock.listen.long", "Print for the next visit": "dock.print.long", "Print a handoff sheet": "dock.handoff.long",
+    "Send to family": "dock.send.long", "Book it now": "book.open",
+  };
+  const enabled = (lang = "English") => Object.fromEntries(ACTIONS.map((t) => [t, !byText(ui(lang, LABEL_KEY[t])).disabled]));
   const all = (v: boolean) => Object.fromEntries(ACTIONS.map((t) => [t, v]));
   let speech: { speak: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> };
 
@@ -533,31 +676,33 @@ describe("an outdated plan cannot be acted on", () => {
     expect(screenText()).not.toContain("Update the plan first");
   }
 
-  const selectValue = (label: string, value: string) => {
-    const sel = [...host.querySelectorAll("label")].find((l) => l.textContent?.startsWith(label))!.querySelector("select")!;
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(sel, value);
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
-  };
+  // "Explain it in" is a set of radio buttons (ReadIn.tsx), each language in its own words.
+  const pickLanguage = (value: string) => host.querySelector<HTMLInputElement>(`input[name="read-in-language"][value="${value}"]`)!.click();
 
   const changes: [string, () => void][] = [
     ["place (a ZIP typed)", () => typeInto(host.querySelector<HTMLInputElement>("#zip")!, "30340")],
     ["barriers", () => byText("Paying for the visit").click()],
-    ["language", () => selectValue("Explain it in", "Spanish")],
+    ["language", () => pickLanguage("Spanish")],
     ["a removed step", () => (host.querySelector('button[aria-label="Remove step 1"]') as HTMLButtonElement).click()],
   ];
   for (const [what, change] of changes) {
     it(`after changing ${what}: read aloud, both prints, Send to family, Book it now and place links are off, with the reason`, async () => {
       await planReady();
-      expect(placeLinks()).toHaveLength(7); // clinic: call, website, directions, hours source; program: call, open, source
+      // Rows: clinic call, website, directions, hours source; program call, open; the program's source under "Why this?".
+      // "Start with these 3": the clinic's call button; the program's call button and its verified-page seal.
+      expect(placeLinks()).toHaveLength(PLACE_LINKS);
       expect(screenText()).toContain("Text RIDE to 404-555-0177");
       expect(screenText()).toContain("call 404-555-0188");
       act(change);
-      expect(enabled()).toEqual(all(false));
+      // Changing the language changes the app's own words too, so the actions are found by their Spanish labels.
+      const lang = what === "language" ? "Spanish" : "English";
+      expect(enabled(lang)).toEqual(all(false));
       expect(placeLinks()).toEqual([]);
       for (const n of ["404-555-0100", "404-555-0199", "404-555-0177", "404-555-0188"]) expect(screenText()).not.toContain(n); // no number to call or text
       expect(screenText()).toContain("Old Place Clinic"); // the place is still shown, only not offered
       expect(screenText()).toContain("Plan with the A1c test"); // still shown, labelled
-      expect(screenText()).toMatch(/Update the plan first|Read your paper again first/);
+      const reason = [ui(lang, "plan.offPlan"), ui(lang, "plan.offPaper")];
+      expect(reason.some((r) => screenText().includes(r))).toBe(true);
     });
   }
 
@@ -567,9 +712,10 @@ describe("an outdated plan cannot be acted on", () => {
     const print = vi.fn();
     vi.stubGlobal("print", print);
     act(() => byText("Print a handoff sheet").click());
-    expect(document.documentElement.classList.contains("print-sheet")).toBe(true); // set up, afterprint not fired yet
+    expect(document.documentElement.classList.contains("print-sheet")).toBe(true); // the sheet shown first (printView.ts)
     act(() => byText("Paying for the visit").click());
     expect(document.documentElement.classList.contains("print-sheet")).toBe(false);
+    expect(document.documentElement.classList.contains("print-view")).toBe(false); // never a blank page
     expect(document.getElementById("atlas-sheet")).toBeNull();
     const card = host.querySelector("#step-3, [data-outdated]")!.closest("[data-outdated]")!;
     expect(card.classList.contains("plan-outdated")).toBe(true);
@@ -600,7 +746,7 @@ describe("an outdated plan cannot be acted on", () => {
     act(() => byText("Update plan").click());
     await release(req, ready(planWithLab("Updated plan")));
     expect(enabled()).toEqual(all(true));
-    expect(placeLinks()).toHaveLength(7);
+    expect(placeLinks()).toHaveLength(PLACE_LINKS);
     expect(host.querySelector(".plan-outdated, .outdated-print-note")).toBeNull();
   });
 });
@@ -632,7 +778,8 @@ describe("reopening a plan built from the device location", () => {
     expect(screenText()).toContain(LOCATION_AGAIN);
     expect(byText("Update plan").disabled).toBe(true);
     expect(byText("Read it out loud").disabled).toBe(true);
-    expect(byText("Print a handoff sheet").disabled).toBe(true);
+    // No paper was read, so there is no handoff sheet and no button for one (Codex review of PR 107, round 4).
+    expect(() => byText("Print a handoff sheet")).toThrow();
   });
 
   it("a fresh position, then Update plan, makes it current again", async () => {
@@ -699,6 +846,115 @@ describe("a plan saved before results were checked against answers", () => {
     reopenWith({ matched: true });
     expect(screenText()).not.toContain("Read your paper again first");
     expect(byText("Read it out loud").disabled).toBe(false);
+  });
+
+  // Found Oct 5 on the live site: a reopened plan never ran the second check, so every step said "Checked once".
+  // Found Oct 5 on the live site: a reopened plan showed every step as checked once. Its verdicts now come back from
+  // the save itself; reopening never sends the paper anywhere (the privacy page's promise, Codex review of PR 104).
+  const certified = (id: string) => ({ id, flagged: false, numbers_ok: true, unexpected_numbers: [], model_verdict: "same" as const, what_differs: "", certified: true });
+  const sealCounts = () => [...host.querySelectorAll("[data-seal-label]")].map((e) => e.textContent?.trim() ?? "").reduce<Record<string, number>>((a, s) => ({ ...a, [s]: (a[s] ?? 0) + 1 }), {});
+
+  // The privacy page's promise is "Nothing is uploaded" on reopen: no request carries a body. Body-less GETs (what
+  // this device can do, like the call option's config) carry nothing of the paper or the plan (Codex round 3).
+  it("reopening a saved plan uploads nothing: no request carries a body, none goes to the double-check", () => {
+    fetchCalls = [];
+    reopenWith({ matched: true });
+    expect(fetchCalls.filter((c) => c.url === "/api/meaning")).toHaveLength(0);
+    expect(fetchCalls.filter((c) => c.hasBody || c.method !== "GET")).toEqual([]);
+  });
+
+  it("verdicts saved with a plan come back on reopen, for exactly those steps", () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ matched: true, checks: { key: checksKey(care.items, care.language ?? "English"), policy: CHECK_POLICY, byId } });
+    expect(sealCounts()["Checked twice"]).toBe(care.items.length);
+  });
+
+  it("restored verdicts stay saved: a second reopen still shows them checked twice (Codex round 4)", async () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ matched: true, checks: { key: checksKey(care.items, care.language ?? "English"), policy: CHECK_POLICY, byId } });
+    await act(async () => { await drain(); await drain(); }); // let the autosave run
+    expect(localStorage.getItem("atlas-plans-v2")).toContain('"checks"');
+    act(() => root.unmount());
+    root = createRoot(host);
+    act(() => root.render(<CarePlanTool />));
+    await act(async () => { await drain(); });
+    expect(sealCounts()["Checked twice"]).toBe(care.items.length);
+  });
+
+  it("verdicts saved for other steps are dropped: the steps show as checked once", () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ matched: true, checks: { key: checksKey([{ id: "item-1", source_quote: "a different paper" }], care.language ?? "English"), policy: CHECK_POLICY, byId } });
+    expect(sealCounts()["Checked twice"] ?? 0).toBe(0);
+  });
+
+  it("an outdated save never gets its verdicts back", () => {
+    const care = careFor(PAPER);
+    const byId = Object.fromEntries(care.items.map((i) => [i.id, certified(i.id)]));
+    reopenWith({ checks: { key: checksKey(care.items, care.language ?? "English"), policy: CHECK_POLICY, byId } }); // no matched: outdated
+    expect(sealCounts()["Checked twice"] ?? 0).toBe(0);
+  });
+
+  it("an older non-English photo save, confirmed after reopening, is checked in the plan's language", async () => {
+    const { language: _drop, ...noLang } = { ...careFor(PAPER), source_kind: "image" as const };
+    void _drop;
+    reopenWith({ matched: true, language: "Spanish", care: noLang, photoChecked: false });
+    fetchCalls = [];
+    await act(async () => { byText("It matches my paper").click(); await drain(); });
+    const meaning = fetchCalls.filter((c) => c.url === "/api/meaning");
+    expect(meaning).toHaveLength(1);
+    expect((meaning[0].body as { language?: string }).language).toBe("Spanish");
+  });
+
+  let serverPolicy = CHECK_POLICY;
+  it("a fresh read keeps its verdicts in the save, with the key for its steps", async () => {
+    serverPolicy = CHECK_POLICY;
+    const original = fetch;
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/meaning") {
+        const body = JSON.parse(String(init?.body)) as { items: { id: string }[] };
+        return Promise.resolve(json({ results: body.items.map((i) => certified(i.id)), flagged: 0, checker_model: "test", policy: serverPolicy, ms: 1 }));
+      }
+      return original(input, init);
+    });
+    act(() => typeInto(paperBox(), PAPER));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    const care = careFor(PAPER);
+    await release(req, ready(care));
+    await act(async () => { await drain(); await drain(); });
+    const saved = JSON.parse(localStorage.getItem("atlas-plans-v2")!) as { plans: { checks?: { key: string; byId: Record<string, unknown> } }[] };
+    expect(saved.plans[0].checks?.key).toBe(checksKey(care.items, care.language ?? "English"));
+    expect(Object.keys(saved.plans[0].checks?.byId ?? {})).toHaveLength(care.items.length);
+  });
+
+  it("verdicts the server made under another checker model are never saved", async () => {
+    serverPolicy = "2026-10-05:some-other-model";
+    const original = fetch;
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/meaning") {
+        const body = JSON.parse(String(init?.body)) as { items: { id: string }[] };
+        return Promise.resolve(json({ results: body.items.map((i) => certified(i.id)), flagged: 0, checker_model: "x", policy: serverPolicy, ms: 1 }));
+      }
+      return original(input, init);
+    });
+    act(() => typeInto(paperBox(), PAPER));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(req, ready(careFor(PAPER)));
+    await act(async () => { await drain(); await drain(); });
+    const saved = JSON.parse(localStorage.getItem("atlas-plans-v2")!) as { plans: { checks?: unknown }[] };
+    expect(sealCounts()["Checked twice"]).toBe(1); // shown now, for this read
+    expect(saved.plans[0].checks).toBeUndefined(); // but never kept for a reopen under this build
+  });
+
+  it("a saved level that is no longer a choice: no crash, defaults shown, plan outdated with actions off", () => {
+    reopenWith({ matched: true, level: "expert" });
+    expect(screenText()).toContain("Read your paper again first");
+    for (const t of ["Read it out loud", "Print for the next visit", "Print a handoff sheet", "Send to family"]) expect(byText(t).disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>('input[name="read-in-level"]:checked')!.value).toBe("simple");
   });
 
   it("a plan saved with internal ids in its text comes back without them (the live 2026-10-03 sentence)", () => {
@@ -903,5 +1159,326 @@ describe("refreshing the device location", () => {
     expect(fetchCalls.at(-1)?.body).toMatchObject({ zip: "30340" });
     expect(fetchCalls.at(-1)?.body.location).toBeUndefined();
     await release(req, ready(planFor("Plan near 30340")));
+  });
+});
+
+describe("your steps, grouped by when (CareSteps inside the real tool)", () => {
+  async function read() {
+    act(() => typeInto(paperBox(), PAPER));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    const care = careFor(PAPER, "AI title for metformin");
+    care.not_in_document = ["How long to keep taking it"];
+    await release(req, ready(care));
+  }
+
+  it("the missed-lines check and 'What your paper does not say' are still on the screen", async () => {
+    await read();
+    expect(screenText()).toContain("Lines on your paper we didn't turn into steps");
+    expect(screenText()).toContain("What your paper does not say");
+    expect(screenText()).toContain("How long to keep taking it");
+  });
+
+  it("the meaning check certified nothing: the row shows the paper's words and the step sits in its paper time group", async () => {
+    await read();
+    const row = host.querySelector('li[data-step="c1"]')!;
+    expect(row.closest("[data-when-group]")?.getAttribute("data-when-group")).toBe("daily"); // "twice a day" in the quote
+    const toggle = row.querySelector("button[aria-expanded]")!;
+    expect(toggle.textContent).toContain("“metformin 500 mg twice a day”");
+    expect(toggle.textContent).not.toContain("AI title for metformin");
+  });
+
+  it("done is saved, and Remove moves a step to 'You removed', with Undo", async () => {
+    await read();
+    act(() => host.querySelector<HTMLInputElement>('input[aria-label="Mark step 1 done"]')!.click());
+    expect(JSON.parse(localStorage.getItem("atlas-plans-v2")!).plans[0].done).toEqual({ c1: true });
+    act(() => (host.querySelector('button[aria-label="Remove step 1"]') as HTMLButtonElement).click());
+    expect(host.querySelector('li[data-step="c1"]')).toBeNull();
+    expect(screenText()).toContain("You removed 1");
+    act(() => byText("Undo").click());
+    expect(host.querySelector('li[data-step="c1"]')).not.toBeNull();
+  });
+});
+
+/**
+ * The first watched try (Oct 4): a medical assistant tapped "Try it with a sample" on the home page, landed on an empty
+ * box with "Read my paper" greyed out below the fold, and was "looking for just anything to press".
+ */
+describe("Try it with a sample lands with the sample in and Read my paper in view", () => {
+  const readButton = () => host.querySelector<HTMLButtonElement>("#read-my-paper")!;
+  const frame = () => new Promise((r) => setTimeout(r, 30));
+
+  it("an empty box says what to do first, and the button points at that note", () => {
+    expect(readButton().disabled).toBe(true);
+    expect(host.querySelector("#read-hint")?.textContent).toContain("Use the sample paper");
+    expect(readButton().getAttribute("aria-describedby")).toBe("read-hint");
+  });
+
+  it("the home page event fills the sample, enables the button, scrolls it into view and focuses it", async () => {
+    // The event's render commits when act ends; the scroll waits one frame after that.
+    act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+    await act(async () => { await frame(); });
+    expect(paperBox().value).toBe(SAMPLE_AVS);
+    expect(readButton().disabled).toBe(false);
+    expect(host.querySelector("#read-hint")).toBeNull();
+    expect(readButton().hasAttribute("aria-describedby")).toBe(false);
+    expect(scrolls).toContain("read-my-paper");
+    expect(document.activeElement).toBe(readButton());
+  });
+
+  it("never replaces a paper the person typed; it only shows them the button", async () => {
+    act(() => typeInto(paperBox(), "My dad's discharge paper: take one pill a day and call if dizzy."));
+    // The event's render commits when act ends; the scroll waits one frame after that.
+    act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+    await act(async () => { await frame(); });
+    expect(paperBox().value).toBe("My dad's discharge paper: take one pill a day and call if dizzy.");
+    expect(scrolls).toContain("read-my-paper");
+  });
+
+  it("Use the sample paper also brings the button into view", async () => {
+    await act(async () => { byText("Use the sample paper").click(); await frame(); });
+    expect(paperBox().value).toBe(SAMPLE_AVS);
+    expect(scrolls).toContain("read-my-paper");
+    expect(document.activeElement).toBe(readButton());
+  });
+
+  it("a link to /#try-sample fills the sample on load and leaves #try in the address bar", async () => {
+    act(() => root.unmount());
+    window.history.replaceState(null, "", "/#try-sample");
+    root = createRoot(host);
+    await act(async () => { root.render(<CarePlanTool />); await frame(); });
+    expect(paperBox().value).toBe(SAMPLE_AVS);
+    expect(window.location.hash).toBe("#try");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("the home button's own href carries the request, so a tap before the page is interactive still works", () => {
+    // Codex review: with href="#try" the request lived only in the click handler, which does not exist before hydration.
+    const hero = readFileSync(join(__dirname, "Hero.tsx"), "utf8");
+    // One line: the opening tag (whose onClick contains "=>") through the label (the site's own words, lib/siteText.ts).
+    expect(hero).toMatch(/<SquashButton href=\{TRY_SAMPLE_HASH\}[^\n]*>\{s\("hero\.try"\)\}<\/SquashButton>/);
+    expect(site("English", "hero.try")).toBe("Try it with a sample");
+  });
+
+  it("on a phone with their own paper on another tab: keeps the paper, opens tab 1, then jumps (Codex review)", async () => {
+    phone = true;
+    act(() => typeInto(paperBox(), "My dad's discharge paper: take one pill a day and call if dizzy."));
+    act(() => host.querySelector<HTMLButtonElement>("#tab-step-2")!.click());
+    expect(host.querySelector("#tab-step-2")?.getAttribute("aria-selected")).toBe("true");
+    act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+    await act(async () => { await frame(); });
+    expect(paperBox().value).toBe("My dad's discharge paper: take one pill a day and call if dizzy.");
+    expect(host.querySelector("#tab-step-1")?.getAttribute("aria-selected")).toBe("true");
+    expect(scrolls).toContain("read-my-paper");
+  });
+
+  describe("while the first-visit intro holds the page", () => {
+    afterEach(() => { document.documentElement.style.overflow = ""; });
+
+    it("waits for the intro to let go, then jumps once (Preloader's real order: intro-done while locked, then again)", async () => {
+      document.documentElement.style.overflow = "hidden";
+      act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+      await act(async () => { await frame(); });
+      expect(scrolls).not.toContain("read-my-paper");
+      // First intro-done: mid-animation, the page is still locked. Codex review: this used to consume the jump.
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls).not.toContain("read-my-paper");
+      // Second intro-done: finish() has cleared the lock.
+      document.documentElement.style.overflow = "";
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls.filter((s) => s === "read-my-paper")).toHaveLength(1);
+      expect(document.activeElement).toBe(readButton());
+      // Any later intro-done does nothing more.
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls.filter((s) => s === "read-my-paper")).toHaveLength(1);
+    });
+
+    it("a late intro never pulls the person out of what they started (Codex review)", async () => {
+      document.documentElement.style.overflow = "hidden";
+      act(() => { window.dispatchEvent(new Event(TRY_SAMPLE_EVENT)); });
+      await act(async () => { await frame(); });
+      // The person starts typing in their own note before the intro lets go.
+      act(() => { paperBox().focus(); window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" })); });
+      document.documentElement.style.overflow = "";
+      await act(async () => { window.dispatchEvent(new Event("atlas:intro-done")); await frame(); });
+      expect(scrolls).not.toContain("read-my-paper");
+      expect(document.activeElement).toBe(paperBox());
+    });
+  });
+});
+
+describe("the plan streams in, step by step", () => {
+  const step = (title: string, action: string) => ({ title, action, why: "", barrier: "transport", care_ids: [], resource_ids: ["g1"], dropped_refs: [] });
+  const resources = { g1: { type: "program", id: "g1", program: { id: "g1", name: "Ride Program", barriers: [], access: {}, languages: [], evidence_quote: "", source_url: "" } } };
+  const located = { by: "none", label: "No location given" };
+  const line = (e: unknown) => new TextEncoder().encode(JSON.stringify(e) + "\n");
+
+  /** Answers /api/plan/stream with a body the test writes to, line by line. */
+  function openStream() {
+    let ctl!: ReadableStreamDefaultController<Uint8Array>;
+    const body = new ReadableStream<Uint8Array>({ start(c) { ctl = c; } });
+    const base = fetch;
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) !== "/api/plan/stream") return base(input, init);
+      fetchCalls.push({ url: "/api/plan/stream", body: JSON.parse(String(init?.body)) });
+      return Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "application/x-ndjson" } }));
+    });
+    return {
+      send: async (e: unknown) => { await act(async () => { ctl.enqueue(line(e)); await drain(); }); },
+      cut: async () => { await act(async () => { ctl.error(new Error("connection reset")); await drain(); }); },
+      end: async () => { await act(async () => { try { ctl.close(); } catch { /* the page already let go of it */ } await drain(); }); },
+    };
+  }
+
+  it("shows each checked step as it comes, with its verified place, and only the final answer becomes the plan", async () => {
+    const s = openStream();
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    expect(screenText()).not.toContain("Still building your plan"); // nothing to show yet: the working card stays
+    await s.send({ type: "step", step: step("Get a ride", "Call the ride program the day before.") });
+    expect(screenText()).toContain("Still building your plan");
+    expect(screenText()).toContain("1 step ready so far");
+    expect(screenText()).toContain("Get a ride");
+    expect(screenText()).toContain("Ride Program");
+    await s.send({ type: "step", step: step("Book the lab", "Ask for an early slot.") });
+    expect(screenText()).toContain("2 steps ready so far");
+    // Nothing is saved or offered from the preview.
+    expect(Object.values({ ...localStorage }).join("")).not.toContain("Get a ride");
+    const final = { ...planFor("Your streamed plan"), steps: [step("Get a ride", "Call the ride program the day before."), step("Book the lab", "Ask for an early slot.")], resources };
+    await s.send({ type: "done", plan: final });
+    await s.end();
+    expect(screenText()).not.toContain("Still building your plan");
+    expect(screenText()).toContain("Your streamed plan");
+    expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(0);
+  });
+
+  it("a stream cut mid-plan drops the preview and builds the plan on the plain route", async () => {
+    const s = openStream();
+    act(() => byText("Getting there").click());
+    const plain = hold("/api/plan");
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    await s.send({ type: "step", step: step("Half a plan", "Never finished.") });
+    await s.cut();
+    expect(screenText()).not.toContain("Half a plan");
+    expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(1);
+    await release(plain, ready(planFor("Plan from the plain route")));
+    expect(screenText()).toContain("Plan from the plain route");
+  });
+
+  it("an answer changed while it streams: the old steps leave the screen and nothing from them lands", async () => {
+    const s = openStream();
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    await s.send({ type: "step", step: step("Old answers step", "From before the change.") });
+    act(() => byText("Paying for the visit").click()); // a changed answer stops the plan
+    expect(screenText()).not.toContain("Old answers step");
+    expect(screenText()).toContain("You changed your answers, so we stopped building the plan.");
+  });
+
+  it("the paper is edited while the plan streams: steps from the old paper leave the screen (Codex round 3)", async () => {
+    const s = openStream();
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    await s.send({ type: "step", step: step("Old paper step", "From the paper before the edit.") });
+    expect(screenText()).toContain("Old paper step");
+    act(() => typeInto(paperBox(), PAPER + " Also check your feet daily."));
+    expect(screenText()).not.toContain("Old paper step");
+  });
+
+  it("the paper is edited, then the stream breaks: no retry on the old paper (Codex round 4)", async () => {
+    const s = openStream();
+    act(() => typeInto(paperBox(), PAPER));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(careFor(PAPER)));
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    act(() => typeInto(paperBox(), PAPER + " Also check your feet daily."));
+    await s.cut();
+    expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(0);
+  });
+
+  it("the server's own error is shown, not retried, and steps already shown leave the screen", async () => {
+    const s = openStream();
+    act(() => byText("Getting there").click());
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await s.send({ type: "start", resources, located });
+    await s.send({ type: "step", step: step("Shown then declined", "Never part of a plan.") });
+    expect(screenText()).toContain("Shown then declined");
+    await s.send({ type: "error", error: "The AI declined to build this plan.", status: 422 });
+    await s.end();
+    // The person sees the app's own line for a refused plan (PR 93); the server's English words are only logged.
+    expect(screenText()).toContain(ui("English", failureKey(new RequestFailed(422, ""), "plan")));
+    expect(screenText()).not.toContain("The AI declined to build this plan.");
+    expect(screenText()).not.toContain("Shown then declined"); // a preview step never outlives a failed plan
+    expect(fetchCalls.filter((c) => c.url === "/api/plan")).toHaveLength(0);
+  });
+});
+
+describe("a paper that is not a visit paper (nothing becomes a step)", () => {
+  const empty = (text: string, refused = 0): CarePlanResponse => ({
+    source_text: text, source_kind: "text", model: "test", has_warning_signs: false, items: [],
+    refused: refused ? [{ title: "Held", reason: "missing" } as unknown as CarePlanResponse["refused"][number]] : [],
+    questions_for_doctor: ["The text looks like a grocery list. Could you share the after-visit summary instead?"],
+    not_in_document: ["This document is not an after-visit summary."],
+    stats: { extracted: refused, grounded: 0, refused, ms: 10 },
+  });
+  const LIST = "Grocery list for Saturday: eggs, whole milk, bread, bananas, rice. Call Mom about Sunday dinner.";
+
+  it("says no care steps were found and offers the way back, with no checked banner or clinic questions", async () => {
+    act(() => typeInto(paperBox(), LIST));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(req, ready(empty(LIST)));
+
+    expect(screenText()).toContain(ui("English", "steps.noneFound.title"));
+    expect(screenText()).toContain(ui("English", "steps.noneFound.body"));
+    expect(screenText()).not.toContain("All 0 steps");
+    expect(screenText()).not.toContain(ui("English", "steps.noneLeft"));
+    expect(screenText()).not.toContain("grocery list. Could you share"); // the AI's question to the person is not filed under "Ask your clinic"
+    expect(host.querySelector("#steps-title")?.textContent).toBe(ui("English", "steps.noneFound.title")); // the ready cue lands here
+
+    // Step 1 is not marked done: its badge still shows the number, not a check.
+    const step1 = [...host.querySelectorAll("h3")].find((h) => h.textContent === ui("English", "paper.title"))!;
+    expect(step1.previousElementSibling?.textContent).toBe("1");
+
+    act(() => byText(ui("English", "steps.noneFound.paste")).click());
+    expect(document.activeElement).toBe(paperBox());
+  });
+
+  it("a plan made after a wrong paper exports nothing from that paper, as with no paper at all", async () => {
+    act(() => typeInto(paperBox(), LIST));
+    const read = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(read, ready(empty(LIST)));
+
+    act(() => byText("Getting there").click());
+    const plan = hold("/api/plan");
+    await act(async () => { byText("Make my plan").click(); await drain(); });
+    await release(plan, ready(planFor("Plan made from barriers only")));
+
+    expect(screenText()).toContain("Plan made from barriers only");
+    expect(host.querySelector("#atlas-sheet")).toBeNull(); // no handoff sheet built on the rejected paper
+    expect(host.innerHTML).not.toContain("Could you share the after-visit summary");
+    expect(fetchCalls.find((c) => c.url === "/api/plan")?.body.care).toEqual([]);
+    expect([...host.querySelectorAll("button")].some((b) => b.textContent?.includes(ui("English", "dock.handoff.short")))).toBe(false); // no button for a sheet that does not exist
+  });
+
+  it("a read whose steps were all held back still shows the held-back list, not the wrong-paper card", async () => {
+    act(() => typeInto(paperBox(), PAPER));
+    const req = hold("/api/extract");
+    await act(async () => { byText("Read my paper").click(); await drain(); });
+    await release(req, ready(empty(PAPER, 1)));
+    expect(screenText()).not.toContain(ui("English", "steps.noneFound.title"));
+    expect(screenText()).toContain("1 held back");
   });
 });

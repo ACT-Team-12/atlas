@@ -16,7 +16,7 @@ enum ShareText {
     /// `planItems`: every grounded step the plan could point at, removed or not, so a plan step's quote never drops out.
     static func plan(items: [VerifiedItem], plan: PlanResponse, questions: [String], meaning: MeaningState = .idle,
                      planItems: [VerifiedItem]? = nil) -> String {
-        var out = ["Plan after the visit (from ATLAS)", "", "Suggestion from ATLAS, not the paper: \(plan.summary)"]
+        var out = ["Plan after the visit (from ATLAS)", "", "Suggestion from ATLAS (follow your paper first): \(plan.summary)"]
 
         let grounded = items.filter(\.grounded)
         if !grounded.isEmpty {
@@ -46,7 +46,7 @@ enum ShareText {
         let used = Set(plan.steps.flatMap(\.resource_ids))
         let help = plan.resources.filter { used.contains($0.key) }.sorted { $0.key < $1.key }.map(\.value)
         if !help.isEmpty {
-            out += ["", "WHO CAN HELP (checked numbers)"]
+            out += ["", "WHO CAN HELP (suggested by ATLAS from checked records; follow the paper first)"]
             for r in help {
                 switch r {
                 case let .clinic(_, _, c):
@@ -64,9 +64,12 @@ enum ShareText {
 
         if plan.ask_a_person { out += ["", "This needs a person too: \(plan.ask_a_person_reason) Call 211 or a community health worker."] }
 
-        if !questions.isEmpty {
+        // `questions` is the reading's general list; each step's own question joins it paper first (visitQuestions).
+        let nextVisit = PaperFirst.visitQuestions(items: grounded, general: questions, also: planItems ?? [],
+                                                  check: { meaning.check(for: $0) })
+        if !nextVisit.isEmpty {
             out += ["", "QUESTIONS FOR THE NEXT VISIT"]
-            out += questions.map { "- \($0)" }
+            out += nextVisit.map { "- \($0)" }
         }
 
         out += ["", "This explains the paper from the visit. It is not medical advice. If something feels urgent, call the clinic or 911."]

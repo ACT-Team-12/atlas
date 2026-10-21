@@ -3,13 +3,14 @@ import { Nav } from "@/ui/Nav";
 import { Footer } from "@/ui/Footer";
 import { sttProvider } from "@/lib/transcribe";
 import { runPhiPlantedTest } from "@/lib/phiPlanted";
+import { aiProvider } from "@/lib/extract";
 
 export const metadata: Metadata = {
   title: "Privacy · ATLAS",
   description: "What ATLAS does with your visit paper, your location and your plan, on the website and in the mobile apps.",
 };
 
-const UPDATED = "October 3, 2026";
+const UPDATED = "October 7, 2026";
 // Rendered per request so the speech-to-text paragraph always names the service this deployment uses right now.
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,10 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 export default function PrivacyPage() {
   const stt = sttProvider(); // names the speech-to-text service this deployment actually uses
   const phi = runPhiPlantedTest(); // the planted-identifier numbers, computed now, the same as on /tests
+  const ai = aiProvider();
+  const aiDestination = ai === "openrouter"
+    ? "OpenRouter, which routes it to a provider running Anthropic's Claude model"
+    : "Anthropic, the company whose AI model reads it";
   return (
     <>
       <Nav />
@@ -38,12 +43,21 @@ export default function PrivacyPage() {
           </p>
           <div className="mt-10 grid gap-5 lg:grid-cols-2">
             <Block title="Your visit paper">
-              <p>When you press Read my paper, the text (or the photo, on the website) goes to our server and to Anthropic, the company whose AI model reads it. We use it only to build your checklist and send it back.</p>
+              <p>When you press Read my paper, the text (or the photo, on the website) goes to our server and to {aiDestination}. We use it only to build your checklist and send it back.</p>
               <p>Your name, birth date and record number are replaced with placeholders before the AI sees your paper. So are member and insurance numbers, an age over 89, and your own phone number, email and street address. The real words are put back on your screen. Visit and test dates, the clinic, the doctor and the clinic&apos;s phone number stay, because your steps need them. Tested on planted identifiers: caught {phi.planted.caught} of {phi.planted.total} (<a className="underline decoration-2 underline-offset-4" href="/tests#phi-tests-title">our tests</a>).</p>
-              <p>On the website the swap happens in your browser, so typed or pasted text reaches our server already swapped. Text from the phone apps, and from older versions of this page, is swapped on our server before any AI call. The same applies to the double-check, Check I understood, prep mode and lab results. A photo sent from the website still goes to the AI as a photo, so the swap cannot cover what is in it; the names in the AI&apos;s reading of it are swapped in what is sent after that. The swap works by rules, not by understanding: it can miss a name with no label, such as a family member named only in a sentence. From the phone apps, the plan and the double-check are sent only your steps, without the paper&apos;s header, so a first name inside a step (&quot;Maria, take...&quot;) can reach the AI there. If the text is too long to swap in full, or has hidden or look-alike characters that could hide a detail from the swap (for example invisible characters inside a word, or letters from another alphabet that look like English ones), it is not sent at all and you are asked to retype that part.</p>
+              <p>On the website the swap happens in your browser, so typed or pasted text reaches our server already swapped. Text from the phone apps, and from older versions of this page, is swapped on our server before any AI call. The same applies to the double-check, Check I understood, Ask my paper, prep mode and lab results. A photo sent from the website still goes to the AI as a photo, so the swap cannot cover what is in it; the names in the AI&apos;s reading of it are swapped in what is sent after that. The swap works by rules, not by understanding: it can miss a name with no label, such as a family member named only in a sentence. From the phone apps, the plan and the double-check are sent only your steps, without the paper&apos;s header, so a first name inside a step (&quot;Maria, take...&quot;) can reach the AI there. If the text is too long to swap in full, or has hidden or look-alike characters that could hide a detail from the swap (for example invisible characters inside a word, or letters from another alphabet that look like English ones), it is not sent at all and you are asked to retype that part.</p>
               <p>Your plan, its read-aloud voice (ElevenLabs) and the phone call (Vonage) are made from the swapped steps, and ATLAS removes any placeholder from the plan before it is shown, read aloud or called out.</p>
-              <p>We do not save your paper on our side. Anthropic says that by default it does not use inputs or outputs from its API to train its models (<a className="underline decoration-2 underline-offset-4" href="https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training" target="_blank" rel="noreferrer">Anthropic privacy center</a>).</p>
+              {ai === "openrouter" ? (
+                <p>We do not save your paper on our side. OpenRouter sends it to the model provider. Retention and training policies depend on the provider and account settings; we have not verified zero data retention for this route. See <a className="underline decoration-2 underline-offset-4" href="https://openrouter.ai/docs/guides/privacy/provider-logging" target="_blank" rel="noreferrer">OpenRouter provider policies</a> and <a className="underline decoration-2 underline-offset-4" href="https://openrouter.ai/privacy/" target="_blank" rel="noreferrer">OpenRouter privacy policy</a>.</p>
+              ) : (
+                <p>We do not save your paper on our side. Anthropic says that by default it does not use inputs or outputs from its API to train its models (<a className="underline decoration-2 underline-offset-4" href="https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training" target="_blank" rel="noreferrer">Anthropic privacy center</a>).</p>
+              )}
               <p>In the ATLAS phone apps, the photo is read on your phone and never leaves it. Only the text you check and confirm is sent.</p>
+            </Block>
+            <Block title="Asking your paper a question">
+              <p>When you press Ask my paper, your question and the text of your paper go to our server and to {aiDestination}, so the AI model can point to the words in your paper that answer it. Your name and the other details listed above are replaced with placeholders first, in the paper and in your question, and the real words are put back in the answer you see. Our own checker then makes sure those words are really in your paper before anything is shown. If they are not, you see &quot;Your paper doesn&apos;t say&quot; instead.</p>
+              {ai === "openrouter" && <p>OpenRouter and the model provider also receive your question. Their retention and training policies depend on the provider and account settings; we have not verified zero data retention for this route.</p>}
+              <p>We do not save your question or your paper. To stay within budget, our database counts how many questions the whole site answers each day: only the day and the count, nothing about you, your question or your network address. A question our own check recognizes as an emergency (for example chest pain or trouble breathing) is never sent; it gets 911 and 211 guidance instead.</p>
             </Block>
             <Block title="Saying your answer out loud">
               <p>In Check I understood, you can tap Say your answer instead of typing or tapping. Only then, and only while you record (up to 20 seconds), the recording is sent to a speech-to-text service to turn it into words. The words come back to your screen so you can fix them before you check your answer. If you never tap Say your answer, nothing is recorded.</p>

@@ -1,11 +1,12 @@
 import { ExtractError } from "./extract";
 import { PhiShield, PhiShieldRefused, dropUnknownFor, unshieldDeep } from "./phiShield";
-import { shieldFields, shieldText, unshieldCarePlan, unshieldExtractEvent, unshieldUnderstand } from "./phiResponses";
+import { shieldFields, shieldText, unshieldAsk, unshieldCarePlan, unshieldExtractEvent, unshieldUnderstand } from "./phiResponses";
 import { ITEM_KINDS, type CarePlanResponse, type ExtractRequest } from "./schema";
 import type { ExtractEvent } from "./extractEvents";
 import type { UnderstandRequest, UnderstandResponse } from "./understand";
 import type { MeaningRequest } from "./meaning";
 import type { PlanRequest } from "./plan";
+import type { AskRequest, AskResponse } from "./ask";
 
 /**
  * The server's net (phase 1 of the PHI shield). Every AI route runs the request through the same shield before the
@@ -117,6 +118,12 @@ export async function guardMeaning<T>(req: MeaningRequest, call: (req: MeaningRe
  * redacted text. plan.ts strips any placeholder from it, and the read-aloud signature covers exactly that text.
  */
 export async function guardPlan<T>(req: PlanRequest, call: (req: PlanRequest) => Promise<T>): Promise<T> {
+  const shielded = shieldPlan(req);
+  return shielded.restore(await call(shielded.req));
+}
+
+/** /api/plan/stream: the same shielding as guardPlan, before the stream opens; restore puts back step ids in each event. */
+export function shieldPlan(req: PlanRequest): { req: PlanRequest; restore: <R>(v: R) => R } {
   const session = new PhiShield();
   const steps = opaqueSteps(req.care);
   const { care, note } = shieldOrRefuse(() => {
@@ -128,5 +135,18 @@ export async function guardPlan<T>(req: PlanRequest, call: (req: PlanRequest) =>
     };
   });
   // Only the step ids (exact opaque values, e.g. in care_ids) are put back; the plan's words are not unshielded.
-  return steps.restore(await call({ ...req, care, note }));
+  return { req: { ...req, care, note }, restore: steps.restore };
+}
+
+/** /api/ask: the paper and the question; each quote goes back onto the original paper. Names learned from the paper are hidden in the question too. */
+export function shieldAsk(req: AskRequest): { req: AskRequest; restore: (resp: AskResponse) => AskResponse } {
+  const session = new PhiShield();
+  const { ctx, question } = shieldOrRefuse(() => {
+    const ctx = shieldText(session, req.source_text);
+    return { ctx, question: session.shield(req.question).text };
+  });
+  return {
+    req: { ...req, source_text: ctx.result.text, question },
+    restore: (resp) => unshieldAsk(resp, ctx, session.tokens, dropUnknownFor(session)),
+  };
 }

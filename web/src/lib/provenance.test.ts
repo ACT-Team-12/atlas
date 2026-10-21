@@ -1,0 +1,109 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import * as P from "./provenance";
+import { SESSION_HEADINGS } from "./sessionSummary";
+
+const repo = join(process.cwd(), "..");
+const native = {
+  iosShare: "mobile/ios/ATLAS/Support/ShareText.swift",
+  iosPlan: "mobile/ios/ATLAS/Views/PlanView.swift",
+  androidShare: "mobile/android/app/src/main/java/com/stephensookra/atlas/data/ShareText.kt",
+  androidPlan: "mobile/android/app/src/main/java/com/stephensookra/atlas/ui/PlanScreen.kt",
+};
+const read = (f: string) => readFileSync(join(repo, f), "utf8");
+
+// A caregiver could not tell whether the plan's places came from the doctor or from ATLAS (Oct 4). The labels say who
+// suggested them, and never claim a place is not on the paper: the doctor may have named the same one (Codex review).
+describe("who suggested the places to call", () => {
+  const labels = [P.BY_ATLAS, P.BY_ATLAS_CHECK_PAPER, P.PLACES_NOTE, P.HELP_HEADING_SHEET, P.HELP_HEADING_SHARE, SESSION_HEADINGS[2]];
+
+  // Any "not ... paper" or "not ... doctor" contrast: the claim ATLAS cannot back, whatever the exact words.
+  const CONTRAST = /\bnot\b[^.]*\b(?:paper|doctor)\b|\b(?:paper|doctor)\b[^.]*\bdid not\b/i;
+
+  it("the guard catches every wording an earlier review removed", () => {
+    for (const removed of [
+      "Your doctor did not send you to them.",
+      "They are suggestions, not instructions from your paper.",
+      "Suggested by ATLAS, not from your paper",
+      "Who can help (picked by ATLAS, not by my doctor; checked numbers)",
+      "Suggestions from ATLAS, not your paper",
+    ]) expect(removed).toMatch(CONTRAST);
+  });
+
+  it("every label names ATLAS and none contrasts the place with the paper or the doctor", () => {
+    for (const l of labels) {
+      expect(l).toMatch(/ATLAS/);
+      expect(l).not.toMatch(CONTRAST);
+    }
+  });
+
+  // The claim itself, wherever it appears in shipped source, with contractions expanded, whitespace and string joins
+  // collapsed, and no "ATLAS" needed nearby: "not (from/on/in/by) (the/your/my) paper or doctor", or "the paper/doctor
+  // did not recommend/mention/name/send...". A regex can't know every English wording: this is a tripwire for the
+  // family the reviews found, and the exact-label tests above are the real check.
+  const CLAIMS = [
+    /\bnot\s+(?:(?:from|on|in|by)\s+)?(?:(?:the|your|my|her|his|their)\s+)?(?:paper|doctor)\b/gi,
+    /\b(?:paper|doctor)\s+(?:does|did|do)\s+not\s+(?:recommend|mention|name|send|list|include|suggest|refer)\w*/gi,
+  ];
+  // True statements that use the same words, each listed exactly: a number the checker did not find, a step held back
+  // because its words are not in the paper, and what the server does not keep or log. Each is blanked out first, so it
+  // excuses only itself, never a claim beside it.
+  const ALLOWED = [
+    /Number not in your paper/gi,
+    /words are not in your paper/gi,
+    /not the question, not the paper/gi,
+    /log the kind of error, not your paper/gi,
+    /its words, not the paper's/gi,
+    /\}" is not in the paper/gi,
+    /held back like one not in the paper/gi,
+  ];
+  const claimsNearAtlas = (text: string): string[] => {
+    const joined = text.replace(/["'`]\s*\+\s*["'`]/g, "").replace(/n['’]t\b/gi, " not").replace(/\s+/g, " ");
+    const flat = ALLOWED.reduce((t, a) => t.replace(a, (m) => " ".repeat(m.length)), joined);
+    return CLAIMS.flatMap((c) => [...flat.matchAll(c)].map((m) => flat.slice(Math.max(0, m.index - 80), m.index + m[0].length + 80)));
+  };
+
+  it("the claim guard catches reversed, split and sentence-separated wordings", () => {
+    for (const bad of [
+      "Not from your paper: suggested by ATLAS",
+      "ATLAS suggested this. It is not from your paper.",
+      'const s = "Suggested by ATLAS, " +\n  "not the paper";',
+      "Suggestion from ATLAS, not the paper: Mercy Care",
+      "Number not in your paper: 3. Suggested by ATLAS, not from your paper.",
+      "ATLAS suggested this. It isn't from your paper",
+      "ATLAS suggested this. Your paper does not recommend it",
+      "These places are not from your paper",
+      "These places are not from paper",
+      "ATLAS found these places. " + "Long text ".repeat(40) + "Your doctor didn't send you there.",
+    ]) expect(claimsNearAtlas(bad)).not.toEqual([]);
+    expect(claimsNearAtlas("ATLAS checked it. (Number not in your paper: 3.)")).toEqual([]);
+    expect(claimsNearAtlas("ATLAS explains your paper. It is not medical advice.")).toEqual([]);
+  });
+
+  it("no shipped file makes that claim near ATLAS, on the web or in either app", () => {
+    // Source files, not tests: tests quote the removed wording on purpose.
+    const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => {
+      const p = join(dir, n);
+      return statSync(p).isDirectory() ? (n === "node_modules" || n === "build" ? [] : walk(p)) : /\.(tsx?|swift|kt)$/.test(n) && !/test|Tests?\./i.test(n) ? [p] : [];
+    });
+    const files = ["web/src", "mobile/ios/ATLAS", "mobile/android/app/src/main"].flatMap((d) => walk(join(repo, d)));
+    expect(files.length).toBeGreaterThan(150); // a walk that finds nothing would pass silently
+    const bad = files.flatMap((f) => claimsNearAtlas(readFileSync(f, "utf8")).map((w) => `${f.slice(repo.length + 1)}: ...${w}...`));
+    expect(bad).toEqual([]);
+  });
+
+  it("the iPhone and Android apps use the same words as the website", () => {
+    expect(read(native.iosShare)).toContain(`"${P.HELP_HEADING_SHARE}"`);
+    expect(read(native.androidShare)).toContain(`"${P.HELP_HEADING_SHARE}"`);
+    expect(read(native.iosPlan)).toContain(`"${P.BY_ATLAS_CHECK_PAPER}"`);
+    expect(read(native.androidPlan)).toContain(`"${P.BY_ATLAS_CHECK_PAPER}"`);
+    // The lines around the native labels, not whole files (other app text can say "not" and "paper" in one sentence).
+    for (const f of Object.values(native)) {
+      const near = read(f).split("\n").filter((line) => /Suggested by ATLAS|WHO CAN HELP/.test(line));
+      expect(near.length).toBeGreaterThan(0);
+      for (const line of near) expect(line).not.toMatch(CONTRAST);
+      expect(read(f)).not.toMatch(/checked numbers\)/);
+    }
+  });
+});

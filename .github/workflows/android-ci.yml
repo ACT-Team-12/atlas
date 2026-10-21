@@ -1,6 +1,7 @@
 name: android-ci
 on:
   push:
+    branches: [main]
     paths: ["mobile/android/**", "mobile/shared/**", ".github/workflows/android-ci.yml"]
   pull_request:
     paths: ["mobile/android/**", "mobile/shared/**", ".github/workflows/android-ci.yml"]
@@ -35,5 +36,32 @@ jobs:
               m = re.search(r'tests="(\d+)".*?failures="(\d+)"', h, re.S)
               if m: t += int(m[1]); f += int(m[2])
           print(f"tests={t} failures={f}")
-          assert t >= 24, "fewer unit tests ran than expected"
+          assert t >= 79, "fewer unit tests ran than expected"
+          # The shared safety vectors (warning pins, by-when groups, stop-now) must have run and passed.
+          s = glob.glob("app/build/test-results/testDebugUnitTest/TEST-com.stephensookra.atlas.SafetyVectorsTest.xml")
+          h = open(s[0]).read() if s else ""
+          m = re.search(r'tests="(\d+)".*?failures="(\d+)".*?errors="(\d+)"', h, re.S)
+          print("SafetyVectorsTest", m.groups() if m else "missing")
+          assert m and int(m[1]) >= 6 and m[2] == "0" and m[3] == "0", "the shared safety vector replay did not run and pass"
+          assert "safety vectors: when " in h and "safety vectors: warning " in h, "the safety vector replay did not report"
+          # The shared Pip vectors (placement, the quiet rule, the fixed lines) must have run and passed.
+          s = glob.glob("app/build/test-results/testDebugUnitTest/TEST-com.stephensookra.atlas.PipVectorsTest.xml")
+          h = open(s[0]).read() if s else ""
+          m = re.search(r'tests="(\d+)".*?failures="(\d+)".*?errors="(\d+)"', h, re.S)
+          print("PipVectorsTest", m.groups() if m else "missing")
+          assert m and int(m[1]) >= 8 and m[2] == "0" and m[3] == "0", "the shared Pip vector replay did not run and pass"
+          r = re.search(r"pip vectors: (\d+) of (\d+) equal to the web reference", h)
+          assert r and r[1] == r[2] and int(r[2]) > 600, "the Pip vector replay did not report"
+          # The other shared vectors: each test class must have run with no failure and reported every case equal.
+          def replay(cls, label, least):
+              s = glob.glob(f"app/build/test-results/testDebugUnitTest/TEST-com.stephensookra.atlas.{cls}.xml")
+              h = open(s[0]).read() if s else ""
+              m = re.search(r'tests="(\d+)".*?failures="(\d+)".*?errors="(\d+)"', h, re.S)
+              print(cls, m.groups() if m else "missing")
+              assert m and m[2] == "0" and m[3] == "0", f"{cls} did not run and pass"
+              r = re.search(label + r" vectors: (\d+) of (\d+) equal to the web reference", h)
+              assert r and r[1] == r[2] and int(r[2]) >= least, f"the {label} vector replay did not report"
+          replay("WalkThroughTest", "walk", 600)
+          replay("AskPaperTest", "ask", 90)
+          replay("MedicineChangesTest", "medicine", 60)
           PY

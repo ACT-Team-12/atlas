@@ -9,7 +9,8 @@ import { checkRows, type ResultRow } from "./results";
  */
 
 export type Truth = "high" | "low" | "inside" | "unknown";
-export type LabRow = { test: string; line: string; value: string; unit: string; range_text: string; truth: Truth };
+/** `cautious`: why our code shows this row as can't tell on purpose. The truth stays the hand label; the row is counted apart. */
+export type LabRow = { test: string; line: string; value: string; unit: string; range_text: string; truth: Truth; cautious?: string };
 export type LabReport = { id: string; title: string; layout: string; text: string; rows: LabRow[] };
 export const LAB_REPORTS = (labSet as unknown as { reports: LabReport[] }).reports;
 
@@ -37,7 +38,7 @@ function otherNumber(value: string, line: string): string {
 // "drop": the row must be left out (a wrong number or name must never be shown).
 // "drop or right": either left out, or kept and judged the same as the truth.
 type Expect = "drop" | "drop or right";
-type Plant = { kind: string; expect: Expect; row: ModelRow; truth: Truth; test: string; what: string };
+type Plant = { kind: string; expect: Expect; row: ModelRow; truth: Truth; cautious: boolean; test: string; what: string };
 
 export const PLANT_KINDS = [
   "changed value", "value copied from the range", "changed range", "range left out", "quote not in report",
@@ -49,7 +50,7 @@ export function plantsFor(rep: LabReport): Plant[] {
   rep.rows.forEach((r, i) => {
     const base = asModelRow(r);
     const p = (kind: (typeof PLANT_KINDS)[number], expect: Expect, row: Partial<ModelRow>, what: string) =>
-      out.push({ kind, expect, row: { ...base, ...row }, truth: r.truth, test: r.test, what });
+      out.push({ kind, expect, row: { ...base, ...row }, truth: r.truth, cautious: !!r.cautious, test: r.test, what });
 
     const wrong = otherNumber(r.value, r.line);
     p("changed value", "drop", { value: wrong }, `value ${r.value} changed to ${wrong}`);
@@ -78,7 +79,7 @@ export function plantsFor(rep: LabReport): Plant[] {
     if (cut.length < r.line.trimEnd().length) p("quote cut short", "drop or right", { quote: cut }, "quote stops right after the value, before the range and flag");
   });
   out.push({
-    kind: "invented test", expect: "drop", truth: "high", test: "Vitamin K2", what: "a test the report does not have",
+    kind: "invented test", expect: "drop", truth: "high", cautious: false, test: "Vitamin K2", what: "a test the report does not have",
     row: { test: "Vitamin K2", value: "88", unit: "ng/mL", range_text: "10-50", quote: "Vitamin K2 88 ng/mL 10-50 H", plain_name: "", ask: "" },
   });
   return out;
@@ -86,9 +87,15 @@ export function plantsFor(rep: LabReport): Plant[] {
 
 export type LabPlantedReport = {
   reports: number;
-  real: { total: number; right: number; wrong: { report: string; test: string; truth: Truth; got: string }[] };
+  real: {
+    total: number; right: number; wrong: { report: string; test: string; truth: Truth; got: string }[];
+    /** Rows our code shows as can't tell on purpose (never folded as in range), apart from right and wrong. */
+    cautious: { report: string; test: string; truth: Truth; why: string }[];
+  };
   planted: {
     total: number; caught: number; dropped: number; judged_right: number;
+    /** Kept on a row marked cautious and shown as can't tell: safe, but not counted as judged right. */
+    cautious_kept: number;
     byKind: Record<string, { total: number; caught: number }>;
     slipped: { report: string; test: string; kind: string; what: string; truth: Truth; got: string }[];
     examples: Record<string, string>;
@@ -98,8 +105,8 @@ export type LabPlantedReport = {
 export function runLabPlantedTest(reports: LabReport[] = LAB_REPORTS): LabPlantedReport {
   const rep: LabPlantedReport = {
     reports: reports.length,
-    real: { total: 0, right: 0, wrong: [] },
-    planted: { total: 0, caught: 0, dropped: 0, judged_right: 0, byKind: {}, slipped: [], examples: {} },
+    real: { total: 0, right: 0, wrong: [], cautious: [] },
+    planted: { total: 0, caught: 0, dropped: 0, judged_right: 0, cautious_kept: 0, byKind: {}, slipped: [], examples: {} },
   };
   for (const r of reports) {
     // Correct rows, all at once, the way the AI would return them.
@@ -109,6 +116,7 @@ export function runLabPlantedTest(reports: LabReport[] = LAB_REPORTS): LabPlante
       const got = real.rows.find((x) => x.test === t.test);
       const s = got ? statusOf(got) : "dropped";
       if (s === t.truth) rep.real.right++;
+      else if (t.cautious && s === "unknown") rep.real.cautious.push({ report: r.id, test: t.test, truth: t.truth, why: t.cautious });
       else rep.real.wrong.push({ report: r.id, test: t.test, truth: t.truth, got: s });
     }
     // Each planted mistake on its own.
@@ -116,13 +124,15 @@ export function runLabPlantedTest(reports: LabReport[] = LAB_REPORTS): LabPlante
       const res = checkRows(r.text, [pl.row]);
       const kept = res.rows[0];
       const got = kept ? statusOf(kept) : `dropped (${res.dropped[0]?.reason})`;
-      const ok = !kept || (pl.expect === "drop or right" && statusOf(kept) === pl.truth);
+      const ok = !kept || (pl.expect === "drop or right" && (statusOf(kept) === pl.truth || (pl.cautious && statusOf(kept) === "unknown")));
       const k = (rep.planted.byKind[pl.kind] ??= { total: 0, caught: 0 });
       rep.planted.total++; k.total++;
       rep.planted.examples[pl.kind] ??= `${r.title}, ${pl.test}: ${pl.what}`;
       if (ok) {
         rep.planted.caught++; k.caught++;
-        if (kept) rep.planted.judged_right++; else rep.planted.dropped++;
+        if (!kept) rep.planted.dropped++;
+        else if (statusOf(kept) === pl.truth) rep.planted.judged_right++;
+        else rep.planted.cautious_kept++;
       } else {
         rep.planted.slipped.push({ report: r.id, test: pl.test, kind: pl.kind, what: pl.what, truth: pl.truth, got });
       }

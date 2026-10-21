@@ -1,8 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { PLACEHOLDER_RULE } from "./phiShield";
+import { checkPolicyFor, DEFAULT_CHECKER_MODEL } from "./checkPolicy";
 import { z } from "zod";
-import { ExtractError } from "./extract";
+import { ExtractError, makeClient } from "./extract";
 import { LANGUAGES } from "./schema";
 import { NAME_BEFORE_LETTER, readNumberWords, type NumberLanguage } from "./numberWords";
 import { certifyBlocker } from "./semanticGuard";
@@ -19,7 +19,7 @@ import { readable, unreadable } from "./textReading";
  * Either signal flags the step so the person double-checks it with their clinic.
  */
 
-export const CHECKER_MODEL = process.env.ATLAS_CHECKER_MODEL ?? "claude-sonnet-5-5";
+export const CHECKER_MODEL = process.env.ATLAS_CHECKER_MODEL || DEFAULT_CHECKER_MODEL;
 
 export const MeaningRequestSchema = z.object({
   /** The language the explanations are written in, so their number words can be read (numberWords.ts). */
@@ -48,7 +48,8 @@ export type MeaningResult = {
   /** True only when the second model said "same" AND every number checks out. Only this earns the green check. */
   certified: boolean;
 };
-export type MeaningResponse = { results: MeaningResult[]; flagged: number; checker_model: string; ms: number };
+/** `policy`: the rules and model these verdicts were made under (checkPolicy.ts). */
+export type MeaningResponse = { results: MeaningResult[]; flagged: number; checker_model: string; policy: string; ms: number };
 
 const WORD_NUM: Record<string, string> = { one: "1", two: "2", three: "3", four: "4", five: "5", six: "6", seven: "7", eight: "8", nine: "9", ten: "10", twice: "2", once: "1" };
 
@@ -169,6 +170,19 @@ const CONTEXT_STOP = new Set([
   "it", "you", "should", "please", "do", "not", "start", "stop", "continue", "keep", "inject", "swallow", "chew",
   "spray", "insert", "place", "put", "mix", "dissolve", "measure", "now",
 ]);
+/**
+ * One spelling for naming words that say the same thing, used only to line a number up with the number it names in
+ * the quote (never to read a value). "pill", "pills", "tablet" and "tablets" are one word here, so "2 pills (20 mg
+ * total)" lines its 20 mg up with the paper's "2 tablets (20 mg total)", and "you used to take 10 mg" lines up with
+ * "Previously 10 mg". Both sides are read through this, so a swap between two values still points at the other
+ * value's word and is refused. "used to" means "previously" only after a person ("you used to take"), never in "the
+ * cup used to measure". These shared words are weak on their own: see `ALIAS_NAMES` in `unitsSwapped`.
+ */
+const SAME_NAME: Record<string, string> = { pill: "tablet", pills: "tablet", tablet: "tablet", tablets: "tablet", previously: "previously", formerly: "previously" };
+const ALIAS_NAMES = new Set(Object.values(SAME_NAME));
+const PERSON = new Set(["you", "i", "we", "they", "he", "she"]);
+const nameOf = (w: string, prev: string | undefined, next: string | undefined) =>
+  w === "used" && next?.toLowerCase() === "to" && PERSON.has(prev?.toLowerCase() ?? "") ? "previously" : SAME_NAME[w] ?? w;
 const HALF_WORD_ONE = /^(?:half|halves|medio|media|medias|mitad|demi|demie|demis|moitié|nửa|半|반)$/iu;
 const QUARTER_WORD_ONE = /^(?:quarter|quarters|cuarto|cuartos|cuarta|quart|quarts)$/iu;
 
@@ -190,7 +204,7 @@ function numberUnits(text: string, languages: NumberLanguage[]): { pairs: [strin
       const u = unitClass(w);
       if ((u && (u === cls || cls === null)) || CONTEXT_STOP.has(w)) continue;
       if (languages.some((l) => readNumberWords(w, l).numbers.length > 0)) break;
-      out.push(w);
+      out.push(nameOf(w, toks[k - 1], toks[k + 1]));
     }
     return out;
   };
@@ -272,21 +286,95 @@ function unitsSwapped(quoteTexts: string[], plain: string, plainNumbers: Set<str
   const values = (c: string) => new Set(q.filter(([, qc]) => qc === c).map(([n]) => n));
   // Only a word that names ONE value counts ("lispro", not the shared "insulin" of "insulin glargine 10 units and
   // insulin lispro 5 units", Codex round 8), and the explanation's words must not name another value too.
+  const plainNames = new Set([...plain.toLowerCase().matchAll(/[\p{L}\p{M}]+/gu)].map((m) => SAME_NAME[m[0]] ?? m[0]));
   const namesOf = (n: string, c: string) => new Set(q.flatMap(([qn, qc], k) => (qn === n && qc === c ? qCtx[k] : [])));
   const aligned = (n: string, c: string, ctx: string[]) => {
     const others = [...values(c)].filter((v) => v !== n).map((v) => namesOf(v, c));
     const own = [...namesOf(n, c)].filter((w) => !others.some((o) => o.has(w)));
     const pointsElsewhere = ctx.some((w) => others.some((o) => o.has(w)) && !namesOf(n, c).has(w));
-    return own.some((w) => ctx.includes(w)) && !pointsElsewhere;
+    if (pointsElsewhere) return false;
+    if (own.some((w) => ctx.includes(w) && !ALIAS_NAMES.has(w))) return true;
+    // Lined up only by a shared word ("tablet", "previously"): every naming word must be this number's own, or a
+    // medicine name past the three-word window could hide behind it (Codex: "warfarin extended release tablet 2").
+    // Nor may another value's name appear anywhere in the explanation, since a name after the number ("contains 2 mg
+    // warfarin") is outside the window (Codex round 2).
+    const mine = namesOf(n, c);
+    const elsewhere = others.some((o) => [...o].some((w) => !mine.has(w) && !ALIAS_NAMES.has(w) && plainNames.has(w)));
+    return own.some((w) => ctx.includes(w)) && ctx.every((w) => mine.has(w)) && !elsewhere;
   };
   const free = new Set(["clockmin", "phone"]);
   if (p.pairs.some(([n, c], k) => c !== null && !free.has(c) && values(c).size >= 2 && !aligned(n, c, pCtx[k]))) return true;
+  // A unit with ONE value in the quote can still be moved to another medicine: "Take aspirin 2 mg. Take warfarin 1
+  // tablet daily." explained as "Take warfarin 2 mg daily." The explanation's naming words for a number must not name
+  // only another dose in the quote (PR 76 follow-up). Doses only (mg, tablets, mL), so a time ("5 hours") is never
+  // read as a medicine's. Shared words ("tablet", "previously") and unit words don't count.
+  const DOSE = new Set(["mass", "dose", "volume"]);
+  const namesOfValue = (n: string) => new Set(q.flatMap(([qn], k) => (qn === n ? qCtx[k] : [])));
+  const otherOnly = (n: string) => {
+    const mine = namesOfValue(n);
+    return new Set(q.flatMap(([qn, qc], k) => (qn !== n && qc !== null && DOSE.has(qc) ? qCtx[k] : [])).filter((w) => !mine.has(w) && !ALIAS_NAMES.has(w) && unitClass(w) === null));
+  };
+  if (p.pairs.some(([n, c], k) => c !== null && DOSE.has(c) && values(c).size < 2 && pCtx[k].some((w) => otherOnly(n).has(w)))) return true;
+  // A name after the number ("Take 2 mg warfarin") is outside that window: a sentence of the explanation that gives a
+  // dose, names only another dose's medicine and none of this one's own names, is refused too (Codex review).
+  // A decimal point ("2.5 mg") is not a sentence end.
+  for (const sentence of plain.split(/(?<!\d)\.|\.(?!\d)|[;!?\n]+/)) {
+    const sp = numberUnits(sentence, languages).pairs.filter(([n, c]) => plainNumbers.has(n) && c !== null && DOSE.has(c) && values(c).size < 2);
+    if (sp.length === 0) continue;
+    const words = new Set([...sentence.toLowerCase().matchAll(/[\p{L}\p{M}]+/gu)].map((m) => SAME_NAME[m[0]] ?? m[0]));
+    for (const [n] of sp) {
+      const other = otherOnly(n);
+      const own = [...namesOfValue(n)].filter((w) => !other.has(w) && !ALIAS_NAMES.has(w) && unitClass(w) === null && !q.some(([qn], k) => qn !== n && qCtx[k].includes(w)));
+      if ([...other].some((w) => words.has(w)) && !own.some((w) => words.has(w))) return true;
+    }
+  }
+  // A dose the paper says was the OLD one ("Previously 10 mg once daily"): an explanation that gives that kind of dose
+  // must give at least one of the paper's current doses too, so "You previously took 10 mg" alone is not certified.
+  for (const c of DOSE) {
+    const old = new Set(q.filter(([, qc], k) => qc === c && qCtx[k].includes("previously")).map(([n]) => n));
+    if (old.size === 0) continue;
+    const current = [...values(c)].filter((v) => !old.has(v));
+    if (current.length === 0) continue;
+    const mentions = p.pairs.some(([n, pc]) => pc === c || old.has(n));
+    if (mentions && !p.pairs.some(([n, pc]) => pc === c && current.includes(n))) return true;
+  }
   const known = new Set(q.map(([n, c]) => `${n}|${c}`));
   // A number with no unit is fine only where the quote never gives that number a unit either ("100 Sample Street").
   // ...and only when the quote has a single unitless value, so two unitless numbers can't trade places (round 12).
   const unitlessValues = new Set(q.filter(([, c]) => c === null).map(([m]) => m));
   const unitless = (n: string) => unitlessValues.size < 2 && q.some(([m]) => m === n) && q.every(([m, c]) => m !== n || c === null);
   return p.pairs.some(([n, c]) => (c === null ? !unitless(n) : !known.has(`${n}|${c}`)));
+}
+
+/** One dose number in a line of the paper, read the way the number check above reads it. */
+export type DoseReading = {
+  value: string;
+  /** "mass" (mg, g), "dose" (tablets, puffs, units) or "volume" (mL). */
+  unit: "mass" | "dose" | "volume";
+  /** Up to three words just before the number that name what it is for ("lisinopril"), without shared words. */
+  names: string[];
+  /** The paper calls this one the old dose ("Previously 10 mg"). */
+  previously: boolean;
+};
+
+/**
+ * Every dose number (mg, tablets, mL) in a line of the paper, with the words that name it. The same reading as the
+ * number check's unitsSwapped, exported for the "Your medicine changes" card (medicineChanges.ts), which uses it to
+ * tell whether two doses on one line belong to the same medicine. Digits only: number words are not doses here.
+ */
+export function doseReadings(text: string): DoseReading[] {
+  const DOSE_UNITS = new Set(["mass", "dose", "volume"]);
+  const { pairs, ctxs } = numberUnits(readable(text), ["English"]);
+  const out: DoseReading[] = [];
+  pairs.forEach(([value, unit], k) => {
+    if (unit === null || !DOSE_UNITS.has(unit) || !/^\d/.test(value)) return;
+    const ctx = ctxs[k];
+    out.push({
+      value, unit: unit as DoseReading["unit"], previously: ctx.includes("previously"),
+      names: ctx.filter((w) => !ALIAS_NAMES.has(w) && unitClass(w) === null),
+    });
+  });
+  return out;
 }
 
 /**
@@ -394,9 +482,7 @@ export function combine(id: string, item: MeaningRequest["items"][number], verdi
  * call is cancelled instead of reading the excerpts for nobody.
  */
 export async function checkMeaning(req: MeaningRequest, signal?: AbortSignal): Promise<MeaningResponse> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new ExtractError("Server is missing its AI key. Tell the ATLAS team.", 503);
-  const client = new Anthropic({ apiKey });
+  const client = makeClient();
   const t0 = Date.now();
   signal?.throwIfAborted();
   const msg = await client.messages.parse({
@@ -418,5 +504,5 @@ export async function checkMeaning(req: MeaningRequest, signal?: AbortSignal): P
     const r = byId.get(i.id);
     return combine(i.id, i, r?.verdict ?? "unclear", r?.what_differs ?? "The checker did not return this step.", req.language);
   });
-  return { results, flagged: results.filter((r) => r.flagged).length, checker_model: CHECKER_MODEL, ms: Date.now() - t0 };
+  return { results, flagged: results.filter((r) => r.flagged).length, checker_model: CHECKER_MODEL, policy: checkPolicyFor(CHECKER_MODEL), ms: Date.now() - t0 };
 }

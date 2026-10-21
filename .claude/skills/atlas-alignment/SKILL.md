@@ -11,20 +11,21 @@ Team ATLAS is building one coded digital product with AI performing a meaningful
 
 Read these before judging anything. They change as the challenge goes on, so don't rely on memory:
 
-- `README.md`: mission tracker (status, due dates), team roster, owners/backups, current customer hypothesis, standing program rules.
+- `README.md` (public): missions handed in so far, team roster, owners/backups, current customer hypothesis, standing program rules.
+- `missions-private/` (gitignored, on our machines only): briefs for missions not yet public and `PLAN.md` (due dates, status, points). The repo is public and the contest does not publish later missions, so their briefs and dates never go in a commit.
 - `missions/NN-slug/brief.md`: what the mission asks for. The **Deliverable** checklist is what gets graded.
 - `missions/NN-slug/response.md`: what the team submitted or is drafting. The latest response defines the agreed problem, product path, and AI function.
 
 - `research/`: idea log, customer evidence, and team decisions. When someone proposes an idea, add it as `research/ideas/YYYY-MM-DD-slug.md` (original text, alignment review, parked items, open questions) and add a row to the idea log in `research/README.md`. Only real conversations, observations, and cited sources go in `research/evidence/`.
 
-The **active mission** is the earliest one in the tracker that isn't marked submitted. Check its due date against today's date and say how much time is left.
+The **active mission** is the earliest one in `missions-private/PLAN.md` (or the README list) that isn't marked submitted. Check its due date against today's date and say how much time is left.
 
 ## What to do, by situation
 
 ### A new mission brief is pasted
-1. Create `missions/NN-slug/brief.md` with the brief text (keep the deliverable checklist exact).
+1. Create `missions-private/NN-slug/brief.md` with the brief text (keep the deliverable checklist exact). Move it to `missions/NN-slug/` only once the mission is public.
 2. Create `missions/NN-slug/response.md` with one section per deliverable item, filling in what earlier responses already settled.
-3. Add or update the row in the README tracker.
+3. Add or update its row in `missions-private/PLAN.md`; add it to the README list once handed in, with no points or bonus details.
 4. Tell the team what changed compared to the last mission: new deliverables, the due date, and anything that affects the code.
 
 ### A team response is pasted

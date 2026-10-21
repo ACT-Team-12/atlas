@@ -1,3 +1,4 @@
+import Accessibility
 import SwiftUI
 
 struct RootView: View {
@@ -30,11 +31,29 @@ struct RootView: View {
                 }
         }
         .sheet(isPresented: $showAbout) { AboutSheet() }
-        .overlay { if model.busy != nil { BusyOverlay() } }
+        .overlay { if model.busy != nil && !model.lookingAround { BusyOverlay() } }
+        // Looking around while a read or plan runs: a small note with a way out, then the ready cue when it lands.
+        .overlay(alignment: .bottom) {
+            if let what = model.readyCue {
+                ReadyCueButton(what: what) { model.showReady() }
+            } else if model.busy != nil && model.lookingAround {
+                StillWorkingPill()
+            }
+        }
+        // The cue's result was opened another way: it is no longer needed (onSeen on the website).
+        .onChange(of: model.path.last) { _, top in
+            if let mark = model.readyMark, top == ReadyCue.route(mark.what) { model.clearReady() }
+        }
         .alert("Something went wrong", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK", role: .cancel) { model.error = nil }
         } message: {
             Text(model.error ?? "")
+        }
+        // A read or plan stopped because its inputs changed while it ran (the website's read and plan notes).
+        .alert("Stopped", isPresented: Binding(get: { model.notice != nil && model.error == nil }, set: { if !$0 { model.notice = nil } })) {
+            Button("OK", role: .cancel) { model.notice = nil }
+        } message: {
+            Text(model.notice ?? "")
         }
     }
 }
@@ -63,6 +82,14 @@ struct BusyOverlay: View {
                 Button("Cancel") { model.cancel() }
                     .buttonStyle(OutlinePillStyle())
                     .accessibilityHint("Stops this and keeps what you entered")
+                // Reading and planning run on the server: the person may keep using the app, and the ready cue brings
+                // them back. Reading a photo happens on this phone and is quick, so it keeps the card.
+                if model.busy == .reading || model.busy == .planning {
+                    Button("Look around while you wait") { model.lookingAround = true }
+                        .font(.subheadline.weight(.bold)).underline().foregroundStyle(Palette.ink)
+                        .frame(minHeight: 44)
+                        .accessibilityHint("We will show a button when it is ready")
+                }
             }
             .padding(24)
             .background(Palette.paper, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
@@ -71,5 +98,54 @@ struct BusyOverlay: View {
             .accessibilityElement(children: .contain)
         }
         .accessibilityAddTraits(.isModal)
+    }
+}
+
+/// While the person looks around: what is still running, with Cancel.
+struct StillWorkingPill: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView().tint(Palette.teal)
+            Text(model.busy == .planning ? "Building your plan..." : "Reading your paper...")
+                .font(.subheadline.weight(.bold)).foregroundStyle(Palette.ink)
+            Button("Cancel") { model.cancel() }
+                .font(.subheadline.weight(.bold)).underline().foregroundStyle(Palette.ink)
+                .accessibilityHint("Stops this and keeps what you entered")
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .background(Palette.paper, in: Capsule())
+        .overlay(Capsule().strokeBorder(Palette.ink, lineWidth: 2))
+        .padding(.bottom, 12)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+/// "Your plan is ready: show me" (web/src/ui/ReadyCue.tsx): floats at the bottom of every screen until it is used or
+/// the result is opened. Its arrival is said once, politely.
+struct ReadyCueButton: View {
+    let what: ReadyCue.What
+    let onGo: () -> Void
+
+    var body: some View {
+        Button(action: onGo) {
+            (Text("\u{2713} ") + Text(ReadyCue.label(what)) + Text(": ") + Text("show me").underline())
+                .font(.headline.weight(.heavy))
+                .foregroundStyle(Palette.ink)
+                .padding(.horizontal, 20).padding(.vertical, 14)
+                .frame(minHeight: 52)
+                .background(Palette.sun, in: Capsule())
+                .overlay(Capsule().strokeBorder(Palette.ink, lineWidth: 2.5))
+                .background(Capsule().fill(Palette.ink).offset(y: 4))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(ReadyCue.label(what)): show me")
+        .padding(.bottom, 16)
+        .task(id: what) {
+            var said = AttributedString(ReadyCue.label(what))
+            said.accessibilitySpeechAnnouncementPriority = .low
+            AccessibilityNotification.Announcement(said).post()
+        }
     }
 }

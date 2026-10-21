@@ -176,7 +176,9 @@ describe("missed_lines payload equals the website's check for every removal set"
       });
       assertEquivalent(`fuzz-${round}`, p.text, items);
     }
-  });
+    // Heavy (CPU-bound, 60 seeded rounds): fine alone, but under the full parallel suite on a small machine it has
+    // crossed vitest's 5 s default. An explicit timeout, not fewer cases.
+  }, 30_000);
 
   it("ignores unknown and repeated ids, and keeps the old view's line fields only", () => {
     const items = kept(EN_PAPER, ["STOP ibuprofen 200 mg tablet."]);

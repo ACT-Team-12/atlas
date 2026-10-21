@@ -22,12 +22,43 @@
   --red: #b42828;
   --red-soft: #fbe3e3;
   --lilac: #e6defa;
+  --sun-line: #ffc94d;
+  --wave-1: #cdeee3;
+  --wave-2: #dbf3ea;
+  --wave-3: #e6f6f0;
 
   --ease-osmo: cubic-bezier(0.625, 0.05, 0, 1);
   --ease-soft-overshoot: cubic-bezier(0.59, 1, 0.88, 1.01);
   --button-ease-bounce: cubic-bezier(0.34, 2.27, 0.64, 1);
 
   --radius-section: 3em;
+
+  /* Pip (Akhil's colors, light). Eyes and mouth stay #14283A on the light face in both themes. */
+  --pip-ink: #14283a;
+  --pip-pin: #ffa47e;
+  --pip-pin2: #f0606a;
+  --pip-deep: #d2543f;
+  --pip-leaf: #3f9a52;
+  --pip-go: #24895d;
+  --pip-sky: #2f6fc9;
+  --pip-face: #fffdf7;
+  --pip-cheek: #f58c7a;
+}
+
+/*
+ * Pip's dark colors (Akhil's). ATLAS has no dark theme yet and keeps its light paper in a dark OS setting, so these
+ * switch on with a data-theme="dark" ancestor, not on prefers-color-scheme (light outlines on light paper would vanish).
+ */
+[data-theme="dark"] {
+  --pip-ink: #e4edf3;
+  --pip-pin: #ffad8a;
+  --pip-pin2: #f06a72;
+  --pip-deep: #ff8e6e;
+  --pip-leaf: #5dbb6f;
+  --pip-go: #45be88;
+  --pip-sky: #6fa3ee;
+  --pip-face: #fffdf7;
+  --pip-cheek: #f58c7a;
 }
 
 @theme inline {
@@ -51,6 +82,122 @@
   --font-hand: var(--font-hand);
 }
 
+/*
+ * Themes. The palette above is light. Dark is the same roles turned over: paper becomes a warm, paper-like dark (never
+ * pure black), ink becomes a warm off-white, the soft surfaces (mint, sky, peach, lilac, red-soft) become deep tints of
+ * the same hue, and the strong colors (teal, red, the -deep accents) become lighter so they still read as text and as
+ * fills under dark text. Red stays the warning hue and every warning also carries a word or an icon.
+ *
+ * Which theme: an inline script in app/layout.tsx sets data-theme="light" or "dark" on <html> before the first paint,
+ * from the saved choice (System / Light / Dark, in localStorage) or, for System, the phone's setting. The media-query
+ * copy below covers a browser with JavaScript off. theme-contrast.test.ts reads these blocks and checks every pair.
+ */
+:root { color-scheme: light; }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #1c1a16;
+  --ink: #f1eadf;
+  --ink-soft: #d3cabb;
+  --teal: #5cc4b8;
+  --teal-deep: #7fd4c9;
+  --mint: #22433b;
+  --mint-soft: #1f2d29;
+  --sky: #1e3346;
+  --sky-deep: #93c1f2;
+  --peach: #46301f;
+  --peach-deep: #f2b37c;
+  --sun: #544010;
+  --red: #ff9a90;
+  --red-soft: #431d1b;
+  --lilac: #2f2a45;
+  --sun-line: #e0ac2e;
+  --wave-1: #1f3d36;
+  --wave-2: #1d3530;
+  --wave-3: #1b2d29;
+  /* Pip (Akhil's dark colors), for the "you are here" marker. */
+  --pip-ink: #e4edf3;
+  --pip-pin: #ffad8a;
+  --pip-pin2: #f06a72;
+  --pip-deep: #ff8e6e;
+  --pip-leaf: #5dbb6f;
+  --pip-go: #45be88;
+  --pip-sky: #6fa3ee;
+  --pip-face: #fffdf7;
+  --pip-cheek: #f58c7a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --paper: #1c1a16;
+    --ink: #f1eadf;
+    --ink-soft: #d3cabb;
+    --teal: #5cc4b8;
+    --teal-deep: #7fd4c9;
+    --mint: #22433b;
+    --mint-soft: #1f2d29;
+    --sky: #1e3346;
+    --sky-deep: #93c1f2;
+    --peach: #46301f;
+    --peach-deep: #f2b37c;
+    --sun: #544010;
+    --red: #ff9a90;
+    --red-soft: #431d1b;
+    --lilac: #2f2a45;
+    --sun-line: #e0ac2e;
+    --wave-1: #1f3d36;
+    --wave-2: #1d3530;
+    --wave-3: #1b2d29;
+    --pip-ink: #e4edf3;
+    --pip-pin: #ffad8a;
+    --pip-pin2: #f06a72;
+    --pip-deep: #ff8e6e;
+    --pip-leaf: #5dbb6f;
+    --pip-go: #45be88;
+    --pip-sky: #6fa3ee;
+    --pip-face: #fffdf7;
+    --pip-cheek: #f58c7a;
+  }
+}
+/* Paper is printed light, always: plans and handoff sheets come out black on white whatever the screen shows. The
+   selector list matches every dark selector above at equal or higher specificity, and comes later, so it wins. */
+@media print {
+  :root, :root[data-theme="dark"], :root:not([data-theme]) {
+    color-scheme: light;
+    --paper: #fbf8f3;
+    --ink: #102a43;
+    --ink-soft: #334e68;
+    --teal: #0b7a75;
+    --teal-deep: #075e5a;
+    --mint: #bfe9dc;
+    --mint-soft: #e6f6f0;
+    --sky: #d6e9f8;
+    --sky-deep: #1d5fa8;
+    --peach: #ffe0c2;
+    --peach-deep: #9a4a0c;
+    --sun: #ffc94d;
+    --red: #b42828;
+    --red-soft: #fbe3e3;
+    --lilac: #e6defa;
+    --sun-line: #ffc94d;
+    --wave-1: #cdeee3;
+    --wave-2: #dbf3ea;
+    --wave-3: #e6f6f0;
+    --pip-ink: #14283a;
+    --pip-pin: #ffa47e;
+    --pip-pin2: #f0606a;
+    --pip-deep: #d2543f;
+    --pip-leaf: #3f9a52;
+    --pip-go: #24895d;
+    --pip-sky: #2f6fc9;
+    --pip-face: #fffdf7;
+    --pip-cheek: #f58c7a;
+  }
+}
+/* The quote rule (border-l-4 border-sun) and sun callout frames: a brighter amber line in dark. Decorative; the quote
+   itself is the text beside it. */
+:root[data-theme="dark"] .border-sun { border-color: var(--sun-line); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .border-sun { border-color: var(--sun-line); } }
+
 html {
   font-size: clamp(15px, calc(100vw / 92), 20px);
   background: var(--paper);
@@ -65,6 +212,26 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
+
+/* Highlighted lines of the patient's paper. The browser default for <mark> is black text, unreadable on dark amber. */
+mark {
+  color: var(--ink);
+}
+
+/* Placeholder text ("Paste the lab report here..."): Tailwind's default is ink at 50% (3.0:1); 70% reads at 4.5:1+. */
+::placeholder {
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+  opacity: 1;
+}
+
+/* Theme toggle (ui/ThemeToggle.tsx): the picked option is drawn from <html data-theme-pref>, so it is right before
+   hydration. No attribute yet (script blocked) means System. */
+.theme-opt { color: var(--ink); }
+@media (hover: hover) { .theme-opt:hover { background: var(--mint-soft); } }
+:root:not([data-theme-pref]) .theme-opt[data-theme-option="system"],
+:root[data-theme-pref="system"] .theme-opt[data-theme-option="system"],
+:root[data-theme-pref="light"] .theme-opt[data-theme-option="light"],
+:root[data-theme-pref="dark"] .theme-opt[data-theme-option="dark"] { background: var(--ink); color: var(--paper); }
 
 ::selection {
   background: var(--mint);
@@ -83,6 +250,11 @@ body {
   font-weight: 600;
   line-height: 1.05;
 }
+
+/* Vietnamese stacks accents above and below each letter (quý vị), and Amharic glyphs are taller than Latin: the tight
+   display and handwriting lines made them touch the line above. Measured on the site in each language (Oct 5). */
+:lang(vi) .display, :lang(am) .display { line-height: 1.12; letter-spacing: -0.01em; }
+:lang(vi) .hand, :lang(am) .hand { line-height: 1.3; }
 
 .section-card {
   border-radius: var(--radius-section);
@@ -190,6 +362,69 @@ body {
 }
 .step-in { animation: step-in 0.3s ease-out both; }
 
+/*
+ * Pip, the "you are here" marker (ui/Pip.tsx). It lives in a reserved slot on a card's right edge (.pip-slot always
+ * takes its space), so it never covers text. Hop in on arrival, a small bounce on a cheer, a blink every few seconds
+ * (Akhil's keyframe). Quiet Pip (medicine, lab tests, warning signs) never moves. Calm mode fades and never blinks.
+ */
+.pip-slot { flex: none; display: block; width: 2.75rem; height: 3rem; }
+.pip { display: block; width: 100%; height: 100%; pointer-events: none; }
+.pip-body { display: block; width: 100%; height: 100%; transform-origin: 50% 100%; }
+.pip-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.pip-eyes { transform-origin: 32px 28px; }
+.pip[data-pip="arrive"] .pip-body { animation: pip-hop 0.6s var(--ease-soft-overshoot) both; }
+.pip[data-pip="cheer"] .pip-body { animation: pip-cheer 0.7s ease-out both; }
+.pip[data-blink] .pip-eyes { animation: pip-blink 4.2s infinite; }
+.pip[data-calm] .pip-body { animation: pip-fade 0.4s ease-out both; }
+.pip[data-calm] .pip-eyes, .pip[data-pip="quiet"] .pip-body, .pip[data-pip="quiet"] .pip-eyes { animation: none; }
+@keyframes pip-hop {
+  0% { opacity: 0; transform: translateY(-14px) scale(0.96, 1.04); }
+  55% { opacity: 1; transform: translateY(0) scale(1.06, 0.92); }
+  80% { transform: translateY(-3px) scale(0.98, 1.02); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes pip-cheer {
+  0%, 100% { transform: none; }
+  35% { transform: translateY(-5px); }
+  60% { transform: translateY(0) scale(1.04, 0.96); }
+}
+@keyframes pip-blink {
+  0%, 94%, 100% { transform: scaleY(1); }
+  97% { transform: scaleY(0.1); }
+}
+@keyframes pip-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.pip-bubble {
+  display: inline-block; max-width: 100%; border-radius: 0.9rem; background: var(--ink); color: var(--paper);
+  padding: 0.3rem 0.7rem; font-size: 0.78rem; font-weight: 800; line-height: 1.25;
+}
+/* The heading greeting points down at the list: a small caret in its own reserved space under the bubble. */
+.pip-bubble[data-point="down"] { position: relative; margin-bottom: 0.45rem; }
+.pip-bubble[data-point="down"]::after {
+  content: ""; position: absolute; top: 100%; right: 1.1rem;
+  border: 0.4rem solid transparent; border-top-color: var(--ink); border-bottom: 0;
+}
+
+/* "Walk me through it" (CareSteps.tsx): the full list stays in the page, hidden on screen while walking. */
+.walk-away { display: none !important; }
+.walk-card { animation: walk-in 0.28s ease-out both; }
+.walk-card[data-calm] { animation: none; }
+@keyframes walk-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+/* Big type: the paper's words and their labels, which PaperFirst sizes for a list row. */
+.walk-paper [data-paper-quote] > p:first-child { font-size: 1rem; }
+.walk-paper [data-explanation][data-secondary], .walk-paper [data-explanation][data-secondary] p:first-child { font-size: 1.125rem; }
+.walk-paper [data-lead="explanation"] [data-paper-quote] { font-size: 1.25rem; }
+@media print {
+  /* Printing while walking prints the list as usual, never the walk-through screen. */
+  .walk-away { display: block !important; }
+  .walk-through { display: none !important; }
+}
+
 html.js-motion [data-reveal] {
   visibility: hidden;
 }
@@ -202,6 +437,10 @@ html.js-motion [data-reveal] {
   }
   .marquee-track { animation: none; }
   .step-in { animation: none; }
+  .walk-card { animation: none !important; }
+  /* Pip in reduced motion: no hop, no bounce, no blink; it only fades into its spot (the one motion kept, on purpose). */
+  .pip .pip-eyes, .pip[data-pip] .pip-body { animation: none !important; }
+  .pip[data-pip="arrive"] .pip-body, .pip[data-pip="cheer"] .pip-body { animation: pip-fade 0.4s ease-out both !important; }
 }
 
 /* Handoff sheet: hidden on screen; when printing it, it is the only thing on the page. */
@@ -210,6 +449,9 @@ html.js-motion [data-reveal] {
   html.print-sheet body > *:not(#atlas-sheet) { display: none !important; }
   html.print-sheet, html.print-sheet body { background: #fff !important; }
   html.print-sheet .atlas-sheet { display: block; color: #000; font-size: 14pt; line-height: 1.4; }
+}
+/* The sheet's type rules hold on screen too, for the sheet view (below). */
+@media all {
   .atlas-sheet h1 { font-size: 22pt; margin: 0 0 2pt; }
   .atlas-sheet h2 { font-size: 15pt; margin: 14pt 0 4pt; border-bottom: 1.5pt solid #000; padding-bottom: 2pt; break-after: avoid; }
   .atlas-sheet .meta, .atlas-sheet .foot { font-size: 10pt; color: #333; }
@@ -222,6 +464,9 @@ html.js-motion [data-reveal] {
   .atlas-sheet .quote { font-style: italic; font-size: 12pt; border-left: 3pt solid #000; padding-left: 6pt; }
   .atlas-sheet .plan li, .atlas-sheet .help li { margin: 3pt 0; break-inside: avoid; }
   .atlas-sheet .lines span { display: block; border-bottom: 0.75pt solid #000; height: 24pt; }
+  .atlas-sheet .meds { list-style: none; padding: 0; }
+  .atlas-sheet .meds > li { padding: 4pt 0; border-bottom: 0.5pt solid #999; break-inside: avoid; }
+  .atlas-sheet .meds > li > div { margin: 2pt 0 2pt 10pt; }
 }
 
 /* Prep timeline sheet: hidden on screen; when printing it, it is the only thing on the page. */
@@ -230,6 +475,8 @@ html.js-motion [data-reveal] {
   html.print-prep body > *:not(#atlas-prep-sheet) { display: none !important; }
   html.print-prep, html.print-prep body { background: #fff !important; }
   html.print-prep .atlas-prep-sheet { display: block; color: #000; font-size: 14pt; line-height: 1.4; }
+}
+@media all {
   .atlas-prep-sheet h1 { font-size: 22pt; margin: 0 0 2pt; }
   .atlas-prep-sheet h2 { font-size: 16pt; margin: 14pt 0 4pt; border-bottom: 1.5pt solid #000; padding-bottom: 2pt; break-after: avoid; }
   .atlas-prep-sheet .meta, .atlas-prep-sheet .foot { font-size: 10pt; color: #333; }
@@ -239,6 +486,19 @@ html.js-motion [data-reveal] {
   .atlas-prep-sheet .box { flex: none; width: 16pt; height: 16pt; border: 2pt solid #000; margin-top: 3pt; }
   .atlas-prep-sheet p { margin: 0 0 2pt; }
   .atlas-prep-sheet .quote { font-style: italic; font-size: 12pt; border-left: 3pt solid #000; padding-left: 6pt; overflow-wrap: anywhere; }
+}
+
+/* Sheet view: the sheet is the whole page on screen, under PrintViewBar (sticky, in the flow), which prints it where the
+   browser can and says how where it can't; any print then captures only the sheet (ui/printView.ts). */
+html.print-view body > *:not(#atlas-sheet):not(#atlas-prep-sheet):not(#atlas-session-sheet):not(#print-view-bar) { display: none !important; }
+html.print-view, html.print-view body { background: #fff !important; }
+html.print-view.print-sheet .atlas-sheet,
+html.print-view.print-prep .atlas-prep-sheet,
+html.print-view.print-session .atlas-session-sheet {
+  display: block; color: #000; font-size: 14pt; line-height: 1.4; max-width: 46rem; margin: 0 auto; padding: 1.25rem 1rem 2rem;
+}
+@media print {
+  html.print-view.print-sheet .atlas-sheet, html.print-view.print-prep .atlas-prep-sheet, html.print-view.print-session .atlas-session-sheet { padding: 0; max-width: none; }
 }
 
 /* An outdated plan is never printed: from the browser menu, only a note that it is out of date. */
@@ -253,4 +513,53 @@ html.js-motion [data-reveal] {
   header, footer, #how, #why, #trust, .hero-bg, #try > div > .flex:first-child, #try button, #try input, #try select, #try textarea, #try label { display: none !important; }
   body, .section-card, .card { background: #fff !important; box-shadow: none !important; }
   .section-card { border-radius: 0; padding: 0 !important; }
+}
+
+/* Plan screen ("Start with 3 calls"). Folded rows, other options and "Why this?" print in full; the action bar is screen only. */
+.plan-fold.plan-shut { display: none; }
+@media print {
+  .plan-fold.plan-shut { display: block !important; }
+  .plan-dock, .plan-chev { display: none !important; }
+  /* Each step's title lives in its disclosure button; print it even though #try buttons are hidden. */
+  #try .plan-rowhead > button { display: flex !important; }
+}
+/* The plan's action buttons stay together in one row; notes and an opened panel (Call me, Send) go under them. */
+.plan-dock > :not(button) { order: 1; }
+/* Phones: the plan's actions (Listen, Call me, Send, Print, Handoff) sit in one bar at the bottom while the plan is on screen. */
+@media not all and (min-width: 48rem) {
+  .plan-dock {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; margin: 0;
+    display: flex; flex-wrap: wrap; justify-content: space-around; align-items: start; gap: 4px 2px;
+    padding: 8px 8px calc(10px + env(safe-area-inset-bottom));
+    background: var(--paper); border-top: 2px solid var(--ink); box-shadow: 0 -4px 14px color-mix(in srgb, var(--ink) 12%, transparent);
+    max-height: 75vh; overflow-y: auto; overscroll-behavior: contain;
+  }
+  .plan-dock[data-away] { display: none; }
+  .plan-dock > button {
+    flex: 1 1 0; min-width: 3.6rem; display: grid; justify-items: center; gap: 3px;
+    border: 0; background: none; color: var(--ink); padding: 2px; font-size: 0.78rem; font-weight: 800; line-height: 1.1;
+  }
+  .plan-dock > button .dock-ic {
+    width: 2.6rem; height: 2.6rem; border-radius: 999px; display: grid; place-items: center;
+    background: var(--mint); font-size: 1.15rem; border: 2px solid var(--ink);
+  }
+  .plan-dock > button:first-child .dock-ic { background: var(--sun); }
+  .plan-dock > button[aria-pressed="true"] .dock-ic { background: var(--ink); color: var(--paper); }
+  .plan-dock > :is(div, span.basis-full, .dock-note) { flex-basis: 100%; text-align: center; font-size: 0.7rem; }
+  .plan-dock > div { text-align: left; font-size: 0.875rem; }
+}
+@media (min-width: 48rem) {
+  .plan-dock .dock-ic { margin-right: 0.35em; }
+}
+
+/* Pip and its calm toggle are screen-only. */
+@media print {
+  .pip-slot, .pip-bubble, [data-calm-toggle] { display: none !important; }
+}
+
+/* "Your medicine changes" prints as a plain black-and-white card (useful on the fridge): one piece, no links. */
+@media print {
+  .med-changes { break-inside: avoid; border-color: #000 !important; color: #000 !important; }
+  .med-changes section { border-color: #000 !important; color: #000 !important; background: #fff !important; }
+  .med-changes .med-go { display: none !important; }
 }

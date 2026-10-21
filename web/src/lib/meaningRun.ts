@@ -64,7 +64,7 @@ export async function runMeaningCheck(
     const { ok, json } = await post(body, run.signal);
     if (!fence.isCurrent(run.id)) return; // cleared, deleted or replaced meanwhile
     if (!ok) throw new Error();
-    apply({ status: "done", byId: Object.fromEntries(json.results.map((r) => [r.id, r])) });
+    apply({ status: "done", byId: Object.fromEntries(json.results.map((r) => [r.id, r])), ...(typeof json.policy === "string" ? { policy: json.policy } : {}) });
   } catch {
     if (fence.isCurrent(run.id)) apply({ status: "error", byId: {} });
   }

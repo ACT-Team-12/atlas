@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { SmoothScroll } from "@/ui/motion/SmoothScroll";
+import { THEME_SCRIPT } from "@/lib/theme";
+import { PrintViewBar } from "@/ui/PrintViewBar";
+import { SiteLangProvider } from "@/ui/SiteLang";
 import "./globals.css";
 
 // Self-hosted (SIL Open Font License), so builds never depend on a font download.
@@ -19,12 +22,20 @@ export const metadata: Metadata = {
     "Snap the after-visit summary. ATLAS explains every step in your language, shows the exact line it came from, and matches what gets in the way to verified Atlanta resources.",
 };
 
-export const viewport: Viewport = { themeColor: "#bfe9dc" };
+// The browser bar follows the phone's setting (a saved Light or Dark choice applies to the page, not to this tag).
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#bfe9dc" },
+    { media: "(prefers-color-scheme: dark)", color: "#22433b" },
+  ],
+};
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${hand.variable}`} suppressHydrationWarning>
       <head>
+        {/* Theme first: it sets data-theme on <html> before the first paint, so there is no flash of the wrong one. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <script
           dangerouslySetInnerHTML={{
             __html: "if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('js-motion')",
@@ -32,7 +43,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body>
-        <SmoothScroll>{children}</SmoothScroll>
+        <SiteLangProvider>
+          <SmoothScroll>{children}</SmoothScroll>
+          <PrintViewBar />
+        </SiteLangProvider>
       </body>
     </html>
   );

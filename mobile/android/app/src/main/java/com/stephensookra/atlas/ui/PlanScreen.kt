@@ -72,7 +72,7 @@ fun PlanScreen(model: AppModel) {
             if (!model.careOutdated) PillButton("Update the plan", onClick = { speaker.stop(); model.makePlan() },
                 fill = Palette.ink, textColor = Palette.paper, shadow = Palette.mint)
         }
-        if (model.care?.has_warning_signs == true) WarningBanner()
+        if (model.hasWarnings) WarningBanner()
         Text(PaperFirst.PLAN_IS_A_SUGGESTION, style = Type.caption)
         Text(plan.summary, style = Type.title3.copy(fontWeight = FontWeight.SemiBold, fontSize = 19.sp))
         // The plan is a suggestion and never certified: each step is followed by the paper's own words for it.
@@ -80,7 +80,7 @@ fun PlanScreen(model: AppModel) {
         if (!outdated) ReadAloudBar(speaker, model.language, PaperFirst.planSpeechLines(plan, planItems))
         val context = LocalContext.current
         if (!outdated) OutlinePill("Send to family", onClick = {
-            val text = ShareText.plan(model.items, plan, model.care?.questions_for_doctor.orEmpty(), model.meaning, planItems)
+            val text = ShareText.plan(model.items, plan, model.care?.let(PaperFirst::readingGeneralQuestions).orEmpty(), model.meaning, planItems)
             val send = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_SUBJECT, ShareText.TITLE)
@@ -108,11 +108,12 @@ fun PlanScreen(model: AppModel) {
             PlanStepCard(i + 1, step, plan, quotes, remindEnabled = !outdated) {
                 // A plan step is the AI's suggestion: the reminder says so, and carries the paper's words.
                 reminder = ReminderTarget("Step ${i + 1} of your plan", quotes.firstOrNull() ?: "",
-                    "Suggestion from ATLAS, not the paper: ${step.title}. ${step.action}")
+                    "Suggestion from ATLAS (follow your paper first): ${step.title}. ${step.action}")
             }
         }
 
-        val questions = model.care?.questions_for_doctor.orEmpty()
+        // Paper first (PaperFirst.visitQuestions): a step's own question only when certified.
+        val questions = PaperFirst.visitQuestions(model.items.filter { it.grounded }, model.care?.let(PaperFirst::readingGeneralQuestions).orEmpty(), model.removedItems) { model.checkFor(it) }
         if (questions.isNotEmpty()) {
             AtlasCard {
                 Text("Questions for your next visit", style = Type.title3)
@@ -148,6 +149,10 @@ fun PlanStepCard(index: Int, step: PlanStep, plan: PlanResponse, quotes: List<St
         }
         if (remindEnabled) OutlinePill("Remind me", onClick = onRemind, fill = Palette.mint, icon = Icons.Filled.Notifications,
             contentDescription = "Remind me about step $index")
+        // Who picked these places: ATLAS (caregiver's try, Oct 4; web lib/provenance.ts).
+        if (step.resource_ids.any { plan.resources[it] != null }) {
+            Text("Suggested by ATLAS from checked records. Follow your paper first.", style = Type.sub.copy(fontWeight = FontWeight.Bold, color = Palette.inkSoft))
+        }
         step.resource_ids.forEach { id -> plan.resources[id]?.let { ResourceView(it) } }
     }
 }

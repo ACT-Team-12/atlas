@@ -37,3 +37,22 @@ describe("calendar picker helpers", () => {
     expect(url.searchParams.get("details")).toContain("within 2 weeks");
   });
 });
+
+describe("the pickers in the page's language (Codex review of PR 93)", () => {
+  const now = new Date(2026, 9, 5, 10, 0);
+  it("English keeps its exact words", () => {
+    expect(dayOptions(now, 3).map((d) => d.label)).toEqual(["Today", "Tomorrow", "Wed"]);
+    expect(dayOptions(now, 3, "en").map((d) => d.label)).toEqual(["Today", "Tomorrow", "Wed"]);
+    expect(formatTime("13:30")).toBe("1:30 PM");
+    expect(describeStart(new Date(2026, 9, 5, 9, 0))).toContain(" at 9:00 AM");
+  });
+  it("other languages use the browser's own words, never the English ones", () => {
+    for (const code of ["es", "vi", "ko", "zh-Hans", "am", "fr"]) {
+      const days = dayOptions(now, 3, code).map((d) => `${d.label} ${d.sub}`).join(" | ");
+      expect(days, code).not.toMatch(/Today|Tomorrow|Mon|Tue|Wed|Oct/);
+      expect(formatTime("13:30", code), code).not.toMatch(/PM|AM/);
+      expect(describeStart(new Date(2026, 9, 5, 9, 0), code), code).not.toMatch(/\bat\b|AM|PM|Oct/);
+    }
+    expect(dayOptions(now, 2, "es").map((d) => d.label)).toEqual(["Hoy", "Mañana"]);
+  });
+});

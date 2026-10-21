@@ -1,8 +1,9 @@
 import { PhiShield, PhiShieldRefused, dropUnknownFor, unshieldDeep, type DropUnknown } from "./phiShield";
-import { SHIELD_HEADER, shieldFields, shieldText, unshieldCarePlan, unshieldExtractEvent, unshieldUnderstand, type ShieldContext } from "./phiResponses";
+import { SHIELD_HEADER, shieldFields, shieldText, unshieldAsk, unshieldCarePlan, unshieldExtractEvent, unshieldUnderstand, type ShieldContext } from "./phiResponses";
 import type { CarePlanResponse } from "./schema";
 import type { ExtractEvent } from "./extractEvents";
 import type { UnderstandResponse } from "./understand";
+import type { AskResponse } from "./ask";
 import { OLD_KEY, STORE_KEY } from "./savedPlans";
 
 /**
@@ -26,7 +27,7 @@ import { OLD_KEY, STORE_KEY } from "./savedPlans";
 type Restore = (res: Response) => Promise<Response>;
 type Shielded = { body: Record<string, unknown>; restore: Restore };
 
-const JSON_ROUTES = new Set(["/api/extract", "/api/plan", "/api/prep", "/api/meaning", "/api/results", "/api/understand"]);
+const JSON_ROUTES = new Set(["/api/extract", "/api/plan", "/api/plan/stream", "/api/prep", "/api/meaning", "/api/results", "/api/understand", "/api/ask"]);
 const STREAM_ROUTE = "/api/extract/stream";
 
 /** Same status and headers, new JSON body (length and encoding headers dropped: the body changed). */
@@ -135,7 +136,14 @@ export function shieldRequest(path: string, body: Record<string, unknown>, sessi
     const items = (body.items as Record<string, unknown>[]).map((it) => shieldFields(session, it, ["source_quote", "plain_language", "when"]));
     return { body: { ...body, items }, restore: mapJson(clean, clean) };
   }
-  if (path === "/api/plan") {
+  if (path === "/api/ask") {
+    if (typeof body.source_text !== "string" || typeof body.question !== "string") return null;
+    const ctx = shieldText(session, body.source_text);
+    const question = session.shield(body.question).text;
+    return { body: { ...body, source_text: ctx.result.text, question }, restore: mapJson((v) => unshieldAsk(v as AskResponse, ctx, tokens, drop), clean) };
+  }
+  // The stream sends the same plan, step by step; nothing in it is unshielded either.
+  if (path === "/api/plan" || path === "/api/plan/stream") {
     const care = Array.isArray(body.care) ? (body.care as Record<string, unknown>[]).map((c) => shieldFields(session, c, ["title", "plain_language", "when", "source_quote"])) : body.care;
     const note = typeof body.note === "string" ? session.shield(body.note).text : body.note;
     // The plan's text is NOT unshielded: what the voice and the call say must only ever be what the AI wrote from

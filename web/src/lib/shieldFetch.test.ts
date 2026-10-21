@@ -92,6 +92,23 @@ describe("the page's fetch", () => {
     expect((await m.json()).results[0].what_differs).toBe(care[1].source_quote);
   });
 
+  it("/api/plan/stream is shielded like /api/plan; /api/ask quotes come back on the original paper", async () => {
+    const base = vi.fn(async (_: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      const line = String(body.source_text ?? "").split("\n").find((l: string) => l.includes("metformin")) ?? "";
+      const start = String(body.source_text ?? "").indexOf(line);
+      return json({ kind: "answer", quotes: [{ text: line, span: { start, end: start + line.length } }], topic: null, topic_dropped: null, dropped: [], model: "m", ms: 1 });
+    });
+    const f = createShieldedFetch(base as unknown as typeof fetch, ORIGIN);
+    const sentBody = (i: number) => String((base.mock.calls[i] as unknown as [string, RequestInit])[1].body);
+    await f("/api/plan/stream", { method: "POST", body: JSON.stringify({ care: [{ id: "a", kind: "x", title: "t", plain_language: "p", when: "", source_quote: "Patient: Maria Lopez   DOB: 04/12/1961" }], barriers: [], note: "" }) });
+    for (const id of ["Maria", "Lopez", "04/12/1961"]) expect(sentBody(0)).not.toContain(id);
+    const answer = await (await f("/api/ask", { method: "POST", body: JSON.stringify({ source_text: NAMED_PAPER, question: "What does Maria Lopez take?" }) })).json();
+    for (const id of IDENTIFIERS) expect(sentBody(1)).not.toContain(id);
+    expect(answer.quotes[0].text).toContain("Maria, take metformin");
+    expect(NAMED_PAPER.slice(answer.quotes[0].span.start, answer.quotes[0].span.end)).toBe(answer.quotes[0].text);
+  });
+
   it("names from papers already saved on this device are hidden too (a plan built after a reload)", async () => {
     const store = { v: 2, active: "p", plans: [{ id: "p", text: NAMED_PAPER, care: { source_text: NAMED_PAPER } }] };
     const base = vi.fn(async () => json({}));

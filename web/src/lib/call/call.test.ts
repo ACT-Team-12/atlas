@@ -1,6 +1,7 @@
 import { createHash, createHmac, createVerify, generateKeyPairSync } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { issueSpeakToken } from "../speakToken";
+import { paidSpeechText } from "../speechText";
 import { callConfig, normalizePem, strongSecret, publicBaseUrl, signTicket, verifyTicket, type CallConfig } from "./config";
 import { audioFor, CODE_CALL_GAP_MS, CODE_CALLS_PER_HOUR, CODE_CALLS_PER_IP, CODE_CALLS_PER_NUMBER, handleEvent, handleInput, publicStatus, settlePendingEnds, startCall, verifyAndCall, type Deps } from "./flow";
 import { MemoryCallStore } from "./memoryStore";
@@ -479,6 +480,18 @@ describe("the call flow", () => {
     truth.set(uuid, { status: "answered" });
     return handleInput(hk(), { k: id, p: "input", g, exp: NOW + 60_000 }, digits, uuid);
   };
+
+  it("reads the plan's needs-a-person reason on the call when the plan has one, in a language calls support only", async () => {
+    const plan = { summary: "Your plan.", steps: [], ask_a_person: true, ask_a_person_reason: "Rent help needs a person." };
+    const text = paidSpeechText(plan);
+    expect(text).toContain("This needs a person too: Rent help needs a person. Call 211 or a community health worker.");
+    const r = await startCall(deps(), input({ text, token: issueSpeakToken("English", text, SPEAK, NOW) }));
+    if (r.state !== "calling") throw new Error(r.state);
+    expect((await verifyAndCall(deps(), { id: r.id, code: "4821" })).state).toBe("calling");
+    expect(voice).toHaveBeenCalledWith(text, "English");
+    // calls keep their language rules: no Amharic call, reason or not
+    expect((await startCall(deps(), input({ phone: "(404) 555-0199", text, language: "Amharic", token: issueSpeakToken("Amharic", text, SPEAK, NOW) }))).state).toBe("language");
+  });
 
   it("places the plan call with nothing in it but a code prompt: whoever answers (or voicemail) hears no plan", async () => {
     const id = await started();

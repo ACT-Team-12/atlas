@@ -5,6 +5,9 @@ import type { PlanResponse } from "@/lib/plan";
 import type { LANGUAGES } from "@/lib/schema";
 import { paidSpeechText } from "@/lib/speechText";
 import { nextPoll, pollDelayMs, pollNotice, POLL_WINDOW_MS, startPoll, type PollState } from "@/lib/call/poll";
+import { DockLabel } from "./DockLabel";
+import { LANGUAGE_NAME } from "@/lib/uiText";
+import { useUi } from "./UiLang";
 
 /**
  * "Call me with my plan": ATLAS phones the person and reads the plan in its language. For someone who can't read or
@@ -64,7 +67,9 @@ export function line(s: Status, suffix: string, typed: string): string {
   }
 }
 
-export function CallMe({ plan, language }: { plan: PlanResponse; language: Language }) {
+/** `short`: a one-word label for phones (the plan's bottom bar); wider screens keep the full words. */
+export function CallMe({ plan, language, short }: { plan: PlanResponse; language: Language; short?: string }) {
+  const { t } = useUi();
   const [cfg, setCfg] = useState<{ enabled: boolean; languages: string[] } | null>(null);
   const [open, setOpen] = useState(false);
   const [phone, setPhone] = useState("");
@@ -77,6 +82,28 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   const [typed, setTyped] = useState(""); // the code the person typed: the plan call asks for it again before it plays
   const [suffix, setSuffix] = useState(""); // the number's last 4 digits, kept here: the server clears its copy when the call ends
   const panelId = useId();
+  const toggle = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  // A tap or click anywhere else, or Escape, folds the panel away (Akhil, Oct 4: it only closed from its own button).
+  // Only the panel hides: what was typed and a call in progress stay as they are. It listens for the finished click,
+  // in the bubble phase, so the control that was tapped acts first and the bar does not shrink under the finger, and
+  // keyboard and screen-reader activation (a click with no pointer) closes it too (Codex review).
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: MouseEvent) => {
+      const t = e.target as Node | null;
+      if (t && (panel.current?.contains(t) || toggle.current?.contains(t))) return;
+      setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      toggle.current?.focus();
+    };
+    document.addEventListener("click", outside);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("click", outside); document.removeEventListener("keydown", esc); };
+  }, [open]);
   const [poll, setPoll] = useState<PollState>(() => startPoll(0)); // restarted, timed from now, when a call is asked for
   const text = paidSpeechText(plan);
   // The plan this panel's call belongs to. A response that comes back after the plan changed (or the panel went away)
@@ -158,19 +185,25 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
   const restart = () => { setId(null); setSt(null); setMsg(""); setConsent(false); };
 
   const callable = cfg.languages.includes(language);
+  const callLong = t("dock.callMe.long");
   const tooLong = text.length > MAX_CALL_CHARS;
   const showStart = !st || ["code_missed", "expired", "failed", "gone", "done"].includes(st.phase);
-  const input = "mt-1 w-full max-w-xs rounded-xl border-2 border-ink bg-paper px-3 py-2 font-mono focus:outline-none focus:ring-4 focus:ring-sun";
+  const input = "mt-1 w-full max-w-xs rounded-xl border-2 border-ink bg-paper px-3 py-2 font-mono focus:outline-none focus:ring-4 focus:ring-sky-deep";
   const button = "rounded-full border-2 border-ink bg-sun px-4 py-2 font-extrabold disabled:opacity-60";
 
   return (
     <>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId} className="rounded-full border-2 border-ink bg-paper px-4 py-2">
-        📞 Call me with my plan
+      <button ref={toggle} type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId} className="rounded-full border-2 border-ink bg-paper px-4 py-2">
+        {short ? <DockLabel icon="📞" short={short} long={callLong} /> : `📞 ${callLong}`}
       </button>
       {open && (
-        <div id={panelId} className="basis-full mt-1 rounded-2xl border-2 border-ink bg-paper p-4 font-normal">
-          <p className="font-extrabold">ATLAS can call you and read this plan out loud, in {language}.</p>
+        <div ref={panel} id={panelId} className="basis-full mt-1 rounded-2xl border-2 border-ink bg-paper p-4 font-normal">
+          <p className="font-extrabold">{t("call.intro", { language: LANGUAGE_NAME[language] })}</p>
+          {/* The rest of the panel (the consent, the code steps, what is stored and deleted) stays in English until a native
+              speaker reviews it: a machine-drafted consent is not one a person can rely on. Said in their language, and
+              marked lang="en" so a screen reader uses an English voice for it (Codex review of PR 93). */}
+          {language !== "English" && <p className="mt-1 text-sm font-bold">{t("call.inEnglish", { language: LANGUAGE_NAME[language] })}</p>}
+          <div lang="en">
           {!callable ? (
             <p className="mt-2 text-sm font-bold">Phone calls aren&apos;t available in {language} yet. Use Read it out loud or Print instead.</p>
           ) : tooLong ? (
@@ -183,7 +216,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
               )}
               {st?.phase === "code" && (
                 <form onSubmit={verify} className="mt-3 grid gap-2">
-                  <label className="text-sm font-bold">The 4-digit code from the call
+                  <label className="grid text-sm font-bold">The 4-digit code from the call
                     <input inputMode="numeric" autoComplete="one-time-code" maxLength={4} value={code}
                       onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="0000" className={input} />
                   </label>
@@ -195,7 +228,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
               )}
               {showStart && (
                 <form onSubmit={askCode} className="mt-3 grid gap-2">
-                  <label className="text-sm font-bold">Your phone number (US)
+                  <label className="grid text-sm font-bold">Your phone number (US)
                     <input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
                       placeholder="(404) 555-2368" className={input} />
                   </label>
@@ -215,6 +248,7 @@ export function CallMe({ plan, language }: { plan: PlanResponse; language: Langu
           )}
           {msg && <p role="alert" className="mt-2 text-sm font-bold text-peach-deep">{msg}</p>}
           <p className="mt-3 text-xs font-semibold text-ink/70">Your number and plan text are stored encrypted while your call is in progress and deleted from our database when it ends. ATLAS refuses to open them after 30 minutes, and if a delete fails, our cleanup (every 5 minutes) removes them later.</p>
+          </div>
         </div>
       )}
     </>

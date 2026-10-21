@@ -2,6 +2,8 @@
 
 import { useId, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { printOrView, SESSION_SHEET } from "./printView";
+import { useUi } from "./UiLang";
 import { ACTIVITIES, ACTIVITY_LABEL, type Activity, sessionSummary, SUMMARY_FOOT, SUMMARY_TITLE, type SessionPlanState } from "@/lib/sessionSummary";
 
 const noop = () => () => {};
@@ -13,11 +15,12 @@ const PRINT_CSS = `
   html.print-session body > *:not(#atlas-session-sheet) { display: none !important; }
   html.print-session, html.print-session body { background: #fff !important; }
   html.print-session .atlas-session-sheet { display: block; color: #000; font-size: 12pt; line-height: 1.4; }
-  .atlas-session-sheet h1 { font-size: 18pt; margin: 0 0 4pt; }
-  .atlas-session-sheet h2 { font-size: 13pt; margin: 12pt 0 4pt; border-bottom: 1.5pt solid #000; padding-bottom: 2pt; break-after: avoid; }
-  .atlas-session-sheet p { margin: 0 0 2pt; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .atlas-session-sheet .foot { margin-top: 14pt; font-size: 9pt; color: #333; }
-}`;
+}
+/* The type rules hold on screen too, for the sheet view in browsers that can't print from a button (printView.ts). */
+.atlas-session-sheet h1 { font-size: 18pt; margin: 0 0 4pt; }
+.atlas-session-sheet h2 { font-size: 13pt; margin: 12pt 0 4pt; border-bottom: 1.5pt solid #000; padding-bottom: 2pt; break-after: avoid; }
+.atlas-session-sheet p { margin: 0 0 2pt; white-space: pre-wrap; overflow-wrap: anywhere; }
+.atlas-session-sheet .foot { margin-top: 14pt; font-size: 9pt; color: #333; }`;
 
 /**
  * "For helpers: session summary": a CHW or navigator fills in minutes, notes and consent, then copies or prints a
@@ -29,6 +32,7 @@ export function SessionSummary(props: SessionPlanState) {
   const [consent, setConsent] = useState(false);
   const [msg, setMsg] = useState("");
   const id = useId();
+  const { t, code } = useUi();
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const s = sessionSummary(props, { minutes, notes, consentDiscussed: consent });
 
@@ -36,18 +40,16 @@ export function SessionSummary(props: SessionPlanState) {
     navigator.clipboard?.writeText(s.text).then(() => setMsg("Copied. Paste it into your notes.")).catch(() => setMsg("Couldn't copy. Select the text below and copy it."));
   }
 
-  function print() {
-    const root = document.documentElement;
-    const done = () => { root.classList.remove("print-session"); window.removeEventListener("afterprint", done); };
-    root.classList.add("print-session");
-    window.addEventListener("afterprint", done);
-    window.print();
+  function print(e: { currentTarget: Element }) {
+    printOrView(SESSION_SHEET, e.currentTarget); // the sheet on screen first, printed from its bar (printView.ts)
   }
 
   return (
-    <details className="mt-6 rounded-2xl border-2 border-teal bg-paper p-4 sm:p-5 print:hidden">
-      <summary className="cursor-pointer font-extrabold text-teal-deep focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
-        For helpers: session summary
+    // A helper's documentation draft for an English case note: the panel stays in English and says so in the page's
+    // language (Codex review of PR 93), like the questions written for a pharmacist.
+    <details lang="en" className="mt-6 rounded-2xl border-2 border-teal bg-paper p-4 sm:p-5 print:hidden">
+      <summary lang={code} className="cursor-pointer font-extrabold text-teal-deep focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-deep">
+        {t("session.title")}
       </summary>
       <p className="mt-2 text-xs font-semibold text-ink/70">Stays on this device. A draft for your own notes; you and your clinic decide what goes in a record.</p>
 
@@ -83,7 +85,7 @@ export function SessionSummary(props: SessionPlanState) {
       </div>
 
       <label htmlFor={id} className="mt-4 block text-xs font-bold text-ink/70">What it will say</label>
-      <textarea id={id} readOnly data-lenis-prevent value={s.text} className="mt-1 h-56 w-full rounded-xl border-2 border-ink/40 bg-paper p-2 font-mono text-xs" />
+      <textarea id={id} readOnly data-lenis-prevent value={s.text} className="mt-1 h-56 w-full rounded-xl border-2 border-ink/60 bg-paper p-2 font-mono text-xs" />
 
       {mounted && createPortal(
         <div id="atlas-session-sheet" className="atlas-session-sheet" aria-hidden="true">

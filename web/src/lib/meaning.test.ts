@@ -261,3 +261,99 @@ describe("Codex round 13: a false \"same\" never certifies a flipped meaning", (
     expect(combine("x", { ...base, source_quote: "Take your pill in the morning.", plain_language: "Tome su pastilla por la mañana." }, "same", "", "Spanish").certified).toBe(true);
   });
 });
+
+describe("a correct dose change in everyday words certifies; a wrong number, frequency or pairing never does", () => {
+  const base = { id: "x", when: "" };
+  const at = (paper: string, plain: string) => combine("x", { ...base, source_quote: paper, plain_language: plain }, "same", "");
+  it.each([
+    // "pills" for the paper's "tablets", and "used to" for its "Previously" (both refused before this fix).
+    "You used to take 10 mg once a day. Now take 2 pills (20 mg total) by mouth once a day.",
+    "Take 2 pills (20 mg total) by mouth once a day.",
+    "Now take 2 tablets (20 mg total) by mouth once a day.",
+  ])("%j against the lisinopril line: certified", (plain) => {
+    expect(at(lisinopril, plain).certified).toBe(true);
+  });
+  it.each([
+    // The doses swapped between before and now.
+    "You used to take 20 mg once a day. Now take 2 pills (10 mg total) by mouth once a day.",
+    // 20 mg read as 2 mg, or as the old 10 mg.
+    "Now take 2 pills (2 mg total) by mouth once a day.",
+    "Now take 2 pills (10 mg total) by mouth once a day.",
+    "Now take 20 pills (2 mg total) by mouth once a day.",
+    // A wrong count or a wrong frequency.
+    "Now take 1 pill (20 mg total) by mouth once a day.",
+    "Now take 2 pills (20 mg total) by mouth twice a day.",
+    "You used to take 2 pills once a day. Now take 10 mg.",
+  ])("%j against the lisinopril line: never certified", (plain) => {
+    expect(at(lisinopril, plain).certified).toBe(false);
+  });
+  it("a dose never moves to the other medicine because both are called pills", () => {
+    const two = "warfarin 2 mg tablet and vitamin K 5 mg tablet by mouth once daily.";
+    expect(at(two, "Take 5 mg warfarin pills once a day.").certified).toBe(false);
+    expect(at(two, "Take 2 mg vitamin K pills once a day.").certified).toBe(false);
+    expect(at(two, "Take warfarin 2 mg pill and vitamin K 5 mg pill once a day.").certified).toBe(true);
+  });
+  it.each([
+    // "used to" without a person is not "previously": the 5 mL here is the old dose, not the one to measure now.
+    ["Previously 5 mL. Use the cup to measure 10 mL.", "Use the cup used to measure 5 mL."],
+    // A shared "tablet" never stands in for the medicine name the three-word window dropped.
+    ["Take aspirin pill 2 times daily. Take warfarin 5 times daily.", "Take warfarin extended release tablet 2 times daily."],
+    ["The aspirin pill contains 2 mg. Warfarin contains 5 mg.", "The warfarin extended release tablet contains 2 mg."],
+    // Nor for a medicine named after the number (Codex round 2).
+    ["The aspirin pill contains 2 mg. Warfarin contains 5 mg.", "The tablet contains 2 mg warfarin."],
+    ["The aspirin pill contains 2 mg. Warfarin contains 5 mg.", "The pill contains 2 mg warfarin."],
+  ])("Codex: %j explained as %j is never certified", (paper, plain) => {
+    expect(at(paper, plain).certified).toBe(false);
+  });
+  it("the model still decides: a dose change it calls different is flagged", () => {
+    expect(combine("x", { ...base, source_quote: lisinopril, plain_language: "Take 2 pills (20 mg total) by mouth once a day." }, "different", "x").flagged).toBe(true);
+  });
+});
+
+describe("PR 76 follow-ups: stricter only", () => {
+  const base = { id: "x", when: "" };
+  const certifies = (paper: string, plain: string) => combine("x", { ...base, source_quote: paper, plain_language: plain }, "same", "").certified;
+
+  describe("(a) an explanation that gives only the OLD dose is not certified", () => {
+    it.each([
+      "You previously took 10 mg.",
+      "You used to take 10 mg once a day.",
+      "Take 2 pills. You took 10 mg before.",
+    ])("refuses %s", (plain) => {
+      expect(certifies(lisinopril, plain)).toBe(false);
+    });
+    it.each([
+      "You used to take 10 mg once a day. Now take 2 pills (20 mg total).",
+      "Take 2 tablets (20 mg total) by mouth once daily.",
+    ])("still certifies a correct one: %s", (plain) => {
+      expect(certifies(lisinopril, plain)).toBe(true);
+    });
+  });
+
+  describe("(b) a number moved to a different medicine is not certified, even when its unit has one value", () => {
+    const paper = "Take aspirin 2 mg. Take warfarin 1 tablet daily.";
+    it.each([
+      "Take warfarin 2 mg daily.",
+      "Take aspirin 1 tablet. Take warfarin 2 mg daily.",
+      "Take 2 mg warfarin daily.", // the name after the number (Codex review)
+    ])("refuses %s", (plain) => {
+      expect(certifies(paper, plain)).toBe(false);
+    });
+    it.each([
+      "Take aspirin 2 mg. Take warfarin 1 tablet daily.",
+      "Take aspirin 2 mg.",
+      "Take warfarin 1 tablet each day.",
+      "Take aspirin 2 mg and warfarin 1 tablet daily.",
+      "Take 2 mg of aspirin.",
+    ])("still certifies a correct one: %s", (plain) => {
+      expect(certifies(paper, plain)).toBe(true);
+    });
+    it("a decimal point is not a sentence end (Codex review round 2)", () => {
+      expect(certifies("Take aspirin 2.5 mg. Take warfarin 1 tablet daily.", "Take 2.5 mg warfarin daily.")).toBe(false);
+      expect(certifies("Take aspirin 2.5 mg. Take warfarin 1 tablet daily.", "Take aspirin 2.5 mg.")).toBe(true);
+    });
+    it("a time is never read as a medicine's dose (the second half of the prep, 5 hours before)", () => {
+      expect(certifies("5 hours before your procedure, drink the second half of the bowel prep.", "Drink the second half of the prep 5 hours before.")).toBe(true);
+    });
+  });
+});

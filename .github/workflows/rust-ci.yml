@@ -1,6 +1,7 @@
 name: rust-ci
 on:
   push:
+    branches: [main]
     paths:
       - "core/**"
       - "web/src/lib/verify.ts"

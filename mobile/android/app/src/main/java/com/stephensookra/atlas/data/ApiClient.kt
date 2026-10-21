@@ -38,28 +38,87 @@ object ApiErrors {
     }
 }
 
+/** The server calls AppModel makes, so a test can stand in for the network (StaleRepliesTest). */
+interface AtlasApi {
+    suspend fun extract(text: String, level: ReadingLevel, language: Language): CarePlanResponse
+    suspend fun plan(request: PlanRequest, fromHelperLink: Boolean = false): PlanResponse
+    suspend fun meaning(request: MeaningRequest): MeaningResponse
+    suspend fun ask(sourceText: String, language: Language, question: String): ApiClient.AskOutcome
+}
+
 /** Talks to the live ATLAS server. Only the text the person confirmed is sent; never a photo. */
-class ApiClient(private val baseUrl: String = BASE_URL) {
+class ApiClient(private val baseUrl: String = BASE_URL) : AtlasApi {
     companion object {
         const val BASE_URL = "https://atlas-team12.vercel.app"
         const val SURFACE_HEADER = "x-atlas-surface"
     }
 
-    suspend fun extract(text: String, level: ReadingLevel, language: Language): CarePlanResponse =
+    override suspend fun extract(text: String, level: ReadingLevel, language: Language): CarePlanResponse =
         post("/api/extract", AtlasJson.encodeToString(ExtractRequest.serializer(), ExtractRequest(text, level, language)),
             CarePlanResponse.serializer())
 
     /** `fromHelperLink`: this plan was built after opening a helper link (counted once by the server, never the link). */
-    suspend fun plan(request: PlanRequest, fromHelperLink: Boolean = false): PlanResponse =
+    override suspend fun plan(request: PlanRequest, fromHelperLink: Boolean): PlanResponse =
         post("/api/plan", AtlasJson.encodeToString(PlanRequest.serializer(), request), PlanResponse.serializer(),
             if (fromHelperLink) mapOf(HelperLink.ENTRY_HEADER to HelperLink.HELPER_ENTRY) else emptyMap())
 
     /** The second-model double-check of each explanation against its line (web/src/app/api/meaning). */
-    suspend fun meaning(request: MeaningRequest): MeaningResponse =
+    override suspend fun meaning(request: MeaningRequest): MeaningResponse =
         post("/api/meaning", AtlasJson.encodeToString(MeaningRequest.serializer(), request), MeaningResponse.serializer())
 
     suspend fun results(text: String, language: Language): ResultsResponse =
         post("/api/results", AtlasJson.encodeToString(ResultsRequest.serializer(), ResultsRequest(text, language)), ResultsResponse.serializer())
+
+    /** What /api/ask gave back: an answer to show, or a refusal (rate limit, daily cap, no AI key, bad request). */
+    sealed interface AskOutcome {
+        data class Answer(val response: AskPaper.Response) : AskOutcome
+        data class Refused(val status: Int, val limit: String?) : AskOutcome
+    }
+
+    /**
+     * "Ask my paper" (web/src/app/api/ask): the same body the website sends. A refusal comes back as its status and its
+     * x-atlas-limit header, so the screen shows fixed words in the person's language instead of the server's English.
+     * Network failures throw, as for every other call.
+     */
+    override suspend fun ask(sourceText: String, language: Language, question: String): AskOutcome = coroutineScope {
+        val conn = URL("$baseUrl/api/ask").openConnection() as HttpURLConnection
+        val body = AtlasJson.encodeToString(AskRequest.serializer(), AskRequest(sourceText, language, question))
+        val call = async(Dispatchers.IO) {
+            try {
+                conn.requestMethod = "POST"
+                conn.connectTimeout = 20_000
+                conn.readTimeout = 90_000
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.setRequestProperty("Accept", "application/json")
+                conn.setRequestProperty(SURFACE_HEADER, "android")
+                conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                val status = conn.responseCode
+                if (status !in 200..299) return@async AskOutcome.Refused(status, conn.getHeaderField("x-atlas-limit"))
+                val text = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                currentCoroutineContext().ensureActive()
+                AskOutcome.Answer(AskPaper.decode(text) ?: throw ApiException(ApiErrors.UNREADABLE))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ApiException) {
+                throw e
+            } catch (e: SocketTimeoutException) {
+                currentCoroutineContext().ensureActive()
+                throw ApiException(ApiErrors.TIMEOUT)
+            } catch (e: IOException) {
+                currentCoroutineContext().ensureActive()
+                throw ApiException(ApiErrors.OFFLINE)
+            } finally {
+                conn.disconnect()
+            }
+        }
+        try {
+            call.await()
+        } catch (e: CancellationException) {
+            conn.disconnect()
+            throw e
+        }
+    }
 
     private suspend fun <T> post(path: String, body: String, out: KSerializer<T>, headers: Map<String, String> = emptyMap()): T = coroutineScope {
         val conn = URL(baseUrl + path).openConnection() as HttpURLConnection

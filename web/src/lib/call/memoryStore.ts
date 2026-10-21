@@ -132,7 +132,7 @@ export class MemoryCallStore implements CallStore {
 
   async releaseSlot(key: string) { const n = this.counters.get(key) ?? 0; if (n > 0) this.counters.set(key, n - 1); }
 
-  async counter(key: string, now = Date.now()) {
+  async counter(key: string, now: number) {
     return (this.counterEnds.get(key) ?? Infinity) <= now ? 0 : this.counters.get(key) ?? 0;
   }
 }

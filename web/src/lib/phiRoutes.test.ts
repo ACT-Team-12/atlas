@@ -36,16 +36,19 @@ vi.mock("@anthropic-ai/sdk", () => ({
   },
 }));
 vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), after: () => {} }));
-vi.mock("@/lib/db", async (orig) => ({ ...(await orig<typeof import("./db")>()), recordEvent: () => {} }));
+vi.mock("@/lib/db", async (orig) => ({ ...(await orig<typeof import("./db")>()), recordEvent: () => {}, takeDailySlot: async () => ({ status: "ok", used: 1, limit: 1000 }) }));
 
 const extract = await import("@/app/api/extract/route");
 const stream = await import("@/app/api/extract/stream/route");
 const plan = await import("@/app/api/plan/route");
+const planStream = await import("@/app/api/plan/stream/route");
+const ask = await import("@/app/api/ask/route");
 const understand = await import("@/app/api/understand/route");
 const meaning = await import("@/app/api/meaning/route");
 const { verifySpeakToken } = await import("./speakToken");
 const { paidSpeechText } = await import("./speechText");
 const { readExtractEvents } = await import("./extractEvents");
+const { readPlanEvents } = await import("./planEvents");
 
 let ip = 0;
 const post = (path: string, body: unknown) =>
@@ -123,6 +126,22 @@ describe("raw requests: the AI never sees the identifiers, the answer has the re
     expect(r.status).toBe(200);
     neverSent();
   });
+
+  it("POST /api/ask", async () => {
+    // Quotes the shielded paper's own line, as the checker requires; the answer lands on the original paper.
+    answer = (params) => {
+      const doc = /<paper>\n([\s\S]*)\n<\/paper>/.exec(docOf(params))![1];
+      return { answered: true, urgent: false, topic: "", quotes: [doc.split("\n").find((l) => l.includes("metformin"))!] };
+    };
+    const r = await ask.POST(post("/api/ask", { source_text: NAMED_PAPER, language: "English", question: "How often does Maria Lopez take metformin?" }));
+    expect(r.status).toBe(200);
+    neverSent();
+    const body = await r.json();
+    expect(body.kind).toBe("answer");
+    expect(body.quotes[0].text).toContain("Maria, take metformin");
+    for (const q of body.quotes) expect(NAMED_PAPER.slice(q.span.start, q.span.end)).toBe(q.text);
+    expect(JSON.stringify(body)).not.toContain("⟦");
+  });
 });
 
 describe("rule 2: the plan, its voice and its call only ever hold what the AI wrote from redacted text", () => {
@@ -144,6 +163,24 @@ describe("rule 2: the plan, its voice and its call only ever hold what the AI wr
     expect(body.summary).toBe("Here is your plan. Should rest.");
     expect(body.steps[0].care_ids).toEqual(["item-0"]);
     expect(verifySpeakToken(body.speak_token, "English", text)).toBe(true);
+  });
+
+  it("POST /api/plan/stream: the same, step by step, with the real step ids back in every event", async () => {
+    answer = () => ({
+      summary: "⟦NAME_A⟧, here is your plan.",
+      steps: [{ title: "Book the lab, ⟦NAME_A⟧", action: "Call the clinic to book.", why: "", barrier: "transport", care_ids: ["atlas-step-1"], resource_ids: [] }],
+      ask_a_person: false,
+      ask_a_person_reason: "",
+    });
+    const care = [{ id: "item-0", kind: "lab_test", title: "A1c", plain_language: "Get the A1c test.", when: "3 months", source_quote: "Patient: Maria Lopez   DOB: 04/12/1961   MRN: 88412907 Hemoglobin A1c - due in 3 months" }];
+    const r = await planStream.POST(post("/api/plan/stream", { care, barriers: ["transport"], zip: "30303", language: "English", note: "Ms. Lopez works nights." }));
+    const previews: { steps: { care_ids: string[] }[] }[] = [];
+    const done = await readPlanEvents(r.body!, (p) => previews.push(p));
+    neverSent();
+    expect(previews.at(-1)!.steps[0].care_ids).toEqual(["item-0"]);
+    expect(done.steps[0].care_ids).toEqual(["item-0"]);
+    expect(done.summary).toBe("Here is your plan.");
+    expect(paidSpeechText(done)).not.toMatch(/⟦|⟧|NAME_/);
   });
 });
 
@@ -193,6 +230,13 @@ describe("the page's x-atlas-shielded header is never trusted", () => {
     answer = () => ({ summary: "Plan.", steps: [], ask_a_person: false, ask_a_person_reason: "" });
     const care = [{ id: "item-0", kind: "lab_test", title: "A1c", plain_language: "Get the A1c test.", when: "", source_quote: "Patient: Maria Lopez   DOB: 04/12/1961   MRN: 88412907" }];
     expect((await plan.POST(spoofed("/api/plan", { care, barriers: ["transport"], zip: "30303", language: "English", note: "" }))).status).toBe(200);
+    neverSent();
+    sent.length = 0;
+    await readPlanEvents((await planStream.POST(spoofed("/api/plan/stream", { care, barriers: ["transport"], zip: "30303", language: "English", note: "" }))).body!, () => {});
+    neverSent();
+    sent.length = 0;
+    answer = () => ({ answered: false, urgent: false, topic: "", quotes: [] });
+    expect((await ask.POST(spoofed("/api/ask", { source_text: NAMED_PAPER, language: "English", question: "What did Maria Lopez get?" }))).status).toBe(200);
     neverSent();
   });
 });

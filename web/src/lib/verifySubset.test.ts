@@ -113,7 +113,9 @@ describe("whole-word span rule only ever refuses more (security review, round 9)
     expect(all.length).toBeGreaterThan(5000);
     // Not vacuous: the new rule does refuse some cut-mid-word quotes the old one took.
     expect(newlyRefused).toBeGreaterThan(50);
-  });
+    // Heavy (CPU-bound, thousands of cases): fine alone, but under the full parallel suite on a small machine it has
+    // crossed vitest's 5 s default. An explicit timeout, not fewer cases.
+  }, 30_000);
   it("the checker test is unchanged: every real line accepted, every planted fake caught", () => {
     const r = runCheckerTest();
     expect(r.real).toMatchObject({ total: 38, accepted: 38 });

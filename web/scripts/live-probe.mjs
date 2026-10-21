@@ -1,5 +1,5 @@
 // Live probe of the judged path. Usage: node scripts/live-probe.mjs [baseUrl]   (default https://atlas-team12.vercel.app)
-// Run on a schedule by .github/workflows/live-probe.yml. Exits non-zero, naming the failed check, when anything is off.
+// Run by hand (the scheduled workflow was removed after the contest). Exits non-zero, naming the failed check, when anything is off.
 //
 // What it checks, in order:
 //   1. Every public page answers 200 AND contains a string unique to that page (a status alone can be an error page).

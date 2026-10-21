@@ -1,4 +1,5 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { PLACEHOLDER_RULE } from "./phiShield";
 import { ExtractError, MODEL, makeClient } from "./extract";
 import { buildPrepTimeline, PrepModelOutput, type PrepRequest, type PrepResponse } from "./prepTimeline";
 
@@ -18,7 +19,7 @@ export async function preparePrep(req: PrepRequest): Promise<PrepResponse> {
   const msg = await client.messages.parse({
     model: MODEL,
     max_tokens: 8000,
-    system: SYSTEM,
+    system: SYSTEM + PLACEHOLDER_RULE,
     output_config: { effort: "low", format: zodOutputFormat(PrepModelOutput) },
     messages: [{ role: "user", content: JSON.stringify({ language: req.language, paper: req.text }) }],
   });

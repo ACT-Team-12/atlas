@@ -4,11 +4,12 @@ import { describe, expect, it, vi } from "vitest";
  * POST /api/plan/stream against a replaced model stream: the lines it sends, the final body (the same as /api/plan,
  * tokens included), and its errors.
  */
+// The AI is sent opaque step ids (phiGuard.ts opaqueSteps), so it answers with them; the route puts item-4/5 back.
 const modelPlan = {
   summary: "Get the blood test this week.",
   steps: [
-    { title: "Fasting blood test (item-4)", action: "Go before breakfast.", why: "", barrier: "transport", care_ids: ["item-4"], resource_ids: [] },
-    { title: "Eye doctor visit", action: "Call to book.", why: "", barrier: "", care_ids: ["item-5"], resource_ids: [] },
+    { title: "Fasting blood test (atlas-step-1)", action: "Go before breakfast.", why: "", barrier: "transport", care_ids: ["atlas-step-1"], resource_ids: [] },
+    { title: "Eye doctor visit", action: "Call to book.", why: "", barrier: "", care_ids: ["atlas-step-2"], resource_ids: [] },
   ],
   ask_a_person: false,
   ask_a_person_reason: "",

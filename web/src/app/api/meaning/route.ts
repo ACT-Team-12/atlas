@@ -1,6 +1,7 @@
 import { guard } from "@/lib/guard";
 import { ExtractError } from "@/lib/extract";
 import { MeaningRequestSchema, checkMeaning } from "@/lib/meaning";
+import { guardMeaning } from "@/lib/phiGuard";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -17,7 +18,8 @@ export async function POST(request: Request) {
   const parsed = MeaningRequestSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   try {
-    return Response.json(await checkMeaning(parsed.data, request.signal));
+    // The steps' quotes and explanations are shielded for the AI checker (phiGuard.ts).
+    return Response.json(await guardMeaning(parsed.data, (req) => checkMeaning(req, request.signal)));
   } catch (e) {
     // The person cleared the paper, deleted the plan or read a new one: nobody is waiting, so nothing is logged.
     if (request.signal.aborted) return new Response(null, { status: 499 });

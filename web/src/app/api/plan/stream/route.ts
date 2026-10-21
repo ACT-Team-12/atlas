@@ -3,6 +3,7 @@ import { guard } from "@/lib/guard";
 import { entryOf, isTestRequest, recordEvent, surfaceOf } from "@/lib/db";
 import { PlanRequestSchema, makePlanClient, preparePlan, type PlanResponse } from "@/lib/plan";
 import { ExtractError } from "@/lib/extract";
+import { shieldPlan } from "@/lib/phiGuard";
 import { openPlanStream, streamPlan } from "@/lib/planStream";
 import { encodePlanEvent, type PlanEvent } from "@/lib/planEvents";
 import { issueFeedbackToken } from "@/lib/feedbackToken";
@@ -32,8 +33,11 @@ export async function POST(request: Request) {
   if (req.barriers.length === 0 && req.care.length === 0) {
     return Response.json({ error: "Pick at least one thing that gets in the way, or add your visit paper first." }, { status: 400 });
   }
+  let shielded: ReturnType<typeof shieldPlan>;
   try {
     makePlanClient(); // fail fast with a plain JSON error if the server has no key
+    // The care steps and the note are shielded, as on /api/plan (phiGuard.ts); a refusal is a plain JSON 413.
+    shielded = shieldPlan(req);
   } catch (e) {
     if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status });
     throw e;
@@ -61,11 +65,11 @@ export async function POST(request: Request) {
       let open = true;
       const emit = (e: PlanEvent) => {
         if (!open) return;
-        try { controller.enqueue(encoder.encode(encodePlanEvent(e))); } catch { open = false; }
+        try { controller.enqueue(encoder.encode(encodePlanEvent(shielded.restore(e)))); } catch { open = false; }
       };
       try {
-        const ctx = preparePlan(req);
-        const plan = await streamPlan(ctx, openPlanStream(ctx, abort.signal), emit);
+        const ctx = preparePlan(shielded.req);
+        const plan = shielded.restore(await streamPlan(ctx, openPlanStream(ctx, abort.signal), emit));
         // The same one-time tokens as /api/plan: rate this plan once, and read this plan's own text in the natural voice.
         emit({ type: "done", plan: { ...plan, feedback_token: issueFeedbackToken(), speak_token: issueSpeakToken(req.language, paidSpeechText(plan)) } });
         finished(plan);

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { LANGUAGES } from "./schema";
+import { stripTokens } from "./phiShield";
 
 /**
  * Natural read-aloud voice (ElevenLabs), server only. Browser voices are missing or robotic for several of our
@@ -101,7 +102,9 @@ async function vendor(key: string, code: string, text: string): Promise<ArrayBuf
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_64`, {
     method: "POST",
     headers: { "xi-api-key": key, "content-type": "application/json", accept: "audio/mpeg" },
-    body: JSON.stringify({ text, model_id: VOICE_MODEL, language_code: code, voice_settings: { stability: 0.6, similarity_boost: 0.75 } }),
+    // stripTokens: the last net before ElevenLabs. Plan text never carries a PHI placeholder (planText.ts); if one ever
+    // slipped through, the voice skips it instead of reading it out.
+    body: JSON.stringify({ text: stripTokens(text), model_id: VOICE_MODEL, language_code: code, voice_settings: { stability: 0.6, similarity_boost: 0.75 } }),
     signal: AbortSignal.timeout(30_000),
   });
   // Status only, never the text: a 401 or 429 here means the key or the monthly allowance needs a person.

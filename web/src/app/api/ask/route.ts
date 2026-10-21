@@ -3,6 +3,7 @@ import { ExtractError } from "@/lib/extract";
 import { ASK_DAILY_LIMIT, AskRequestSchema, answerFromPaper, type AskResponse } from "@/lib/ask";
 import { isUrgentQuestion } from "@/lib/askText";
 import { secondsToUtcMidnight, takeDailySlot } from "@/lib/db";
+import { shieldAsk } from "@/lib/phiGuard";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -21,6 +22,14 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   // An emergency question never reaches the AI and never spends a slot: the page shows 911 / 211 guidance instead.
   if (isUrgentQuestion(parsed.data.question)) return Response.json({ kind: "urgent" } satisfies AskResponse);
+  // The paper and the question are shielded before a slot is spent: a text that cannot be shielded in full costs nothing.
+  let shielded: ReturnType<typeof shieldAsk>;
+  try {
+    shielded = shieldAsk(parsed.data);
+  } catch (e) {
+    if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status });
+    throw e;
+  }
   // A ceiling shared by every server instance, in Postgres (db/migrations/004_daily_usage.sql; "ask" is a new bucket
   // name in the existing table, no migration). Fails closed like /api/prep: no count, no paid model call.
   const slot = await takeDailySlot("ask", ASK_DAILY_LIMIT);
@@ -39,7 +48,7 @@ export async function POST(request: Request) {
   }
   try {
     // Nothing is stored: not the question, not the paper, only the day's count.
-    return Response.json(await answerFromPaper(parsed.data, request.signal), { headers: limitHeader });
+    return Response.json(shielded.restore(await answerFromPaper(shielded.req, request.signal)), { headers: limitHeader });
   } catch (e) {
     if (e instanceof ExtractError) return Response.json({ error: e.message }, { status: e.status, headers: limitHeader });
     // The kind of error only, never the request or message, so a paper or question can never land in the host logs.

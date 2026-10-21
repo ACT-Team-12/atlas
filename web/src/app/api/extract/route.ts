@@ -3,6 +3,7 @@ import { guard } from "@/lib/guard";
 import { isTestRequest, recordEvent, surfaceOf } from "@/lib/db";
 import { RequestSchema } from "@/lib/schema";
 import { extractCarePlan, ExtractError } from "@/lib/extract";
+import { guardExtract } from "@/lib/phiGuard";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -21,7 +22,8 @@ export async function POST(request: Request) {
     return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   }
   try {
-    const plan = await extractCarePlan(parsed.data, request.signal);
+    // The patient's identifiers become placeholders before the AI call and come back after it (phiGuard.ts).
+    const plan = await guardExtract(parsed.data, (req) => extractCarePlan(req, request.signal));
     const test = isTestRequest(request), surface = surfaceOf(request);
     // Counts and timing only; the paper itself is never recorded.
     after(() => recordEvent({

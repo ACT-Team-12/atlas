@@ -1,4 +1,5 @@
 import type { PlanResponse } from "./plan";
+import { stripTokens } from "./phiShield";
 
 /**
  * Internal ids never reach the person. The plan model is given care steps and resources WITH ids ("item-4",
@@ -78,7 +79,10 @@ export function restoredPlan<T extends PlanText & { speak_token?: string | null 
  */
 export function cleanPlanText<T extends PlanText>(plan: T, extraIds: Iterable<string> = []): T {
   const ids = [...planIds(plan), ...extraIds];
-  const s = (t: string) => stripIds(t, ids);
+  // Also removes every PHI placeholder (phiShield.ts): the plan model only ever sees shielded care steps, and its text
+  // is what the screen, the read-aloud voice (ElevenLabs) and the phone call (Vonage) say, so a "⟦NAME_A⟧" it copied
+  // must never reach any of them. This runs before /api/plan signs the read-aloud text.
+  const s = (t: string) => stripTokens(stripIds(t, ids));
   const steps = plan.steps.map((st) => {
     const next = { ...st, title: s(st.title), action: s(st.action), why: s(st.why) };
     return next.title === st.title && next.action === st.action && next.why === st.why ? st : next;
